@@ -1,0 +1,194 @@
+# DESCRIPTION
+# This is like bd7_3_3, except for the way that the answers are checked.
+# There is a problem in that the student could enter the same eigenvalue, eigenvector twice
+# and receive credit
+# ENDDESCRIPTION
+
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+           "PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGanswermacros.pl",
+           "PGgraphmacros.pl",
+           "PGmatrixmacros.pl",
+           "PGdiffeqmacros.pl",
+);
+
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 1;
+
+
+$a_det=0;
+$max_iterations = 10;
+$a= new Matrix(2,2);
+while (abs($a_det)<.1 && $max_iterations--) {
+# define matrix
+        $a->assign(1,1,random(-5,5,1) );
+        $a->assign(1,2,random(-5,5,1) );
+        $a->assign(2,1,random(-5,5,1) );
+        $a->assign(2,2,random(-5,5,1) );
+        $a_lr = $a->decompose_LR();
+        $a_det = $a_lr->det_LR()
+}
+warn "Can't calculate an invertable matrix" unless $max_iterations;
+#define inverse matrix
+        $b = $a_lr->invert_LR();
+#define eigenvalues
+    $e = new Matrix(2,2);
+    $e->one();
+    $e->assign(1,1, random(-5,5,1)*$a_det);
+    $e->assign(2,2, random(-5,5,1)*$a_det);
+#define final matrix
+        $matrix = $a * $e *$b;
+        $matrix_lr = $matrix->decompose_LR();
+        $matrix_det = $matrix_lr->det_LR();
+##########################
+
+BEGIN_TEXT
+Calculate the eigenvalues of this matrix:
+$PAR
+\{ mbox( "\( A = \) ", display_matrix($matrix) ) \}
+$BR 
+smaller eigenvalue \( = \) \{NAMED_ANS_RULE(vec1,10)\} $BR
+associated eigenvector \( =  \) ( \{ NAMED_ANS_RULE_OPTION(vec1,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec1,10) \} ) 
+$BR
+larger eigenvalue \( = \) \{ NAMED_ANS_RULE(vec2,10) \}
+$BR
+associated, eigenvector  \( = \)  ( \{ NAMED_ANS_RULE_OPTION(vec2,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec2,10) \} ) 
+
+END_TEXT
+
+TEXT();
+   $answer_string = "  The eigenvalues and eigenvectors are {". $e->element(1,1) . "," . $e->element(2,2)
+   . "} and the eigenvectors are ( " . join(" ,", $a->column(1)->list()) . " ) and ( " . join(" ,", $a->column(2)->list()) .
+   " )";
+   ($ans_eval1) = check_eigenvalue_and_eigenvector($matrix,);
+   ($ans_eval2) = check_eigenvalue_and_eigenvector( $matrix, );
+   $ans_eval1->{rh_ans}->{correct_ans} = $answer_string;
+   $ans_eval2->{rh_ans}->{correct_ans} = $answer_string;
+   NAMED_ANS( vec1 => $ans_eval1);
+   NAMED_ANS(vec2 => $ans_eval2 );
+
+
+#  behavior of differential equations defined by A
+$mc = new_multiple_choice();  # the parens are important -- otherwise the name of the object is new_multiple_choice.
+
+@answers =(
+        'All of the solutions curves would converge towards 0. (Stable node)',
+        'All of the solution curves would run away from 0. (Unstable node)',
+        'The solution curves would race towards zero and then veer away towards infinity. (Saddle)',
+        'The solution curves converge to different points.'
+);
+$matrix_trace=$matrix->trace();
+#switch
+
+$matrix_det <0                     && do {$ind=2 };  #saddle
+$matrix_det>0 and $matrix_trace>0  && do {$ind=1 };  #unstable node
+$matrix_det>0 and $matrix_trace<0  && do {$ind=0 };  # stable node
+$matrix_det==0                      && do {$ind=3 };
+
+
+
+
+
+       
+$mc->qa(
+        q!If \(y' = Ay\) is a differential equation, how would the solution curves behave?!,
+        splice(@answers,$ind,1)   # enter the correct answer
+        );
+       
+$mc->extra(@answers);
+
+
+
+
+
+BEGIN_TEXT
+$HR
+  $PAR
+[Note-- you'll probably want to view the phase plotter at
+\{htmlLink("http://webwork.math.rochester.edu/webwork2_course_files/fall04_mth163/phaseplaneplotters/launchXfunctions.html", q! phase plotter!)\} (right click to open in a new window).
+$BR
+Select the "integral curves utility" from the main menu. ]
+$PAR
+ \{ $mc->print_q() \}
+$BR
+\{ $mc->print_a() \}
+$HR
+END_TEXT
+
+ANS(radio_cmp($mc->correct_ans));
+
+sub check_eigenvalue_and_eigenvector {
+        my $matrix = shift;
+        my %options = @_;
+        my @correct_vector = ();
+        @correct_vector = @{$options{'correct_ans'}} if defined ($options{'correct_ans'});
+        my($row,$col) = $matrix->dim();
+        my $ans_eval = new AnswerEvaluator;
+        $ans_eval->ans_hash( correct_ans  => "( " . join(", ", @correct_vector ) . " )"  );
+        $ans_eval->install_pre_filter(~~&is_array);
+        $ans_eval->install_pre_filter(~~&std_num_array_filter);
+
+        $ans_eval->install_evaluator(sub { my $rh_ans = shift;
+                                                                           my %options  = @_;
+                                                                           my @vector = @{$rh_ans->input()};
+                                                                           my $eigenvalue = shift(@vector);
+                                                                           return($rh_ans) if @vector == 0;  # empty vectors are ignored
+                                                                           unless ($col == @vector ) {
+                                                                                $rh_ans->throw_error("BADANS", "The input vector ( @vector ) has the wrong size");
+                                                        return($rh_ans)
+                                                        # make sure the vectors are the same dimension
+                                           }
+                                                                                my $vec = Matrix->new_column_matrix(~~@vector);
+                                                                                my $zero_vec = new Matrix(2,1);
+                                                                                $zero_vec->zero();
+                                                                                if ($zero_vec == $vec) {
+                                                                                        $rh_ans->{score} = 0;
+                                                                                         return($rh_ans);
+                                                                                }
+                                                                                my $vec1 = $matrix * $vec;
+                                                                                my $out_vec = $vec1 - $eigenvalue*$vec;
+                                                                                my @diff = $out_vec->list();  # lists a column vector
+                                                                                $rh_ans->{score} = zero_check(~~@diff);
+                                                                                unless ( $rh_ans->{score} ) {
+                                                                                        my @out_vec1 = $vec1->list();
+                                                                                        $rh_ans->{ans_message} = "The the result of multiplying your vector" .
+                                                                                                " by the matrix is  ( " .
+                                                                                                join(" , ", @out_vec1 ) .
+                                                                                                " ) which is not $eigenvalue times the original vector ( " .
+                                                                                                join(" , ", @vector) . " ).";
+                                                                                }
+                                                                                $rh_ans->{type} = "check_eigenvector";
+                                                                                $rh_ans;
+        });
+        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
+                                                                                          my %options = @_;
+                                                                                          if ($rh_ans->catch_error('SYNTAX') ) {
+                                                                                                  $rh_ans->{ans_message} = $rh_ans->{error_message};
+                                                                                                  $rh_ans->clear_error('SYNTAX');
+                                                                                          }
+                                                                                          $rh_ans;
+        });
+        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
+                                                                                          my %options = @_;
+                                                                                          if ($rh_ans->catch_error('NOTARRAY') ) {
+                                                                                                  $rh_ans->{ans_message} = "This answer is supposed to be an array"; 
+                                                                                          }
+                                                                                          $rh_ans;
+        });
+        $ans_eval;
+}
+
+
+ENDDOCUMENT() ;       
+
+
+
+
+
+my

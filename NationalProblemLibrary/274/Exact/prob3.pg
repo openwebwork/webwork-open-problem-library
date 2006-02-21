@@ -1,0 +1,88 @@
+## DESCRIPTION
+##  ## Differential equations
+##
+##
+## ENDDESCRIPTION
+DOCUMENT() ;        # This should be the first executable line in the problem.
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"Parser.pl",
+"parserMultiPart.pl",
+"PGasu.pl"
+);
+
+TEXT(&beginproblem) ;
+$showPartialCorrectAnswers = 0;
+install_problem_grader(~~&std_problem_grader);
+
+$a= non_zero_random(-4,4);
+$b= non_zero_random(-4,4);
+$z = random (1,3);
+$k = non_zero_random(-4,4);
+if    ($k==$b){$c = $b}
+elsif ($z==3) {$c = $b-$k}
+else          {$c = $b}
+
+$d = non_zero_random(-4,4);  # this is exact if $b==$c
+$n = random(1,4);
+$n1=$n+1;
+$m = random(2,4);
+$m1= $m+1;
+if    ($c==$b-$k) {$Fxy = "not exact"}
+else          {$Fxy = "A*(($a/$m1) x^{$m1}+${b}xy + (${d}/$n1)y^${n1})+C"}
+
+$num = nicestring([-$a, -$b], ["x^{$m}", 'y']);
+$ypow = "y^{$n}";
+$ypow = "y" if ($n==1);
+$den = nicestring([$c, $d], ['x', $ypow]);
+
+Context('Numeric');
+Context()->variables->add('y'=>'Real');
+
+$mp = MultiPart("$a x^$m + $b y","$c x + $d y^$n")->with(
+      checker => sub {
+        my $correct = shift; my $student = shift; my $self = shift;
+        my ($F,$G) = @{$correct};
+        my ($f,$g) = @{$student};
+        return 0 unless $F/$G == $f/$g;
+        Context()->variables->add(a=>'Parameter');
+        my $result = ($F*'a' == $f || $F*'a' == $g);
+        Context()->variables->remove('a');
+        return $result;
+      },
+    );
+
+BEGIN_TEXT
+Use the "mixed partials" check to see if the following differential equation is exact.
+$BR
+$BR
+If it is exact find a function \(F(x,y)\) whose differential, 
+\(dF(x,y) \) gives the differential equation. That is, level curves \(F(x,y) = C\) are solutions to the differential equation:
+\[ \frac{dy}{dx} = \frac{ $num }{ $den }\]
+First rewrite as
+\[ M(x,y) \, dx + N(x,y) \, dy  = 0 \]
+where 
+\(M(x,y)= \) \{$mp->ans_rule(30) \} ,
+$BR
+ and \(N(x,y)= \) \{$mp->ans_rule(30) \}.
+$BR
+$BR
+If the equation is not exact, enter $BITALIC not exact, $EITALIC  otherwise enter in \(F(x,y)  \) as
+the solution of the differential equation here 
+ \{ ans_rule(45) \} \(= C \).
+END_TEXT
+
+ANS($mp->cmp);
+
+if    ($c==$b-$k) {ANS( str_cmp($Fxy ))}
+else          {
+  ANS( pc_evaluator([[fun_cmp("C", vars=>["x", "y"], params=>['C']), 0, 'This answer cannot be constant'],
+    [fun_cmp($Fxy,vars=>["x", "y"], params=>['A', 'C'] ), 1]]) )
+}
+
+ENDDOCUMENT() ;        # This should be the last executable line in the problem.
