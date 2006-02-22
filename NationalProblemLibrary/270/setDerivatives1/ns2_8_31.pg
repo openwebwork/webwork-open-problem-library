@@ -1,0 +1,152 @@
+##DESCRIPTION
+##KEYWORDS('derivative','definition', 'average velocity')
+##  Find the derivative of an oracle function using 
+##  the definition of the derivative.
+##ENDDESCRIPTION
+&DOCUMENT();
+
+loadMacros("PG.pl",
+           "PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGanswermacros.pl",
+           "PGnumericalmacros.pl",
+           "PGauxiliaryFunctions.pl",
+); 
+ 
+
+# define function to be evaluated
+$a= random(1,3,.1);
+$b= random(-4,4,.1);
+$c = random(-4,4,.1);
+$x0=random(-2,2,0.1);
+$function = FEQ(" ${a}x^2+${b}x +$c ");
+$f = sub {
+	my $x = shift;
+	$a*$x*$x + $b*$x +$c;
+};
+
+#  Calculate the cubic spline approximation to ax^2+bx+c
+$llimit = -5; $rlimit = 5;
+my $num_of_intervals = 500;  # number of interpolation points
+my $delta =  ($rlimit-$llimit)/($num_of_intervals); 
+my (@x_values, @y_values);
+foreach my $i (0..$num_of_intervals) {
+	my $x = $llimit + $delta*$i;
+	my $y = &$f($x);
+	push(@x_values, $x); push(@y_values,$y);
+}
+
+($t_ref, $a_ref, $b_ref, $c_ref, $d_ref) = create_cubic_spline (~~@x_values, ~~@y_values);
+
+$f_approx = cubic_spline(~~@x_values, ~~@y_values);
+
+#calculate a javaScript runtime cubic spline representation of this function.
+
+HEADER_TEXT(javaScript_cubic_spline(~~@x_values,~~@y_values, name => 'func', llimit => -3, rlimit => 3)  );
+
+#HEADER_TEXT(<<ENDSCRIPT);  # this function could be read by the student by looking at the HTML source code
+#<SCRIPT LANGUAGE="JavaScript">
+#<!-- Begin
+#function func(x) {
+#	return $a*x*x + $b*x + $c
+#}
+#-->
+#</SCRIPT>
+#
+#ENDSCRIPT
+
+TEXT(beginproblem());
+
+# A warning that we are using javaScript
+TEXT(M3("",
+"\begin{rawhtml}
+<NOSCRIPT> This problem requires that Java Script be enabled </NOSCRIPT> \end{rawhtml}
+",
+"<NOSCRIPT> This problem requires that Java Script be enabled </NOSCRIPT>"
+));
+
+BEGIN_TEXT
+
+
+$PAR
+The oracle function \( f(x) \) is presented below.  For each \(x\) value you enter the oracle will
+tell you the value \( f(x) \).
+Calculate the derivative of the function at \(  $x0 \) using the Newton quotient definition.
+$PAR
+\( f' (x) \) at \( $x0 \) = \{ans_rule(20) \}  You can use a 
+\{htmlLink(alias("${htmlDirectory}calc.html"), "calculator" ,q!TARGET = "calculator"!) \}
+
+$PAR
+
+END_TEXT
+
+
+
+
+
+$javaScript2 = begintable(3) .
+               MODES(HTML =>q{<TR>
+					<TH>x</TH><TH></TH><TH>f(x)</TH>
+					<TR>},
+					TeX => "x & \(\rightarrow\) & f(x)\\"
+				) .
+				row(MODES(HTML => qq{<INPUT TYPE="text"   NAME="Input"  Value = "$x0" Size="16">}, TeX => '\fbox{Enter \(x\)}' ),
+				    MODES(HTML => qq{<INPUT TYPE="button" VALUE="---f-->"  
+                        OnClick="this.form.Output.value=func(this.form.Input.value);">}, TeX => '\(\rightarrow\)'    ),
+                    MODES(HTML => qq{<INPUT TYPE="text"   NAME="Output"   Size="30">}, TeX => 'result: \(f(x)\)')
+				) .
+				row(MODES(HTML => qq{<INPUT TYPE="text"   NAME="Input2"  Value = "$x0" Size="16">}, TeX => '\fbox{Enter \(x\)}' ),
+				    MODES(HTML => qq{<INPUT TYPE="button" VALUE="---f-->"  
+                        OnClick="this.form.Output2.value=func(this.form.Input2.value);">}, TeX => '\(\rightarrow\)'    ),
+                    MODES(HTML => qq{<INPUT TYPE="text"   NAME="Output2"   Size="30">}, TeX => 'result: \(f(x)\)')
+				) .
+				row(MODES(HTML => qq{<INPUT TYPE="text"   NAME="Input3"  Value = "$x0" Size="16">}, TeX => '\fbox{Enter \(x\)}' ),
+				    MODES(HTML => qq{<INPUT TYPE="button" VALUE="---f-->"  
+                        OnClick="this.form.Output3.value=func(this.form.Input3.value);">}, TeX => '\(\rightarrow\)'    ),
+                    MODES(HTML => qq{<INPUT TYPE="text"   NAME="Output3"   Size="30">}, TeX => 'result: \(f(x)\)')
+				) . endtable();
+
+
+
+TEXT($javaScript2);      
+      
+BEGIN_TEXT
+$PAR
+Remember the technique for finding instantaneous velocities from average velocities? 
+This is the same thing.
+
+END_TEXT
+# The answer
+$h = .000001;
+$ans = ( &$f_approx($x0+$h) - &$f_approx($x0) )/$h;
+my ($ans_eval) = num_cmp( $ans, reltol => 1, format => '%0.14g');
+
+
+# we'll modify the answer messages a bit to give some encouragement.
+my $answer_evaluator = sub {
+						my $x = shift;
+						my $ans_hash = $ans_eval->evaluate($x);
+						return $ans_hash unless $x;
+						# otherwise fix the error message
+						$correct_answer = $ans_hash->{correct_ans};
+						my $error = $correct_answer - $ans_hash ->{student_ans};
+						#warn "correct answer $correct_answer and student answer", $ans_hash ->{student_ans}, "error $error";
+						my $relerror = 100* abs($error/$correct_answer) unless abs($correct_answer) <.000000001 ;
+						$relerror = .000000001 unless defined($relerror);
+						if ($relerror < 1 ) {
+							$ans_hash->{ans_message} = "Good.  Your answer is off by only about $error";
+						} elsif ($relerror < 10 ) {
+							 $ans_hash->{ans_message} = 'Your answer is within 10%. ';
+						} elsif($relerror < 50) {
+							$ans_hash->{ans_message} = 'Your answer is within 50%.  ';
+					    } else {
+					    	$ans_hash->{ans_message} = 'Your answer is off by more than 50%.';
+						}	 
+						$ans_hash;
+						};
+
+ANS( $answer_evaluator );  #We are allowing 1 percent error for the answer.
+
+			
+&ENDDOCUMENT;
+
