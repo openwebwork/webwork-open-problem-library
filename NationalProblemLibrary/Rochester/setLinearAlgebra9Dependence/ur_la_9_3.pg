@@ -1,0 +1,180 @@
+## DESCRIPTION
+## KEYWORDS('vectors', 'dependent', 'independent', 'relation')
+##
+## ENDDESCRIPTION
+
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+           "PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGanswermacros.pl",
+           "PGgraphmacros.pl",
+           "PGnumericalmacros.pl",
+           "PGmatrixmacros.pl",
+);
+
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 1;
+
+$flip = random(0,1,1);  # choose between dependent and independent vectors
+$lambda = new Matrix(4,1);
+# we'll scramble the vectors and coefficients
+@slice = NchooseK(4,4);
+
+$v01 = non_zero_random(-3,3,1);
+$v02 = random(-5,5,1);
+$v03 = non_zero_random(-3,3,1);
+$v04 = non_zero_random(-3,3,1);
+ 
+$vec[$slice[0]] = Matrix->new_column_matrix([$v01, $v02, $v03, $v04]);
+
+$mult = non_zero_random(-2,2,1);
+$d1 = non_zero_random(-3,3,1);
+$d2 = non_zero_random(-3,3,1);
+$d3 = random(-3,3,1);
+
+$v11 = $mult*$v01;
+$v12 = $mult*$v02+$d1;
+$v13 = $mult*$v03+$d2;
+$v14 = $mult*$v04+$d3;
+
+$vec[$slice[1]] = Matrix->new_column_matrix([ $v11, $v12, $v13, $v14 ]);
+
+$mult1 = non_zero_random(-2,2,1);
+$mult2 = random(-1,1,2);
+$d4 = non_zero_random(-3,3,1);
+$d5 = random(-3,3,1);
+
+$v21 = $mult1*$v01+$mult2*$v11;
+$v22 = $mult1*$v02+$mult2*$v12;
+$v23 = $mult1*$v03+$mult2*$v13+$d4;
+$v24 = $mult1*$v04+$mult2*$v14+$d5;
+
+$vec[$slice[2]] = Matrix->new_column_matrix([ $v21, $v22, $v23, $v24 ]);
+if ($flip==0) {
+	$mult3 = random(-2,2,1);
+	$mult4 = random(-1,1,1);
+	$mult5 = random(-1,1,1);
+	$d6 = non_zero_random(-2,2,1);
+		$v31 = $mult3 * $v01 + $mult4 * $v11 + $mult5 * $v21;
+		$v32 = $mult3 * $v02 + $mult4 * $v12 + $mult5 * $v22;
+		$v33 = $mult3 * $v03 + $mult4 * $v13 + $mult5 * $v23;
+		$v34 = $mult3 * $v04 + $mult4 * $v14 + $mult5 * $v24 + $d6;
+	$vec[$slice[3]] = Matrix->new_column_matrix([ $v31, $v32, $v33, $v34 ]);
+    $lambda->assign($slice[0]+1 ,1,0);
+    $lambda->assign($slice[1]+1 ,1,0);
+    $lambda->assign($slice[2]+1 ,1,0);
+    $lambda->assign($slice[3]+1 ,1,0);
+} else {
+	$lambda->assign($slice[0]+1 ,1,non_zero_random(-5,5,1) );
+	$lambda->assign($slice[1]+1 ,1,non_zero_random(-5,5,1) );
+	$lambda->assign($slice[2]+1 ,1,non_zero_random(-5,5,1) );
+	$vec[$slice[3]] =   ( $lambda->element($slice[0]+1,1) ) * $vec[$slice[0]] 
+	                   +( $lambda->element($slice[1]+1,1) ) * $vec[$slice[1]]
+	                   +( $lambda->element($slice[2]+1,1) ) * $vec[$slice[2]];
+	$lambda->assign($slice[3]+1,1,-1);
+}
+
+
+$sl = new_pop_up_select_list();
+$sl->qa(
+"Determine whether or not the four vectors listed above are linearly independent or linearly dependent.",
+($flip==0) ? 'Independent' : 'Dependent',
+);
+$sl->choose(1);
+$sl->ra_pop_up_list(['no_answer' => '  ?', 'Independent' => 'Linearly Independent', 'Dependent' => 'Linearly Dependent']);
+
+BEGIN_TEXT
+\{ mbox( 'Let \( A = \)', display_matrix($vec[0]), ', \( B = \)',  display_matrix($vec[1]),
+         ', \( C = \)', display_matrix($vec[2]), ', and \( D = \)', display_matrix($vec[3]), '.' ) \} 
+$BR
+\{$sl->print_q()\}  
+
+$BR
+If they are linearly dependent, determine a non-trivial linear relation - (a non-trivial relation is three numbers which
+are not all three zero.)
+Otherwise, if the vectors are linearly independent, enter 0's for 
+the coefficients, since that relationship $BBOLD always $EBOLD holds.
+$BR
+\{NAMED_ANS_RULE(vec1,10)\}          \( A + \) 
+\{NAMED_ANS_RULE_OPTION(vec1,10)\}   \( B + \) 
+\{NAMED_ANS_RULE_OPTION(vec1,10)\}   \( C + \) 
+\{NAMED_ANS_RULE_OPTION(vec1,10)\}   \( D = 0\). 
+$BR
+$BR
+You can use this \{htmlLink("/webwork_system_html/applets/matrix_row_tool.html",
+"row reduction tool", q!TARGET = "row_reduction"!) \} to help with the calculations.
+
+END_TEXT
+ANS str_cmp($sl->ra_correct_ans);
+NAMED_ANS vec1=> vec_cmp2($lambda);
+
+
+sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
+    my $correct_matrix = shift;
+    my %options = @_;
+    set_default_options( ~~%options,
+						 debug			=>	0,
+	);
+    $ans_eval = new AnswerEvaluator;
+    # This line enables the debug option for the answer evaluator factory.
+    $ans_eval->{debug} = $options{debug};  
+    # Set up the correct answer message.
+    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",  
+    					 type		  => 'vec_cmp2'
+    );
+    # Check that the input is a reference to an array. 
+    $ans_eval->install_pre_filter(~~&is_array);
+    # Check the syntax of the student's answer and perform any simplifications.
+    # This filter does arithmetic for you.
+ 	$ans_eval->install_pre_filter(~~&std_num_array_filter);
+    # Here is where the actually comparison is made to determine if the student's answer and the correct
+    # answer are multiples of each other.
+ 	$ans_eval->install_evaluator(sub { my $rh_ans = shift;
+ 									   my %options  = @_;
+ 									   my @in_vec=@{$rh_ans->input()};
+									   unless (@in_vec ) {
+ 	                                   		return($rh_ans); # return blank answers
+ 	                                   		# make sure the vectors are the same dimension
+ 	                                   }
+ 									   my $input_vec = Matrix->new_column_matrix($rh_ans->input());
+ 									   my ($param,$inv);
+ 									   if ($flip == 0) { #case of independent vectors
+ 									   		$param = new Matrix(1,1);
+ 									   		$param->zero;
+ 									   } else {
+ 									   		$param = $correct_matrix->proj_coeff($input_vec);
+ 									   		$param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
+ 									   }
+ 									    my $out_vec = $input_vec - $correct_matrix*$param;
+								 	    my @diff = $out_vec->list();  # lists a column vector
+								 		$rh_ans->{score} = zero_check(~~@diff,tol=>.001);
+								 		$rh_ans;
+
+ 								 	
+ 	});
+ 	# Clean up error messages and prepare them to be posted for the edification of the student.
+    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
+ 											  my %options = @_;
+ 											  if ($rh_ans->catch_error('NOTARRAY') ) {
+ 												  $rh_ans->{ans_message} = "This answer is supposed to be an array. There may be something wrong
+ 												  with the way the answer blanks were inserted -- or it might be something else.";  
+ 											  }
+ 											  $rh_ans;
+ 	});
+ 	$ans_eval->install_post_filter( sub { 	  my $rh_ans= shift;
+  											  my %options = @_;
+ 											  if ($rh_ans->catch_error('SYNTAX') ) {
+ 												  $rh_ans->{ans_message} .= $rh_ans->{error_message};
+ 												  $rh_ans->clear_error('SYNTAX');
+ 											  }
+											  $rh_ans;
+  	});
+    $ans_eval;
+}
+ENDDOCUMENT() ;        
+

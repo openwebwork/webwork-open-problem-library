@@ -1,0 +1,127 @@
+##DESCRIPTION
+##KEYWORDS('dot product', 'inner product', 'least', 'squares', 'data fitting', 'approximation')
+##
+##ENDDESCRIPTION
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGgraphmacros.pl",
+"PGmatrixmacros.pl", 
+"PGnumericalmacros.pl",
+"PGauxiliaryFunctions.pl"
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+
+# to make sure matrices are non-singular wrap the setup in a do BLOCK
+
+$c0 = random(-110,-100,1);
+$c1 = 1;
+$c2 = 0;
+$c3 = random(5,15,1);
+
+# g = 0 for female,  1 for male.
+@g = (0, 0, 0, 1, 1, 1);
+
+# generate random height (h), age(a) and weight(w) data.
+foreach $i (0..5) { 
+	$h[$i] = random(155+5*$i,159+5*$i,1);
+	$a[$i] = random(18+abs($i-3),20+abs($i-3),1);
+	$w[$i] = $c0 + $c1*$h[$i] + $c2*$a[$i] + $c3*$g[$i] + random(-1,1,1);
+}
+
+@s = NchooseK(6,5);
+
+$A = new Matrix(5,4); #holds data, first column is 1's
+$W = new Matrix(5,1); # holds weight.
+
+foreach $i (0..4) { 
+	$A -> assign($i+1,1,1);
+	$A -> assign($i+1,2,$h[$s[$i]]);
+	$A -> assign($i+1,3,$a[$s[$i]]);
+	$A -> assign($i+1,4,$g[$s[$i]]);
+	
+	$W -> assign($i+1,1,$w[$s[$i]]);
+}
+
+$AT = new Matrix(4,5);
+$AT->transpose($A);
+
+$B = new Matrix(4,4);
+$B = $AT * $A;
+
+$B_lr = $B->decompose_LR();
+$B_det = $B_lr->det_LR();
+
+# recalculate if the determinant of the matrix is 0, or close to zero.
+
+while (abs($B_det) <= E-5) {  # not enough to check for determinant zero
+	foreach $i (0..5) {
+        	$h[$i] = random(155+5*$i,159+5*$i,1);
+        	$a[$i] = random(18+abs($i-3),20+abs($i-3),1);
+	}
+	foreach $i (0..4) {
+        	$A -> assign($i+1,1,1);
+        	$A -> assign($i+1,2,$h[$s[$i]]);
+        	$A -> assign($i+1,3,$a[$s[$i]]);
+        	$A -> assign($i+1,4,$g[$s[$i]]);
+	} 
+	$AT->transpose($A);
+	$B = $AT * $A;
+	$B_lr = $B->decompose_LR();
+	$B_det = $B_lr->det_LR();
+}
+
+$I = new Matrix(4,4);
+
+$I = $B_lr->invert_LR();
+
+$SOL = $I * $AT * $W;
+
+BEGIN_TEXT
+
+The table below lists the height \(h\) (in cm), the age \(a\) (in years), the gender \(g\) (1="Male", 0="Female"), and
+the weight \(w\) (in kg) of some college students.
+
+\[ \begin{array}{|r|r|r|r|}
+\hline
+\mbox{Height } & \mbox{Age} & \mbox{Gender} & \mbox{Weight} \cr
+\hline
+$h[$s[0]]      & $a[$s[0]]  & $g[$s[0]]     & $w[$s[0]]     \cr
+\hline
+$h[$s[1]]      & $a[$s[1]]  & $g[$s[1]]     & $w[$s[1]]     \cr
+\hline
+$h[$s[2]]      & $a[$s[2]]  & $g[$s[2]]     & $w[$s[2]]     \cr
+\hline
+$h[$s[3]]      & $a[$s[3]]  & $g[$s[3]]     & $w[$s[3]]     \cr
+\hline
+$h[$s[4]]      & $a[$s[4]]  & $g[$s[4]]     & $w[$s[4]]     \cr
+\hline
+\end{array} \]
+
+We wish to fit a linear function of the form 
+\[ w(t) = c_0 + c_1 h + c_2 a + c_3 g \]
+which predicts the weight from the rest of the data. 
+Find the best approximation of this function, using least squares. 
+$BR
+\(c_0=\) \{ans_rule(10)\}, 
+$BR
+\(c_1=\) \{ans_rule(10)\}, 
+$BR
+\(c_2=\) \{ans_rule(10)\}, 
+$BR
+\(c_3=\) \{ans_rule(10)\}.
+
+END_TEXT
+
+ANS(num_cmp(ra_flatten_matrix($SOL)));
+
+ENDDOCUMENT();       # This should be the last executable line in the problem.
+

@@ -1,0 +1,94 @@
+##DESCRIPTION
+##KEYWORDS(matrices, rank)
+##
+##ENDDESCRIPTION
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGgraphmacros.pl",
+"PGmatrixmacros.pl",
+"PGnumericalmacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGmorematrixmacros.pl",
+);
+
+TEXT(beginproblem());
+
+$r_sq = non_zero_random(1,6,1);
+$a = non_zero_random(-9,9,1);
+$d = non_zero_random(-9,9,1);
+$b = non_zero_random(-.5,.5,.25);
+$c = ($r_sq**2-($a - $d )**2)/(4*$b);
+
+while( $a/$b == $c/$d ){
+$r_sq += 1;
+$c = ($r_sq**2-($a - $d )**2)/(4*$b);
+}
+
+## Eigen values are ($a+$d-$r_sq)/2 and ($a+$d+$r_sq)/2
+$e_1 = ($a+$d-$r_sq)/2;
+$e_2 = ($a+$d+$r_sq)/2;
+
+## Eigen vectors are
+$sol11 = 4*$b;
+$sol12 = 4*$b;
+$sol21 = 2*(-$a+$d-$r_sq);
+$sol22 = 2*(-$a+$d+$r_sq);
+
+
+
+$A = Matrix->new_from_array_ref([[$a,$b],[$c,$d]]);
+
+my $ae = new AnswerEvaluator;
+
+$ae->{debug} = 0;
+
+$ae->ans_hash( 	correct_ans 		=> 	mbox(display_matrix([[ $sol11,$sol12],[$sol21,$sol22]],'left'=>'.','right'=>'.'), display_matrix([[$e_1,0],[0,$e_2]],'left'=>'.','right'=>'.') )
+,
+		'zeroLevelTol'		=>	$main::functZeroLevelTolDefault,
+	       	'debug'			=>	0,
+);
+
+$ae->install_pre_filter(~~&ans_array_filter);
+
+$ae->install_evaluator(sub{
+	my $rh_ans = shift;
+	my $invertible = $rh_ans->{ra_student_ans}->[0];
+	$invertible = Matrix->new_from_array_ref($invertible);
+	my $lr_mat = $invertible->decompose_LR();
+
+	my $diagonal   = $rh_ans->{ra_student_ans}->[1];
+	
+	if( abs($lr_mat->det_LR()) > $rh_ans->{zeroLevelTol} && is_diagonal( $diagonal ) ){
+		if( abs($A * $invertible - $invertible * Matrix->new_from_array_ref($diagonal) ) < $rh_ans->{zeroLevelTol} ){
+			$rh_ans->{score}=1;
+		}			
+
+	}
+	$rh_ans;
+});
+
+$ae->install_post_filter(sub{
+	my $rh_ans = shift;
+	$rh_ans->clear_error('EVAL');
+	$rh_ans->clear_error('SYNTAX');
+	$rh_ans;
+});
+
+BEGIN_TEXT
+\{mbox( 'Let: ', '\(A = \)' , display_matrix($A) )\}$BR
+Find an invertible \(S\) and a diagonal \(D\) such that \(S^{-1}AS=D\). $BR
+\{mbox('\(S=\)',ans_array(2,2,3),'\(D=\)',ans_array_extension(2,2,3))\}
+END_TEXT
+
+ANS($ae);
+
+
+
+ENDDOCUMENT();       # This should be the last executable line in the problem.
+

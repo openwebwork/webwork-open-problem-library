@@ -1,0 +1,186 @@
+## DESCRIPTION
+## KEYWORDS('eigenvalue', 'eigenvector')
+##
+## ENDDESCRIPTION
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+           "PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGanswermacros.pl",
+           "PGgraphmacros.pl",
+           "PGmatrixmacros.pl",
+           "PGnumericalmacros.pl",
+           "PGdiffeqmacros.pl"
+);
+
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 1;
+
+$a= new Matrix(3,3);
+
+# create an invertible matrix with det either 1  or -1
+
+$a11 = random(-1,1,1);
+$a21 = random(-1,1,2);
+$a31 = random(-1,1,2);
+
+$b1 = random(-1,1,2);
+$a12 = $b1 * $a11;
+$m = random(-1,1,2);
+$a22 = $b1 * $a21 + $m;
+$a32 = $b1 * $a31;
+
+$c = random(-1,1,1);
+$d = random(-1,1,2);
+$n = random(-1,1,2);
+$a13 = $c * $a11 + $d * $a12 + $n;
+$a23 = $c * $a21 + $d * $a22;
+$a33 = $c * $a31 + $d * $a32;
+
+$det = - $a31 * $m * $n;
+
+# define matrix
+
+	$a->assign(1,1, $a11 );
+	$a->assign(1,2, $a12 );
+	$a->assign(1,3, $a13 );
+	$a->assign(2,1, $a21 );
+	$a->assign(2,2, $a22 );
+	$a->assign(2,3, $a23 );
+	$a->assign(3,1, $a31 );
+        $a->assign(3,2, $a32 );
+        $a->assign(3,3, $a33 );
+	$a_lr = $a->decompose_LR();
+	$a_det = $a_lr->det_LR();
+
+# define inverse matrix
+	$b = $a_lr->invert_LR();
+
+# define eigenvalues
+    $e = new Matrix(3,3);
+    $e->one();
+    $e->assign(1,1, random(-5,-2,1));
+    $e->assign(2,2, random(-1,1,1));
+    $e->assign(3,3, random(2,5,1));
+
+# define eigenvectors
+	$v1 = new Matrix(3,1);
+	$v1->assign(1,1, $a11);
+        $v1->assign(2,1, $a21);
+        $v1->assign(3,1, $a31);
+        	$v2 = new Matrix(3,1);
+        	$v2->assign(1,1, $a12);
+        	$v2->assign(2,1, $a22);
+        	$v2->assign(3,1, $a32);
+        $v3 = new Matrix(3,1);
+        $v3->assign(1,1, $a13);
+        $v3->assign(2,1, $a23);
+        $v3->assign(3,1, $a33);
+
+# define final matrix
+	$matrix = $a * $e *$b;
+	$matrix_lr = $matrix->decompose_LR();
+	$matrix_det = $matrix_lr->det_LR();
+
+BEGIN_TEXT
+
+Find the eigenvalues of the following matrix. 
+$BR
+[Note-- you may want to use a graphing calculator to estimate the roots of the polynomial which defines
+the eigenvalues. You can use the web version at
+\{htmlLink("/webwork_system_html/applets/phaseplaneplotters/launchXfunctions.html","xFunctions",q!TARGET="plotter"!)\}. 
+Also, You can use this \{htmlLink("/webwork_system_html/applets/matrix_row_tool.html",
+"row reduction tool", q!TARGET = "row_reduction"!) \} to help with the calculations.]
+$BR
+\{ mbox( '\( A = \)', display_matrix($matrix), '.' ) \} 
+$BR
+The eigenvalues are \( \lambda_1 < \lambda_2 < \lambda_3 \), where 
+$BR
+\( \lambda_1 = \) \{ans_rule(10)\}, 
+$BR
+associated eigenvector \( =  \) 
+( \{ NAMED_ANS_RULE(vec1,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec1,10) \} , \{ NAMED_ANS_RULE_OPTION(vec1,10) \}),  
+$BR
+\( \lambda_2 = \) \{ ans_rule(10) \},
+$BR
+associated  eigenvector  \( = \)  
+( \{ NAMED_ANS_RULE(vec2,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec2,10) \} , \{ NAMED_ANS_RULE_OPTION(vec2,10) \}),  
+$BR
+\( \lambda_3 = \) \{ ans_rule(10) \},
+$BR
+associated  eigenvector  \( = \)  
+( \{ NAMED_ANS_RULE(vec3,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec3,10) \} , \{ NAMED_ANS_RULE_OPTION(vec3,10) \}).
+
+END_TEXT
+	
+ANS(num_cmp($e->element(1,1),tol=>.01));
+    
+NAMED_ANS vec1=> vec_cmp2($v1);
+	
+ANS(num_cmp($e->element(2,2),tol=>.01));
+	
+NAMED_ANS vec2=> vec_cmp2($v2); 
+
+ANS(num_cmp($e->element(3,3),tol=>.01));
+ 
+NAMED_ANS vec3=> vec_cmp2($v3); 
+
+sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
+    my $correct_matrix = shift;
+    my %options = @_;
+    $ans_eval = new AnswerEvaluator;
+    $ans_eval->{debug} = $options{debug};
+    set_default_options( ~~%options,
+						 debug			=>	0,
+	);
+    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",
+                                         type             => 'vec_cmp2'
+    );
+    $ans_eval->install_pre_filter(~~&is_array);
+        $ans_eval->install_pre_filter(~~&std_num_array_filter);
+
+        $ans_eval->install_evaluator(sub { my $rh_ans = shift;
+                                                                           my %options  = @_;
+                                                                           my @in_vec=@{$rh_ans->input()};
+                                                                           unless (@in_vec ) {
+                                                        return($rh_ans); # return blank answers
+                                                        # make sure the vectors are the same dimension
+                                           }
+                                                                           my $input_vec = Matrix->new_column_matrix($rh_ans->input());
+                                                                           my ($param,$inv);
+                                                                                        $param = $correct_matrix->proj_coeff($input_vec);
+                                                                                        $param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
+                                                                            my $out_vec = $input_vec - $correct_matrix*$param;
+                                                                            my @diff = $out_vec->list();  # lists a column vector
+                                                                                $rh_ans->{score} = zero_check(~~@diff,tol=>.001);
+                                                                                $rh_ans;
+
+    
+        });
+    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
+                                                                                          my %options = @_;
+                                                                                          if ($rh_ans->catch_error('NOTARRAY') ) {
+                                                                                                  $rh_ans->{ans_message} = "This answer is supposed to be an array";
+                                                                                          }
+                                                                                          $rh_ans;
+        });
+        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
+                                                                                          my %options = @_;
+                                                                                          if ($rh_ans->catch_error('SYNTAX') ) {
+                                                                                                  $rh_ans->{ans_message} .= $rh_ans->{error_message};
+                                                                                                  $rh_ans->clear_error('SYNTAX');
+                                                                                          } 
+                                                                                          $rh_ans;
+        });
+    $ans_eval;
+}
+
+
+ENDDOCUMENT() ;        
+
+
+

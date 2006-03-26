@@ -1,0 +1,117 @@
+DOCUMENT();
+loadMacros("PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGanswermacros.pl",
+           "PGgraphmacros.pl",
+	   "PGmatrixmacros.pl",
+	   "PGmorematrixmacros.pl"
+);
+          
+TEXT(beginproblem());
+
+# First we define a graph with x and y in the range -1 to 10, axes (strong lines) 
+# defined at the point [0,0] and
+# with 11 gridlines horizontally and 11 grid lines veritically.
+# $graph is a graph object (or more appropriately, a pointer to a graph object).
+
+# We  will define a function and it's first and second derivatives defined 
+# on the domain [-1,10]
+
+$graph = init_graph(-1,-1,10,10,'axes'=>[0,0],'grid'=>[11,11]);
+
+@colors = ("blue", "red" ); 
+
+@labels = ('A', 'B' );
+
+$r=random( 8, 9, .5 );
+$r2 = random(5,6.5, .5 );
+$t=random( 3, 5, 1 );
+$t2=random( $t+1, 9, 1 );
+
+$p = 3.14159265358979;
+$a = $t * $p / 19;
+$a2 = $t2 * $p / 19;
+$dom = $r * cos( $a );
+$dom2 = $r2 * cos( $a2 );
+
+# defining strings need to be on one line
+
+$f = FEQ(
+"(sin($a))/(cos($a))x for x in <0,$dom> using color:$colors[0] and weight:2"
+);
+
+$fp = FEQ(
+"(sin($a2))/(cos($a2))x   for x in <0,$dom2> using color=$colors[1] and weight:2"
+);
+
+# Install the functions into the graph object.
+# Plot_functions converts the string to a subroutine which performs the
+# necessary calculations and
+# asks the graph object to plot the functions.
+($fRef,$fpRef) = plot_functions( $graph,
+                                       $f,$fp
+                                       );
+
+# create labels for each function
+# The 'left' tag determines the justification of the label to the defining point.
+$label_point= $dom;
+$label_f = new Label ( $label_point,&{$fRef->rule}($label_point),
+                       $labels[0], $colors[0],'left');
+        # NOTE: $fRef->rule is a reference to the subroutine which calculates the
+        # function.  It was defined in the output of plot_functions.
+        # It is used here to calculate the y value of the label corresponding
+        # to the function, and below to find the y values for the labels
+                # corresponding to the first and second derivatives.
+
+$label_point= $dom2;
+$label_fp = new Label ( $label_point,&{$fpRef->rule}($label_point),
+                       $labels[1],$colors[1],'left');
+		       
+# insert the labels into the graph
+$graph->lb($label_f,$label_fp);                
+
+# Begin writing the problem.
+
+$s = $r2/$r;
+$b = $a2 - $a;
+
+$A = Matrix->new_from_array_ref([[$r*cos($a)],[$r*sin($a)]]);
+$B = Matrix->new_from_array_ref([[$r2*cos($a2)],[$r2*sin($a2)]]);
+
+$ans = Matrix->new_from_array_ref([[$s*cos($b),-$s*sin($b)],[$s*sin($b),$s*cos($b)]]);
+
+my $ae = new AnswerEvaluator;
+
+$ae->{debug} = 0;
+
+$ae->ans_hash( 	correct_ans 		=> 	display_matrix($ans,'left'=>'.','right'=>'.'),
+		'zeroLevelTol'		=>	$main::functZeroLevelTolDefault,
+	       	'debug'			=>	0,
+);
+
+$ae->install_pre_filter(~~&ans_array_filter);
+
+$ae->install_evaluator(sub{
+	my $rh_ans = shift;
+	if( abs($B -  (Matrix->new_from_array_ref($rh_ans->{ra_student_ans}->[0]))*$A ) < $rh_ans->{zeroLevelTol} ){
+			$rh_ans->{score}=1;
+	}
+	$rh_ans;
+});
+
+$ae->install_post_filter(sub{
+	my $rh_ans = shift;
+	$rh_ans->clear_error('EVAL');
+	$rh_ans->clear_error('SYNTAX');
+	$rh_ans;
+});
+
+BEGIN_TEXT
+\{ image(insertGraph($graph)) \} $PAR
+The vector \(A\) (blue) has length \($r\), and makes an angle of \(\frac{$t\pi}{19}\) with the x-axis.$PAR
+The vector \(B\) (red) has length \($r2\), and makes an angle of \(\frac{$t2\pi}{19}\) with the x-axis.(click on the graph to see an enlarged image):$PAR
+Find the matrix which rotates and dilates vector \(A\) into vector \(B\).$PAR
+\{mbox( ans_array( 2 , 2, 15 ), "\(*\)", display_matrix([["$r*cos($a)"],["$r*sin($a)"]]), "\(=\)", display_matrix([["$r2*cos($a2)"],["$r2*sin($a2)"]])  )\}
+END_TEXT
+ANS($ae );
+ENDDOCUMENT();
