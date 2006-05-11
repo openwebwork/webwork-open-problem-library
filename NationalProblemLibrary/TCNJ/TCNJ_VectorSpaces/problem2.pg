@@ -1,0 +1,110 @@
+##DESCRIPTION
+##KEYWORDS('vector space', 'subspace', 'span')
+##
+##ENDDESCRIPTION
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGgraphmacros.pl",
+"PGmatrixmacros.pl", 
+"PGnumericalmacros.pl",
+"PGauxiliaryFunctions.pl"
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+$ans1 = non_zero_random(-5,5,1);
+$ans2 = 0;
+$ans3 = non_zero_random(-5,5,1);
+
+$v1 = new Matrix(3,1);
+$v1->assign(1,1, $ans1);
+$v1->assign(2,1, $ans2);
+$v1->assign(3,1, $ans3);
+
+if($ans1==1){
+   $str1 = "t";}
+elsif($ans1==-1){
+   $str1 = "-t";}
+else{
+   $str1 = $str1 . "$ans1";
+   $str1 = $str1 . "t";}
+
+$str2 = "0";
+
+if($ans3==1){
+   $str3 = "t";}
+elsif($ans3==-1){
+   $str3 = "-t";}
+else{
+   $str3 = $str3 . "$ans3";
+   $str3 = $str3 . "t";}
+
+BEGIN_TEXT
+
+\{ mbox( 'Let \(H\) be the set of all vectors of the form: ', display_matrix([[$str1],[$str2],[$str3]]), '.' ) \}
+Find a vector \(v\) in \( {\mathbb R}^3\) such that \( H=Span\left\{"\{"\} v\right\} \).
+$BR  
+\{ mbox( ' \(v=\)', display_matrix([[NAMED_ANS_RULE(vec1,5)],[NAMED_ANS_RULE_OPTION(vec1,5)], [NAMED_ANS_RULE_OPTION(vec1,5)]]), '.' ) \}
+
+END_TEXT
+
+NAMED_ANS vec1=> vec_cmp2($v1);
+
+sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
+    my $correct_matrix = shift;
+    my %options = @_;
+    $ans_eval = new AnswerEvaluator;
+    $ans_eval->{debug} = $options{debug};
+    set_default_options( ~~%options,
+						 debug			=>	0,
+	);
+    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",
+                                         type             => 'vec_cmp2'
+    );
+    $ans_eval->install_pre_filter(~~&is_array);
+        $ans_eval->install_pre_filter(~~&std_num_array_filter);
+
+        $ans_eval->install_evaluator(sub { my $rh_ans = shift;
+                                                                           my %options  = @_;
+                                                                           my @in_vec=@{$rh_ans->input()};
+                                                                           unless (@in_vec ) {
+                                                        return($rh_ans); # return blank answers
+                                                        # make sure the vectors are the same dimension
+                                           }
+                                                                           my $input_vec = Matrix->new_column_matrix($rh_ans->input());
+                                                                           my ($param,$inv);
+                                                                                        $param = $correct_matrix->proj_coeff($input_vec);
+                                                                                        $param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
+                                                                            my $out_vec = $input_vec - $correct_matrix*$param;
+                                                                            my @diff = $out_vec->list();  # lists a column vector
+                                                                                $rh_ans->{score} = zero_check(~~@diff,tol=>.001);
+                                                                                $rh_ans;
+
+    
+        });
+    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
+                                                                                          my %options = @_;
+                                                                                          if ($rh_ans->catch_error('NOTARRAY') ) {
+                                                                                                  $rh_ans->{ans_message} = "This answer is supposed to be an array";
+                                                                                          }
+                                                                                          $rh_ans;
+        });
+        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
+                                                                                          my %options = @_;
+                                                                                          if ($rh_ans->catch_error('SYNTAX') ) {
+                                                                                                  $rh_ans->{ans_message} .= $rh_ans->{error_message};
+                                                                                                  $rh_ans->clear_error('SYNTAX');
+                                                                                          } 
+                                                                                          $rh_ans;
+        });
+    $ans_eval;
+}
+
+ENDDOCUMENT();       # This should be the last executable line in the problem.

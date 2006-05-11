@@ -1,0 +1,144 @@
+##DESCRIPTION
+##KEYWORDS('matrices', 'diagonalization')
+##
+##ENDDESCRIPTION
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGgraphmacros.pl",
+"PGmatrixmacros.pl",
+"PGnumericalmacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGmorematrixmacros.pl",
+"PGdiffeqmacros.pl"
+);
+
+TEXT(beginproblem());
+
+$a= new Matrix(2,2);
+$a11 = random(-1,1,2);
+$a12 = non_zero_random(-3,3,1);
+$mult = non_zero_random(-2,2,1);
+$a21 = $mult * $a11;
+$b1 = random(-1,1,2);
+$a22 = $mult * $a12 + $b1;
+$a->assign(1,1, $a11 );
+$a->assign(1,2, $a12 );
+$a->assign(2,1, $a21 );
+$a->assign(2,2, $a22 );
+$a_lr = $a->decompose_LR();
+$a_det = $a11 * $b1;
+$b = $a_lr->invert_LR();
+$e = new Matrix(2,2);
+$e->one();
+$eig1 = non_zero_random(-8,8,1);
+$eig2 = non_zero_random(-8,8,1);
+while ($eig1 >= $eig2) { 
+   $eig2 = non_zero_random(-8,8,1); }
+$e->assign(1,1, $eig1);
+$e->assign(2,2, $eig2);
+	$v1 = new Matrix(2,1);
+	$v1->assign(1,1, $a11);
+        $v1->assign(2,1, $a21);
+      	$v2 = new Matrix(2,1);
+      	$v2->assign(1,1, $a12);
+       	$v2->assign(2,1, $a22);
+$matrix = $a * $e *$b;
+$matrix_lr = $matrix->decompose_LR();
+$matrix_det = $matrix_lr->det_LR();
+
+$a2= new Matrix(2,2);
+$a2->assign(1,1, $a12 );
+$a2->assign(1,2, $a11 );
+$a2->assign(2,1, $a22 );
+$a2->assign(2,2, $a21 );
+$e2 = new Matrix(2,2);
+$e2->one();
+$e2->assign(1,1, $eig2);
+$e2->assign(2,2, $eig1);
+
+BEGIN_TEXT
+\{mbox( 'Let: ', '\(A = \)' , display_matrix($matrix) )\}
+$BR
+Find two possibilities each for \(S\) and \(D\) such that \(A=SDS^{-1}\). Put the smaller eigenvalue in the first row of \(D_{1}\). 
+$BR
+$BR
+\{mbox( '\( S_{1} = \)', 
+display_matrix(
+[[ NAMED_ANS_RULE(vec1,5) , NAMED_ANS_RULE(vec2,5) ],
+[ NAMED_ANS_RULE_OPTION(vec1,5) ,  NAMED_ANS_RULE_OPTION(vec2,5) ]] ), 
+', \(D_{1} = \)', answer_matrix(2,2,5)
+)\}
+$BR
+$BR
+\{mbox('\(S_{2}=\)',
+display_matrix(
+[[ NAMED_ANS_RULE(vec3,5) , NAMED_ANS_RULE(vec4,5) ],
+[ NAMED_ANS_RULE_OPTION(vec3,5) ,  NAMED_ANS_RULE_OPTION(vec4,5) ]] ),
+', \(D_{2}=\)',answer_matrix(2,2,5))\}
+
+END_TEXT
+
+NAMED_ANS vec1=> vec_cmp2($v1);	
+NAMED_ANS vec2=> vec_cmp2($v2);
+ANS num_cmp(ra_flatten_matrix($e));
+NAMED_ANS vec3=> vec_cmp2($v2);	
+NAMED_ANS vec4=> vec_cmp2($v1);
+ANS num_cmp(ra_flatten_matrix($e2));
+
+sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
+    my $correct_matrix = shift;
+    my %options = @_;
+    $ans_eval = new AnswerEvaluator;
+    $ans_eval->{debug} = $options{debug};
+    set_default_options( ~~%options,
+						 debug			=>	0,
+	);
+    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",
+                                         type             => 'vec_cmp2'
+    );
+    $ans_eval->install_pre_filter(~~&is_array);
+        $ans_eval->install_pre_filter(~~&std_num_array_filter);
+
+        $ans_eval->install_evaluator(sub { my $rh_ans = shift;
+                                                                           my %options  = @_;
+                                                                           my @in_vec=@{$rh_ans->input()};
+                                                                           unless (@in_vec ) {
+                                                        return($rh_ans); # return blank answers
+                                                        # make sure the vectors are the same dimension
+                                           }
+                                                                           my $input_vec = Matrix->new_column_matrix($rh_ans->input());
+                                                                           my ($param,$inv);
+                                                                                        $param = $correct_matrix->proj_coeff($input_vec);
+                                                                                        $param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
+                                                                            my $out_vec = $input_vec - $correct_matrix*$param;
+                                                                            my @diff = $out_vec->list();  # lists a column vector
+                                                                                $rh_ans->{score} = zero_check(~~@diff,tol=>.001);
+                                                                                $rh_ans;
+
+    
+        });
+    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
+                                                                                          my %options = @_;
+                                                                                          if ($rh_ans->catch_error('NOTARRAY') ) {
+                                                                                                  $rh_ans->{ans_message} = "This answer is supposed to be an array";
+                                                                                          }
+                                                                                          $rh_ans;
+        });
+        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
+                                                                                          my %options = @_;
+                                                                                          if ($rh_ans->catch_error('SYNTAX') ) {
+                                                                                                  $rh_ans->{ans_message} .= $rh_ans->{error_message};
+                                                                                                  $rh_ans->clear_error('SYNTAX');
+                                                                                          } 
+                                                                                          $rh_ans;
+        });
+    $ans_eval;
+}
+
+ENDDOCUMENT();       # This should be the last executable line in the problem.

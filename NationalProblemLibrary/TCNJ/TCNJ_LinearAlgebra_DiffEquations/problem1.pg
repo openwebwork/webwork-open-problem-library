@@ -1,0 +1,159 @@
+##DESCRIPTION
+##KEYWORDS('differential equation', 'eigenvalue', 'matrix')
+##
+##ENDDESCRIPTION
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGgraphmacros.pl",
+"PGmatrixmacros.pl",
+"PGnumericalmacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGmorematrixmacros.pl",
+"PGdiffeqmacros.pl"
+);
+
+TEXT(beginproblem());
+
+$a= new Matrix(2,2);
+$a11 = random(-1,1,2);
+$a12 = non_zero_random(-3,3,1);
+$mult = non_zero_random(-2,2,1);
+$a21 = $mult * $a11;
+$b1 = random(-1,1,2);
+$a22 = $mult * $a12 + $b1;
+$a->assign(1,1, $a11 );
+$a->assign(1,2, $a12 );
+$a->assign(2,1, $a21 );
+$a->assign(2,2, $a22 );
+$a_lr = $a->decompose_LR();
+$a_det = $a11 * $b1;
+$b = $a_lr->invert_LR();
+$e = new Matrix(2,2);
+$e->one();
+$eig1 = non_zero_random(-8,8,1);
+$eig2 = non_zero_random(-8,8,1);
+while ($eig1 >= $eig2) { 
+   $eig1--;
+   if($eig1==0){
+      $eig1--;
+   }
+ }
+$e->assign(1,1, $eig1);
+$e->assign(2,2, $eig2);
+	$v1 = new Matrix(2,1);
+	$v1->assign(1,1, $a11);
+        $v1->assign(2,1, $a21);
+      	$v2 = new Matrix(2,1);
+      	$v2->assign(1,1, $a12);
+       	$v2->assign(2,1, $a22);
+$matrix = $a * $e *$b;
+$matrix_lr = $matrix->decompose_LR();
+$matrix_det = $matrix_lr->det_LR();
+
+$x1 = non_zero_random(-5,5,1);
+$x2 = non_zero_random(-5,5,1);
+
+$c1 = ($x1*$a22-$a12*$x2)/$a_det;
+$c2 = ($a11*$x2-$x1*$a21)/$a_det;
+
+$ans1 = $c1*$a11;
+$ans2 = $c2*$a12;
+$ans3 = $c1*$a21;
+$ans4 = $c2*$a22;
+
+
+
+$B=Matrix->new_from_array_ref([['x^\prime_1(t)'], ['x^\prime_2(t)']]);
+$variablenames=Matrix->new_from_array_ref( [['x_1(t)'],['x_2(t)']] );
+$C=Diff2System($matrix,$B,$variablenames);
+
+BEGIN_TEXT
+\{ mbox('Let \(x(t)=\)',  display_matrix([['\(x_1(t)\)'],['\(x_2(t)\)']]),
+' be  a solution to the system of differential equations:'
+)\}
+$BR
+$BR
+\( $C \)
+$BR
+$BR
+\{mbox( 'If \(x(0)=\)', display_matrix([[$x1],[$x2]]), ', find \(x(t)\).')\}
+Put the eigenvalues in ascending order when you enter \(x_1(t), x_2(t)\)
+below.
+$BR
+$BR
+\(x_{1}(t)=\) \{ans_rule(5)\} \(exp( \) \{ans_rule(5)\} \( t)+ \) \{ans_rule(5)\} \(exp( \) \{ans_rule(5)\} \( t) \)
+$BR
+$BR
+\(x_{2}(t)=\) \{ans_rule(5)\} \(exp( \) \{ans_rule(5)\} \( t)+ \) \{ans_rule(5)\} \(exp( \) \{ans_rule(5)\} \( t) \)
+
+END_TEXT
+
+
+sub Diff2System{
+    my $coeffs=shift();
+    my $vec = shift();
+    my $vname=shift();
+    my ($srow,$scol) = $coeffs->dim();
+    my ($vrow,$vcol) = $vec->dim();
+    my ($vnamerow,$vnamecol) = $vname->dim();
+    die "Wrong number of rows or columns" if (($vcol !=1) || ($vrow != $srow) || ($vnamecol !=1));
+    my $outstr="\begin{array}";
+    my $s;
+
+$outstr = $outstr . '{r';
+for(my $j=0; $j<$scol; $j++){
+   $outstr = $outstr . 'rr';
+}
+$outstr = $outstr . 'r}';
+
+for(my $j=0;$j<$srow;$j++){ 
+$outstr = $outstr . $vec->element($j+1,1) . "&=&"; 
+$s=0; 
+for(my $i=0,my $vn=1;$i<$scol;$i++,$vn++){ 
+my $varname=$vname->element($vn,1);
+my $a=$coeffs->element($j+1,$i+1); 
+if($a==0){ 
+## if coefficient is 0 then goto the next column by putting 2 &&'s
+$outstr = $outstr . '&&'; 
+}elsif($a>0){ 
+if($a==1){$a="";} 
+if($s==0){$outstr = $outstr . "& $a \,$varname";$s=1;
+} else{$outstr=$outstr . "&+& $a \, $varname";} 
+}else{ 
+if($s == 1){ 
+$a=-$a; 
+if($a==1){$a="";} 
+$outstr= $outstr . "&- &$a \,$varname"; 
+}else{
+if($a==-1){$a="-";}
+$outstr = $outstr . "& $a \, $varname";$s=1;}
+ } 
+} 
+$outstr = $outstr . "\\"; 
+} 
+$outstr= $outstr . ' \end{array}'; 
+return $outstr; }
+
+
+
+ANS num_cmp($ans1);
+ANS num_cmp($eig1);
+ANS num_cmp($ans2);
+ANS num_cmp($eig2);
+ANS num_cmp($ans3);
+ANS num_cmp($eig1);
+ANS num_cmp($ans4);
+ANS num_cmp($eig2);
+
+ENDDOCUMENT();       # This should be the last executable line in the problem.
+
+
+
+
+\{mbox( 'Let \(A = \)' , display_matrix($matrix), ' and 
