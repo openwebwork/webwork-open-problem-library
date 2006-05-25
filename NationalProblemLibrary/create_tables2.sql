@@ -9,7 +9,7 @@
 DROP TABLE IF EXISTS DBsubject;
 CREATE TABLE DBsubject
 (
-	DBsubject_id int(15) DEFAULT 0 NOT NULL auto_increment,
+	DBsubject_id int(15) NOT NULL auto_increment,
 	name varchar(127) NOT NULL,
 	KEY DBsubject (name),
 	PRIMARY KEY (DBsubject_id)
@@ -21,7 +21,7 @@ CREATE TABLE DBsubject
 DROP TABLE IF EXISTS DBchapter;
 CREATE TABLE DBchapter
 (
-	DBchapter_id int(15) DEFAULT 0 NOT NULL auto_increment,
+	DBchapter_id int(15) NOT NULL auto_increment,
 	name varchar(127) NOT NULL,
 	DBsubject_id int(15) DEFAULT 0 NOT NULL,
 	KEY DBchapter (name),
@@ -35,7 +35,7 @@ CREATE TABLE DBchapter
 DROP TABLE IF EXISTS DBsection;
 CREATE TABLE DBsection
 (
-	DBsection_id int(15) DEFAULT 0 NOT NULL auto_increment,
+	DBsection_id int(15) NOT NULL auto_increment,
 	name varchar(255) NOT NULL,
 	DBchapter_id int(15) DEFAULT 0 NOT NULL,
 	KEY DBsection (name),
@@ -48,7 +48,7 @@ CREATE TABLE DBsection
 DROP TABLE IF EXISTS institution;
 CREATE TABLE institution
 (
-	institution_id int (15) DEFAULT 0 NOT NULL auto_increment,
+	institution_id int (15) NOT NULL auto_increment,
 	name varchar (255) NOT NULL,
 	department varchar (255),
 	address varchar (255),
@@ -65,7 +65,7 @@ CREATE TABLE institution
 DROP TABLE IF EXISTS author;
 CREATE TABLE author
 (
-	author_id int (15) DEFAULT 0 NOT NULL auto_increment,
+	author_id int (15) NOT NULL auto_increment,
 	institution_id int (15) NOT NULL,
 	lastname varchar (100) NOT NULL,
 	firstname varchar (100) NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE author
 DROP TABLE IF EXISTS path;
 CREATE TABLE path
 (
-	path_id int(15) DEFAULT 0 NOT NULL auto_increment,
+	path_id int(15) NOT NULL auto_increment,
 	path varchar(127) NOT NULL,
 	machine varchar(127),
 	user varchar(127),
@@ -92,7 +92,7 @@ CREATE TABLE path
 DROP TABLE IF EXISTS pgfile;
 CREATE TABLE pgfile
 (
-	pgfile_id int(15) DEFAULT 0 NOT NULL auto_increment,
+	pgfile_id int(15) NOT NULL auto_increment,
 	DBsection_id int(15) NOT NULL,
 	author_id int(15),
 	institution_id int(15),
@@ -107,7 +107,7 @@ CREATE TABLE pgfile
 DROP TABLE IF EXISTS keyword;
 CREATE TABLE keyword
 (
-	keyword_id int(15) DEFAULT 0 NOT NULL auto_increment,
+	keyword_id int(15) NOT NULL auto_increment,
 	keyword varchar(65) NOT NULL,
 	KEY (keyword),
 	PRIMARY KEY (keyword_id)
@@ -139,7 +139,7 @@ CREATE TABLE pgfile_institution
 DROP TABLE IF EXISTS textbook;
 CREATE TABLE textbook
 (
-	textbook_id int (15) DEFAULT 0 NOT NULL auto_increment,
+	textbook_id int (15) NOT NULL auto_increment,
 	title varchar (255) NOT NULL,
 	edition int (3) DEFAULT 0 NOT NULL,
 	author varchar (63) NOT NULL,
@@ -155,7 +155,7 @@ CREATE TABLE textbook
 DROP TABLE IF EXISTS chapter;
 CREATE TABLE chapter
 (
-	chapter_id int (15) DEFAULT 0 NOT NULL auto_increment,
+	chapter_id int (15) NOT NULL auto_increment,
 	textbook_id int (15),
 	number int(3),
 	name varchar(127) NOT NULL,
@@ -170,7 +170,7 @@ CREATE TABLE chapter
 DROP TABLE IF EXISTS section;
 CREATE TABLE section
 (
-	section_id int(15) DEFAULT 0 NOT NULL auto_increment,
+	section_id int(15) NOT NULL auto_increment,
 	chapter_id int (15),
 	number int(3),
 	name varchar(127) NOT NULL,
@@ -184,7 +184,7 @@ CREATE TABLE section
 DROP TABLE IF EXISTS problem;
 CREATE TABLE problem
 (
-	problem_id int(15) DEFAULT 0 NOT NULL auto_increment,
+	problem_id int(15) NOT NULL auto_increment,
 	section_id int(15),
 	number int(4) NOT NULL,
 	page int(4),
