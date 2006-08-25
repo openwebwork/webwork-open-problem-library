@@ -51,6 +51,7 @@ sub problem_Table {
     $problem_endTable =
       "</TD></TR>\n</TABLE></TD></TR>\n</TABLE>\n".
       "</BLOCKQUOTE>\n";
+    $problem_beginTable = "";
 }
 
 #
