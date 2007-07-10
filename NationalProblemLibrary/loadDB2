@@ -31,13 +31,19 @@ my $cnt2 = 0;
 
 $| = 1; # autoflush output
 
+sub dbug {
+	my $msg = shift;
+	$cnt++;
+	print $msg if($verbose>1);
+	#    if($cnt==5000) { print "\n"; $cnt=0;}
+	print "." if($verbose==1 and ($cnt % 100 == 0));
+}
+
 system("mysql -uroot -p$passwd -B ProblemLibrary <./create_tables2.sql");
-print "Mysql database reinitialized\n";
+print "Mysql database reinitialized.\n";
 
 my $mydb =  "dbi:mysql:ProblemLibrary";
 
-print "Converting data from tagged pgfiles into mysql.\n";
-print "Number of files processed:\n";
 # From pgfile
 ## DBchapter('Limits and Derivatives')
 ## DBsection('Calculating Limits using the Limit Laws')
@@ -60,6 +66,107 @@ my $dbh = DBI->connect('dbi:mysql:ProblemLibrary', $user, $passwd);
 
 $dbh->{RaiseError} = 1;			#bail if anything fails via die
 
+#### First read in textbook information
+
+if(open(IN, "Textbooks")) {
+	print "Reading in textbook data.\n";
+	my %textinfo = ( TitleText => '', EditionText =>'', AuthorText=>'');
+	my $bookid = undef;
+	while (my $line = <IN>) {
+		$line =~ s|#*$||;
+		if($line =~ /^\s*(.*?)\s*>>>\s*(.*?)\s*$/) { # Should have chapter or section information
+			my $chapsec = $1;
+			my $title = $2;
+			if($chapsec=~ /(\d+)\.(\d+)/) { # We have a section
+				if(defined($bookid)) {
+					my $query = "SELECT chapter_id FROM chapter WHERE textbook_id = \"$bookid\" AND number = \"$1\"";
+					my $chapid = $dbh->selectrow_array($query);
+					if(defined($chapid)) {
+						$query = "SELECT section_id FROM section WHERE chapter_id = \"$chapid\" AND name = \"$title\"";
+						my $sectid = $dbh->selectrow_array($query);
+						if (!defined($sectid)) {
+							$dbh->do("INSERT INTO section
+					VALUES(
+						\"\",
+						\"$chapid\",
+						\"$2\",
+						\"$title\",
+						\"\"
+					)"
+								);
+							dbug "INSERT INTO section VALUES(\"\", \"$chapid\", \"$2\", \"$title\", \"\" )\n";
+						}
+					} else {
+						print "Cannot enter section $chapsec because textbook information is missing the chapter entry\n";
+					}
+				} else {
+					print "Cannot enter section $chapsec because textbook information is incomplete\n";
+				}
+			} else { # We have a chapter entry
+				if(defined($bookid)) {
+					my $query = "SELECT chapter_id FROM chapter WHERE textbook_id = \"$bookid\" AND name = \"$chapsec\"";
+					my $chapid = $dbh->selectrow_array($query);
+					if (!defined($chapid)) {
+						$dbh->do("INSERT INTO chapter
+					VALUES(
+						\"\",
+						\"$bookid\",
+						\"".$chapsec."\",
+						\"$title\",
+						\"\"
+					)"
+							);
+					dbug "INSERT INTO chapter VALUES(\"\", \"$bookid\", \"".$chapsec."\", \"$title\", \"\" )\n";
+					}
+				} else {
+					print "Cannot enter chapter $chapsec because textbook information is incomplete\n";
+				}
+			}
+		} elsif($line =~ /^\s*(TitleText|EditionText|AuthorText)\(\s*'(.*?)'\s*\)/) {
+			# Textbook information, maybe new
+			my $type = $1;
+			if(defined($textinfo{$type})) { # signals new text
+				%textinfo = ( TitleText => undef, 
+							  EditionText =>undef, 
+							  AuthorText=> undef);
+				$textinfo{$type} = $2;
+				$bookid = undef;
+			} else {
+				$textinfo{$type} = $2;
+				if(defined($textinfo{TitleText}) and 
+				   defined($textinfo{AuthorText}) and 
+				   defined($textinfo{EditionText})) {
+					my $query = "SELECT textbook_id FROM textbook WHERE title = \"$textinfo{TitleText}\" AND edition = \"$textinfo{EditionText}\" AND author=\"$textinfo{AuthorText}\"";
+					$bookid = $dbh->selectrow_array($query);
+					if (!defined($bookid)) {
+						$dbh->do("INSERT INTO textbook
+					VALUES(
+						\"\",
+						\"$textinfo{TitleText}\",
+						\"$textinfo{EditionText}\",
+						\"$textinfo{AuthorText}\",
+						\"\",
+						\"\",
+						\"\"
+					)"
+							);
+						dbug "INSERT INTO textbook VALUES( \"\", \"$textinfo{TitleText}\", \"$textinfo{EditionText}\", \"$textinfo{AuthorText}\", \"\", \"\", \"\" )\n";
+						$bookid = $dbh->selectrow_array($query);
+					}
+				}
+			}
+		}
+	}
+	close(IN);
+} else{
+	print "Textbooks file was not found.  Updating from cvs should fix this problem.\n";
+}
+
+print "Converting data from tagged pgfiles into mysql.\n";
+print "Number of files processed:\n";
+
+#### Now search for tagged problems
+
 find({ wanted => \&pgfiles, follow_fast=> 1}, $libraryRoot);
 
 sub kwtidy {
@@ -75,14 +182,6 @@ sub keywordcleaner {
 	my @spl1 = split /,/, $string;
 	my @spl2 = map(kwtidy($_), @spl1);
 	return(@spl2);
-}
-
-sub dbug {
-	my $msg = shift;
-	$cnt++;
-	print $msg if($verbose>1);
-	#    if($cnt==5000) { print "\n"; $cnt=0;}
-	print "." if($verbose==1 and ($cnt % 100 == 0));
 }
 
 # Save on passing these values around
@@ -108,7 +207,7 @@ sub pgfiles {
 		$pgfile = basename($name);
 		$pgpath = dirname($name);
 		$cnt2++;
-		print "$cnt2 " if(($cnt2 % 100) == 0);
+		printf("%5d", $cnt2) if(($cnt2 % 100) == 0);
 		print "\n" if(($cnt2 % 1000) == 0);
 		$pgpath =~ s|^$libraryRoot/||;
 		open(IN,"$name") or die "can not open $name: $!";
