@@ -1,0 +1,117 @@
+DOCUMENT();
+loadMacros(
+           "PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGanswermacros.pl",
+           "PGgraphmacros.pl"
+);
+          
+TEXT(beginproblem(), $BR,$BBOLD, "On-the-fly Graphics Example1", $EBOLD, $BR,$BR);
+$showPartialCorrectAnswers = 0;
+
+# First we define a graph with x and y in the range -4 to 4, axes (strong lines) 
+# defined at the point [0,0] and
+# with 8 gridlines horizontally and 8 grid lines veritically.
+# $graph is a graph object (or more appropriately, a pointer to a graph object).
+
+# We  will define a function and it's first and second derivatives defined 
+# on the domain [-4,4]
+$dom = 4;
+$graph = init_graph(-$dom,-$dom,$dom,$dom,'axes'=>[0,0],'grid'=>[8,8]);
+
+# Here are the basic colors -- we'll mix them up in the next example
+@colors = ("blue", "red", "green"); #orange, yellow,
+@scrambled_colors = @colors;
+@labels = ('A', 'B', 'C');
+@scrambled_labels = @labels;
+  
+$a=random(0, 6.3, .1);
+$b=random(1.1, 1.5, .1);
+# now define the functions too be graphed
+# defining strings need to be on one line (\n is not handled correctly)
+# The three variables $f, $fp, and $fpp contain  strings
+# with the correct syntax to be inputs into the plot_function
+# macro.  The FEQ macro (Format EQuation) cleans up the writing of the function. 
+# Otherwise we would need to worry about the signs of $a, $b and so forth.
+# For example if $b were negative, then after interpolation
+# $a+$b might look like 3+-5.  FEQ replaces the +- pair by -, which is what you want.
+
+# The first string (for $f) should be read as: "The function is calculated
+# using sin($a+$b*cos(x))
+# and is defined for all x in the
+# interval -$dom to +$dom.  Draw the function using the first color
+# in the permuted color list @scrambled_colors
+# and using a weight (width) of two pixels."
+
+$f = FEQ(
+       "sin($a+$b*cos(x)) for x in <-$dom,$dom> using color:$scrambled_colors[0] and weight:2"
+);
+$fp = FEQ(
+      "cos($a+${b}*cos(x))*(-$b)*sin(x)   for x in <-$dom,$dom> using color=$scrambled_colors[1] and weight:2"
+);
+# The multiplication signs are not actually needed, although they are allowed.
+     $fpp = FEQ("-sin($a+${b}*cos(x))*$b*$b* sin(x)* sin(x)+ cos($a+$b* cos(x))*(-$b)*cos(x) for x in <-$dom,$dom> using color=$scrambled_colors[2] and weight=2"
+);
+
+
+
+# Install the functions into the graph object.
+# Plot_functions converts the string to a subroutine which performs the
+# necessary calculations and
+# asks the graph object to plot the functions.
+
+($fRef,$fpRef,$fppRef) = plot_functions( $graph,
+                                       $f,$fp,$fpp
+                                       );
+
+# The output of plot_functions is a list of pointers to functions which
+# contain the appropriate data and methods.
+# So $fpRef->rule points to the method which will calculate the value
+# of the function.
+# &{$fpRef->rule}(3) calculates the value of the function at 3.
+
+# create labels for each function
+# The 'left' tag determines the justification of the label to the defining point.
+
+
+$label_point=-0.75;
+$label_f = new Label ( $label_point,&{$fRef->rule}($label_point),
+                       $scrambled_labels[0], $scrambled_colors[0],'left');
+        # NOTE: $fRef->ruleis a reference to the subroutine which calculates the
+        # function.  It was defined in the output of plot_functions.
+        # It is used here to calculate the y value of the label corresponding
+        # to the function, and below to find the y values for the labels
+                # corresponding to the first and second derivatives.
+
+$label_fp = new Label ( $label_point,&{$fpRef->rule}($label_point),
+                       $scrambled_labels[1],$scrambled_colors[1],'left');
+# Place the second letter in the permuted letter list at the point
+# (-.75, fp(-.75)) using the second color in the permuted color list.
+
+$label_fpp = new Label ( $label_point,&{$fppRef->rule}($label_point),
+                       $scrambled_labels[2],$scrambled_colors[2],'left');  
+       
+# insert the labels into the graph
+$graph->lb($label_f,$label_fp,$label_fpp);                
+
+# make sure that the browser will fetch 
+# the new picture when it is created by changing the name of the
+# graph each time the problem seed is changed.  This helps prevent caching problems
+# on browsers.
+
+$graph->gifName($graph->gifName()."-$newProblemSeed");
+# Begin writing the problem.
+# This inserts the graph and then asks three questions:
+
+BEGIN_TEXT
+\{ image(insertGraph($graph)) \} $PAR
+Identify the graphs A (blue), B( red) and C (green) as the graphs 
+of a function and its
+derivatives (click on the graph to see an enlarged image):$PAR
+\{ans_rule(4)\} is the graph of the function $PAR
+\{ans_rule(4)\} is the graph of the function's first derivative $PAR
+\{ans_rule(4)\} is the graph of the function's second derivative $PAR
+END_TEXT
+ANS(str_cmp( [@scrambled_labels] ) );
+
+ENDDOCUMENT();

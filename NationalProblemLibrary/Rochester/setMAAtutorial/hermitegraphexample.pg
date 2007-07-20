@@ -1,0 +1,126 @@
+DOCUMENT();
+loadMacros("PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGanswermacros.pl",
+           "PGnumericalmacros.pl",
+           "PGgraphmacros.pl"
+);
+TEXT($BEGIN_ONE_COLUMN);
+TEXT(beginproblem(), $BR,$BBOLD, "Hermite polynomial graph example", $EBOLD, $BR,$BR); 
+$showPartialAnswers = 1;
+
+$graph = init_graph(-5,-5,5,5,'axes'=>[0,0],'grid'=>[10,10]);
+
+my (@x_values1, @y_values1);
+foreach $i (0..10) {
+	$x_values1[$i] =$i-5;
+	$y_values1[$i] = random(-4,4,1);
+}
+
+# creates a reference to a perl subroutine for the piecewise linear function 
+# passing through the defined points
+$fun_rule = plot_list(~~@x_values1, ~~@y_values1);
+
+#new function is to be plotted in graph
+$f1=new Fun($fun_rule, $graph); 
+$f1->color('black');
+
+$trans = non_zero_random(-2,2,1);
+# add a new function to the graph which is a translate of the first
+$fun_rule2 = sub{ my $x = shift; &$fun_rule($x-$trans)  }; 
+$f2 = new Fun($fun_rule2, $graph);  
+$f2->color('orange');
+
+$graph->stamps(open_circle(-1,&$fun_rule(-1),'black') ); 
+# indicates open interval at the left endpoint
+$graph->stamps(closed_circle(4,&$fun_rule(4), 'black') ); 
+# and a closed interval at the right endpoint
+# Be careful about getting the stamps properly located on the translated
+# function below:
+$graph->stamps(open_circle(-1 + $trans, &$fun_rule(-1),'orange') ); 
+# indicates open interval at the left endpoint
+$graph->stamps(closed_circle(4 +$trans, &$fun_rule(4), 'orange') ); 
+# and a closed interval at the right endpoint
+
+$graph2 = init_graph(-4,-4,4,4,'axes'=>[0,0],'grid'=>[8,8]);
+$b1= random(-3.5,3.5,.5);
+$b2= random(-3.5,3.5,.5);
+$b3= random(-3.5,3.5,.5);
+@x_val3 = (-4,-3,-2,-1,  0,   1,   2,  3, 4 );
+@y_val3 = ( 0, 1, 2, 0,$b1, $b2,  $b3,  1, 2 );
+@yp_val3= ( .1, 1, 0,-2,  0,    1,  2, -3, 1 );
+$hermite = new Hermite(
+         ~~@x_val3,   # x values
+                              ~~@y_val3,   # y values
+                              ~~@yp_val3   # y prime values
+                         );
+$spline_rule = $hermite->rf_f;                         
+$f3 = new Fun($spline_rule, $graph2);
+$f3->color('green');
+$graph2->stamps(closed_circle(-4, &$spline_rule(-4), 'green') ) ;
+$graph2->stamps(closed_circle( 4, &$spline_rule( 4), 'green') ) ;
+
+# Insert the graphs and the text. 
+BEGIN_TEXT
+
+$PAR
+We have developed other ways to specify graphs which are to be created 'on the fly'. 
+All of these new methods consist of adding macro packages to WeBWorK.  Since they
+do not require the core of WeBWorK to be changed, these enhancements can be added by
+anyone using WeBWorK. 
+$PAR
+ These two piecewise linear graphs were created by specifying the points at the nodes.
+ $BR Click on the graph to view a larger image.
+$PAR
+\{ image(insertGraph($graph),tex_size => 300, width=> 300, height=> 300 ) \}
+$HR
+If the black function is written as \(f(x)\), then the orange function 
+would be written as \( f( \) \{ ans_rule \} \( ) \).
+\{ANS(fun_cmp("x-$trans")),'' \}
+END_TEXT
+# $PAR
+# The numerical calculations were all written in Perl using
+# numerical routines adapted from the Numerical Analysis book by Burden and Faires. 
+# $BR
+# We are also working on a macro which will automatically
+# identify the maximum, minimum and inflection points of an arbitary hermite 
+# cubic spline from its specifying values.  This will allow automatic generation
+# of  problems in which the maximum, minimum and inflection points are to be 
+# deduced from a graph.  
+# 
+# Get the internal local maximums
+@critical_points = keys %{$hermite->rh_critical_points};
+@critical_points = num_sort( @critical_points);
+@minimum_points = ();
+foreach my $x (@critical_points) {
+	push(@minimum_points, $x) if &{$hermite->rf_fpp}($x) >0 ;
+}
+# TEXT(pretty_print(~~@minimum_points)); # (for debugging purposes)
+$answer_string = "";
+foreach my $x (@minimum_points) {
+	$answer_string .= EV2(' \{ ans_rule(10) \} ');
+} 
+
+BEGIN_TEXT
+$HR
+This graph was created using a hermite spline by specifying points at
+
+\{ begintable(1+scalar( @x_val3 ) ) \}
+\{ row('x', @x_val3)\}
+\{ row('y', @y_val3) \}
+\{ row('yp',@yp_val3) \}
+\{endtable() \}
+
+$PAR
+\{ begintable(2) \}
+\{row( image(insertGraph($graph2), tex_size => 300,width=>300, height=> 300),
+"List the internal local minimum points $BR in increasing order: $BR $answer_string"
+ ) \}
+\{ endtable() \}
+
+$PAR
+END_TEXT
+ANS(num_cmp([ @minimum_points ], tol => .3));
+
+TEXT($END_ONE_COLUMN);
+ENDDOCUMENT();
