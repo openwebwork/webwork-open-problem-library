@@ -1,0 +1,102 @@
+##DESCRIPTION
+##  A very simple first problem
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra')
+
+DOCUMENT();        
+# This should be the first executable line in the problem.
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl"
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+$a = random(-10,-1,1);
+$b = random(1,11,1);
+$c = random(1,11,1);
+$d = random(1,11,1);
+
+BEGIN_TEXT
+This problem demonstrates how you enter numerical answers into WeBWorK. $PAR
+Evaluate the expression \(3($a )($b -$c -2($d ))\):
+ \{ ans_rule(10) \}
+$BR
+
+END_TEXT
+
+
+$ans = 3*($a)*($b-$c-2*($d));
+
+# Here are the important lines where we build a new 
+# answer evaluator using the old.  
+# The new answer evaluator doesn't do much. Just adds
+# the message 'experimental'.
+
+$old_ans_eval = num_cmp($ans);
+
+# notice that num_cmp() is a function which PRODUCES an answer evaluator 
+# or technically a pointer to the answer evaluator object.  I prefer to think
+# of $old_ans_eval as actually containing the answer evaluator object.
+
+$new_eval = new AnswerEvaluator;
+
+# now we have a new, empty answer evaluator
+
+$new_eval->install_evaluator(sub {my $rh_ans=shift; 
+                                  $rh_ans = $old_ans_eval->evaluate($rh_ans->{student_ans});
+                                  $rh_ans->{ans_message}='experimental'; 
+                                  $rh_ans;} 
+);
+
+# We have added a new filter to the new answer evaluator.
+# The structure of a filter is that it is supposed to be a subroutine 
+# which accepts an answerHash object and returns an answerHash object.
+# The first problem is that an AnswerEvaluator is not subroutine 
+# (it's more complicated) so one can't use
+# &$old_ans_eval($answer_hash) to process an answer hash, you need to say
+# $old_ans_eval->evaluate($answer_hash).  
+# For this routine we wrap a subroutine around the old answer evaluator 
+# so that it will behave correctly.
+# [Note:  The evaluate routine in AnswerEvaluator should (IMHO) be modified 
+# so it can accept filters which are answer evaluators as well as ones
+# which are ordinary subroutines. This won't be too hard, only a few hours work. ] 
+
+# Secondly, even that might not work -- most answer evaluators, the ones built 
+# with all of the AnswerEvaluator tools accept either
+# a string input, OR an AnswerHash input.  Some of the older answer evalatuors, 
+# may not do this reliably 
+# -- there has not yet been a lot of reuse of answer evaluators so 
+# there has not been much testing in this area.
+# That appears to be the case with num_cmp type evaluators, so 
+# instead of feeding it an answerHash
+# we find the student answer inside the AnswerHash and feed it that. It will 
+# take some work, but 
+# eventually we should be able to refit all answer evaluators 
+# so that they will accept either a 
+# string or an AnswerHash and can therefore be used one inside the other.
+# At the moment the evaluators produced by str_cmp aren't 
+# even AnswerEvaluator objects, they are subroutines!
+
+
+# The final thing the filter does is to add the string 'experimental' to the 
+# answer message of the AnswerHash, just to prove that we've actually done
+# something.  You could do much more.
+
+# Final note -- I often use $rh_ans, the $rh_ means it's a pointer (reference) to a 
+# hash value, this way I can remember that the scalar variable holds something
+# more complicated than a single value.  I also use $r_ for reference, and $ra for 
+# a reference to an array.  Unfortunately I'm not consistent about this, but I use
+# technique when I'm likely to get confused as to what is a value and what is a pointer.
+
+ANS($new_eval);
+
+
+ENDDOCUMENT();        
+# This should be the last executable line in the problem.
