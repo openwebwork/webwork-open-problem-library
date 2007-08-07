@@ -11,6 +11,130 @@ BEGIN {
                 unless exists $ENV{WEBWORK_ROOT};
 }
 
+### Data for creating the database tables
+
+@create_tables = (
+['NPL-DBsubject', '
+	DBsubject_id int(15) NOT NULL auto_increment,
+	name varchar(127) NOT NULL,
+	KEY DBsubject (name),
+	PRIMARY KEY (DBsubject_id)
+'],
+['NPL-DBchapter', '
+	DBchapter_id int(15) NOT NULL auto_increment,
+	name varchar(127) NOT NULL,
+	DBsubject_id int(15) DEFAULT 0 NOT NULL,
+	KEY DBchapter (name),
+	KEY (DBsubject_id),
+	PRIMARY KEY (DBchapter_id)
+'],
+['NPL-DBsection', '
+	DBsection_id int(15) NOT NULL auto_increment,
+	name varchar(255) NOT NULL,
+	DBchapter_id int(15) DEFAULT 0 NOT NULL,
+	KEY DBsection (name),
+	KEY (DBchapter_id),
+	PRIMARY KEY (DBsection_id)
+'],
+['NPL-institution', '
+	institution_id int (15) NOT NULL auto_increment,
+	name varchar (255) NOT NULL,
+	department varchar (255),
+	address varchar (255),
+	city varchar (255),
+	state char(2),
+	zipcode char(10),
+	website varchar (255),
+	KEY institution (name),
+	PRIMARY KEY (institution_id)
+'],
+['NPL-author', '
+	author_id int (15) NOT NULL auto_increment,
+	institution_id int (15) NOT NULL,
+	lastname varchar (100) NOT NULL,
+	firstname varchar (100) NOT NULL,
+	email varchar (255),
+	KEY author (lastname, firstname),
+	PRIMARY KEY (author_id)
+'],
+['NPL-path', '
+	path_id int(15) NOT NULL auto_increment,
+	path varchar(127) NOT NULL,
+	machine varchar(127),
+	user varchar(127),
+	KEY (path),
+	PRIMARY KEY (path_id)
+'],
+['NPL-pgfile', '
+	pgfile_id int(15) NOT NULL auto_increment,
+	DBsection_id int(15) NOT NULL,
+	author_id int(15),
+	institution_id int(15),
+	path_id int(15) NOT NULL,
+	filename varchar(255) NOT NULL,
+	history blob,
+	PRIMARY KEY (pgfile_id)
+'],
+['NPL-keyword', '
+	keyword_id int(15) NOT NULL auto_increment,
+	keyword varchar(65) NOT NULL,
+	KEY (keyword),
+	PRIMARY KEY (keyword_id)
+'],
+['NPL-pgfile-keyword', '
+	pgfile_id int(15) DEFAULT 0 NOT NULL,
+	keyword_id int(15) DEFAULT 0 NOT NULL,
+	KEY pgfile_keyword (keyword_id, pgfile_id),
+	KEY pgfile (pgfile_id)
+'],
+['NPL-pgfile-institution', '
+	pgfile_id int(15) DEFAULT 0 NOT NULL,
+	institution_id int(15) DEFAULT 0 NOT NULL,
+	PRIMARY KEY (institution_id, pgfile_id)
+'],
+['NPL-textbook', '
+	textbook_id int (15) NOT NULL auto_increment,
+	title varchar (255) NOT NULL,
+	edition int (3) DEFAULT 0 NOT NULL,
+	author varchar (63) NOT NULL,
+	publisher varchar (127),
+	isbn char (15),
+	pubdate varchar (27),
+	PRIMARY KEY (textbook_id)
+'],
+['NPL-chapter', '
+	chapter_id int (15) NOT NULL auto_increment,
+	textbook_id int (15),
+	number int(3),
+	name varchar(127) NOT NULL,
+	page int(4),
+	PRIMARY KEY (chapter_id)
+'],
+['NPL-section', '
+	section_id int(15) NOT NULL auto_increment,
+	chapter_id int (15),
+	number int(3),
+	name varchar(127) NOT NULL,
+	page int(4),
+	PRIMARY KEY section (section_id)
+'],
+['NPL-problem', '
+	problem_id int(15) NOT NULL auto_increment,
+	section_id int(15),
+	number int(4) NOT NULL,
+	page int(4),
+	#KEY (page, number),
+	KEY (section_id),
+	PRIMARY KEY (problem_id)
+'],
+['NPL-pgfile-problem', '
+	pgfile_id int(15) DEFAULT 0 NOT NULL,
+	problem_id int(15) DEFAULT 0 NOT NULL,
+	PRIMARY KEY (pgfile_id, problem_id)
+']);
+
+### End of database data
+
 # Get database connection
 
 use lib "$ENV{WEBWORK_ROOT}/lib";
@@ -27,16 +151,9 @@ my $dbh = DBI->connect(
         },
 );
 
-if (! -e "create_tables2.sql") {
-	print "Cannot find file create_tables2.sql.\n";
-	print "This needs to be run from the directory it was unpacked to,\n";
-	print "in which case \"create_tables2.sql\" should be in this directory.\n";
-	exit;
-}
-
 my $passwd = $ce->{database_password};
 my $user = $ce->{database_username};
-my $libraryRoot = Cwd::cwd();
+my $libraryRoot = $ce->{problemLibrary}->{root};
 my $verbose =0;
 my $cnt = 0;
 my $cnt2 = 0;
@@ -51,7 +168,15 @@ sub dbug {
 	print "." if($verbose==1 and ($cnt % 100 == 0));
 }
 
-system("mysql -u$user -p$passwd -B webwork <./create_tables2.sql");
+for my $tableinfo (@create_tables) {
+    my $tabname = $tableinfo->[0];
+    my $tabinit = $tableinfo->[1];
+	my $query = "DROP TABLE IF EXISTS `$tabname`";
+	$dbh->do($query);
+	$query = "CREATE TABLE `$tabname` ( $tabinit )";
+	$dbh->do($query);
+}
+
 print "Mysql database reinitialized.\n";
 
 # From pgfile
@@ -71,12 +196,9 @@ print "Mysql database reinitialized.\n";
 
 my ($name,$pgfile,$pgpath);
 
-#recursive search for all pg files
-
-
 #### First read in textbook information
 
-if(open(IN, "Textbooks")) {
+if(open(IN, "$libraryRoot/Textbooks")) {
 	print "Reading in textbook data.\n";
 	my %textinfo = ( TitleText => '', EditionText =>'', AuthorText=>'');
 	my $bookid = undef;
@@ -174,6 +296,7 @@ print "Converting data from tagged pgfiles into mysql.\n";
 print "Number of files processed:\n";
 
 #### Now search for tagged problems
+#recursive search for all pg files
 
 find({ wanted => \&pgfiles, follow_fast=> 1}, $libraryRoot);
 
@@ -567,7 +690,7 @@ sub pgfiles {
 					)"
 							);
 					dbug "INSERT INTO textbook VALUES( \"\", \"$text\", \"$edition\", \"$textauthor\", \"\", \"\", \"\" )\n";
-					print "\nLate add into NPL-textbook \"$text\", \"$edition\", \"$textauthor\"\n";
+#					print "\nLate add into NPL-textbook \"$text\", \"$edition\", \"$textauthor\"\n";
 					$textbook_id = $dbh->selectrow_array($query);
 				}
 
