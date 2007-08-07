@@ -1,0 +1,646 @@
+#!/usr/bin/perl
+
+#use strict;
+use File::Find;
+use File::Basename;
+use Cwd;
+use DBI;
+
+if (! -e "create_tables2.sql") {
+	print "Cannot find file create_tables2.sql.\n";
+	print "This needs to be run from the directory it was unpacked to,\n";
+	print "in which case \"create_tables2.sql\" should be in this directory.\n";
+	exit;
+}
+
+my $passwd;
+
+if (@ARGV != 1) {
+	print "What is the root password for mysql? ";
+	$passwd = <STDIN>;
+	chomp($passwd);
+} else {
+	$passwd = $ARGV[0];
+}
+
+my $user = 'root';
+my $libraryRoot = Cwd::cwd();
+my $verbose =0;
+my $cnt = 0;
+my $cnt2 = 0;
+
+$| = 1; # autoflush output
+
+sub dbug {
+	my $msg = shift;
+	$cnt++;
+	print $msg if($verbose>1);
+	#    if($cnt==5000) { print "\n"; $cnt=0;}
+	print "." if($verbose==1 and ($cnt % 100 == 0));
+}
+
+system("mysql -uroot -p$passwd -B ProblemLibrary <./create_tables2.sql");
+print "Mysql database reinitialized.\n";
+
+my $mydb =  "dbi:mysql:ProblemLibrary";
+
+# From pgfile
+## DBchapter('Limits and Derivatives')
+## DBsection('Calculating Limits using the Limit Laws')
+## Date('6/3/2002')
+## Author('Tangan Gao')
+## Institution('csulb')
+## TitleText1('Calculus Early Transcendentals')
+## EditionText1('4')
+## AuthorText1('Stewart')
+## Section1('2.3')
+## Problem1('7')
+#
+# The database structure is in the file create_tables2.sql and its ER-graph is 
+#    the file wwdb_er_graph.pdf. 
+
+my ($name,$pgfile,$pgpath);
+
+#recursive search for all pg files
+my $dbh = DBI->connect('dbi:mysql:ProblemLibrary', $user, $passwd);
+
+$dbh->{RaiseError} = 1;			#bail if anything fails via die
+
+#### First read in textbook information
+
+if(open(IN, "Textbooks")) {
+	print "Reading in textbook data.\n";
+	my %textinfo = ( TitleText => '', EditionText =>'', AuthorText=>'');
+	my $bookid = undef;
+	while (my $line = <IN>) {
+		$line =~ s|#*$||;
+		if($line =~ /^\s*(.*?)\s*>>>\s*(.*?)\s*$/) { # Should have chapter or section information
+			my $chapsec = $1;
+			my $title = $2;
+			if($chapsec=~ /(\d+)\.(\d+)/) { # We have a section
+				if(defined($bookid)) {
+					my $query = "SELECT chapter_id FROM chapter WHERE textbook_id = \"$bookid\" AND number = \"$1\"";
+					my $chapid = $dbh->selectrow_array($query);
+					if(defined($chapid)) {
+						$query = "SELECT section_id FROM section WHERE chapter_id = \"$chapid\" AND name = \"$title\"";
+						my $sectid = $dbh->selectrow_array($query);
+						if (!defined($sectid)) {
+							$dbh->do("INSERT INTO section
+					VALUES(
+						\"\",
+						\"$chapid\",
+						\"$2\",
+						\"$title\",
+						\"\"
+					)"
+								);
+							dbug "INSERT INTO section VALUES(\"\", \"$chapid\", \"$2\", \"$title\", \"\" )\n";
+						}
+					} else {
+						print "Cannot enter section $chapsec because textbook information is missing the chapter entry\n";
+					}
+				} else {
+					print "Cannot enter section $chapsec because textbook information is incomplete\n";
+				}
+			} else { # We have a chapter entry
+				if(defined($bookid)) {
+					my $query = "SELECT chapter_id FROM chapter WHERE textbook_id = \"$bookid\" AND name = \"$chapsec\"";
+					my $chapid = $dbh->selectrow_array($query);
+					if (!defined($chapid)) {
+						$dbh->do("INSERT INTO chapter
+					VALUES(
+						\"\",
+						\"$bookid\",
+						\"".$chapsec."\",
+						\"$title\",
+						\"\"
+					)"
+							);
+					dbug "INSERT INTO chapter VALUES(\"\", \"$bookid\", \"".$chapsec."\", \"$title\", \"\" )\n";
+					}
+				} else {
+					print "Cannot enter chapter $chapsec because textbook information is incomplete\n";
+				}
+			}
+		} elsif($line =~ /^\s*(TitleText|EditionText|AuthorText)\(\s*'(.*?)'\s*\)/) {
+			# Textbook information, maybe new
+			my $type = $1;
+			if(defined($textinfo{$type})) { # signals new text
+				%textinfo = ( TitleText => undef, 
+							  EditionText =>undef, 
+							  AuthorText=> undef);
+				$textinfo{$type} = $2;
+				$bookid = undef;
+			} else {
+				$textinfo{$type} = $2;
+				if(defined($textinfo{TitleText}) and 
+				   defined($textinfo{AuthorText}) and 
+				   defined($textinfo{EditionText})) {
+					my $query = "SELECT textbook_id FROM textbook WHERE title = \"$textinfo{TitleText}\" AND edition = \"$textinfo{EditionText}\" AND author=\"$textinfo{AuthorText}\"";
+					$bookid = $dbh->selectrow_array($query);
+					if (!defined($bookid)) {
+						$dbh->do("INSERT INTO textbook
+					VALUES(
+						\"\",
+						\"$textinfo{TitleText}\",
+						\"$textinfo{EditionText}\",
+						\"$textinfo{AuthorText}\",
+						\"\",
+						\"\",
+						\"\"
+					)"
+							);
+						dbug "INSERT INTO textbook VALUES( \"\", \"$textinfo{TitleText}\", \"$textinfo{EditionText}\", \"$textinfo{AuthorText}\", \"\", \"\", \"\" )\n";
+						$bookid = $dbh->selectrow_array($query);
+					}
+				}
+			}
+		}
+	}
+	close(IN);
+} else{
+	print "Textbooks file was not found.  Updating from cvs should fix this problem.\n";
+}
+
+print "Converting data from tagged pgfiles into mysql.\n";
+print "Number of files processed:\n";
+
+#### Now search for tagged problems
+
+find({ wanted => \&pgfiles, follow_fast=> 1}, $libraryRoot);
+
+sub kwtidy {
+	my $s = shift;
+	$s =~ s/\W//g;
+	$s =~ s/_//g;
+	$s = lc($s);
+	return($s);
+}
+
+sub keywordcleaner {
+	my $string = shift;
+	my @spl1 = split /,/, $string;
+	my @spl2 = map(kwtidy($_), @spl1);
+	return(@spl2);
+}
+
+# Save on passing these values around
+my %textinfo;
+
+# Initialize, if needed more text-info information;
+sub maybenewtext {
+	my $textno = shift;
+	return if defined($textinfo{$textno});
+	# So, not defined yet
+	$textinfo{$textno} = { title => '', author =>'', edition =>'',
+						   section => '', chapter =>'', problems => [] };
+}
+
+# process each file returned by the find command.
+sub pgfiles {
+	my $name = $File::Find::name;
+	my ($subject, $chapter, $section, $date, $institution, $author, $text);
+	my ($edition, $textauthor, $textsection, $textproblem, $tagged);
+	%textinfo=();
+	my @textproblems = (-1);
+	if ($name =~ /pg$/) {
+		$pgfile = basename($name);
+		$pgpath = dirname($name);
+		$cnt2++;
+		printf("%6d", $cnt2) if(($cnt2 % 100) == 0);
+		print "\n" if(($cnt2 % 1000) == 0);
+		$pgpath =~ s|^$libraryRoot/||;
+		open(IN,"$name") or die "can not open $name: $!";
+		$tagged = 0;
+		while (<IN>) {
+		SWITCH: {
+				if (/KEYWORDS\((.*)\)/i) {
+					@keyword = keywordcleaner($1);
+					last SWITCH;
+				}
+				if (/DBsubject\(\s*'(.*?)'\s*\)/) {
+					$subject = $1;
+					$subject =~ s/'/\'/g;
+					last SWITCH;
+				}
+				if (/DBchapter\(\s*'(.*?)'\s*\)/) {
+					$chapter = $1;
+					$chapter =~ s/'/\'/g;
+					$tagged = 1;
+					last SWITCH;
+				}
+				if (/DBsection\(\s*'(.*?)'\s*\)/) {
+					$section = $1;
+					$section =~ s/'/\'/g;
+					last SWITCH;
+				}
+				if (/Date\(\s*'(.*?)'\s*\)/) {
+					$date = $1;
+					$date =~ s/'/\'/g;
+					last SWITCH;
+				}
+				if (/Institution\(\s*'(.*?)'\s*\)/) {
+					$institution = $1;
+					$institution =~ s/'/\'/g;
+					last SWITCH;
+				}
+				if (/Author\(\s*'(.*?)'\s*\)/) {
+					$author = $1;
+					$author =~ s/'/\'/g;
+					last SWITCH;
+				}
+				if (/TitleText(\d+)\(\s*'(.*?)'\s*\)/) {
+					$textno = $1;
+					$text = $2;
+					$text =~ s/'/\'/g;
+					if ($text =~ /\S/) {
+						maybenewtext($textno);
+						$textinfo{$textno}->{title} = $text;
+					}
+					last SWITCH;
+				}
+				if (/EditionText(\d+)\(\s*'(.*?)'\s*\)/) {
+					$textno = $1;	
+					$edition = $2;
+					$edition =~ s/'/\'/g;
+					if ($edition =~ /\S/) {
+						maybenewtext($textno);
+						$textinfo{$textno}->{edition} = $edition;
+					}
+					last SWITCH;
+				}
+				if (/AuthorText(\d+)\(\s*'(.*?)'\s*\)/) {
+					$textno = $1;
+					$textauthor = $2;
+					$textauthor =~ s/'/\'/g;
+					if ($textauthor =~ /\S/) {
+						maybenewtext($textno);
+						$textinfo{$textno}->{author} = $textauthor;
+					}
+					last SWITCH;
+				}
+				if (/Section(\d+)\(\s*'(.*?)'\s*\)/) {
+					$textno = $1;
+					$textsection = $2;
+					$textsection =~ s/'/\'/g;
+					if ($textsection =~ /\S/) {
+						maybenewtext($textno);
+						if ($textsection =~ /(\d*?)\.(\d*)/) {
+							$textinfo{$textno}->{chapter} = $1;
+							$textinfo{$textno}->{section} = $2;
+						} else {
+							$textinfo{$textno}->{chapter} = $textsection;
+							$textinfo{$textno}->{section} = '';
+							# used to be: $chapnum = undef;	#no valid number assigned
+						}
+
+					}
+					last SWITCH;
+				}
+				if (/Problem(\d+)\(\s*(.*?)\s*\)/) {
+					$textno = $1;
+					$textproblem = $2;
+					$textproblem =~ s/\D/ /g;
+					@textproblems = split /\s+/, $textproblem;
+					@textproblems = grep { $_ =~ /\S/ } @textproblems;
+					if (scalar(@textproblems) or defined($textinfo{$textno})) {
+						@textproblems = (-1) unless(scalar(@textproblems));
+						maybenewtext($textno);
+						$textinfo{$textno}->{problems} = \@textproblems;
+					}
+					#print "$textproblem\n" if ($textproblem !~ /^[\s\d]+$/);
+					#		$textproblem =~ s/'/\'/g;
+					last SWITCH;
+				}
+			}
+		}						#end of SWITCH and while
+		if ($tagged and $chapter eq 'ZZZ-Inserted Text') {
+			$tagged=0;
+		}
+		if ($tagged) {
+			#
+			# kludge to fix the omission of a subject field
+			unless($subject) {
+				if ($text =~ /precalculus/i) {
+					$subject = "Precalculus";
+				} elsif ($text =~ /calculus/i) {
+					$subject = "Calculus";
+				} elsif ($text =~ /linear/i) {
+					$subject = "Linear Algebra";
+				} elsif ($text =~ /algebra/i) {
+					$subject = "Algebra";
+				} elsif ($text =~ /statistic/i) {
+					$subject = "Statistics";
+				} elsif ($text =~ /financial/i) {
+					$subject = "Financial Mathematics";
+				} else {
+					$subject = "Misc";
+				}
+			}
+			# From the pgfile we just looked at,
+			## DBchapter('Limits and Derivatives') 		in $chapter
+			## DBsection('Calculating Limits using the Limit Laws') in $section
+			## Date('6/3/2002') 				in $date
+			## Author('Tangan Gao') 				in $author
+			## Institution('csulb') 				in $institution
+			## TitleText1('Calculus Early Transcendentals')	in $text
+			## EditionText1('4') 				in $edition
+			## AuthorText1('Stewart') 				in $textauthor
+			## Section1('2.3') 					in $textsection
+			## Problem1('7') 					in $textproblem
+			#
+			# The database structure is in the file create_tables2.sql and its ER-graph
+			#    is the file wwdb_er_graph.pdf. Insert, in order, into the tables
+			#    in that file.
+			#
+
+			#selectrow_array returns first field of first row in scalar context or undef 
+			# undef for failure also, $dbh->{RaiseError} = 1 should catch that case.
+			#
+			# DBsubject table
+			#
+			$query = "SELECT DBsubject_id FROM DBsubject WHERE name = \"$subject\"";
+			my $DBsubject_id = $dbh->selectrow_array($query);
+			if (!defined($DBsubject_id)) {
+				$dbh->do(
+						 "INSERT INTO DBsubject
+					VALUES(
+						\"\",
+						\"$subject\"
+					)"
+						);
+				dbug "INSERT INTO DBsubject VALUES(\"\",\"$subject\")\n";
+				$DBsubject_id = $dbh->selectrow_array($query);
+			}
+
+			# DBchapter table
+			#
+			$query = "SELECT DBchapter_id FROM DBchapter WHERE name = \"$chapter\" and DBsubject_id = $DBsubject_id";
+			my $DBchapter_id = $dbh->selectrow_array($query);  
+			if (!defined($DBchapter_id)) {
+				$dbh->do("INSERT INTO DBchapter 
+					VALUES(
+						\"\",
+						\"$chapter\",
+						\"$DBsubject_id\"
+					)"
+						);
+				dbug "INSERT INTO DBchapter VALUES(  \"\", \"$chapter\", \"$DBsubject_id\)\n";
+				$DBchapter_id = $dbh->selectrow_array($query);
+			}
+
+			# DBsection table
+			#
+			$query = "SELECT DBsection_id FROM DBsection WHERE name = \"$section\" AND DBchapter_id = $DBchapter_id";
+			my $DBsection_id = $dbh->selectrow_array($query);
+			if (!defined($DBsection_id)) {
+				$dbh->do("INSERT INTO DBsection
+					VALUES(
+						\"\",
+						\"$section\",
+						\"$DBchapter_id\"
+					)"
+						);
+				dbug "INSERT INTO DBsection VALUES( \"\", \"$section\", \"$DBchapter_id\", \"$DBsubject_id\" )\n";
+				$DBsection_id = $dbh->selectrow_array($query);
+			}
+
+			# institution table
+			#
+			$query = "SELECT institution_id FROM institution WHERE name = \"$institution\"";
+			my $institution_id = $dbh->selectrow_array($query);  
+			if (!defined($institution_id)) {
+				$dbh->do("INSERT INTO institution 
+					VALUES(
+						\"\",
+						\"$institution\",
+						\"\",
+						\"\",
+						\"\",
+						\"\",
+						\"\",
+						\"\"
+					)"
+						);
+				dbug "INSERT INTO institution VALUES( \"\", \"$institution\", \"\", \"\", \"\", \"\", \"\", \"\")\n";
+				$institution_id = $dbh->selectrow_array($query);
+			}
+
+			# author table
+			#
+			$author =~ /(.*?)\s(\w+)\s*$/;
+			my $firstname = $1;
+			my $lastname = $2;
+			#remove leading and trailing spaces from firstname, which includes any middle name too.
+			$firstname =~ s/^\s*//;
+			$firstname =~ s/\s*$//;
+			$query = "SELECT author_id FROM author WHERE lastname = \"$lastname\" AND firstname=\"$firstname\"";
+			my $author_id = $dbh->selectrow_array($query);
+			if (!defined($author_id)) {
+				$dbh->do("INSERT INTO author
+					VALUES(
+						\"\",
+						\"$institution_id\",
+						\"$lastname\",
+						\"$firstname\",
+						\"\"
+					)"
+						);
+				dbug "INSERT INTO author VALUES( \"\", \"$institution_id\", \"$lastname\", \"$firstname\", \"\" )\n";
+				$author_id = $dbh->selectrow_array($query);
+			}
+
+			# path table
+			#
+			$query = "SELECT path_id FROM path WHERE path = \"$pgpath\"";
+			my $path_id = $dbh->selectrow_array($query);
+			if (!defined($path_id)) {
+				$dbh->do("INSERT INTO path 
+					VALUES(
+						\"\",
+						\"$pgpath\",
+						\"\",
+						\"\"
+					)"
+						);
+				dbug "INSERT INTO path VALUES( \"\", \"$path\", \"\", \"\" )\n";
+				$path_id = $dbh->selectrow_array($query);
+			}
+
+			# pgfile table
+			#
+			my $pgfile_id;
+			$dbh->do("INSERT INTO pgfile
+					VALUES(
+						\"\",
+						\"$DBsection_id\",
+						\"$author_id\",
+						\"$institution_id\",
+						\"$path_id\",
+						\"$pgfile\",
+						\"\"
+					)"
+					);
+			dbug "INSERT INTO pgfile VALUES( \"\", \"$DBsection_id\", \"$author_id\", \"$institution_id\", \"$path_id\", \"$pgfile\", \"\" )\n";
+			$query = "SELECT pgfile_id FROM pgfile WHERE filename = \"$pgfile\" and path_id=$path_id";
+			$pgfile_id = $dbh->selectrow_array($query);
+
+			# keyword table, and problem_keyword many-many table
+			#
+			foreach my $keyword (@keyword) {
+				$keyword =~ s/[\'\"]//g;
+				$query = "SELECT keyword_id FROM keyword WHERE keyword = \"$keyword\"";
+				my $keyword_id = $dbh->selectrow_array($query);
+				if (!defined($keyword_id)) {
+					$dbh->do("INSERT INTO keyword
+						VALUES(
+							\"\",
+							\"$keyword\"
+						)"
+							);
+					dbug "INSERT INTO keyword VALUES( \"\", \"$keyword\")\n";
+					$keyword_id = $dbh->selectrow_array($query);
+				}
+
+				$query = "SELECT pgfile_id FROM pgfile_keyword WHERE keyword_id = \"$keyword_id\" and pgfile_id=\"$pgfile_id\"";
+				my $ok = $dbh->selectrow_array($query);
+				if (!defined($ok)) {
+					$dbh->do("INSERT INTO pgfile_keyword
+						VALUES(
+							\"$pgfile_id\",
+							\"$keyword_id\"
+						)"
+							);
+					dbug "INSERT INTO pgfile_keyword VALUES( \"$pgfile_id\", \"$keyword_id\" )\n";
+				}
+			}					#end foreach keyword
+
+			# pgfile_institution table
+			#
+			$query = "SELECT institution_id FROM pgfile_institution WHERE pgfile_id = \"$pgfile_id\"";
+			my $pg_inst_id = $dbh->selectrow_array($query);
+			if (!defined($pg_inst_id)) {
+				$dbh->do("INSERT INTO pgfile_institution
+					VALUES(
+						\"$pgfile_id\",
+						\"$institution_id\"
+					)"
+						);
+				dbug "INSERT INTO pgfile_institution VALUES( \"$pgfile_id\", \"$institution_id\" )\n";
+				$pg_inst_id = $dbh->selectrow_array($query);
+			}
+
+			# Textbook section
+			# problem table contains textbook problems
+			#
+			for my $textno (keys %textinfo) {
+				my $texthashref = $textinfo{$textno};
+
+				# textbook table
+				#
+				$text = $texthashref->{title};
+				$edition = $texthashref->{edition};
+				$textauthor = $texthashref->{author};
+				my $chapnum = $texthashref->{chapter};
+				my $secnum = $texthashref->{section};
+				$query = "SELECT textbook_id FROM textbook WHERE title = \"$text\" AND edition = \"$edition\" AND author=\"$textauthor\"";
+				my $textbook_id = $dbh->selectrow_array($query);
+				if (!defined($textbook_id)) {
+					$dbh->do("INSERT INTO textbook
+					VALUES(
+						\"\",
+						\"$text\",
+						\"$edition\",
+						\"$textauthor\",
+						\"\",
+						\"\",
+						\"\"
+					)"
+							);
+					dbug "INSERT INTO textbook VALUES( \"\", \"$text\", \"$edition\", \"$textauthor\", \"\", \"\", \"\" )\n";
+					print "Late add into textbook \"$text\", \"$edition\", \"$textauthor\"\n";
+					$textbook_id = $dbh->selectrow_array($query);
+				}
+
+				# chapter weak table of textbook
+				#
+				$query = "SELECT chapter_id FROM chapter WHERE textbook_id = \"$textbook_id\" AND name = \"$chapter\"";
+				my $chapter_id = $dbh->selectrow_array($query);
+				if (!defined($chapter_id)) {
+					$dbh->do("INSERT INTO chapter
+					VALUES(
+						\"\",
+						\"$textbook_id\",
+						\"".$chapnum."\",
+						\"$chapter\",
+						\"\"
+					)"
+							);
+					dbug "INSERT INTO chapter VALUES(\"\", \"$textbook_id\", \"".$chapnum."\", \"$chapter\", \"\" )\n";
+					$chapter_id = $dbh->selectrow_array($query);
+				}
+
+				# section weak table of textbook
+				#
+				$query = "SELECT section_id FROM section WHERE chapter_id = \"$chapter_id\" AND name = \"$section\"";
+				my $section_id = $dbh->selectrow_array($query);
+				if (!defined($section_id)) {
+					$dbh->do("INSERT INTO section
+					VALUES(
+						\"\",
+						\"$chapter_id\",
+						\"$secnum\",
+						\"$section\",
+						\"\"
+					)"
+							);
+					dbug "INSERT INTO section VALUES(\"\", \"$textbook_id\", \"$secnum\", \"$section\", \"\" )\n";
+					$section_id = $dbh->selectrow_array($query);
+				}
+
+				@textproblems = @{$texthashref->{problems}};
+				for my $tp (@textproblems) {
+					$query = "SELECT problem_id FROM problem WHERE section_id = \"$section_id\" AND number = \"$tp\"";
+					my $problem_id = $dbh->selectrow_array($query);
+					if (!defined($problem_id)) {
+						$dbh->do("INSERT INTO problem
+					VALUES(
+						\"\",
+						\"$section_id\",
+						\"$tp\",
+						\"\"
+					)"
+								);
+						dbug "INSERT INTO problem VALUES( \"\", \"$section_id\", \"$tp\", \"\" )\n";
+						$problem_id = $dbh->selectrow_array($query);
+					}
+
+					# pgfile_problem table associates pgfiles with textbook problems
+					#
+					$query = "SELECT problem_id FROM pgfile_problem WHERE problem_id = \"$problem_id\" AND pgfile_id = \"$pgfile_id\"";
+					my $pg_problem_id = $dbh->selectrow_array($query);  
+					if (!defined($pg_problem_id)) {
+						$dbh->do("INSERT INTO pgfile_problem 
+					VALUES(
+						\"$pgfile_id\",
+						\"$problem_id\"
+					)"
+								);
+						dbug "INSERT INTO pgfile_problem VALUES( \"$pgfile_id\", \"$problem_id\" )\n";
+					}
+				}
+
+			}
+			#reset tag vars, they may not match the next file
+			$date =""; $textauthor=""; $textsection="";
+			$chapter=""; $section="";
+		}
+		close(IN) or die "can not close: $!";
+	}
+}
+
+
+$dbh->disconnect;
+
+print "\nDone.\n";
+
