@@ -6,6 +6,27 @@ use File::Basename;
 use Cwd;
 use DBI;
 
+BEGIN {
+        die "WEBWORK_ROOT not found in environment.\n"
+                unless exists $ENV{WEBWORK_ROOT};
+}
+
+# Get database connection
+
+use lib "$ENV{WEBWORK_ROOT}/lib";
+use WeBWorK::CourseEnvironment;
+
+my $ce = new WeBWorK::CourseEnvironment({webwork_dir=>$ENV{WEBWORK_ROOT}});
+my $dbh = DBI->connect(
+        $ce->{database_dsn},
+        $ce->{database_username},
+        $ce->{database_password},
+        {
+                PrintError => 0,
+                RaiseError => 1,
+        },
+);
+
 if (! -e "create_tables2.sql") {
 	print "Cannot find file create_tables2.sql.\n";
 	print "This needs to be run from the directory it was unpacked to,\n";
@@ -13,17 +34,8 @@ if (! -e "create_tables2.sql") {
 	exit;
 }
 
-my $passwd;
-
-if (@ARGV != 1) {
-	print "What is the root password for mysql? ";
-	$passwd = <STDIN>;
-	chomp($passwd);
-} else {
-	$passwd = $ARGV[0];
-}
-
-my $user = 'root';
+my $passwd = $ce->{database_password};
+my $user = $ce->{database_username};
 my $libraryRoot = Cwd::cwd();
 my $verbose =0;
 my $cnt = 0;
@@ -39,10 +51,8 @@ sub dbug {
 	print "." if($verbose==1 and ($cnt % 100 == 0));
 }
 
-system("mysql -uroot -p$passwd -B ProblemLibrary <./create_tables2.sql");
+system("mysql -u$user -p$passwd -B webwork <./create_tables2.sql");
 print "Mysql database reinitialized.\n";
-
-my $mydb =  "dbi:mysql:ProblemLibrary";
 
 # From pgfile
 ## DBchapter('Limits and Derivatives')
@@ -62,9 +72,7 @@ my $mydb =  "dbi:mysql:ProblemLibrary";
 my ($name,$pgfile,$pgpath);
 
 #recursive search for all pg files
-my $dbh = DBI->connect('dbi:mysql:ProblemLibrary', $user, $passwd);
 
-$dbh->{RaiseError} = 1;			#bail if anything fails via die
 
 #### First read in textbook information
 
@@ -79,13 +87,13 @@ if(open(IN, "Textbooks")) {
 			my $title = $2;
 			if($chapsec=~ /(\d+)\.(\d+)/) { # We have a section
 				if(defined($bookid)) {
-					my $query = "SELECT chapter_id FROM chapter WHERE textbook_id = \"$bookid\" AND number = \"$1\"";
+					my $query = "SELECT chapter_id FROM `NPL-chapter` WHERE textbook_id = \"$bookid\" AND number = \"$1\"";
 					my $chapid = $dbh->selectrow_array($query);
 					if(defined($chapid)) {
-						$query = "SELECT section_id FROM section WHERE chapter_id = \"$chapid\" AND name = \"$title\"";
+						$query = "SELECT section_id FROM `NPL-section` WHERE chapter_id = \"$chapid\" AND name = \"$title\"";
 						my $sectid = $dbh->selectrow_array($query);
 						if (!defined($sectid)) {
-							$dbh->do("INSERT INTO section
+							$dbh->do("INSERT INTO `NPL-section`
 					VALUES(
 						\"\",
 						\"$chapid\",
@@ -104,10 +112,10 @@ if(open(IN, "Textbooks")) {
 				}
 			} else { # We have a chapter entry
 				if(defined($bookid)) {
-					my $query = "SELECT chapter_id FROM chapter WHERE textbook_id = \"$bookid\" AND name = \"$chapsec\"";
+					my $query = "SELECT chapter_id FROM `NPL-chapter` WHERE textbook_id = \"$bookid\" AND name = \"$chapsec\"";
 					my $chapid = $dbh->selectrow_array($query);
 					if (!defined($chapid)) {
-						$dbh->do("INSERT INTO chapter
+						$dbh->do("INSERT INTO `NPL-chapter`
 					VALUES(
 						\"\",
 						\"$bookid\",
@@ -136,10 +144,10 @@ if(open(IN, "Textbooks")) {
 				if(defined($textinfo{TitleText}) and 
 				   defined($textinfo{AuthorText}) and 
 				   defined($textinfo{EditionText})) {
-					my $query = "SELECT textbook_id FROM textbook WHERE title = \"$textinfo{TitleText}\" AND edition = \"$textinfo{EditionText}\" AND author=\"$textinfo{AuthorText}\"";
+					my $query = "SELECT textbook_id FROM `NPL-textbook` WHERE title = \"$textinfo{TitleText}\" AND edition = \"$textinfo{EditionText}\" AND author=\"$textinfo{AuthorText}\"";
 					$bookid = $dbh->selectrow_array($query);
 					if (!defined($bookid)) {
-						$dbh->do("INSERT INTO textbook
+						$dbh->do("INSERT INTO `NPL-textbook`
 					VALUES(
 						\"\",
 						\"$textinfo{TitleText}\",
@@ -359,11 +367,11 @@ sub pgfiles {
 			#
 			# DBsubject table
 			#
-			$query = "SELECT DBsubject_id FROM DBsubject WHERE name = \"$subject\"";
+			$query = "SELECT DBsubject_id FROM `NPL-DBsubject` WHERE name = \"$subject\"";
 			my $DBsubject_id = $dbh->selectrow_array($query);
 			if (!defined($DBsubject_id)) {
 				$dbh->do(
-						 "INSERT INTO DBsubject
+						 "INSERT INTO `NPL-DBsubject`
 					VALUES(
 						\"\",
 						\"$subject\"
@@ -375,10 +383,10 @@ sub pgfiles {
 
 			# DBchapter table
 			#
-			$query = "SELECT DBchapter_id FROM DBchapter WHERE name = \"$chapter\" and DBsubject_id = $DBsubject_id";
+			$query = "SELECT DBchapter_id FROM `NPL-DBchapter` WHERE name = \"$chapter\" and DBsubject_id = $DBsubject_id";
 			my $DBchapter_id = $dbh->selectrow_array($query);  
 			if (!defined($DBchapter_id)) {
-				$dbh->do("INSERT INTO DBchapter 
+				$dbh->do("INSERT INTO `NPL-DBchapter` 
 					VALUES(
 						\"\",
 						\"$chapter\",
@@ -391,10 +399,10 @@ sub pgfiles {
 
 			# DBsection table
 			#
-			$query = "SELECT DBsection_id FROM DBsection WHERE name = \"$section\" AND DBchapter_id = $DBchapter_id";
+			$query = "SELECT DBsection_id FROM `NPL-DBsection` WHERE name = \"$section\" AND DBchapter_id = $DBchapter_id";
 			my $DBsection_id = $dbh->selectrow_array($query);
 			if (!defined($DBsection_id)) {
-				$dbh->do("INSERT INTO DBsection
+				$dbh->do("INSERT INTO `NPL-DBsection`
 					VALUES(
 						\"\",
 						\"$section\",
@@ -407,10 +415,10 @@ sub pgfiles {
 
 			# institution table
 			#
-			$query = "SELECT institution_id FROM institution WHERE name = \"$institution\"";
+			$query = "SELECT institution_id FROM `NPL-institution` WHERE name = \"$institution\"";
 			my $institution_id = $dbh->selectrow_array($query);  
 			if (!defined($institution_id)) {
-				$dbh->do("INSERT INTO institution 
+				$dbh->do("INSERT INTO `NPL-institution`
 					VALUES(
 						\"\",
 						\"$institution\",
@@ -434,10 +442,10 @@ sub pgfiles {
 			#remove leading and trailing spaces from firstname, which includes any middle name too.
 			$firstname =~ s/^\s*//;
 			$firstname =~ s/\s*$//;
-			$query = "SELECT author_id FROM author WHERE lastname = \"$lastname\" AND firstname=\"$firstname\"";
+			$query = "SELECT author_id FROM `NPL-author` WHERE lastname = \"$lastname\" AND firstname=\"$firstname\"";
 			my $author_id = $dbh->selectrow_array($query);
 			if (!defined($author_id)) {
-				$dbh->do("INSERT INTO author
+				$dbh->do("INSERT INTO `NPL-author`
 					VALUES(
 						\"\",
 						\"$institution_id\",
@@ -452,10 +460,10 @@ sub pgfiles {
 
 			# path table
 			#
-			$query = "SELECT path_id FROM path WHERE path = \"$pgpath\"";
+			$query = "SELECT path_id FROM `NPL-path` WHERE path = \"$pgpath\"";
 			my $path_id = $dbh->selectrow_array($query);
 			if (!defined($path_id)) {
-				$dbh->do("INSERT INTO path 
+				$dbh->do("INSERT INTO `NPL-path`
 					VALUES(
 						\"\",
 						\"$pgpath\",
@@ -470,7 +478,7 @@ sub pgfiles {
 			# pgfile table
 			#
 			my $pgfile_id;
-			$dbh->do("INSERT INTO pgfile
+			$dbh->do("INSERT INTO `NPL-pgfile`
 					VALUES(
 						\"\",
 						\"$DBsection_id\",
@@ -482,17 +490,17 @@ sub pgfiles {
 					)"
 					);
 			dbug "INSERT INTO pgfile VALUES( \"\", \"$DBsection_id\", \"$author_id\", \"$institution_id\", \"$path_id\", \"$pgfile\", \"\" )\n";
-			$query = "SELECT pgfile_id FROM pgfile WHERE filename = \"$pgfile\" and path_id=$path_id";
+			$query = "SELECT pgfile_id FROM `NPL-pgfile` WHERE filename = \"$pgfile\" and path_id=$path_id";
 			$pgfile_id = $dbh->selectrow_array($query);
 
 			# keyword table, and problem_keyword many-many table
 			#
 			foreach my $keyword (@keyword) {
 				$keyword =~ s/[\'\"]//g;
-				$query = "SELECT keyword_id FROM keyword WHERE keyword = \"$keyword\"";
+				$query = "SELECT keyword_id FROM `NPL-keyword` WHERE keyword = \"$keyword\"";
 				my $keyword_id = $dbh->selectrow_array($query);
 				if (!defined($keyword_id)) {
-					$dbh->do("INSERT INTO keyword
+					$dbh->do("INSERT INTO `NPL-keyword`
 						VALUES(
 							\"\",
 							\"$keyword\"
@@ -502,10 +510,10 @@ sub pgfiles {
 					$keyword_id = $dbh->selectrow_array($query);
 				}
 
-				$query = "SELECT pgfile_id FROM pgfile_keyword WHERE keyword_id = \"$keyword_id\" and pgfile_id=\"$pgfile_id\"";
+				$query = "SELECT pgfile_id FROM `NPL-pgfile-keyword` WHERE keyword_id = \"$keyword_id\" and pgfile_id=\"$pgfile_id\"";
 				my $ok = $dbh->selectrow_array($query);
 				if (!defined($ok)) {
-					$dbh->do("INSERT INTO pgfile_keyword
+					$dbh->do("INSERT INTO `NPL-pgfile-keyword`
 						VALUES(
 							\"$pgfile_id\",
 							\"$keyword_id\"
@@ -517,16 +525,16 @@ sub pgfiles {
 
 			# pgfile_institution table
 			#
-			$query = "SELECT institution_id FROM pgfile_institution WHERE pgfile_id = \"$pgfile_id\"";
+			$query = "SELECT institution_id FROM `NPL-pgfile-institution` WHERE pgfile_id = \"$pgfile_id\"";
 			my $pg_inst_id = $dbh->selectrow_array($query);
 			if (!defined($pg_inst_id)) {
-				$dbh->do("INSERT INTO pgfile_institution
+				$dbh->do("INSERT INTO `NPL-pgfile-institution`
 					VALUES(
 						\"$pgfile_id\",
 						\"$institution_id\"
 					)"
 						);
-				dbug "INSERT INTO pgfile_institution VALUES( \"$pgfile_id\", \"$institution_id\" )\n";
+				dbug "INSERT INTO `NPL-pgfile-institution` VALUES( \"$pgfile_id\", \"$institution_id\" )\n";
 				$pg_inst_id = $dbh->selectrow_array($query);
 			}
 
@@ -541,12 +549,13 @@ sub pgfiles {
 				$text = $texthashref->{title};
 				$edition = $texthashref->{edition};
 				$textauthor = $texthashref->{author};
+				next unless($text and $textauthor);
 				my $chapnum = $texthashref->{chapter};
 				my $secnum = $texthashref->{section};
-				$query = "SELECT textbook_id FROM textbook WHERE title = \"$text\" AND edition = \"$edition\" AND author=\"$textauthor\"";
+				$query = "SELECT textbook_id FROM `NPL-textbook` WHERE title = \"$text\" AND edition = \"$edition\" AND author=\"$textauthor\"";
 				my $textbook_id = $dbh->selectrow_array($query);
 				if (!defined($textbook_id)) {
-					$dbh->do("INSERT INTO textbook
+					$dbh->do("INSERT INTO `NPL-textbook`
 					VALUES(
 						\"\",
 						\"$text\",
@@ -558,16 +567,16 @@ sub pgfiles {
 					)"
 							);
 					dbug "INSERT INTO textbook VALUES( \"\", \"$text\", \"$edition\", \"$textauthor\", \"\", \"\", \"\" )\n";
-					print "Late add into textbook \"$text\", \"$edition\", \"$textauthor\"\n";
+					print "\nLate add into NPL-textbook \"$text\", \"$edition\", \"$textauthor\"\n";
 					$textbook_id = $dbh->selectrow_array($query);
 				}
 
 				# chapter weak table of textbook
 				#
-				$query = "SELECT chapter_id FROM chapter WHERE textbook_id = \"$textbook_id\" AND name = \"$chapter\"";
+				$query = "SELECT chapter_id FROM `NPL-chapter` WHERE textbook_id = \"$textbook_id\" AND name = \"$chapter\"";
 				my $chapter_id = $dbh->selectrow_array($query);
 				if (!defined($chapter_id)) {
-					$dbh->do("INSERT INTO chapter
+					$dbh->do("INSERT INTO `NPL-chapter`
 					VALUES(
 						\"\",
 						\"$textbook_id\",
@@ -582,10 +591,10 @@ sub pgfiles {
 
 				# section weak table of textbook
 				#
-				$query = "SELECT section_id FROM section WHERE chapter_id = \"$chapter_id\" AND name = \"$section\"";
+				$query = "SELECT section_id FROM `NPL-section` WHERE chapter_id = \"$chapter_id\" AND name = \"$section\"";
 				my $section_id = $dbh->selectrow_array($query);
 				if (!defined($section_id)) {
-					$dbh->do("INSERT INTO section
+					$dbh->do("INSERT INTO `NPL-section`
 					VALUES(
 						\"\",
 						\"$chapter_id\",
@@ -600,10 +609,10 @@ sub pgfiles {
 
 				@textproblems = @{$texthashref->{problems}};
 				for my $tp (@textproblems) {
-					$query = "SELECT problem_id FROM problem WHERE section_id = \"$section_id\" AND number = \"$tp\"";
+					$query = "SELECT problem_id FROM `NPL-problem` WHERE section_id = \"$section_id\" AND number = \"$tp\"";
 					my $problem_id = $dbh->selectrow_array($query);
 					if (!defined($problem_id)) {
-						$dbh->do("INSERT INTO problem
+						$dbh->do("INSERT INTO `NPL-problem`
 					VALUES(
 						\"\",
 						\"$section_id\",
@@ -617,10 +626,10 @@ sub pgfiles {
 
 					# pgfile_problem table associates pgfiles with textbook problems
 					#
-					$query = "SELECT problem_id FROM pgfile_problem WHERE problem_id = \"$problem_id\" AND pgfile_id = \"$pgfile_id\"";
+					$query = "SELECT problem_id FROM `NPL-pgfile-problem` WHERE problem_id = \"$problem_id\" AND pgfile_id = \"$pgfile_id\"";
 					my $pg_problem_id = $dbh->selectrow_array($query);  
 					if (!defined($pg_problem_id)) {
-						$dbh->do("INSERT INTO pgfile_problem 
+						$dbh->do("INSERT INTO `NPL-pgfile-problem`
 					VALUES(
 						\"$pgfile_id\",
 						\"$problem_id\"
