@@ -6,8 +6,8 @@
 # DBsubject is the basic classification
 # for problems, the subject area
 #
-DROP TABLE IF EXISTS DBsubject;
-CREATE TABLE DBsubject
+DROP TABLE IF EXISTS `NPL-DBsubject`;
+CREATE TABLE `NPL-DBsubject`
 (
 	DBsubject_id int(15) NOT NULL auto_increment,
 	name varchar(127) NOT NULL,
@@ -18,8 +18,8 @@ CREATE TABLE DBsubject
 # DBchapter is a more refined classification
 # for problem types
 #
-DROP TABLE IF EXISTS DBchapter;
-CREATE TABLE DBchapter
+DROP TABLE IF EXISTS `NPL-DBchapter`;
+CREATE TABLE `NPL-DBchapter`
 (
 	DBchapter_id int(15) NOT NULL auto_increment,
 	name varchar(127) NOT NULL,
@@ -32,8 +32,8 @@ CREATE TABLE DBchapter
 # DBsection is the finest classification
 # for problem types
 #
-DROP TABLE IF EXISTS DBsection;
-CREATE TABLE DBsection
+DROP TABLE IF EXISTS `NPL-DBsection`;
+CREATE TABLE `NPL-DBsection`
 (
 	DBsection_id int(15) NOT NULL auto_increment,
 	name varchar(255) NOT NULL,
@@ -45,8 +45,8 @@ CREATE TABLE DBsection
 
 # institution table contains all places using webwork
 #
-DROP TABLE IF EXISTS institution;
-CREATE TABLE institution
+DROP TABLE IF EXISTS `NPL-institution`;
+CREATE TABLE `NPL-institution`
 (
 	institution_id int (15) NOT NULL auto_increment,
 	name varchar (255) NOT NULL,
@@ -62,8 +62,8 @@ CREATE TABLE institution
 
 # author table contains all problem authors
 #
-DROP TABLE IF EXISTS author;
-CREATE TABLE author
+DROP TABLE IF EXISTS `NPL-author`;
+CREATE TABLE `NPL-author`
 (
 	author_id int (15) NOT NULL auto_increment,
 	institution_id int (15) NOT NULL,
@@ -76,8 +76,8 @@ CREATE TABLE author
 
 # path table contains relative path, machine, and user ownership
 #
-DROP TABLE IF EXISTS path;
-CREATE TABLE path
+DROP TABLE IF EXISTS `NPL-path`;
+CREATE TABLE `NPL-path`
 (
 	path_id int(15) NOT NULL auto_increment,
 	path varchar(127) NOT NULL,
@@ -89,8 +89,8 @@ CREATE TABLE path
 
 # pgfile table contains classification, location, and revision history about the .pg file
 #
-DROP TABLE IF EXISTS pgfile;
-CREATE TABLE pgfile
+DROP TABLE IF EXISTS `NPL-pgfile`;
+CREATE TABLE `NPL-pgfile`
 (
 	pgfile_id int(15) NOT NULL auto_increment,
 	DBsection_id int(15) NOT NULL,
@@ -104,8 +104,8 @@ CREATE TABLE pgfile
 
 # keywords for problems
 #
-DROP TABLE IF EXISTS keyword;
-CREATE TABLE keyword
+DROP TABLE IF EXISTS `NPL-keyword`;
+CREATE TABLE `NPL-keyword`
 (
 	keyword_id int(15) NOT NULL auto_increment,
 	keyword varchar(65) NOT NULL,
@@ -115,8 +115,8 @@ CREATE TABLE keyword
 
 # pgfile_keyword associates prolems with keywords
 #
-DROP TABLE IF EXISTS pgfile_keyword;
-CREATE TABLE pgfile_keyword
+DROP TABLE IF EXISTS `NPL-pgfile-keyword`;
+CREATE TABLE `NPL-pgfile-keyword`
 (
 	pgfile_id int(15) DEFAULT 0 NOT NULL,
 	keyword_id int(15) DEFAULT 0 NOT NULL,
@@ -126,8 +126,8 @@ CREATE TABLE pgfile_keyword
 
 # pgfile_institution associates problems with institutions
 #
-DROP TABLE IF EXISTS pgfile_institution;
-CREATE TABLE pgfile_institution
+DROP TABLE IF EXISTS `NPL-pgfile-institution`;
+CREATE TABLE `NPL-pgfile-institution`
 (
 	pgfile_id int(15) DEFAULT 0 NOT NULL,
 	institution_id int(15) DEFAULT 0 NOT NULL,
@@ -136,8 +136,8 @@ CREATE TABLE pgfile_institution
 
 # textbook table contains textbook info
 #
-DROP TABLE IF EXISTS textbook;
-CREATE TABLE textbook
+DROP TABLE IF EXISTS `NPL-textbook`;
+CREATE TABLE `NPL-textbook`
 (
 	textbook_id int (15) NOT NULL auto_increment,
 	title varchar (255) NOT NULL,
@@ -152,8 +152,8 @@ CREATE TABLE textbook
 # weak table chapter
 # chapters from a textbook
 #
-DROP TABLE IF EXISTS chapter;
-CREATE TABLE chapter
+DROP TABLE IF EXISTS `NPL-chapter`;
+CREATE TABLE `NPL-chapter`
 (
 	chapter_id int (15) NOT NULL auto_increment,
 	textbook_id int (15),
@@ -167,8 +167,8 @@ CREATE TABLE chapter
 # weak table section
 # sections from a textbook chapter
 #
-DROP TABLE IF EXISTS section;
-CREATE TABLE section
+DROP TABLE IF EXISTS `NPL-section`;
+CREATE TABLE `NPL-section`
 (
 	section_id int(15) NOT NULL auto_increment,
 	chapter_id int (15),
@@ -181,8 +181,8 @@ CREATE TABLE section
 # problem
 # problems from a textbook
 #
-DROP TABLE IF EXISTS problem;
-CREATE TABLE problem
+DROP TABLE IF EXISTS `NPL-problem`;
+CREATE TABLE `NPL-problem`
 (
 	problem_id int(15) NOT NULL auto_increment,
 	section_id int(15),
@@ -197,8 +197,8 @@ CREATE TABLE problem
 # pgfile_problem table
 # associates pgfiles to problems from a textbook.
 #
-DROP TABLE IF EXISTS pgfile_problem;
-CREATE TABLE pgfile_problem
+DROP TABLE IF EXISTS `NPL-pgfile-problem`;
+CREATE TABLE `NPL-pgfile-problem`
 (
 	pgfile_id int(15) DEFAULT 0 NOT NULL,
 	problem_id int(15) DEFAULT 0 NOT NULL,
