@@ -21,7 +21,24 @@ loadMacros("PG.pl",
            "PGgraphmacros.pl");
 
 $showPartialCorrectAnswers=1;
+
+# utility
+sub rnd {
+	my $x = shift;
+	my $places = shift;
+	$places = 0 unless defined($places);
+	my $sign = ($x <0 ) ? -1 : 1;
+	$x = abs($x);
+	
+	$x = int( $x*10 **(-$places) +.5) *10 **($places);
+	$sign*$x;
+}
+
 # define a broken graph f and a broken graph g:
+
+# do .. until to protect against L'Hopital type questions
+do {
+$ok = 1;
 
 # first define the parameters (value and first derivatives)
 foreach my $i (0..5) {
@@ -52,11 +69,22 @@ $hermite_g2 = new Hermite( [ -1  , 0,  1, 2 , 3, 4 ],
 # define the break points where we switch from one hemite function to the other
 # and the value of the function at that point   
                
-$xf = random(0,3,1);
-$yf = random(-1,4,1);
-$xg = random(0,3,1);
-$yg = random(-1,4,1);
+  $xf = random(0,3);
+  $yf = random(-1,4);
+  $xg = random(0,3);
+  $yg = random(-1,4);
 
+# Now check to see if we might produce a L'Hoptital type question,
+# which would be much harder for some students than others
+
+  $ok = 0 if(($xf<$xg) and (rnd($hermite_f1->rf_f->($xf)) == 0 or rnd($hermite_f2->rf_f->($xf)) == 0)
+    and (rnd($hermite_g1->rf_f->($xf)) == 0) );
+  $ok = 0 if(($xf>$xg) and (rnd($hermite_f2->rf_f->($xg)) == 0)
+    and (rnd($hermite_g1->rf_f->($xg)) == 0 or rnd($hermite_g2->rf_f->($xg)) == 0));
+  $ok = 0 if(($xf==$xg) and (rnd($hermite_f1->rf_f->($xg)) == 0 or rnd($hermite_f2->rf_f->($xg)) == 0)
+    and (rnd($hermite_g1->rf_f->($xg)) == 0 or rnd($hermite_g2->rf_f->($xg)) == 0));
+
+} until ($ok == 1);
 
 # define the broken functions themselves -- we'll need them to answer questions.
 sub f_rule {
@@ -119,19 +147,9 @@ TEXT(beginproblem());
 TEXT(
 begintable(2),
 row( image( insertGraph($graphf), tex_size =>400), image( insertGraph($graphg) , tex_size =>400 )   ),
-row( 'f(x)', 'g(x)'),
+row(EV2('\(f(x)\)'), EV2('\(g(x)\)')),
 endtable(),
 );
-sub rnd {
-	my $x = shift;
-	my $places = shift;
-	$places = 0 unless defined($places);
-	my $sign = ($x <0 ) ? -1 : 1;
-	$x = abs($x);
-	
-	$x = int( $x*10 **(-$places) +.5) *10 **($places);
-	$sign*$x;
-}
 # now construct the questions
 @questions = ();
 @answers = ();
@@ -213,9 +231,6 @@ The graphs of \( f \) and \( g \) are given above.  Use them to evaluate each qu
 Write 'DNE' if the limit or value does not exist (or if it's infinity).
 $BR
 \{ match_questions_list(@questions[@slice]  ) \}
-
-$BR
-
 END_TEXT
 
 ANS(@answers[@slice]     );
