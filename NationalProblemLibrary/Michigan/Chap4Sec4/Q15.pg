@@ -1,0 +1,235 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative')
+## Tagged by cmd6a 09/05/07
+
+## DBsubject('Calculus')
+## DBchapter('Applications of Differentiation')
+## DBsection('Applications to Business and Economics')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus: Single and Multivariable')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('4.4')
+## Problem1('')
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"Parser.pl",
+);
+
+# pick some sensible values for the coefficients
+$a = 0.01;
+$b = random(50,90,10)*$a;
+$c = random(8,11,1);
+# $p = random(5,8,1);  # the price
+$p = $c - 2;
+
+# the cost function
+Context()->variables->add(q=>'Real');
+$cost = Formula("$a q^3 - $b q^2 + $c q");
+# and the profit
+$profit = Formula("$p q - $cost");
+$profitp = $profit->D;
+$profitp2 = $profitp->D;
+
+# max profit is when C' = R', or 
+$qmin = Formula( "($b - sqrt($b^2 - 3 $a($c - $p)))/(3 $a)" );
+$qmax = Formula( "($b + sqrt($b^2 - 3 $a($c - $p)))/(3 $a)" );
+
+# the numerical value of these are
+$qminn = $qmin->eval();
+$qmaxn = $qmax->eval();
+
+# we can't sell fractional numbers of goods, so round and check
+# for the maximum
+if ( int($qmaxn) ne $qmaxn ) {
+    $qlower = int($qmaxn);
+    $qupper = ( $qmaxn eq $qlower ) ? $qlower : $qlower + 1;
+
+    # the cost at $qlower is
+    $costLower = $cost->eval(q=>$qlower);
+
+    $profitLower = $profit->eval(q=>$qlower);
+    $profitUpper = $profit->eval(q=>$qupper);
+
+    $maxProfit = ( $profitLower->value > $profitUpper->value )? 
+	$profitLower: $profitUpper;
+
+    $profitExpl =<<eox;
+and, because we must manufacture an integer number of goods,
+the points nearest \(q=$qmaxn\) with integer \(q\)-values: 
+\( \pi($qlower) = $profitLower \) and
+\( \pi($qupper) = $profitUpper \) .
+eox
+} else {
+    $qlower = $qmaxn;
+    $profitLower = $profit->eval(q=>$qlower);
+    $maxProfit = $profitLower;
+    $profitExpl =<<eox;
+and the critical point \(q=$qmaxn\) (we're lucky here, because
+the critical point is integer; if it hadn't been we would have to 
+find the largest profit at the integer values of \(q\) around
+the critical point, because the number of goods manufactured 
+must be an integer number):
+\( \pi($qmaxn) = $profitLower \) .
+eox
+}
+
+# now, suppose we manufacture a fixed number of goods ($qlower) and play
+# with the price.  we adjust the price by $deltap; then 
+
+# for every dollar increase in price we lose $loss sales
+$loss = random(1,4,1);
+# the profit is now
+$profit2 = Formula("($p + x)($qlower - $loss x)");
+
+# and the change in p to maximize profit is 
+$deltap = Formula("($qlower - $p $loss)/(2 $loss)");
+
+# we want this to be positive, so $p*$loss < $qlower; here, however,
+# qlower should always be above 40, and $p*$loss <= 32, so we should
+# be ok.
+
+# some useful formulae
+$nitems = Formula("$qlower - $loss x")->reduce;
+$revenueFunc = Formula("($p+x)($qlower - $loss x)")->reduce;
+$profitFunc = Formula("($p+x)($qlower - $loss x) - $costLower")->reduce;
+# its derivative
+$profitFuncp = $profitFunc->D->reduce;
+
+# check that we haven't ended up at the max profit, though:
+if ( $deltap->eval() == 0 ) {
+    $loss = ($loss == 1) ? 2 : $loss - 1;
+    $deltap = Formula("($qlower - $p $loss)/(2 $loss)");
+}
+$incr = ( $deltap > 0 ) ? 'increase' : 'decrease';
+$price1 = $p + 1;
+$quant1 = $qlower - $loss;
+
+TEXT(&beginproblem);
+$showPartialCorrectAnswers = 1;
+
+Context()->texStrings;
+
+BEGIN_TEXT
+message: $msg
+$PAR
+
+The total cost \( C(q) \) of producing \( q \) goods is given by:
+\[
+C(q) = $cost
+\]
+
+$PAR
+What is the fixed cost?
+$BR
+fixed cost = \{ ans_rule(25) \} dollars
+
+$PAR
+What is the maximum profit if each item is sold for $p
+dollars?  (Assume you sell everything you produce.)
+$BR
+maximum profit = \{ ans_rule(45) \} dollars
+
+$PAR
+Suppose we fix production at $qlower goods are produced, and that
+they all sell when the price is $p dollars each.  Also suppose
+that for each 1 dollar increase in price, $loss fewer goods are sold
+(so if the price is $price1 dollars, $quant1 of the $qlower goods being
+produced are sold.)
+$BR
+Should you increase or decrease the price?
+\{ ans_rule(25) \}
+$BR
+(Enter ${BBOLD}increase$EBOLD, ${BBOLD}decrease$EBOLD, or 
+${BBOLD}neither$EBOLD.)
+$PAR
+How much should the price be changed?
+\{ ans_rule(25) \}
+$BR
+(Enter a negative number if the price should be decreased, and
+the number zero if it should remain at $price dollars.)
+
+
+END_TEXT
+
+# make sure we're giving profit in a whole number of cents
+$maxprofit = round(100*$maxProfit)/100;
+# and similarly for the deltap
+$dp = round(100*($deltap->eval))/100;
+
+ANS( num_cmp( 0 ) );
+ANS( num_cmp( $maxprofit ) );
+ANS( str_cmp( $incr ) );
+# ANS( $deltap->cmp );
+ANS( num_cmp($dp) );
+
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The fixed cost is 0 because \( C(0)=0 \).
+
+$PAR
+
+Profit, \(\pi(q)\), is equal to money from sales, \($p q\),
+minus total cost to produce those items, \(C(q)\).  So
+\( \pi = $profit \).  This is maximized
+when its derivative is zero, or when 
+\( \pi' = $profitp = 0 \).
+Using the quadratic formula, we find \( q \approx $qminn \) or 
+\( q \approx $qmaxn \). 
+
+$PAR
+
+Now \( \pi'' = $profitp2 \), so 
+\(\pi''($qminn)>0 \) and \(\pi''($qmaxn)<0\).  This
+means \(q = $qminn\) is a local minimum and 
+\(q=$qmaxn\) a local maximum. We now evaluate
+the endpoint, \( \pi(0)=0 \), 
+and the points nearest \(q=$qmaxn\) with integer
+\(q\)-values: 
+\( \pi($qlower) = $profitLower \) and
+\( \pi($qupper) = $profitUpper \) .  So the maximum profit is 
+\( \pi = $maxprofit \).
+
+$PAR
+
+Next we consider the sale of \( q = $qlower \) items.  
+The money from sales is equal to price\(\times\)quantity sold.  
+If the price is raised from $p dollars by \(x\) dollars to 
+\($p + x\), the result is a reduction
+in sales from $qlower items to  \(($nitems)\) items.  So
+the result of raising the price by \(x\) dollars is to change the
+money from sales from 
+\(($p)($qlower)\) to \($revenueFunc\) dollars.
+If the production level is fixed at  $qlower, then
+the production costs are fixed at \( C($qlower) = $costLower \), and
+the profit is given by:
+\[
+\pi(x) = $profitFunc.
+\]
+This expression gives the profit as a function of change in
+price \(x\), rather than as a function of quantity as in the
+previous part of the problem.
+We set the derivative of \(\pi\) with respect to \(x\) equal to zero to
+find the change in price that maximizes the profit:
+\( \frac{d\pi}{dx} = $profitFuncp = 0. \)
+So \( x = $dp \) (which means we should ${BITALIC}increase$EITALIC
+the price), and this must give a maximum for \( \pi(x) \)
+since the graph of
+\( \pi \) is a parabola which opens downward.
+
+END_SOLUTION
+
+ENDDOCUMENT();

@@ -1,0 +1,169 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+##KEYWORDS('Calculus', 'Integral Test')
+##Tagged by jjh2b
+
+##DBsubject('Calculus')
+##DBchapter('Infinite Sequences and Series')
+##DBsection('The Integral Test and Estimates of Sums')
+##Date('')
+##Author('LaRose')
+##Institution('Michigan')
+##TitleText1('Calculus')
+##EditionText1('4')
+##AuthorText1('Hughes-Hallett')
+##Section1('9.3')
+##Problem1('')
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+);
+
+TEXT(&beginproblem);
+$showPartialCorrectAnswers = 0;
+
+$r = random(2,8,1);
+$r1 = $r - 1;
+$r1exp = ($r1 == 1) ? '' : "^{$r1}";
+$a = random(3,9,1) + non_zero_random(-0.7,0.7,0.1);
+$b = random(2,9,1);
+
+# some series that the test doesn't work for, and why
+@nser = ( [ "\sum\limits_{n=1}^{\infty} n^{$r}", 
+        "no, because the terms in the series do not decrease" ],
+      [ "\sum\limits_{n=1}^{\infty} \ln($a n)",
+        "no, because the terms in the series do not decrease" ],
+      [ "\sum\limits_{n=1}^{\infty} {\ln($a n) + $b n\over n}",
+        "no, because the terms in the series do not decrease" ],
+      [ "\sum\limits_{n=1}^{\infty} {n^{$r}\over n$r1exp\ln(n)}",
+        "no, because the terms in the series do not decrease" ],
+      [ "\sum\limits_{n=1}^{\infty} {(-1)^n\over n^{$r}}",
+        "no, because the terms in the series are not all positive for " .
+        "\(x\ge c\)" ],
+      [ "\sum\limits_{n=1}^{\infty} {\sin(n\pi)\over n^{$r}}",
+        "no, because the terms in the series are not all positive for " .
+        "\(x\ge c\)" ],
+      [ "\sum\limits_{n=1}^{\infty} {\cos(n)\over n^2}",
+        "no, because the terms in the series are not all positive for " .
+        " \(x\ge c\)" ],
+      [ "\sum\limits_{n=1}^{\infty} {\sin($b n) e^{-n}}",
+        "no, because the terms in the series are not all positive for " .
+        "\(x\ge c\)" ],
+      [ "\sum\limits_{n=1}^{\infty} {n\over $a - n^2}",
+        "no, because the terms of the sum are not all positive for " .
+        "\(x\ge c\)" ],
+    );
+
+# reasons why the test might not work, some of which are bogus
+@rea = ( "no, because the terms in the series do not decrease",
+     "no, because the terms in the series are not all positive for " . 
+        "\(x\ge c\)",
+     "no, because the series is not a geometric series",
+     "no, because the terms in the series are not recursively defined",
+     "no, because the terms in the series are not defined for all " .
+        " \(n\)", );
+
+# some series taken at random that would work
+@yser = ( [ "\sum\limits_{n=1}^{\infty} (n-$a) e^{$a - n}",
+        "the terms in the sum are all positive for \(x>$a\), and " . 
+        "are decreasing" ],
+      [ "\sum\limits_{n=1}^{\infty} {\ln(n) + $b n\over n}",
+        "the terms in the sum are all positive, and are " .
+        "decreasing for \(x>1\)" ],
+      [ "\sum\limits_{n=1}^{\infty} {\ln(n)\over n^2}", 
+        "the terms in the sum are all positive, and are " .
+        "decreasing for \(x>1.65\)" ],
+      [ "\sum\limits_{n=1}^{\infty} {n\over $b n^2 + $b}", 
+        "the terms in the sum are all positive and are decreasing" ],
+    );
+
+# Pick two of each
+$divIndex = random(0,scalar(@nser)-1,1);
+$extIndex = random(0,(scalar(@nser) + scalar(@yser) -1),1);
+$extIndex++ if ( $extIndex == $divIndex );
+
+# also make sure that we don't get two of @nser with the same reason
+$extIndex+=4 if ( $divIndex < 4 && $extIndex < 4 );
+$extIndex = random(0,3,1) if ( ( $divIndex > 3 && $divIndex < 9 ) &&
+                   ( $extIndex > 3 && $extIndex < 9 ) );
+
+@prob = ();
+@mclist = ();
+
+$ind0 = list_random(0,1);
+$ind1 = ($ind0+1)%2;
+
+$mclist[0] = new_multiple_choice();
+$mclist[1] = new_multiple_choice();
+
+if ( $extIndex >= scalar(@nser) ) {
+    $extIndex -= scalar(@nser);
+    $prob[$ind0] = $yser[$extIndex]->[0];
+    $mclist[$ind0]->qa("Can the integral test be used to test convergence?",
+              "yes");
+    $mclist[$ind0]->makeLast( @rea, "yes" );
+    $soln[$ind0] = "the integral test can be used";
+} else {
+    $prob[$ind0] = $nser[$extIndex]->[0];
+    $mclist[$ind0]->qa("Can the integral test be used to test convergence?",
+              $nser[$extIndex]->[1]);
+    $mclist[$ind0]->makeLast( @rea, "yes" );
+    $soln[$ind0] = "the integral test cannot be used, " . 
+        $nser[$extIndex]->[1];
+    $soln[$ind0] =~ s/, no,/,/;
+}
+
+$prob[$ind1] = $nser[$divIndex]->[0];
+$mclist[$ind1]->qa("Can the integral test be used to test convergence?",
+           $nser[$divIndex]->[1]);
+$mclist[$ind1]->makeLast( @rea, "yes");
+$soln[$ind1] = "the integral test cannot be used, " . 
+    $nser[$divIndex]->[1];
+$soln[$ind1] =~ s/, no,/,/;
+
+BEGIN_TEXT
+
+For each of the following series, indicate whether the integral test
+can be used to determine its convergence or not, and if not, why.
+
+$PAR
+${BBOLD}A.$EBOLD
+\( $prob[0] \)
+$BR
+\{ $mclist[0]->print_q() \}
+\{ $mclist[0]->print_a() \}
+
+$PAR
+${BBOLD}B.$EBOLD
+\( $prob[1] \)
+$BR
+\{ $mclist[1]->print_q() \}
+\{ $mclist[1]->print_a() \}
+
+END_TEXT
+
+ANS( radio_cmp( $mclist[0]->correct_ans() ) );
+ANS( radio_cmp( $mclist[1]->correct_ans() ) );
+
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Recall that the integral test can be used when we consider 
+\(\sum a_n\) and the function \(a_n = f(n)\) is decreasing and
+positive for \(x\ge c\).  (Where \(c\) is some number that is fixed
+for the given \(f(n)\)).  
+$PAR
+Thus, for \( $prob[0] \), $soln[0], 
+and for  \( $prob[1] \), $soln[1].
+
+END_SOLUTION
+
+ENDDOCUMENT();

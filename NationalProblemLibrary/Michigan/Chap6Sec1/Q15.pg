@@ -1,0 +1,193 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus')
+## Tagged by cmd6a 09/05/07
+
+## DBsubject('Calculus')
+## DBchapter('Integrals')
+## DBsection('The Fundamental Theorem of Calculus')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus: Single and Multivariable')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('6.1')
+## Problem1('')
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+);
+ 
+TEXT(&beginproblem);
+$showPartialCorrectAnswers = 1;
+
+# we let f be 0 at 
+$x0 = random(3,5,1);
+# then we have f at 0 and 7 as
+$f0 = 0;   # these are incremented below
+$f1 = 0;
+
+# generate a beautifully random piecewise function for f'
+@f = ();                       # the list of functions to graph
+$x = 0;                        # x is where we are in the interval
+$f_sign = list_random(-1,1);   # the sign of f' on the current interval
+$fmax = 0;                     # fmax gives us the scale on the graph
+
+# for the solution, we also need to know the intervals on which the 
+# function is constant.  we keep track of these to the left and right,
+# because those give us the values we need to find f(0) and f(7), 
+# respectively
+@leftint = ();   # each entry is a reference to an array: 
+@rightint = ();  #   [ leftendpoint, rightendpoint, dx, functionvalue ]
+$intsum = '';    # the sum giving the integral
+
+while ( $x < 7 ) {
+    $dx = list_random(1,2,1);
+    $dx = 7 - $x if ( $x + $dx > 7 );
+    $fval = $f_sign*random(1,3,1);
+    $xmax = $x + $dx;
+    push( @f, "$fval for x in ($x,$xmax) using color:blue and weight:2" );
+
+# add to the sum
+    $intsum .= " + ($fval)($dx)";
+
+# update the value of f using this data
+    if ( $x < $x0 && $xmax <= $x0 ) {
+        $f0 -= $fval*$dx;
+	push( @leftint, [ $x, $xmax, $dx, $fval ] );
+    } elsif ( $x >= $x0 && $xmax > $x0 ) {
+        $f1 += $fval*$dx;
+	push( @rightint, [ $x, $xmax, $dx, $fval ] );
+    } else {
+	$f0 -= $fval*($x0-$x);
+	$f1 += $fval*($xmax-$x0);
+	push( @leftint, [ $x, $x0, ($x0-$x), $fval ] );
+	push( @rightint, [ $x0, $xmax, ($xmax-$x0), $fval ] );
+    }
+
+    $f_sign = -1*$f_sign;
+    $x = $xmax;
+    $fmax = abs($fval) if ( abs($fval) > $fmax );
+}
+$intsum =~ s/^ ~~+ //;
+
+# make the graph
+$gr = init_graph(0,-1*$fmax-1,7,$fmax+1,axes=>[0,0],grid=>[7,2*$fmax+2]);
+add_functions( $gr, @f );
+$gr->lb('reset');
+for ( my $i=1; $i<=7; $i++ ) {
+    $gr->lb(new Label($i-0.1,-0.1,$i,'black','center','top'));
+}
+for ( my $i=-1*$fmax-1; $i<=$fmax+1; $i++ ) {
+    next if ( $i == 0 );
+    $ypos = ( $i < 0 ) ? $i+0.1 : $i-0.1;
+    $gr->lb(new Label(0.15, $ypos, $i, 'black', 'left', 'middle'));
+}
+
+BEGIN_TEXT
+
+Assume \( f' \) is given by the graph below.
+Suppose \( f \) is continuous and that \( f($x0)=0 \).
+$BR
+$BCENTER
+\{ image( insertGraph($gr), 'tex_size'=>500 ) \}
+$BR
+${BITALIC}(Click on the graph for a larger version.)$EITALIC
+$ECENTER
+$PAR
+Sketch, on a sheet of work paper, an accurate graph of \( f \), and
+use it to find each of 
+$BR
+\( f(0) = \) \{ ans_rule(10) \} 
+$BR
+and
+$BR
+\( f(7) = \) \{ ans_rule(10) \} 
+
+$PAR
+Then find the value of the integral:
+$BR
+\( \int_0^7 f'(x)\,dx = \) \{ ans_rule(10) \}
+$BR
+${BITALIC}(Note that you can do this in two different ways!)$EITALIC
+
+END_TEXT
+
+ANS( num_cmp( $f0 ) );
+ANS( num_cmp( $f1 ) );
+ANS( num_cmp( "$f1-$f0" ) );
+
+$firstLeftVal = -1*($leftint[-1]->[2])*($leftint[-1]->[3]);
+$firstRightVal = ($rightint[0]->[2])*($rightint[0]->[3]);
+
+# build sum for f(0)
+$lsum = "f($leftint[-1]->[0])";
+for ( my $i=@leftint-2; $i>=0; $i-- ) {
+    $lsum .= " - ($leftint[$i]->[2])($leftint[$i]->[3])";
+}
+# and for f(7)
+$rsum = "f($rightint[0]->[1])";
+for ( my $i=1; $i<@rightint; $i++ ) {
+    $rsum .= " + ($rightint[$i]->[2])($rightint[$i]->[3])";
+}
+
+$sumval = $f1 - $f0;
+
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Starting at \(x=$x0\), we are given that \(f($x0)=0\).  
+Moving to the left on the interval 
+\($leftint[-1]->[0] < x < $leftint[-1]->[1]\), 
+we have
+\(f'(x) = $leftint[-1]->[3]\), 
+and we can find \(f($leftint[-1]->[0])\) by knowing that the change in
+\(f(x)\) over this interval is equal to the area under
+\(f'(x)\) between \(x=$leftint[-1]->[0]\) and
+\(x=$leftint[-1]->[1]\).  Thus
+\(f($leftint[-1]->[1]) - f($leftint[-1]->[0]) = 
+   ($leftint[-1]->[3])($leftint[-1]->[2])\), so that 
+\(f($leftint[-1]->[0]) = 
+  f($x0) - ($leftint[-1]->[2])($leftint[-1]->[3]) = $firstLeftVal\).
+Similarly, continuing back to \(x=0\),
+\[
+f(0) = $lsum = $f0
+\]
+
+$PAR
+Moving to the right from \(x=$x0\), we know that 
+\(f'(x) = $rightint[0]->[3]\) on 
+\($x0 < x < $rightint[0]->[1]\).  
+So, as before,
+\( f($rightint[0]->[1]) = 
+   f($x0) + ($rightint[0]->[2])($rightint[0]->[3]) = $firstRightVal\).  
+Similarly, continuing to \(x=7\),
+\[
+f(7) = $rsum = $f1.
+\]
+
+$PAR
+Then, the value of the integral \(\int_0^7 f'(x)\,dx\) is given by the sum 
+\[
+\int_0^7 f'(x)\,dx = $intsum = $sumval.
+\]
+
+Alternatively, knowing \(f(7)=$f1\) and \(f(0)=$f0\) and using the
+Fundamental Theorem of Calculus, we have
+\[
+\int_0^7 f'(x)\,dx=f(7)-f(0) = ($f1) - ($f0) = $sumval.
+\]
+
+END_SOLUTION
+
+ENDDOCUMENT();
