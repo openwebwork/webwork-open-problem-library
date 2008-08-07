@@ -1,0 +1,285 @@
+#DESCRIPTION
+#KEYWORDS('Integrals', 'Area and Distance')
+#  Interpreting the integral in terms of area
+#  Integral of velocity is displacement
+#  Integral of absolute value of velocity is distance
+#  Left- and right-endpoint Riemann sums
+#ENDDESCRIPTION
+
+## DBsubject('Calculus')
+## DBchapter('Integrals')
+## DBsection('Area and Distance')
+## Date('5/16/2008')
+## Author('Paul Pearson')
+## Institution('University of Rochester')
+## TitleText1('Calculus: Early Transcendentals')
+## EditionText1('6')
+## AuthorText1('Stewart')
+## Section1('5.1')
+## Problem1('2,3,4')
+
+
+DOCUMENT();
+loadMacros("PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGanswermacros.pl",
+           "PGgraphmacros.pl",
+           "PGnumericalmacros.pl",
+           "extraAnswerEvaluators.pl"
+           );
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers=1;
+
+# Generate function data =====================================
+
+@x = (0,1,2,3,4,5,6,7,8);
+$n = 8; # the number of rectangles
+
+
+# generate the y-values (velocity values)
+$sign = random(-1,1,2);
+$t_intercept = random(2,6,1);
+@y[0] = random(1,4,1);
+foreach $i (1..8) { 
+   # make successive y-values distinct
+   do { @y[$i] = random(1,4,1); } until (@y[$i] != @y[$i-1]);
+}
+# have some consecutive y-values above the t-axis, others below it
+foreach $i (0..$t_intercept-1) { @y[$i] = $sign * @y[$i]; }
+foreach $i ($t_intercept..8) { @y[$i] = -1 * $sign * @y[$i]; }
+
+
+# Create data for Hermite spline, which connects the dots in the graph
+foreach $i (0..8) { @yp[$i] = 0; } # not perfect, but close enough
+$spline_rule = hermite_spline(~~@x, ~~@y,  ~~@yp );
+
+
+
+# Graph of left endpoint Riemann sum =====================================
+
+# Create a graph to hold a function and add labels to it
+$graphL = init_graph(-1,-5,9,5,'axes'=>[0,0],'grid'=>[10,10]);
+$graphL->lb(new Label ( 8.5,0,'t','black','right','bottom'));
+$graphL->lb(new Label ( -0.25,4.5,'y','black','right','top'));
+$lightblue = $graphL->im->colorAllocate(148,201,255);
+$darkblue = $graphL->im->colorAllocate(100,100,255);
+
+# Create arrays of pixel references for x and y values for the rectangles
+foreach $k (0..8) {
+   @xpixL[$k] = $graphL->ii(@x[$k]);
+   @ypixL[$k] = $graphL->jj(@y[$k]);
+}
+$xaxisL = $graphL->jj(0);
+
+# Plot the rectangles in the Riemann sum
+foreach $k (0..$n-1) {
+   if (@y[$k] > 0) {
+      $graphL->im->filledRectangle(@xpixL[$k],@ypixL[$k],@xpixL[$k+1],$xaxisL,$lightblue);
+      $graphL->im->rectangle(@xpixL[$k],@ypixL[$k],@xpixL[$k+1],$xaxisL,$darkblue);
+   } else {
+      $graphL->im->filledRectangle(@xpixL[$k],$xaxisL,@xpixL[$k+1],@ypixL[$k],$lightblue);
+      $graphL->im->rectangle(@xpixL[$k],$xaxisL,@xpixL[$k+1],@ypixL[$k],$darkblue);
+   }
+}
+
+# Plot the step function
+# Better quality graph (connects only the data points listed by lines)
+# the construct $image->im(); allows us to access commands in GD.pm 
+# that are not available to us through WebWork macros
+#$graphL->im->setThickness(3);
+#foreach $i (0..7) {
+#   $graphL->moveTo($i,@y[$i]);
+#   $graphL->lineTo($i+1,@y[$i],'blue'); 
+#   $graphL->stamps(open_circle($i+1,@y[$i], 'blue') ); 
+#}
+#$graphL->im->setThickness(1);
+
+# Plot the original data points and the Hermite spline connecting them
+foreach $i (0..8) { $graphL->stamps(closed_circle($i,@y[$i], 'black') ); }
+$f_left = new Fun($spline_rule, $graphL);
+$f_left->color('black');
+
+
+
+
+
+# Graph of right endpoint Riemann sum ==================================
+
+# Create a graph to hold a function and add labels to it
+$graphR = init_graph(-1,-5,9,5,'axes'=>[0,0],'grid'=>[10,10]);
+$graphR->lb(new Label ( 8.5,0,'t','black','right','bottom'));
+$graphR->lb(new Label ( -0.25,4.5,'y','black','right','top'));
+$lightblue = $graphR->im->colorAllocate(148,201,255);
+$darkblue = $graphR->im->colorAllocate(100,100,255);
+
+# Create arrays of pixel references for x and y values for the rectangles
+foreach $k (0..8) {
+   @xpixR[$k] = $graphR->ii(@x[$k]);
+   @ypixR[$k] = $graphR->jj(@y[$k]);
+}
+$xaxisR = $graphR->jj(0);
+
+# Plot the rectangles in the Riemann sum
+foreach $k (1..$n) {
+   if (@y[$k] > 0) {
+      $graphR->im->filledRectangle(@xpixR[$k-1],@ypixR[$k],@xpixR[$k],$xaxisR,$lightblue);
+      $graphR->im->rectangle(@xpixR[$k-1],@ypixR[$k],@xpixR[$k],$xaxisR,$darkblue);
+   } else {
+      $graphR->im->filledRectangle(@xpixR[$k-1],$xaxisR,@xpixR[$k],@ypixR[$k],$lightblue);
+      $graphR->im->rectangle(@xpixR[$k-1],$xaxisR,@xpixR[$k],@ypixR[$k],$darkblue);
+   }
+}
+
+# Plot the step function
+# Better quality graph (connects only the data points listed by lines)
+# the construct $image->im(); allows us to access commands in GD.pm 
+# that are not available to us through WebWork macros
+#$graphR->im->setThickness(3);
+#foreach $i (0..7) {
+#   $graphR->moveTo($i,@y[$i+1]);
+#   $graphR->stamps(open_circle($i,@y[$i+1], 'blue') ); 
+#   $graphR->lineTo($i+1,@y[$i+1],'blue'); 
+#}
+#$graphR->im->setThickness(1);
+
+# Plot the original data points and the Hermite spline connecting them
+foreach $i (0..8) { $graphR->stamps(closed_circle($i,@y[$i], 'black') ); }
+$f_right = new Fun($spline_rule, $graphR);
+$f_right->color('black');
+
+
+
+
+# Problem text ==========================================
+
+BEGIN_TEXT
+
+Your task is to estimate how far an object traveled during the time interval \( 0 \leq t \leq 8 \), but you only have the following data about the velocity of the object.
+$BR
+$BR
+
+$BCENTER
+\{ begintable(1+scalar( @x ) ) \}
+\{ row("time (sec)", @x)\}
+\{ row("velocity (feet/sec)", @y) \}
+\{endtable() \}
+$ECENTER
+
+$BR
+To get an idea of what the velocity function might look like, you pick up a black pen, plot the data points, and connect them by curves.  
+Your sketch looks something like the black curve in the graph below.  
+$BR
+$BR
+
+$BCENTER
+\{ begintable(1) \}
+\{ row( image( insertGraph($graphL), height=>400, width=>400, tex_size=>800 ) ) \}
+\{ row("Left endpoint approximation") \}
+\{ endtable() \}
+$ECENTER
+
+$BR
+You decide to use a left endpoint Riemann sum to estimate the total displacement.  So, you pick up a blue pen and draw rectangles whose height is determined by the velocity measurement at the left endpoint of each one-second interval.  By using the left endpoint Riemann sum as an approximation, you are assuming that the actual velocity is approximately constant on each one-second interval (or, equivalently, that the actual acceleration is approximately zero on each one-second interval), and that the velocity and acceleration have discontinuous jumps every second.  This assumption is probably incorrect because it is likely that the velocity and acceleration change continuously over time.  However, you decide to use this approximation anyway since it seems like a reasonable approximation to the actual velocity given the limited amount of data.
+$BR
+$BR
+
+
+(A) Using the left endpoint Riemann sum, find approximately how far the object traveled.  Your answers must include the correct \{ helpLink('units') \}.
+$BR 
+Total displacement = \{ans_rule(20)\}
+$BR 
+Total distance traveled = \{ans_rule(20)\}
+$BR
+$BR
+
+
+$HR
+
+$BR
+
+Using the same data, you also decide to estimate how far the object traveled using a right endpoint Riemann sum.  So, you sketch the curve again with a black pen, and draw rectangles whose height is determined by the velocity measurement at the right endpoint of each one-second interval.
+$BR
+$BR
+
+$BCENTER
+\{ begintable(1) \}
+\{ row( image( insertGraph($graphR), height=>400, width=>400, tex_size=>800 ) ) \}
+\{ row("Right endpoint approximation") \}
+\{ endtable() \}
+$ECENTER
+
+$BR
+
+(B) Using the right endpoint Riemann sum, find approximately how far the object traveled.  Your answers must include the correct \{ helpLink('units') \}.
+$BR 
+Total displacement = \{ans_rule(20)\}
+$BR 
+Total distance traveled = \{ans_rule(20)\}
+$BR
+$BR
+
+END_TEXT
+
+
+
+# Answer evaluators ================================
+
+# calculate the displacement and distance on [0,8] using left endpoints
+$displacement_left = 0;
+$distance_left = 0;
+$displacement_right = 0;
+$distance_right = 0;
+foreach $i (0..7) { 
+   $displacement_left = $displacement_left + @y[$i]; 
+   $distance_left = $distance_left + abs(@y[$i]); 
+   $displacement_right = $displacement_right + @y[$i+1]; 
+   $distance_right = $distance_right + abs(@y[$i+1]); 
+
+}
+
+# Evaluating displacement and distance questions
+ANS(num_cmp("$displacement_left", units => 'ft', tol=>0, tolType=>"absolute"));
+ANS(num_cmp("$distance_left", units => 'ft', tol=>0, tolType=>"absolute"));
+ANS(num_cmp("$displacement_right", units => 'ft', tol=>0, tolType=>"absolute"));
+ANS(num_cmp("$distance_right", units => 'ft', tol=>0, tolType=>"absolute"));
+
+
+
+
+# Solution ===================================================
+
+$dispL = FEQ("@y[0]+@y[1]+@y[2]+@y[3]+@y[4]+@y[5]+@y[6]+@y[7]");
+$distL = FEQ("|@y[0]|+|@y[1]|+|@y[2]|+|@y[3]|+|@y[4]|+|@y[5]|+|@y[6]|+|@y[7]|");
+
+$dispR = FEQ("@y[1]+@y[2]+@y[3]+@y[4]+@y[5]+@y[6]+@y[7]+@y[8]");
+$distR = FEQ("|@y[1]|+|@y[2]|+|@y[3]|+|@y[4]|+|@y[5]|+|@y[6]|+|@y[7]|+|@y[8]|");
+
+
+SOLUTION(EV3(<<'END_SOLUTION'));
+$BR
+$HR
+${BBOLD}Solution:${EBOLD}
+$BR
+$BR
+
+Using the left endpoint Riemann sum, the total displacement is the net area of the light blue shaded rectangles, and the total distance is the absolute area of the light blue shaded rectangles.
+$BR
+Total displacement = \( $dispL = $displacement_left \) feet.
+$BR
+Total distance = \( $distL = $distance_left \) feet.
+$BR
+$BR
+
+We can also make similar calculations using the right endpoint Riemann sum.
+$BR
+Total displacement = \( $dispR = $displacement_right \) feet.
+$BR
+Total distance = \( $distR = $distance_right \) feet.
+
+
+END_SOLUTION
+
+
+ENDDOCUMENT();
