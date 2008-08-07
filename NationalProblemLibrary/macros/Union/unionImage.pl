@@ -58,10 +58,10 @@ sub Image {
   my $HTML; my $TeX;
   ($image,$ilink) = @{$image} if (ref($image) eq "ARRAY");
   $image = alias(insertGraph($image)) if (ref($image) eq "WWPlot");
-  $image = alias($image) unless ($image =~ m!^/!i);
+  $image = alias($image) unless ($image =~ m!^/|^http!i);
   if ($ilink) {
     $ilink = alias(insertGraph($ilink)) if (ref($ilink) eq "WWPlot");
-    $ilink = alias($ilink) unless ($ilink =~ m!^/!i);
+    $ilink = alias($ilink) unless ($ilink =~ m!^/|^http!i);
   } else {$ilink = $image}
   $border = (($link || $ilink ne $image)? 2: 1) unless defined($border);
   $HTML = '<IMG SRC="'.$image.'" WIDTH="'.$w.

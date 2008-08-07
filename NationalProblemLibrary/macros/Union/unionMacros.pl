@@ -92,8 +92,8 @@ $C = MODES(TeX => '{\bf C}', HTML_tth => '{\bf C}', HTML => '<B>C</B>');
 #
 #  Smart-quotes in TeX mode, regular quotes in HTML mode
 #
-$LQ = MODES(TeX => '``', Latex2HTML => '"', HTML => '"');
-$RQ = MODES(TeX => "''", Latex2HTML => '"', HTML => '"');
+#$LQ = MODES(TeX => '``', Latex2HTML => '"', HTML => '"');
+#$RQ = MODES(TeX => "''", Latex2HTML => '"', HTML => '"');
 
 #
 #  Superscripts and subscript (mostly for if you want answer
