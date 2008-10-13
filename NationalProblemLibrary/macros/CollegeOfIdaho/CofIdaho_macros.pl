@@ -64,7 +64,8 @@
 
    Note: Answers must be of the form: (poly)/(poly) 
 
-
+9) ReduceFraction: Returns a string that represents a reduced fraction.
+   To use: $a = SimplifyFraction(numerator expression,denominator espression);
 =cut
 
 
@@ -213,10 +214,10 @@ my $new_evaluator = sub {
    if ($ans_hash_old->{score}!=1) {
           $ans_hash_old->{score}=0;
 #         $ans_hash_old->setKeys( 'ans_message' =>"Your equation must model the problem.");
-          $ans_hash_old->setKeys( 'ans_message'=>"At least one side is incorrect.");
+          $ans_hash_old->setKeys( 'ans_message'=>"At least one side of your equation is incorrect.");
           }
    if ($student !~ /[=]/) {
-      if ($ans =~/[RCP]/) {
+      if ($ans =~/[RCP]/) {  #This is for revenue/cost/profit problems.
         @side = split(/[=]/,$ans);
             $ans_hash_old->setKeys( 'ans_message'=>"Enter your answer in the form: $side[0] = expression.");}
       else  { $ans_hash_old->setKeys( 'ans_message' =>"You must enter an equation.");}
@@ -256,6 +257,7 @@ my $new_evaluator = sub {
       $ans_hash->{student_ans}="$student";
       $ans_hash->{preview_latex_string}="$student";   
       $ans_hash->setKeys( 'ans_message' =>"You must enter an equation.");
+      $ans_hash->{score}=0;
       return $ans_hash;
    }
    else {
@@ -269,22 +271,18 @@ my $new_evaluator = sub {
       $left_ans_hash->{student_ans}="$student";
       $left_ans_hash->{preview_latex_string}="$student";
       
-      if ($left_ans_hash->{score}!=1 || $right_ans_hash->{score}!=1) {
-         if ($left_ans_hash->{score}==0) {
+      if ($right_ans_hash->{score}==0) {$left_ans_hash->{score}=0;}
+	
+      my $perlNumber = "[0-9]+[\.\/]?[0-9]*|\.[0-9]+";
+      my $BadForm = ($studentSides[0]=~/\w.*\w/
+                     || $studentSides[1] =~ /[a-zA-Z].*[a-zA-Z]/
+                     || $studentSides[1] =~ /($perlNumber)[+-]+($perlNumber[a-zA-Z][+-])?($perlNumber)/);
+      if ($BadForm) {
              $left_ans_hash->setKeys( 
-      'ans_message' =>"Enter your answer in slope-intercept form: y = mx+b");
-             }
-          $left_ans_hash->{score}=0;
-          }
-      else {
-          my $BadForm = ($studentSides[1] =~ /x.*x/);
-          if ($BadForm) {
-             $left_ans_hash->setKeys( 
-      'ans_message' =>"Enter your answer in slope-intercept form: y = mx+b");
+      'ans_message' =>"Enter your answer in the form: $BR y = mx+b, y = b or x = c");
              $left_ans_hash->{score}=0;  
              }  
-	  }          
-	
+	          
        return $left_ans_hash;
     }	  
 };
@@ -664,7 +662,26 @@ sub RationalExpEvaluator {
 
 
 ###################################################################
-# 9) Checks a list of equations.  
+#  9) Writes a fraction in reduced form.  
+#     
+
+sub ReduceFraction {
+   my $num = shift;
+   my $den = shift;
+   my $n = 1;
+   my $d = 1;
+   
+  ($n,$d) = reduce($num,$den);
+   my $result = "$n/$d";
+   if ($d==1) {$result = "$n";}
+   
+   return($result);
+}
+
+
+
+###################################################################
+# 10) Checks a list of equations.  
 #     Designed for checking a list of asymptotes
 
 sub equation_cmp_list {
