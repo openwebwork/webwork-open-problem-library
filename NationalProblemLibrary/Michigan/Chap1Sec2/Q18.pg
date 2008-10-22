@@ -1,0 +1,157 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','function', 'exponential function', 'exponentials')
+## Tagged by glr 10/21/08
+
+## DBsubject('Calculus')
+## DBchapter('Functions and Models')
+## DBsection('Exponential Functions')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('1.2')
+## Problem1('18')
+
+## Textbook tags
+## HHChapter('A Library of Functions')
+## HHSection('Exponential Functions')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+"MathObjects.pl",
+"hhAdditionalMacros.pl",
+);
+
+Context("Numeric");
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+# we'll graph the function
+#   y = a*(1/b)^x
+# for x0-1 < x < x1+1
+
+$a  = non_zero_random(-2,3,1);
+$b  = random(2,6,1);
+$x0 = random(-1,1,1);
+$x1 = $x0 + random(1,3,1);
+$x1++ if ( $x1 - $x0 == 1 && $x0*$x1 == 0 );
+
+$yfunc = Compute("$a/($b^x)");
+$denom = Compute("$b^x");
+
+# $y0 = $a*((1/$b)**$x0);
+# $y1 = $a*((1/$b)**$x1);
+
+$y0 = $yfunc->eval(x=>$x0);
+$y1 = $yfunc->eval(x=>$x1);
+
+$y0r = round(10000*$y0)/10000;
+$y1r = round(10000*$y1)/10000;
+
+$xmin = $x0 - 1;
+$xmax = $x1 + 1;
+# $yleft = $a*((1/$b)**$xmin);
+# $yright = $a*((1/$b)**$xmax);
+
+$yleft = $yfunc->substitute('x'=>$xmin);
+$yright = $yfunc->substitute('x'=>$xmax);
+
+if ( $yleft < $yright ) {
+    $ymin = ( $yleft < 0 ) ? $yleft-2 : -1;
+    $ymax = ( $yright > 0 ) ? $yright+2 : 1;
+    $ylab0 = $y0 - .025*($ymax-$ymin);
+    $ylab1 = $y1 - .025*($ymax-$ymin);
+    $imgDescr = "graph of an increasing, concave down function passing " .
+        "through the points A and B, with A to the left of B.";
+} else {
+    $ymin = ( $yright < 0 ) ? $yright-2 : -1;
+    $ymax = ( $yleft > 0 ) ? $yleft+2 : 1;
+    $ylab0 = $y0 + .025*($ymax-$ymin);
+    $ylab1 = $y1 + .025*($ymax-$ymin);
+    $imgDescr = "graph of an decreasing, concave up function passing " .
+        "through the points A and B, with A to the left of B.";
+}
+$graph = init_graph($xmin,$ymin,$xmax,$ymax, axes=>[0,0], size=>[250,250]);
+$graph->lb('reset');
+
+$f1 = "$yfunc for x in <$xmin,$xmax> using color:blue and weight:2";
+$f2 = "$yfunc for x in [$x0,$x1] using color:blue and weight:2";
+plot_functions($graph, $f1, $f2);
+
+$tb = ( $a > 0 ) ? 'bottom' : 'top';
+$lb1 = new Label($x0,$ylab0,"A",'black','center',$tb);
+$lb2 = new Label($x1,$ylab1,"B",'black','center',$tb);
+$graph->lb( $lb1 );
+$graph->lb( $lb2 );
+
+# get some nice values for y0 and y1
+$y0_tex = reduced_frac( $a, $b**($x0) );
+$y1_tex = reduced_frac( $a, $b**($x1) );
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the function \( y = f(x) \) graphed below.
+$BR
+$BCENTER
+\{ image(insertGraph( $graph ), tex_size=>500, height=>250, width=>250,
+	 extra_html_tags=>'alt="' . $imgDescr . '"') \}
+$ECENTER
+
+$PAR
+The two points marked on the graph are
+\(A = ($x0,$y0_tex)\) and \(B = ($x1,$y1_tex)\).
+Give a possible formula for the function graphed.
+$BR
+\( y = \) \{ ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $yfunc->cmp() );
+
+$xdiffexp = (($x1 - $x0)==1) ? '' : "^{" . ($x1 - $x0) . "}";
+if ( $x0 == 0 || $x1 == 0 ) {
+    $fs = ( $x0 == 0 ) ? 'first' : 'second';
+    $sf = ( $x0 == 0 ) ? 'second' : 'first';
+    $expl = "The $fs of these easily gives us \(y_0 = $a\).  " .
+            "Then from the $sf we get \(a = 1/$b\), so " . 
+	    "\(y = $a\cdot (\frac{1}{$b})^x\).";
+} else {
+    $expl = "Dividing the second of these by the first, we get " .
+	    "\(\frac{$y1r}{$y0} = \frac{y_0 a^{$x1}}{y_0 a^{$x0}} = " .
+	    "a{$xdiffexp} \),  so \(a = 1/$b\).  Then from the first " .
+            "equation, we have \( y_0 = $y0r/a^{$x0}\), so " . 
+	    "\(y_0 = $a\) and \(y = $a\cdot(\frac{1}{$b})^x\).";
+}
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+We look for an equation of the form \( y = y_0 a^x \) since the
+graph looks exponential.  The points \(($x0,$y0)\) and 
+\(($x1,$y1)\) are on the graph, so 
+\[ $y0r = y_0 a^{$x0} \qquad\mbox{and}\qquad
+   $y1r = y_0 a^{$x1}. \]
+
+$expl
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
