@@ -1,0 +1,183 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Aaron Wooton, <wootton@up.edu>
+# rewritten by Gavin LaRose, 11/2008
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','polynomials','powers','functions','rational functions')
+## Tagged by glr 11/04/08
+
+## DBsubject('Calculus')
+## DBchapter('Functions and Models')
+## DBsection('Mathematical Models: A Catalog of Essential Functions')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('1.6')
+## Problem1('23')
+
+## Textbook tags
+## HHChapter('A Library of Functions')
+## HHSection('Powers, Polynomials and Rational Functions')
+
+
+DOCUMENT();
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+);
+
+Context("Numeric");
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 0;
+
+## the functions we are generating values for are
+##    c t^2, k t^3 and a b^t, with
+$a = random(1.5, 2.5, 0.01);
+$b = random(1.1, 1.9, 0.1);
+$c = random(1.1, 1.9, 0.1);
+$k = random(1.5, 3.5, 0.5);
+
+## generate function values at t values given by
+@texp = ( "0.0", "1.0", "2.0", "3.0", "4.0", "5.0" );
+$whichQuad = random(0,1,1);
+$quadDel = random(0.2, 0.4, 0.1);
+$cubiDel = random(0.2, 0.4, 0.1);
+if ( $whichQuad ) {
+    @tqua = ( "1.0", 1+$quadDel, 1+2*$quadDel, 1+3*$quadDel,
+	      1+4*$quadDel, 1+5*$quadDel);
+    @tcub = ( "2.0", 2+$cubiDel, 2+2*$cubiDel, 2+3*$cubiDel,
+	      2+4*$cubiDel, 2+5*$cubiDel);
+} else {
+    @tqua = ( "2.0", 2+$quadDel, 2+2*$quadDel, 2+3*$quadDel,
+	      2+4*$quadDel, 2+5*$quadDel);
+    @tcub = ( "1.0", 1+$cubiDel, 1+2*$cubiDel, 1+3*$cubiDel,
+	      1+4*$cubiDel, 1+5*$cubiDel);
+}
+
+## then the values are
+@expVal = ();
+@quaVal = ();
+@cubVal = ();
+for ( my $i=0; $i<@texp; $i++ ) {
+    push( @expVal, round($a*($b**($texp[$i]))*100)/100 );
+    push( @quaVal, round($c*$tqua[$i]*$tqua[$i]*100)/100 );
+    push( @cubVal, round($k*$tcub[$i]*$tcub[$i]*$tcub[$i]*100)/100 );
+}
+
+@allTvals = ( [ @texp ], [ @tqua ], [ @tcub ] );
+@allFvals = ( [ @expVal ], [ @quaVal ], [ @cubVal ] );
+
+## put these in random rows
+@shuffle = shuffle(3);
+@trow1 = @{$allTvals[$shuffle[0]]};  @frow1 = @{$allFvals[$shuffle[0]]};
+@trow2 = @{$allTvals[$shuffle[1]]};  @frow2 = @{$allFvals[$shuffle[1]]};
+@trow3 = @{$allTvals[$shuffle[2]]};  @frow3 = @{$allFvals[$shuffle[2]]};
+
+@fnames = ( "f(t)", "g(t)", "h(t)" );
+
+## then our popups are
+$pop1 = PopUp( [ "?", "f(t)", "g(t)", "h(t)" ], $fnames[$shuffle[0]] );
+$pop2 = PopUp( [ "?", "f(t)", "g(t)", "h(t)" ], $fnames[$shuffle[1]] );
+$pop3 = PopUp( [ "?", "f(t)", "g(t)", "h(t)" ], $fnames[$shuffle[2]] );
+
+## the inverse map for the ordering is
+%shufInv = ();
+foreach my $i ( 0, 1, 2 ) { $shufInv{$shuffle[$i]} = $i ; }
+
+## the exponential function is
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Values of three functions are given in the table below, each rounded
+to two decimal places.  One function is of the form \(y=ab^t\), one
+is of the form \(y=ct^2\) and one is of the form \(y=kt^3\), where
+\(a,b,c,k\) are all constants.  Match these formulas to the corresponding
+function data.
+$BR
+${BCENTER}
+\{ begintable( scalar(@texp) + 1 ) \}
+\{ row( "\(t=\)",    @trow1 ) \}
+\{ row( "\(f(t)=\)", @frow1 ) \}
+\{ row( "\(t=\)",    @trow2 ) \}
+\{ row( "\(g(t)=\)", @frow2 ) \}
+\{ row( "\(t=\)",    @trow3 ) \}
+\{ row( "\(h(t)=\)", @frow3 ) \}
+\{ endtable() \}
+$ECENTER
+
+\( y = a b^t \) corresponds to \{ $pop1->menu() \}
+$BR
+\( y = c t^2 \) corresponds to \{ $pop2->menu() \}
+$BR
+\( y = k t^3 \) corresponds to \{ $pop3->menu() \}
+$BR
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $pop1->cmp() );
+ANS( $pop2->cmp() );
+ANS( $pop3->cmp() );
+
+@funcs = ( "f", "g", "h" );
+
+$testRow = ( $shufInv{0} == 0 ) ? 1 : 0;
+$testC = $allFvals[$shufInv{$testRow}]->[0] /
+    (($allTvals[$shufInv{$testRow}]->[0])*($allTvals[$shufInv{$testRow}]->[0]));
+$testCval = round(100*$testC)/100;
+
+$testVal = round($testC*($allTvals[$shufInv{$testRow}]->[1])*($allTvals[$shufInv{$testRow}]->[1])*100)/100;
+
+$lastRow = 0;
+while ( $lastRow == $shufInv{0} || $lastRow == $testRow ) { $lastRow++; }
+
+$testConcl = ( $testC == $quaVal[1]/($tqua[1]*$tqua[1]) ) ?
+    "This is in fact true.  Thus, the function " .
+    "\($fnames[$testRow]\) is in fact that quadratic " .
+    "function \(y = c t^2\), and therefore by elimination the function " .
+    "\($fnames[$lastRow]\) is the cubic \(y = k t^3\)." :
+    "However, \($testCval ($allTvals[$shufInv{$testRow}]->[1])^2 = " .
+    "$testVal\), so the function \($fnames[$testRow]\) " .
+    "is must instead be the cubic function \(y = k t^3\), and therefore by " .
+    "elimination the function \($fnames[$lastRow]\) is the quadratic " .
+    "\(y = c t^2\).";
+
+$si = $shufInv{0};
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+We note that \($funcs[$shuffle[0]](0) = $expVal[0]\) is a non-zero value,
+so \($fnames[$shuffle[0]]\) must be the exponential function \(y = a b^t\).
+$PAR
+Next, note that if \($fnames[$testRow]\) is the quadratic, \(y = c t^2\),
+then we have
+\( $allFvals[$shufInv{$testRow}]->[0] = 
+   c ($allTvals[$shufInv{$testRow}]->[0])^2 \), so that
+\( c = $testCval \).  Then, if this is the quadratic function, we must have
+\( $allFvals[$shufInv{$testRow}]->[1] =
+   $testCval ($allTvals[$shufInv{$testRow}]->[1])^2 \).
+$testConcl
+$PAR
+Of course, we can solve for each of \(a\), \(b\), \(c\) and \(k\) to
+conclude that the functions generating the data in the table are
+\(y = $a ($b)^t\), \(y = $c t^2\), and \(y = $k t^3\).
+
+END_SOLUTION
+
+
+ENDDOCUMENT();
