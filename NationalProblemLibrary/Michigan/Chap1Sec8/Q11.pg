@@ -1,0 +1,247 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','limits','continuity','piecewise functions')
+## Tagged by glr 11/17/2008
+
+## DBsubject('Calculus')
+## DBchapter('Limits and Derivatives')
+## DBsection('The Limit of a Function')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('1.8')
+## Problem1('11')
+
+## Textbook tags
+## HHChapter('A Library of Functions')
+## HHSection('Limits')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"parserMultiAnswer.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+
+$showPartialCorrectAnswers = 1;
+
+$a = random(2,5,1);
+$func = Compute( "sin($a*x)/x" );
+@vals = ();
+foreach my $x ( -0.1, -0.01, -0.001, -0.0001, 0.0001, 0.001, 0.01, 0.1 ) {
+    push( @vals, $func->eval( x=>$x ) );
+}
+
+$limit = Compute($a)->with( tolType=>'absolute', tolerance=>0.01 );
+
+## the window with height 0.02 that gives f(x) entering and leaving on
+##    the sides must be [-delta, delta], where we pick delta so
+##    that f(delta) = a - 0.01 (if our window is [a - 0.01, a + 0.01])
+##    or f(delta) = a - 0.02 (if our window is [a - 0.02, a]).
+
+## get a reasonable guess for what the answer actually is
+$g = $func - Compute("$a - 0.01");
+$gp = $func->D();
+## a first guess is to solve using the leading term of the Taylor expansion
+$x0 = Compute("sqrt(.06)/$a");
+$x1 = $x0 - $g->eval(x => $x0)/$gp->eval(x=>$x0);
+$x2 = $x1 - $g->eval(x => $x1)/$gp->eval(x=>$x1);
+$x3 = $x2 - $g->eval(x => $x2)/$gp->eval(x=>$x2);
+$x4 = $x3 - $g->eval(x => $x3)/$gp->eval(x=>$x3);
+## so, our first guess is
+$delta0 = $x4;
+$y0 = Compute("$a - .01");
+$y1 = Compute("$a + .01");
+
+$mp = MultiAnswer( -$delta0, $delta0, $y0, $y1 )->with(
+    singleAnswer=>0,
+    checker=>sub {
+	my ( $correct, $student, $self ) = @_;
+	my $delta = $correct->[1];
+	## first check: if we match -delta0, delta0 we're ok
+	if ( $student->[0] == $correct->[0] &&
+	     $student->[1] == $correct->[1] &&
+	     $student->[2] == $correct->[2] && 
+	     $student->[3] == $correct->[3] ) {
+	    return [ 1, 1, 1, 1 ];
+
+	## otherwise, we check that the function values match the
+	##    requirement
+	} else {
+	    if ( $student->[0] >= $student->[1] ) {
+		$self->setMessage(1, "Your interval doesn't make sense.  " .
+				  "Check that your first value is less " .
+				  "than the second.");
+		return [ 0, 0, 0, 0 ];
+	    } elsif ( $student->[2] >= $student->[3] ) {
+		$self->setMessage(3, "Your interval doesn't make sense.  " .
+				  "Check that your first value is less " .
+				  "than the second.");
+		return [ 0, 0, 0, 0 ];
+	    } elsif ( $student->[0] >= 0 || $student->[1] <= 0 ) {
+		$self->setMessage(1, "Your interval doesn't make sense.  " .
+				  "Check that your interval spans x=0. ");
+		return [ 0, 0, 0, 0 ];
+	    } else {
+		$fx0 = $func->eval( x=>$student->[0] );
+		$fx1 = $func->eval( x=>$student->[1] );
+
+		my @ret = ( 0, 0, 0, 0 );
+
+		## the y-range makes sense if it's of height <= .02 and
+		##    includes a
+		if ( $student->[2] < $a && $student->[3] >= $a &&
+		     (($student->[3] - $student->[2]) <= 0.02) ) {
+		    $ret[2] = 1;
+		    $ret[3] = 1;
+		}
+		## the x-range makes sense if the function values at the
+		##    endpoints are between the indicated y-values.
+		##    because we know the function is concave down at x=0
+		if ( $fx0 >= $student->[2] && $fx1 >= $student->[2] ) {
+		    $ret[0] = 1;
+		    $ret[1] = 1;
+		} elsif ( $fx0 >= $student->[2] ) {
+		    $ret[0] = 1;
+		} elsif ( $fx1 >= $student->[2] ) {
+		    $ret[1] = 1;
+		} else {
+		    if ( $fx0 < $student->[2] ) {
+			$self->setMessage(3, "Check that the function " .
+					  "really leaves through the " .
+					  "left side of your window.");
+		    }
+		    if ( $fx0 < $student->[3] ) {
+			$self->setMessage(4, "Check that the function " .
+					  "really leaves through the " .
+					  "right side of your window.");
+		    }
+		}
+
+		return [ @ret ];
+	    }
+	}
+    }
+);
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the function \(f(x) = \frac{\sin($a x)}{x}\).
+$PAR
+${BBOLD}(a)$EBOLD
+Fill in the following table of values for \(f(x)\):
+$BR
+\{ begintable(9) \}
+\{ row( "\(x =\)", "-0.1", "-0.01", "-0.001", "-0.0001", "0.0001", "0.001",
+	"0.01", "0.1" ) \}
+\{ row( "\(f(x) = \)", ans_rule(10), ans_rule(10), ans_rule(10), ans_rule(10),
+	ans_rule(10), ans_rule(10), ans_rule(10), ans_rule(10) ) \}
+\{ endtable() \}
+$PAR
+
+${BBOLD}(b)$EBOLD
+Based on your table of values, what would you expect the limit of \(f(x)\)
+as \(x\) approaches zero to be?
+$BR
+\(\lim\limits_{x\to0}\,\frac{\sin($a x)}{x} = \) \{ ans_rule(10) \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+Graph the function to see if it is consistent with your answers to
+parts (a) and (b).  By graphing, find an interval for \( x \) near
+zero such that the difference between your conjectured limit and the
+value of the function is less than 0.01.  In other words, find a
+window of height 0.02 such that the graph exits the sides of the window
+and not the top or bottom.  What is the window?
+$BR
+\{ $mp->ans_rule(10) \} \( \le x \le \) \{ $mp->ans_rule(10) \},
+$BR
+\{ $mp->ans_rule(10) \} \( \le y \le \) \{ $mp->ans_rule(10) \}.
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $vals[0]->cmp() );    ANS( $vals[1]->cmp() );
+ANS( $vals[2]->cmp() );	   ANS( $vals[3]->cmp() );
+ANS( $vals[4]->cmp() );	   ANS( $vals[5]->cmp() );
+ANS( $vals[6]->cmp() );	   ANS( $vals[7]->cmp() );
+
+ANS( $limit->cmp() );
+ANS( $mp->cmp() );
+
+$ame = $a - .01;
+$ape = $a + .01;
+$lme = $a - .02;
+
+$gr = init_graph( -$delta0, $a-.01, $delta0, $a+.01, axes=>[0,$a-.005],
+		  ticks=>[4,1], size=>[250,250] );
+add_functions($gr,
+	      "sin($a*x)/x for x in <-$delta0,-0.001> using color:blue " .
+	        "and weight:2",
+	      "sin($a*x)/x for x in <0.001,$delta0> using color:blue " .
+	        "and weight:2");
+$gr->stamps( open_circle(0,$a,'blue') );
+$gr->lb( new Label(-$delta0,$a-0.005,"-0.306",'black',"left","top") );
+$gr->lb( new Label($delta0,$a-0.005,"0.306",'black',"right","top") );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+The values of \(f(x)\) are
+$BR
+\{ begintable(9) \}
+\{ row( "\(x =\)", "-0.1", "-0.01", "-0.001", "-0.0001", "0.0001", "0.001",
+	"0.01", "0.1" ) \}
+\{ row( "\(f(x) = \)", $vals[0], $vals[1], $vals[2], $vals[3],
+	$vals[4], $vals[5], $vals[6], $vals[7] ) \}
+\{ endtable() \}
+$PAR
+
+${BBOLD}(b)$EBOLD
+From the values in this table, it appears that the limit is $limit.
+$PAR
+
+${BBOLD}(c)$EBOLD
+When we graph the function \(f(x)\) we see the graph:
+$BR
+${BCENTER}
+\{ image( insertGraph( $gr ), tex_size=>250, height=>250, width=>250,
+          extra_html_tags=>'alt="graph of a downward opening arch on ' .
+          'the x domain [-' . $delta0 . ',' . $delta0 . '] and y range [' .
+          $ame . ',' . $ape . ']; the top of ' .
+          'the arch is at (0,' . $a . '), and has a discontinuity ' .
+          'at that point, and function leaves the graphed window at the ' .
+	  'bottom-left corners of the graph."' ) \}
+$ECENTER
+$BR
+This confirms our estimate of the limit.  A reasonable range for \(x\)
+so that the graph of \(f(x)\) enters and leaves a window of height 0.02
+around \(y = $limit\) is \(-$delta0 \le x \le $delta0\) and
+\(3.99\le y\le 4.01\) (this results in
+a window centered vertically on \(y = $limit\), as shown; if we picked
+a window with \($lme \le y \le $limit\), we can use a larger range
+of \(x\)-values).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

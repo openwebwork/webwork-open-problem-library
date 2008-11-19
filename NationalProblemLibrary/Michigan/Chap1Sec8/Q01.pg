@@ -1,0 +1,212 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','limits','continuity','piecewise functions')
+## Tagged by glr 11/17/2008
+
+## DBsubject('Calculus')
+## DBchapter('Limits and Derivatives')
+## DBsection('The Limit of a Function')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('1.8')
+## Problem1('1')
+
+## Textbook tags
+## HHChapter('A Library of Functions')
+## HHSection('Limits')
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->strings->add("none"=>{});
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+## we graph y = x^2 - a, or y = a - x^2, for x in [-3,b], where b = 1 or 2
+##    and y = = m (x - b) + (y0 +/- 1), where y0 = the quadratic at x=b
+##    we put in other discontinuities at x=0 and x=c, c = 3 or 4.
+##    we put a value for one of these two
+
+$grDescr = "graph of a piecewise defined function, which is ";
+
+$a = random(5,10,1);
+$b = random(1,2,1);
+$c = random(3,4,1);
+$m = random(2,4,1);
+
+$whichquad = random(0,1);
+if ( $whichquad ) {
+    $yquad = Compute("$a - x^2");
+    $grDescr .= "a downward opening quadratic function, with vertex " .
+        "at (0,$a), for x in [-3,$b].  ";
+} else {
+    $yquad = Compute("x^2 - $a");
+    $grDescr .= "an upward opening quadratic function, with vertex " .
+	    "at (0,-$a), for x in [-3,$b].  ";
+}
+
+$y0 = $yquad->eval( x=>$c );
+$ll = $y0 + list_random(-1,1);
+$yline = Compute("$m*(x - $b) + $ll");
+
+$ldescr = "the function is a line with slope $m for x greater than $b, " .
+    "starting with an open circle at ($b, $ll).  there is a hole in the " .
+    "line at x=$c";
+
+## and we put in a value for the function at
+$whichval = random(0,1);
+if ( $whichval ) {
+    $x1 = 0;
+    $q0 = $yquad->eval( x=>$b );
+    if ( $whichquad ) {
+	$y1 = $a + non_zero_random(-2,2);
+	$grDescr .= "there is a hole at the vertex " .
+	    "and point plotted at (0,$y1).  the quadratic ends with a " .
+	    "filled circle at its the endpoint ($b,$q0). ";
+    } else {
+	$y1 = -$a + random(1,4,1);
+	$grDescr .= "there is a hole at the vertex " .
+	    "and point plotted at (0,$y1).  the quadratic ends with a " .
+	    "filled circle at its endpoint ($b,$q0). ";
+    }
+    $ldescr .= ".";
+} else {
+    $x1 = $c;
+    $y1 = $yline->eval( x=>$c ) + non_zero_random(-2,2);
+    $ldescr .= ", and a point plotted at ($c, $y1).";
+}
+
+$grDescr .= $ldescr;
+
+## the minimum value we have to show is
+$ymin = ( $whichquad ) ? -1 : -1 - $a;
+$qmax = ( $y1 > $a ) ? $y1 : $a;
+$lmax = ( ! $whichval && $y1 > $yline->eval( x=>5 ) ) ? $y1 :
+    $yline->eval( x=>5 );
+## the maximum is
+if ( $whichquad ) {
+    if ( $lmax > $qmax ) {
+	$ymax = $lmax + 1;
+    } else {
+	$ymax = $qmax + 1;
+    }
+} else {
+    $ymax = $lmax + 1;
+}
+
+## then the graph is
+$ygrid = $ymax - $ymin;
+if ( $ygrid > 10 ) {
+    if ( $ygrid/2 == int($ygrid/2) ) {
+	$ygrid = $ygrid/2;
+    } else {
+	$ymin--;
+	$ygrid = ($ygrid+1)/2;
+    }
+}
+$gr = init_graph(-3,$ymin,5,$ymax, axes=>[0,0],
+		 grid=>[8,$ygrid], size=>[250,250]);
+add_functions( $gr,
+	       "$yquad for x in <-3,0) using color:blue and weight:2",
+	       "$yquad for x in <0,$b] using color:blue and weight:2",
+	       "$yline for x in ($b,$c) using color:blue and weight:2",
+	       "$yline for x in ($c,5> using color:blue and weight:2" );
+$gr->stamps( closed_circle($x1,$y1,'blue') );
+
+## we ask for the limits at -2, 0, $b and $c
+$limitnb = $yquad->eval( x=>-$b );
+$limit0  = $yquad->eval( x=>0 );
+$limitb  = String("none");
+$limitc  = $yline->eval( x=>$c );
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Use the figure below, which gives a graph of the function \(f(x)\),
+to give values for the indicated limits.
+$BR
+${BCENTER}
+\{ image(insertGraph( $gr ), tex_size=>350, height=>250, width=>250,
+	 extra_html_tags=>'alt="' . $grDescr . '"') \}
+$ECENTER
+$BR
+${BITALIC}(If any of the limits does not exist, enter the word
+${BBOLD}none$EBOLD in the answer blank for that limit.)$EITALIC
+$PAR
+
+${BBOLD}(a)$EBOLD
+\( \lim\limits_{x \rightarrow -$b} f(x) \) = \{ ans_rule(15) \}
+$BR
+${BBOLD}(b)$EBOLD
+\( \lim\limits_{x \rightarrow 0} f(x) \) = \{ ans_rule(15) \}
+$BR
+${BBOLD}(c)$EBOLD
+\( \lim\limits_{x \rightarrow $b} f(x) \) = \{ ans_rule(15) \}
+$BR
+${BBOLD}(d)$EBOLD
+\( \lim\limits_{x \rightarrow $c} f(x) \) = \{ ans_rule(15) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $limitnb->cmp() );
+ANS( $limit0->cmp() );
+ANS( $limitb->cmp() );
+ANS( $limitc->cmp() );
+
+$limitbleft = $yquad->eval( x=>$b );
+$limitbright = $yline->eval( x=>$b );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+As \(x\) approaches \(-$b\) from either side, the values of
+\(f(x)\) get closer and closer to \($limitnb\), so the limit appears
+to be about \($limitnb\).
+$PAR
+
+${BBOLD}(b)$EBOLD
+As \(x\) approaches 0 from either side, the values of \(f(x)\) get
+closer and closer to \($limit0\).  (Recall that to find a limit, we are
+interested in what happens to the function near \(x\) but not at \(x\).)
+The limit appears to be about \($limit0\).
+$PAR
+
+${BBOLD}(c)$EBOLD
+As \(x\) approaches $b from either side, the values of \(f(x)\) get
+closer and closer to \($limitbleft\) on one side of \(x = $b\) and get
+closer and closer to \($limitbright\) on the other side of \(x = $b\).
+Thus the limit does not exist.
+$PAR
+
+${BBOLD}(d)$EBOLD
+As \(x\) approaches $c from either side, the values of \(f(x)\) get
+closer and closer to $limitc.  (Again, recall that we don't care what
+happens right at \(x = $c\).)  The limit appears to be about $limitc.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
