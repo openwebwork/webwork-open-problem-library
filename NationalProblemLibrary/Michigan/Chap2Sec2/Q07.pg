@@ -1,0 +1,151 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','instantaneous velocity','rate of change')
+## Tagged by glr 11/20/08
+
+## DBsubject('Calculus')
+## DBchapter('Limits and Derivatives')
+## DBsection('Tangents, Velocities, and Other Rates of Change')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('2.2')
+## Problem1('7')
+
+## Textbook tags
+## HHChapter('Key Concept: The Derivative')
+## HHSection('The Derivative at a Point')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"MathObjects.pl",
+);
+
+Context("Numeric");
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+$x0 = random(2,7,1);
+$b  = random(2,8,1);
+# keep numbers moderate
+while ( $b**$x0 > 500 ) {
+    if ( $x0 > $b ) {
+        $x0--;
+    } else {
+        $b--;
+    }
+}
+
+# test accuracy of the answer
+@dx = ();  @dq = ();
+$dx[0] = 0.1;  $dx[1] = 0.01;
+$dq[0] = ($b**($x0+$dx[0]) - $b**($x0))/$dx[0];
+$dq[1] = ($b**($x0+$dx[1]) - $b**($x0))/$dx[1];
+$diff = abs($dq[1] - $dq[0]);
+
+$niter = 0;
+$df = 0.1;
+while ( round(10*$diff) ) {
+    $dq[0] = $dq[1];  $dx[0] = $dx[1];
+    $dx[1] = $dx[0]/10;
+    $dq[1] = ($b**($x0+$dx[1]) - $b**($x0))/$dx[1];
+    $diff = abs($dq[1] - $dq[0]);
+    $niter++;
+    last if ( $niter > 6 );
+}
+$fp = round(10*$dq[1])/10;
+$roundto = "one decimal place";
+
+if ( $niter > 6 ) {  # if we've divided too many times, relax the 
+    $df = 1;         #   required precision
+    $dx[0] = 0.1;  $dx[1] = 0.01;
+    $dq[0] = ($b**($x0+$dx[0]) - $b**($x0))/$dx[0];
+    $dq[1] = ($b**($x0+$dx[1]) - $b**($x0))/$dx[1];
+    $diff = abs($dq[1] - $dq[0]);
+    $niter = 0;
+    while ( round($diff) ) {
+    	$dq[0] = $dq[1];  $dx[0] = $dx[1];
+    	$dx[1] = $dx[0]/10;
+    	$dq[1] = ($b**($x0+$dx[1]) - $b**($x0))/$dx[1];
+    	$diff = abs($dq[1] - $dq[0]);
+    	$niter++;
+    	last if ( $niter > 6 );
+    }
+    $fp = round($dq[1]);
+    $roundto = "the nearest integer";
+}
+# could we really have exceeded the number of iterations again?
+if ( $niter > 6 ) {
+    $df = 0.01;
+    $b = 2;
+    $x0 = 3;
+    $dx[0] = .001;
+    $dx[1] = .0001;
+    $dq[0] = 5.547100;
+    $dq[1] = 5.545370;
+    $fp = round(100*$dq[1])/100;
+    $roundto = "two decimal places";
+}
+
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Estimate \( f'($x0) \) for \( f(x) = $b^x \).  Be sure your answer is
+accurate to within $df of the actual value.
+
+$PAR
+\( f'($x0) \approx \) \{ ans_rule(8) \}
+$BR
+${BITALIC}Be sure that you can explain your reasoning.$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( Compute("$fp")->with(tolType=>"absolute",tolerance=>$df)->cmp() );
+
+$dx0f = sprintf("%f",$dx[0]);  # force decimal
+$dx0f =~ s/0+$//;              # why is this needed?
+$dx1f = sprintf("%f",$dx[1]);  # force decimal
+$dx1f =~ s/0+$//;
+$x0dx0 = $x0 + $dx[0];
+$x0dx1 = $x0 + $dx[1];
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+We estimate \(f'($x0)\) using the average rate of change
+formula on a small interval around $x0.  Let's try the interval from 
+\(x = $x0\) to \(x = $x0 + $dx0f\).  Then we have
+\[
+  f'($x0) \approx {f($x0+$dx0f) - f($x0)\over $dx0f} = 
+    {$b^{$x0dx0} - $b^{$x0}\over $dx0f} \approx $fp,
+\]
+rounded to $roundto.  We can check that this is accurate to
+within $df by testing a smaller interval, say from \(x = $x0\) to 
+\(x = $x0 + $dx1f\).  For this, we have 
+\[
+  f'($x0) \approx {f($x0+$dx1f) - f($x0)\over $dx1f} = 
+    {$b^{$x0dx1} - $b^{$x0}\over $dx1f} \approx $fp.
+\]
+This agrees with our previous result to $roundto, so \(f'($x0)\approx
+$fp\) is a good estimate.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
