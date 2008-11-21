@@ -1,0 +1,185 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','instantaneous velocity','difference quotient','definition of derivative')
+## Tagged by glr 11/21/08
+
+## DBsubject('Calculus')
+## DBchapter('Limits and Derivatives')
+## DBsection('The Derivative as a Function')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('2.3')
+## Problem1('31')
+
+## Textbook tags
+## HHChapter('Key Concept: The Derivative')
+## HHSection('The Derivative Function')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+"hhAdditionalMacros.pl",
+);
+
+Context("Numeric");
+
+## we plot f(x) = (.05 x+1)^4-3 Exp[-((1.2 x-3.8)^2)/2]-.25, or one
+##    of three reflections: -f(x) + 1.5, f(-x+6), or -f(-x+6)+1.5
+## and have the student pick from the derivatives of each of these,
+## plus a couple of others that are tossed in for good measure.
+$f = Compute("(.05 x+1)^4-3*e^(-((1.2 x-3.8)^2)/2)-.25");
+@f = ( $f );
+($f[1], $f[2], $f[3]) = ( Compute("-1*$f + 1.5"),
+			  Compute($f->substitute(x=>"-x+6")),
+			  Compute(($f->substitute(x=>"-x+6")) . "*(-1)+1.5") );
+
+$whichf = random(0,3,1);
+
+$gr = init_graph(-1,-3,7,3.2, axes=>[0,0], size=>[250,250]);
+foreach my $x ( 1, 2, 3, 4, 5, 6 ) {
+    $gr->moveTo( $x, -0.15 );
+    $gr->lineTo( $x, 0.15, "black" );
+    $gr->lb( new Label($x,-0.25, "$x", "black", "center", "top") );
+}
+add_functions( $gr, "$f[$whichf] for x in <-1,7> using color:blue and " .
+	       "weight:2" );
+
+@graphs = ();
+## a useful counter when adding the derivative graphs
+$k = 0;
+for ( my $i=0; $i<8; $i++ ) {
+    $graphs[$i] = init_graph(-1,-3,7,3.2, axes=>[0,0], size=>[100,100]);
+    ## add x-axis labels
+    foreach my $x ( 1, 2, 3, 4, 5, 6 ) {
+        $graphs[$i]->moveTo( $x, -0.15 );
+        $graphs[$i]->lineTo( $x, 0.15, "black" );
+        $graphs[$i]->lb( new Label($x,-0.25, "$x", "black", "center", "top") );
+    }
+
+    ## the first is the correct graph
+    if ( $i == 0 ) {
+	$d = $f[$whichf]->D();
+        add_functions( $graphs[0], "$d for x in <-1,7> " .
+                       "using color:blue and weight:2" );
+    ## the next three are the other reflections of f
+    } elsif ( $i<3 ) {
+        if ( $i < $whichf ) {
+            add_functions( $graphs[$i], "$f[$i] for x in <-1,7> using " .
+                           "color:blue and weight:2" );
+        } else {
+            my $j = $i+1;
+            add_functions( $graphs[$i], "$f[$j] for x in <-1,7> using " .
+                           "color:blue and weight:2" );
+        }
+    ## for the next three, use the derivatives of the functions
+    } elsif ( $i<6 ) {
+        $k++ if( $k == $whichf );
+	$d = $f[$k]->D();
+        add_functions( $graphs[$i], "$d for x in <-1,7> " .
+                       "using color:blue and weight:2" );
+        $k++;
+    ## and for the last one, um, we use something completely different
+    } else {
+	$d = $f[$whichF]->D()->D();
+        add_functions( $graphs[$i], "($d)/1.5 for x " .
+                       "in <-1,7> using color:blue and weight:2" );
+    }
+}
+
+## now we have the graph of the function we're showing the user, $gr,
+##    and a list of graphs that are(n't) the derivative.  get a random
+##    shuffling of these
+($shuffle, $zero) = shufflemap(8);
+$pop = PopUp( [qw(? 1 2 3 4 5 6 7 8)], $zero+1 );
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+Context()->texStrings;
+BEGIN_TEXT
+
+For the function \(f(x)\) shown in the graph below, sketch a graph of
+the derivative.  You will then be picking which of the following is the
+correct derivative graph, but should be sure to first sketch the
+derivative yourself.
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>350, height=>250, width=>250,
+	  extra_html_tags=>'alt="graph of a function f(x)"' ) \}
+$ECENTER
+$PAR
+Which of the following graphs is the derivative of \(f(x)\)?
+\{ $pop->menu() \}
+
+$PAR
+${BITALIC}(Click on a graph to enlarge it.)$EITALIC
+$PAR
+$BCENTER
+\{ begintable(4) \}
+\{ row( "${BBOLD}1.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{0} ] ), tex_size=>100,
+	      height=>50, width=>50, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}2.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{1} ] ), tex_size=>100,
+	      height=>50, width=>50, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}3.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{2} ] ), tex_size=>100,
+	      height=>50, width=>50, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}4.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{3} ] ), tex_size=>100,
+	      height=>50, width=>50, extra_html_tags=>'alt="graph"') ) \}
+\{ row( "${BBOLD}5.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{4} ] ), tex_size=>100,
+	      height=>50, width=>50, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}6.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{5} ] ), tex_size=>100,
+	      height=>50, width=>50, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}7.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{6} ] ), tex_size=>100,
+	      height=>50, width=>50, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}8.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{7} ] ), tex_size=>100,
+	      height=>50, width=>50, extra_html_tags=>'alt="graph"') ) \}
+\{ endtable() \}
+$ECENTER
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $pop->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Because the derivative gives the slope of the original function at
+each point \(x\), we know that the derivative is negative where
+\(f(x)\) is decreasing and positive where it is increasing.  Applying
+this to \(f(x)\), we see that the derivative must be
+$PAR
+$BCENTER
+\{ image(insertGraph( $graphs[$shuffle->{$zero}] ), tex_size=>100,
+	 height=>100, width=>100, extra_html_tags=>'alt="graph"') \}
+$ECENTER
+$PAR
+which is answer \{ $pop->correct_ans()\}.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

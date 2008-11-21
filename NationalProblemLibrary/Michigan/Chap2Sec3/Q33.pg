@@ -1,0 +1,163 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','instantaneous velocity','difference quotient','definition of derivative')
+## Tagged by glr 11/21/08
+
+## DBsubject('Calculus')
+## DBchapter('Limits and Derivatives')
+## DBsection('The Derivative as a Function')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('2.3')
+## Problem1('33')
+
+## Textbook tags
+## HHChapter('Key Concept: The Derivative')
+## HHSection('The Derivative Function')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+);
+
+Context("Numeric");
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+# we consider one of the functions
+# f(x) = (x+1) sin(x), on (-2,6)(-6,3), with the points
+#    x1=-1, x2=1, x3=1.95, x4 = 2.25, x5=3.5, x6=5.5
+#    fmin x6, fmax x3, fpmin x5, fpmax x6
+# g(x) = (x+1) cos(x), on (-2,6)(-5,2), with the points
+#    x1=-1, x2=0.75, x3=2, x4=3, x5=4, x6=4.5
+#    gmin x4, gmax x2, gpmin x2, gpmax x6
+# h(x) = x sin(x+1)+1 on (-2,5)(-3,3), with the points
+#    x1=-1.5, x2=0.25, x3=1, x4=2, x5=2.5, x6=4.15
+#    hmin x6, hmax x3, hpmin x5, hpmax x2
+# p(x) = 2 x (sin(x/2) - cos(x)) - .5 on (-4:1)(-1.5:2) with points
+#    x1=-3.5, x2=-3, x3=-2, x4=-1, x5=-.5, x6=0
+#    hmin x6, hmax x4, hpmin x5, hpmax x3
+# and their negatives
+
+$whichf = random(0,3,1);
+$sgn = non_zero_random(-1,1,1);
+if ( $whichf == 0 ) {
+    $f  = "$sgn*(x+1)*sin(x)";
+    $ffunc = sub{ my $x=shift(); return( $sgn*($x+1)*sin($x) ); };
+    @range = ( $sgn == 1 ) ? (-2,-6,6,3) : (-2,-3,6,6);
+    @xvals = (-1, 1, 1.95, 2.25, 3.5, 5.5);
+    @ans = ($sgn == 1) ? (qw(x6 x3 x5 x6)) : (qw(x3 x6 x6 x5));
+} elsif ( $whichf == 1 ) {
+    $f = "$sgn*(x+1)*cos(x)";
+    $ffunc = sub{ my $x=shift(); return( $sgn*($x+1)*cos($x) ); };
+    @range = ( $sgn == 1 ) ? (-2,-5,6,2) : (-2,-2,6,5);
+    @xvals = (-1, 0.75, 2, 3, 4, 4.5);
+    @ans = ($sgn == 1) ? (qw(x4 x2 x3 x6)) : (qw(x2 x4 x6 x3));
+} elsif ( $whichf == 2 ) {
+    $f = "$sgn*(x*sin(x+1)+1)";
+    $ffunc = sub{ my $x=shift(); return( $sgn*($x*sin($x+1)+1) ); };
+    @range = ( $sgn == 1 ) ? (-2,-3,5,3) : (-2,-5,5,3);
+    @xvals = (-1.5, 0.25, 1, 2, 2.5, 4.15);
+    @ans = ($sgn == 1) ? (qw(x6 x3 x5 x2)) : (qw(x3 x6 x2 x5));
+} elsif ( $whichf == 3 ) {
+    $f = "$sgn*(2*x*(sin(x/2) - cos(x)) - .5)";
+    $ffunc = sub{ my $x=shift(); 
+		  return( $sgn*(2*$x*(sin($x/2) - cos($x)) - .5) ); };
+    @range = ( $sgn == 1 ) ? (-4,-1.5,1,2) : (-4,-2,1,1.5);
+    @xvals = (-3.5, -3, -2, -1, -.5, 0);
+    @ans = ($sgn == 1) ? (qw(x6 x4 x5 x3)) : (qw(x4 x6 x3 x5));
+}
+
+# now build the graph
+$gr = init_graph( @range, axes=>[0,0], size=>[400,200] );
+$gr->lb('reset');
+# add the function
+add_functions($gr, 
+    "$f for x in <$range[0],$range[2]> using color:blue and weight:2");
+
+# now add the labels and vertical dashed lines from the axis to the function
+for( my $i=0; $i<@xvals; $i++ ) {
+    my $y = &{$ffunc}($xvals[$i]);
+    if ( $y > 0 ) {
+	$laby = -0.05;
+	$yjst = "top";
+    } else {
+	$laby = 0.05;
+	$yjst = "bottom";
+    }
+# insert the label
+    $xlab = "x" . ($i+1);
+    $gr->lb(new Label($xvals[$i],$laby,$xlab,'black','center',$yjst));
+# and the dashed line
+    $dy = ($range[3]-$range[1])/100;  # pick dashing to 1/100th of vert scale
+    $dy = -1*$dy if ( $y < 0 );
+    for ( $y0 = 0; abs($y0) < abs($y); $y0+=$dy ) {
+	$gr->moveTo($xvals[$i], $y0);
+	$y0 += $dy;
+	$gr->lineTo($xvals[$i], $y0, 'black');
+    }
+}
+
+$pop1 = PopUp( [qw(? x1 x2 x3 x4 x5 x6)], $ans[0] );
+$pop2 = PopUp( [qw(? x1 x2 x3 x4 x5 x6)], $ans[1] );
+$pop3 = PopUp( [qw(? x1 x2 x3 x4 x5 x6)], $ans[2] );
+$pop4 = PopUp( [qw(? x1 x2 x3 x4 x5 x6)], $ans[3] );
+
+# huzzah!  now give the problem
+
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+The graph of a function \(f\) is shown below.
+$BR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>500, height=>200, width=>400,
+	  extra_html_tags=>'alt="graph of the function f"' ) \}
+$ECENTER
+$PAR
+At which of the labeled  \(x\)-values is
+$BR
+\( f(x) \) least?  \(x = \) \{ $pop1->menu() \} $BR
+\( f(x) \) greatest?  \(x = \) \{ $pop2->menu() \} $BR
+\( f'(x) \) least?  \(x = \) \{ $pop3->menu() \} $BR
+\( f'(x) \) greatest?  \(x = \) \{ $pop4->menu() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $pop1->cmp() );
+ANS( $pop2->cmp() );
+ANS( $pop3->cmp() );
+ANS( $pop4->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The smallest and largest values of \(f(x)\) are those locations where the
+vertical coordinate on the graph is the smallest and largest, which are 
+$ans[0] and $ans[1], respectively.  The smallest and largest values of the
+derivative \(f'(x)\) are where the slope of the function is smallest and
+largest, which are $ans[2] and $ans[3].
+
+END_SOLUTION
+Context()->normalStrings;
+
+
+ENDDOCUMENT();

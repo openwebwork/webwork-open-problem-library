@@ -1,0 +1,181 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','instantaneous velocity','difference quotient','definition of derivative')
+## Tagged by glr 11/21/08
+
+## DBsubject('Calculus')
+## DBchapter('Limits and Derivatives')
+## DBsection('The Derivative as a Function')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('2.3')
+## Problem1('21')
+
+## Textbook tags
+## HHChapter('Key Concept: The Derivative')
+## HHSection('The Derivative Function')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"MathObjects.pl",
+);
+
+Context("Numeric");
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+# generate a table of values for f(x) at x = 0,1,2,..,8
+$pm = non_zero_random(-1,1,1); # the sign of the derivative
+$changeat = random(1.5,6.5,1); # x-val where we change the sign of the deriv
+@f = ( non_zero_random(-1,1,1)*random(10,20,1) );
+$dy = random(1,3,1);
+for ( my $i=1; $i<=8; $i++ ) {
+    if ( $i == $changeat - 1.5 ) {  # if close to turning around, take a small
+	$dy = $pm;                  #   step
+    } elsif ( $i == $changeat + .5 ) {
+        $dy = 0;
+	$pm = -1*$pm;
+    } else {
+        $dy = $pm*random(1,3,1);
+    }
+    $f[$i] = $f[$i-1] + $dy;
+}
+
+# figure out possible estimates for the derivative at each point, and
+# get the maximum and minimum values of the derivative
+# for each fp, we give a list of possible values
+@fp = ( [ Compute($f[1]-$f[0]) ] );
+@derivs = ( Compute($f[1]-$f[0]) );
+
+@fpmax = ( $fp[0]->[0], $fp[0]->[0], $fp[0]->[0] );  # the max derivative
+@xfpmax = ( 0, 0, 0 );
+
+for ( my $i=1; $i<8; $i++ ) {         # depends on how we approximate f prime
+    $fp[$i] = [ Compute($f[$i]-$f[$i-1]),
+		Compute(($f[$i+1]-$f[$i-1])/2),
+		Compute($f[$i+1]-$f[$i]) ];
+    push( @derivs, Compute(($f[$i+1]-$f[$i-1])/2) );
+
+    for ( my $j=0; $j<3; $j++ ) {
+	if ( $fp[$i]->[$j] > $fpmax[$j] ) {
+            $fpmax[$j] = $fp[$i]->[$j];
+	    $xfpmax[$j] = $i;
+	}
+    }
+}
+push( @fp, [ Compute($f[8]-$f[7]) ] );
+push( @derivs, Compute($f[8]-$f[7]) );
+
+## yucko.  this exists to deal with scoping problems and when the
+##    checker is defined.  we can't define a checker for each part
+##    of the problem in the loop above because the terms aren't
+##    evaluated until we're down in the cmp() evaluation.
+sub checkers {
+    my $i = shift();
+    return sub {
+	my ($correct, $student, $ansHash) = @_;
+	return ( $student == $correct ||
+		 $student == $fp[$i]->[0] ||
+		 $student == $fp[$i]->[2] );
+    };
+}
+
+# is the last value the largest derivative?
+for ( my $j=0; $j<3; $j++ ) {
+    if ( $fp[-1]->[0] > $fpmax[$j] ) {
+        $fpmax[$j] = $fp[-1]->[0];
+	$xfpmax[$j] = 8;
+    }
+}
+$maxchecker = sub {
+    my ( $correct, $student, $ansHash ) = @_;
+    return ( $student == $correct || $student == $fpmax[0] ||
+	     $student == $fpmax[2] );
+};
+
+# we leave this part of the question out
+# # and get the intervals where f' is positive and negative
+# $xc = $changeat + 0.5;
+# if ( $pm == 1 ) {
+#     $intp = "(0, $xc)";
+#     $intn = "($xc, 8)";
+# } else {
+#     $intn = "(0, $xc)";
+#     $intp = "($xc, 8)";
+# }
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Given the numerical values shown for the function \(f(x)\), find
+approximate values for the derivative of \( f(x) \) at each of the \( x
+\)-values given.
+$PAR
+${BCENTER}
+\{ begintable(10) \}
+\{ row( "\(x = \)", 0, 1, 2, 3, 4, 5, 6, 7, 8 ) \}
+\{ row( "\(f(x) = \)", @f ) \}
+\{ row( "\(f'(x) = \)", ans_rule(6), ans_rule(6), ans_rule(6), ans_rule(6), 
+        ans_rule(6), ans_rule(6), ans_rule(6), ans_rule(6), ans_rule(6) ) \}
+\{ endtable() \}
+$ECENTER
+
+$PAR
+What seems to be the greatest rate of change of \( f(x) \)?
+$BR
+rate of change = \{ ans_rule(10) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $derivs[0]->cmp() );
+for ( my $i=1; $i<@derivs-1; $i++ ) {
+    ANS( $derivs[$i]->cmp( checker=>checkers($i) ) );
+}
+ANS( $derivs[8]->cmp() );
+ANS( $fpmax[1]->cmp( checker=>$maxchecker ) );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+We know that \( f'(x)\approx {f(x+h) -f(x)\over h}\).
+For this problem, we'll take the average of the values
+obtained for \(h=1\) and \(h=-1\); that's the average
+of \(f(x+1) - f(x)\) and \(f(x) - f(x-1)\), which is
+\(\frac{f(x+1)-f(x-1)}{2}\).  Note that for the first and last values
+of the derivative we can't average, and so use the right- and left-
+hand sums, respectively.
+Thus,
+$BR
+\(f'(0)\approx f(1)-f(0) = $f[1] - $f[0] = $fp[0]->[0] \), $BR
+\(f'(1)\approx [f(2)-f(0)]/2  = [$f[2] - $f[0]]/2 = $fp[1]->[1]\), $BR
+\(f'(2)\approx [f(3)-f(1)]/2  = [$f[3] - $f[1]]/2 = $fp[2]->[1]\), $BR
+\(f'(3)\approx [f(3)-f(1)]/2  = [$f[4] - $f[2]]/2 = $fp[3]->[1]\), $BR
+\(f'(4)\approx [f(3)-f(1)]/2  = [$f[5] - $f[3]]/2 = $fp[4]->[1]\), $BR
+\(f'(5)\approx [f(3)-f(1)]/2  = [$f[6] - $f[4]]/2 = $fp[5]->[1]\), $BR
+\(f'(6)\approx [f(3)-f(1)]/2  = [$f[7] - $f[5]]/2 = $fp[6]->[1]\), $BR
+\(f'(7)\approx [f(3)-f(1)]/2  = [$f[8] - $f[6]]/2 = $fp[7]->[1]\), $BR
+\(f'(8)\approx f(8)-f(7) = $f[8] - $f[7] = $fp[8]->[0]\).
+
+$PAR
+The greatest value of the rate of change appears to be $fpmax[1].
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
