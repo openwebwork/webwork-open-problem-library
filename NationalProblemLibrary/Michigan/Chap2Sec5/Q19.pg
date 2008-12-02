@@ -1,0 +1,275 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','second derivative','acceleration')
+## Tagged by glr 12/02/08
+
+## DBsubject('Calculus')
+## DBchapter('Differentiation')
+## DBsection('Higher Derivatives')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('2.5')
+## Problem1('19')
+
+## Textbook tags
+## HHChapter('Key Concept: The Derivative')
+## HHSection('The Second Derivative')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+"MathObjects.pl",
+);
+
+Context("Numeric");
+Context()->strings->add( x1=>{}, x2=>{}, x3=>{}, x4=>{}, x5=>{}, none=>{} );
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+# we graph one of the following, or -1 times the given function.  note 
+# that multiplication by -1 simply reverses all of the signs given
+#   x sin(x) on [0:7] [-5:5]
+#      x vals are 0.5, 1.5, 2.5, 4, 6
+#      f   is      +    +    +   -  -
+#      f'  is      +    +    -   -  +
+#      f'' is      +    -    -   +  +
+#   -x cos(x) on [0:7] [-7:5]
+#      x vals are 0.5, 1.5, 3, 4, 6
+#      f   is      -    -   +  +  -
+#      f'  is      -    +   +  -  -
+#      f'' is      +    +   -  -  +
+#   2 - x sin(x) on [0:7] [-3:7]
+#      x vals are 0.5, 1.5, 3, 4.5, 6
+#      f   is      +    -   +   +   +
+#      f'  is      -    -   +   +   -
+#      f'' is      -    +   +   -   -
+#   -1 + 2sin(x) + x cos(x) on [0:7] [-6:7]
+#      x vals are 0.75, 2.5, 3, 4.5, 6
+#      f   is      +     -   -   -   +
+#      f'  is      +     -   -   +   +
+#      f'' is      -     -   +   +   -
+
+# pick a function
+$whichf = random(0,3,1);
+# and decide whether to reflect about the x axis
+$pm = non_zero_random(-1,1,1);
+
+# the x-range for all of these is <0,7>
+@f = ( "$pm*x*sin(x)", "($pm)*(-1)*x*cos(x)", "$pm*(2 - x*sin(x))",
+       "$pm(-1 + 2*sin(x) + cos(x))" );
+# a function to spit out the y-value
+$ffunc = sub {
+    my $x = shift();
+    if ( $whichf == 0 ) {
+        return( $pm*$x*sin($x) );
+    } elsif ( $whichf == 1 ) {
+        return( $pm*(-1)*$x*cos($x) );
+    } elsif ( $whichf == 2 ) {
+        return( $pm*(2 - $x*sin($x)) );
+    } elsif ( $whichf == 3 ) {
+	return( $pm*(-1 + 2*sin($x) + cos($x)) );
+    }
+};
+
+# the corresponding y-ranges
+if ( $pm == 1 ) {
+    @yvals = ( [-5,5], [-7,5], [-3,7], [-6,7] );
+} else {
+    @yvals = ( [-5,5], [-5,7], [-7,3], [-7,6] );
+}
+
+# the points we consider
+@xpts = ( [ 0.5, 1.5, 2.5, 4, 6 ], [ 0.5, 1.5, 3, 4, 6 ],
+          [ 0.5, 1.5, 3, 4.5, 6 ], [ 0.75, 2.5, 3, 4.5, 6 ] );
+@xvals = @{$xpts[$whichf]};
+
+# the signs of f at these points; we use this for labeling the graph, below
+@fval = ( [ 1, 1, 1, -1, -1 ], [ -1, -1, 1, 1, -1 ],
+          [ 1, -1, 1, 1, 1 ],  [ 1, -1, -1, -1, 1 ] );
+
+# initialize the graph
+$gr = init_graph( 0,$yvals[$whichf]->[0],7,$yvals[$whichf]->[1],
+                  axes=>[0,0], size=>[300,300] );
+$gr->lb('reset');
+add_functions($gr, "$f[$whichf] for x in <0,7> using color:blue and weight:2");
+
+# add the points and vertical dashed lines
+for( my $i=0; $i<@xvals; $i++ ) {
+    my $y = &{$ffunc}($xvals[$i]);
+    if ( $y > 0 ) {
+	$laby = -0.05;
+	$jsty = "top";
+    } else {
+	$laby = 0.05;
+	$jsty = "bottom";
+    }
+# insert the label
+    $xlab = "x" . ($i+1);
+    $gr->lb(new Label($xvals[$i],$laby,$xlab,'black','center',$jsty));
+# and the dashed line
+  # pick dashing to 1/100th of vert scale
+    $dy = ($yvals[$whichf]->[1]-$yvals[$whichf]->[0])/100;
+    $dy = -1*$dy if ( $y < 0 );
+    for ( $y0 = 0; abs($y0) < abs($y); $y0+=$dy ) {
+        $gr->moveTo($xvals[$i], $y0);
+        $y0 += $dy;
+        $gr->lineTo($xvals[$i], $y0, 'black');
+    }
+}
+
+# okdokey.  now, do we want to be really anal and randomize what we
+# *ask* as well?  what the heck.
+$whichq = non_zero_random(-1,1,1);
+if ( $whichq == 1 ) {
+    $q1 = '\( f(x) < 0 \)';
+    $q2 = "\( f'(x) < 0 \)";
+    $q3 = '\( f(x) \) is decreasing';
+    $q4 = "\( f'(x) \) is decreasing";
+    $q5 = 'The slope of \( f(x) \) is positive';
+    $q6 = "The slope of \( f'(x) \) is positive";
+# variables used in the solution
+    $ab = 'below';
+    $ud = 'down';
+    $du = 'up';
+} else {
+    $q1 = '\( f(x) > 0 \)';
+    $q2 = "\( f'(x) > 0 \)";
+    $q3 = '\( f(x) \) is increasing';
+    $q4 = "\( f'(x) \) is increasing";
+    $q5 = 'The slope of \( f(x) \) is negative';
+    $q6 = "The slope of \( f'(x) \) is negative";
+# variables used in the solution
+    $ab = 'above';
+    $ud = 'up';
+    $du = 'down';
+}
+# what are the answers, you ask?
+if ( $pm*$whichq == 1 ) {
+    @allans = 
+	(["x4,x5", "x3,x4", "x3,x4", "x2,x3", "x1,x2,x5", "x1,x4,x5"],
+	 ["x1,x2,x5", "x1,x4,x5", "x1,x4,x5", "x3,x4", "x2,x3", "x1,x2,x5"],
+	 ["none", "x1,x2,x5", "x1,x2,x5", "x1,x4,x5", "x3,x4", "x2,x3"],
+	 ["x2,x3,x4,x5", "x2,x3", "x2,x3", "x1,x2,x5", "x1,x4,x5", "x3,x4"]);
+} else {
+    @allans = 
+	(["x1,x2,x3", "x1,x2,x5", "x1,x2,x5", "x1,x4,x5", "x3,x4", "x2,x3"],
+	 ["x3,x4", "x2,x3", "x2,x3", "x1,x2,x5", "x1,x4,x5", "x3,x4"],
+	 ["x1,x2,x3,x4,x5", "x3,x4", "x3,x4", "x2,x3", "x1,x2,x5", "x1,x4,x5"],
+	 ["x1", "x1,x4,x5", "x1,x4,x5", "x3,x4", "x2,x3", "x1,x2,x5"]);
+}
+@ans = @{$allans[$whichf]};
+
+## make lists of these string answers
+@strAns = ();
+foreach my $ans ( @ans ) {
+    push( @strAns, [ map { String($_) } (split( /,/, $ans )) ] );
+}
+
+# whew.  ok, let's set up the problem
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Given the graph of \(y = f(x)\) below, at which of the marked 
+\( x \)-values can the following statements be true?
+$PAR
+$BCENTER
+\{ image( insertGraph($gr), tex_size=>500, height=>300, width=>300,
+          extra_html_tags=>'alt="graph of a function"' ) \}
+$ECENTER
+$PAR
+${BITALIC}(For each question, enter your answer as a comma-separated list,
+e.g.,$EITALIC ${BBOLD}x1,x3,x5$EBOLD${BITALIC}.  Enter ${BBOLD}none$EBOLD
+if no points satisfy the given condition)$EITALIC
+$BR
+${BBOLD}A.$EBOLD
+$q1 at 
+\( x = \) \{ ans_rule(15) \}
+
+$BR
+${BBOLD}B.$EBOLD
+$q2 at 
+\( x = \) \{ ans_rule(15) \}
+
+$BR
+${BBOLD}C.$EBOLD
+$q3 at 
+\( x = \) \{ ans_rule(15) \}
+
+$BR
+${BBOLD}D.$EBOLD
+$q4 at 
+\( x = \) \{ ans_rule(15) \}
+
+$BR
+${BBOLD}E.$EBOLD
+$q5 at 
+\( x = \) \{ ans_rule(15) \}
+
+$BR
+${BBOLD}F.$EBOLD
+$q6 at 
+\( x = \) \{ ans_rule(15) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( List( @{$strAns[0]} )->cmp() );
+ANS( List( @{$strAns[1]} )->cmp() );
+ANS( List( @{$strAns[2]} )->cmp() );
+ANS( List( @{$strAns[3]} )->cmp() );
+ANS( List( @{$strAns[4]} )->cmp() );
+ANS( List( @{$strAns[5]} )->cmp() );
+# ANS( string_list_cmp( $ans[0] ) );
+# ANS( string_list_cmp( $ans[1] ) );
+# ANS( string_list_cmp( $ans[2] ) );
+# ANS( string_list_cmp( $ans[3] ) );
+# ANS( string_list_cmp( $ans[4] ) );
+# ANS( string_list_cmp( $ans[5] ) );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}A.$EBOLD
+$q1 at $ans[0], because the graph is $ab the \(x\)-axis there.
+$PAR
+
+${BBOLD}B.$EBOLD
+$q2 at $ans[1], because the graph is sloping $ud there.
+$PAR
+
+${BBOLD}C.$EBOLD
+$q3 at $ans[2], because the graph is sloping $ud there.  This is
+the same condition as part (B).
+$PAR
+
+${BBOLD}D.$EBOLD
+$q4 at $ans[3], because the graph is bending ${ud}ward there.
+$PAR
+
+${BBOLD}E.$EBOLD
+$q5 at $ans[4], because the graph is sloping $du there.
+$PAR
+
+${BBOLD}F.$EBOLD
+$q6 at $ans[5], because the graph is bending ${du}ward there.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

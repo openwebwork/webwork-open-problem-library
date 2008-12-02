@@ -1,0 +1,189 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','second derivative','acceleration')
+## Tagged by glr 12/02/08
+
+## DBsubject('Calculus')
+## DBchapter('Differentiation')
+## DBsection('Higher Derivatives')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('2.5')
+## Problem1('21')
+
+## Textbook tags
+## HHChapter('Key Concept: The Derivative')
+## HHSection('The Second Derivative')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+"MathObjects.pl",
+);
+
+Context("Numeric");
+Context()->strings->add( x1=>{}, x2=>{}, x3=>{}, x4=>{}, x5=>{}, x6=>{} );
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+# we graph the function y = f(x) = (x+1)(x+2)(x)(x-2)+10 on [-3:3], [0:20],
+# or one of its reflections about x=0 or y=10
+# (note: reflecting about y=10 is taking y = -1*(f(x) - 10) + 10)
+#
+# we're saying this is f' and asking for where f, f' and f'' are greatest
+# and least.
+# the points we consider are
+#          x1    x2     x3    x4    x5     x6
+@xvals = ( -1.8, -1, -0.4691, 0.6, 1.326, 1.8 );  # f'(-0.4691,1.326) = 0
+
+# the sign of the x reflection
+$xs = non_zero_random(-1,1,1);
+# the sign of the y reflection
+$ys = non_zero_random(-1,1,1);
+
+# adjust the x values to account for the reflection
+@xvals = ( -1.8, -1.326, -0.6, 0.4691, 1, 1.8 ) if ( $xs == -1 );
+
+# this means that the answers are 
+@ans = ( 'x6', 'x1', # f is always largest at the right, least at the left
+       );
+# f'' is largest and smallest at 
+if ( $xs == 1 ) {
+    $dmin = ( $ys == 1 ) ? 'x4' : 'x6';
+    $dmax = ( $ys == 1 ) ? 'x6' : 'x4';
+} else {
+    $dmin = ( $ys == 1 ) ? 'x1' : 'x3';
+    $dmax = ( $ys == 1 ) ? 'x3' : 'x1';
+}
+# and finally f' is largest and smallest at the max and min of the func
+if ( $xs == 1 ) {
+    $min = ( $ys == 1 ) ? 'x5' : 'x3';
+    $max = ( $ys == 1 ) ? 'x3' : 'x5';
+} else {
+    $min = ( $ys == 1 ) ? 'x2' : 'x4';
+    $max = ( $ys == 1 ) ? 'x4' : 'x2';
+}
+# fill these in
+push( @ans, $max, $min, $dmax, $dmin );
+
+# a function to evaluate f at various points
+$ffunc = sub { 
+    my $x = shift();
+    $x = $xs*$x;
+    if ( $ys == 1 ) {
+	return( ($x+1)*($x+2)*$x*($x-2)+10 );
+    } else {
+	return( -1*(($x+1)*($x+2)*$x*($x-2))+10 );
+    }
+};
+
+# build the function string that we need
+if ( $xs == 1 ) {
+    $fstr = "(x+1)*(x+2)*x*(x-2) + 10";
+} else {
+    $fstr = "(-x+1)*(-x+2)*(-x)*(-x-2) + 10";
+}
+$fstr = "(-1)*($fstr - 10) + 10" if ( $ys == -1 );
+
+# now we can construct the graph
+$gr = init_graph(-3,-1,3,20,axes=>[0,0], size=>[300,300]);
+$gr->lb('reset');
+add_functions($gr, "$fstr for x in <-3,3> using color:blue and weight:2");
+
+# add the appropriate labels and the vertical dashed lines
+for( my $i=0; $i<@xvals; $i++ ) {
+    $x = $xvals[$i];
+    my $y = &{$ffunc}($x);
+# insert the label
+    $xlab = "x" . ($i+1);
+    $gr->lb(new Label($x,-.15,$xlab,'black','center','center'));
+# and the dashed line
+    $dy = 20/100;               # pick dashing to 1/100th of vert scale
+    $dy = -1*$dy if ( $y < 0 );
+    for ( $y0 = 0; abs($y0) < abs($y); $y0+=$dy ) {
+        $gr->moveTo($x, $y0);
+        $y0 += $dy;
+        $gr->lineTo($x, $y0, 'black');
+    }
+}
+
+Context()->texStrings;
+BEGIN_TEXT
+
+The graph of \( f' \) (${BBOLD}not$EBOLD \( f \)) is given below.
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>500, height=>300, width=>300,
+          extra_html_tags=>'alt="graph of function"' ) \}
+$BR
+${BITALIC}(Note that this is a graph of \(f'\), not a graph of \(f\).)$EITALIC
+$ECENTER
+$PAR
+At which of the marked values of \( x \) is
+$BR
+${BBOLD}A.$EBOLD
+\( f(x) \) greatest?  \( x = \) \{ ans_rule(8) \}
+$BR
+${BBOLD}B.$EBOLD
+\( f(x) \) least? \( x = \) \{ ans_rule(8) \}
+$BR
+${BBOLD}C.$EBOLD
+\( f'(x) \) greatest? \( x = \) \{ ans_rule(8) \}
+$BR
+${BBOLD}D.$EBOLD
+\( f'(x) \) least? \( x = \) \{ ans_rule(8) \}
+$BR
+${BBOLD}E.$EBOLD
+\( f''(x) \) greatest? \( x = \) \{ ans_rule(8) \}
+$BR
+${BBOLD}F.$EBOLD
+\( f''(x) \) least? \( x = \) \{ ans_rule(8) \}
+
+END_TEXT
+Context()->normalStrings;
+
+foreach my $a ( @ans ) {
+    ANS( String($a)->cmp() );
+}
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}A,B.$EBOLD
+Since \(f'\) is everywhere positive, \(f\) is everywhere increasing.
+Hence the greatest value of \(f\) is at x6 and the least value
+of \(f\) is at x1.
+
+$PAR
+
+${BBOLD}C,D.$EBOLD
+Directly from the graph, we see that \(f'\)
+is greatest at $ans[2] and least at $ans[3].
+
+$PAR
+
+${BBOLD}E,F.$EBOLD
+Since \(f''\) gives the
+slope of the graph of \(f'\), \(f''\) is greatest where \(f'\) is
+rising most rapidly, namely at $ans[4], and \(f''\) is least where
+\(f'\) is falling most rapidly, namely at $ans[5].
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
