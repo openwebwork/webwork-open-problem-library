@@ -1,0 +1,202 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','differentiable function','continuity','discontinuity')
+## Tagged by glr 12/03/08
+
+## DBsubject('Calculus')
+## DBchapter('Limits and Derivatives')
+## DBsection('Differentiability')
+## Date('')
+## Author('Gavin LaRose');
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('2.6')
+## Problem1('2')
+
+## Textbook tags
+## HHChapter('Key Concept: The Derivative')
+## HHSection('Differentiability')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+"MathObjects.pl",
+);
+
+Context("Numeric");
+Context()->strings->add(none=>{});
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+# as usual, we make this more complicated than is perhaps necessary.
+# we assemble a graph using three pieces selected at random from five 
+# options (a cube root, line, piecewise linear function, parabola, and 
+# constant function), making note of discontinuities and
+# non-differentiable points as we go.
+
+@fpieces = ();      # the pieces we paste together
+$x = 0;             # the current x value
+$y = random(0,5,1); # the current y value
+$slope = ( $y == 5 ) ? -1 : 1;  # whether to trend up or down
+
+@allf = ( qw(1 2 3 4 5) );  # all possible pieces; pick three
+for ( my $i=0; $i<3; $i++ ) {
+    $index = random(0,scalar(@allf)-1,1);
+    push( @fpieces, $allf[$index] );
+    splice(@allf,$index,1);
+}
+
+# now assemble the function
+@fstr = ();  # these are the function strings for add_function
+@disc = ();  # discontinuities
+@ndif = ();  # non-differentiable points
+$ymax = $y;  # the maximum y value we reach
+$ymin = 0;   # the minimum y value we have to worry about
+
+$slchg = 0;  # have we changed the direction of the slope yet?
+
+for( my $i=0; $i<@fpieces; $i++ ) {
+    $j = $fpieces[$i];
+    if ( $j == 1 ) {      # the cube root
+        push( @fstr, "(-1)*($slope)*(4*(2+$x-x))^(1/3) + ($slope)*2 + $y " .
+	      "for x in <$x," . ($x+2) . "> using color:blue and weight:2" );
+        push( @fstr, "($slope)*(4*(x-$x-2))^(1/3)+($slope)*2+$y for x in <" .
+	      ($x+2) . "," . ($x+4) . "> using color:blue and weight:2" );
+	push( @ndif, $x ) if ( $x != 0 );
+	push( @ndif, ($x+2) );
+	$x += 4;
+	$y += $slope*4;
+
+    } elsif ( $j == 2 ) { # the line
+        push( @fstr, "$y + ($slope)*(x-$x) for x in <$x," . ($x+2) .
+	      "> using color:blue and weight:2" );
+	push( @ndif, $x ) if ( $x != 0 && $fpieces[$i-1] != 3 );
+	$x += 2;
+	$y += $slope*2;
+
+    } elsif ( $j == 3 ) { # piecewise linear
+        push( @fstr, "$y for x in <$x," . ($x+1) . "] using " .
+	      "color:blue and weight:2" );
+	push( @ndif, $x ) if ( $x != 0 && $fpieces[$i-1] != 5 );
+	$x += 1;
+	push( @fstr, "$y + (-1)*($slope) + ($slope)*(x - $x) for x in " .
+	      "($x," . ($x+1) . "> using color:blue and weight:2" );
+	push( @ndif, $x );
+	push( @disc, $x );
+	$x += 1;
+#	$y += $slope;
+
+    } elsif ( $j == 4 ) { # parabola
+	push( @fstr, "$y + ($slope/2)*(x - $x)^2 for x in <$x," . ($x+2) .
+	      "> using color:blue and weight:2" );
+# interestingly, it really looks as if the join between the cube root 
+# and the parabola is differentiable, so we exclude this as well
+	push( @ndif, $x ) if ( $x != 0 && $fpieces[$i-1] != 5 && 
+			       $fpieces[$i-1] != 1 );
+	$x += 2;
+	$y += $slope*2;
+
+    } elsif ( $j == 5 ) { # horizontal line
+	push( @fstr, "$y for x in <$x," . ($x+2) . "> using color:blue " .
+	      "and weight:2" );
+	push( @ndif, $x ) if ( $x != 0 );
+	$x += 2;
+    }
+    $ymax = $y if ( $y > $ymax );
+    $ymin = $y if ( $y < $ymin );
+
+    if ( ! $slchg && ( ($slope == -1 && $y < 3) ||
+		       ($slope == 1 && $y > 6) ) ) {
+	$slope *= -1;
+	$slchg = 1;
+    }
+}
+
+$ymin -= 0.5;
+
+# now build the graph
+$gr = init_graph(0,$ymin,$x,($ymax+1),axes=>[0,0],
+		 grid=>[$x,2*($ymax+1)+2*abs($ymin)],
+		 size=>[300,300]);
+$gr->lb('reset');
+# add axis labels for x
+for ( my $i=1; $i<$x; $i++ ) {
+    $gr->lb(new Label($i,-0.15,$i,'black','center','center'));
+}
+# add the functions
+add_functions( $gr, @fstr );
+
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the function graphed below.
+$PAR
+$BCENTER
+\{ image( insertGraph($gr), tex_size=>500, height=>300, width=>300,
+	  extra_html_tags=>'alt="graph of a piecewise defined function"' ) \}
+$ECENTER
+$PAR
+At what \(x\)-values does the function appear to not be continuous?
+\(x = \) \{ ans_rule(10) \}
+$PAR
+At what \(x\)-values does the function appear to not be differentiable?
+\(x = \) \{ ans_rule(10) \}
+$PAR
+${BITALIC}(Enter ${BBOLD}none$EBOLD if there are no \(x\)-values that
+apply; enter \(x\)-values as a comma-separated list, e.g.,
+${BBOLD}1,3,5$EBOLD.)$EITALIC 
+
+END_TEXT
+Context()->normalStrings;
+
+## make a list of objects to evaluate
+@discMO = ();
+@ndifMO = ();
+foreach my $n ( @disc ) { push( @discMO, Compute($n) ); }
+foreach my $n ( @ndif ) { push( @ndifMO, Compute($n) ); }
+
+if ( ! @discMO ) {
+    @discMO = ( String("none") );
+    $discst = "The given function appears to be continuous at all " .
+	      "\(x\)-values shown.";
+} else {
+    $discst = "The given function appears to be continuous at all " .
+      	      "\(x\)-values shown except for \(x=" .
+	      join(",", @discMO) . "\).";
+}
+
+@ndifMO = ( String("none") ) if ( ! @ndifMO );
+
+ANS( List( @discMO )->cmp() );
+ANS( List( @ndifMO )->cmp() );
+
+$ndifstr = join(",", @ndifMO);
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+$discst
+$PAR
+
+The function appears to be non-differentiable at the \(x\)-values
+\(x=$ndifstr\).  (Recall that a function is non-differentiable where it
+has breaks, sharp corners or vertical tangents.)
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
