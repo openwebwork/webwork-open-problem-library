@@ -3,8 +3,8 @@
 # WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
 # ENDDESCRIPTION
 
-## KEYWORDS('calculus','derivative')
-## Tagged by cmd6a 09/05/07
+## KEYWORDS('calculus','derivative','implicit functions','implicit differentiation')
+## Tagged by glr 12/09/08
 
 ## DBsubject('Calculus')
 ## DBchapter('Differentiation')
@@ -16,7 +16,11 @@
 ## EditionText1('4')
 ## AuthorText1('Hughes-Hallett')
 ## Section1('3.7')
-## Problem1('')
+## Problem1('29')
+
+## Textbook tags
+## HHChapter('Short-Cuts to Differentiation')
+## HHSection('Implicit Functions')
 
 DOCUMENT();
 loadMacros(
@@ -25,10 +29,14 @@ loadMacros(
 "PGchoicemacros.pl",
 "PGanswermacros.pl",
 "PGauxiliaryFunctions.pl",
-# "extraAnswerEvaluators.pl", # can't get number_list_cmp() to work
+"MathObjects.pl",
 );
  
-TEXT(&beginproblem);
+Context("Numeric");
+Context()->strings->add( none=>{} );
+Context()->variables->add( y=>'Real' );
+
+TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
 $a = random(2,6,1);
@@ -37,123 +45,29 @@ $b++ if ( $a == $b );
 $asq = $a*$a;
 $bsq = $b*$b;
 
+Context()->texStrings;
 BEGIN_TEXT
 
 Find the slope of the tangent line to the ellipse
-\( \frac{x^2}{$asq} + \frac{y^2}{$bsq} = 1 \) at the point \( (x,y) \).
+\(\displaystyle
+\frac{x^2}{$asq} + \frac{y^2}{$bsq} = 1 \) at the point \( (x,y) \).
 $BR
 slope = \{ ans_rule(65) \}
 $PAR
 Are there any points where the slope is not defined?  (Enter them as 
-semicolon-separated ordered-pairs, e.g., (1,3); (-2,5).  Enter 
+comma-separated ordered-pairs, e.g., (1,3), (-2,5).  Enter 
 ${BBOLD}none$EBOLD if there are no such points.)
 $BR
 slope is undefined at \{ ans_rule(65) \}
 
 END_TEXT
+Context()->normalStrings;
 
+ANS( Compute( "-1*$bsq*x/($asq*y)" )->cmp() );
 
-# this should exist somewhere; it's just an answer evaluator to check
-# two ordered pairs in either order.  gracefully deals with the cases
-# of one or more than two ordered pairs, and hands off any arguments
-# to num_cmp()
-sub ans {
-    my $cAns = shift();
-    my @args = @_;
+Context("Point");
 
-    my @answerEval = ();
-    foreach ( @$cAns ) {
-        s/~~(~~s*(.*)~~s*~~)/$1/;
-	my ( $xans, $yans ) = split(/~~s*,~~s*/);
-#	push( @answerEval, number_list_cmp( $_, 'ordered'=>'strict', @args ) );
-	push( @answerEval, [ num_cmp( $xans, @args ), num_cmp( $yans, @args) ] );
-    }
-
-    return( sub {
-	my $student_ans = shift();
-	my @stuAns_list = split(/~~s*;~~s*/, $student_ans);
-
-# we use the first answer no matter what
-	$stuAns_list[0] =~ s/~~((.*)~~)/$1/;
-	my ( $stux, $stuy ) = split(/~~s*,~~s*/, $stuAns_list[0]);
-	my $ans1 = $answerEval[0]->[0]->evaluate($stux);
-	my $ans2 = $answerEval[0]->[1]->evaluate($stuy);
-	my $ans_hash = $ans1->AND($ans2);
-	$ans_hash->{'preview_text_string'} = "(" . 
-	    $ans1->{'preview_text_string'} . ", " . 
-	    $ans2->{'preview_text_string'} . ")";
-	$ans_hash->{'preview_latex_string'} = "(" . 
-	    $ans1->{'preview_latex_string'} . ", " . 
-	    $ans2->{'preview_latex_string'} . ")";
-
-	if ( scalar(@stuAns_list) == 1 ) {
-	    $ans_hash->{'student_ans'} = $student_ans;
-
-	    if ( $student_ans !~ /,/ ) { # then a string was entered
-	        $ans_hash->{'preview_text_string'} = $student_ans;
-	        $ans_hash->{'preview_latex_string'} = $student_ans;
-	    }
-
-	    $ans_hash->{'score'} = 0;
-	    return( $ans_hash );
-	} else {
-	    for( my $i=1; $i<@stuAns_list; $i++ ) {
-	    	$stuAns_list[$i] =~ s/~~((.*)~~)/$1/;
-	    }
-# get the second answer too
-	    my ( $stux2, $stuy2 ) = split(/~~s*,~~s*/, $stuAns_list[1]);
-	    my $ans3 = $answerEval[1]->[0]->evaluate($stux2);
-	    my $ans4 = $answerEval[1]->[1]->evaluate($stuy2);
-	    my $ans_hash2 = $ans3->AND($ans4);
-	    $ans_hash2->{'preview_text_string'} = "(" . 
-	    	$ans3->{'preview_text_string'} . ", " . 
-	    	$ans4->{'preview_text_string'} . ")";
-	    $ans_hash2->{'preview_latex_string'} = "(" . 
-	    	$ans3->{'preview_latex_string'} . ", " . 
-	    	$ans4->{'preview_latex_string'} . ")";
-
-	    my $res = $ans_hash->AND($ans_hash2);
-	    $res->{'preview_text_string'} = 
-		$ans_hash->{'preview_text_string'} . "; " . 
-		$ans_hash2->{'preview_text_string'};
-	    $res->{'preview_latex_string'} = 
-		$ans_hash->{'preview_latex_string'} . "; " . 
-		$ans_hash2->{'preview_latex_string'};
-
-	    if ( scalar(@stuAns_list) > 2 ) {
-		$res->{'student_ans'} = $student_ans;
-	        $res->{'score'} = 0;
-	 	return( $res );
-	    } else {
-		if ( ! $res->{'score'} ) {  # reverse them, sigh.
-		    $ans1 = $answerEval[0]->[0]->evaluate($stux2);
-		    $ans2 = $answerEval[0]->[1]->evaluate($stuy2);
-		    $ans3 = $answerEval[1]->[0]->evaluate($stux);
-		    $ans4 = $answerEval[1]->[1]->evaluate($stuy);
-		    $ans_hash = $ans1->AND($ans2);
-		    $ans_hash2 = $ans3->AND($ans4);
-		    $res = $ans_hash->AND($ans_hash2);
-
-		    $res->{'preview_text_string'} = "(" . 
-			$ans3->{'preview_text_string'} . ", " . 
-			$ans4->{'preview_text_string'} . "); (" . 
-			$ans1->{'preview_text_string'} . ", " . 
-			$ans2->{'preview_text_string'} . ")";
-		    $res->{'preview_latex_string'} = "(" . 
-			$ans3->{'preview_latex_string'} . ", " . 
-			$ans4->{'preview_latex_string'} . "); (" . 
-			$ans1->{'preview_latex_string'} . ", " . 
-			$ans2->{'preview_latex_string'} . ")";
-	        }
-		$res->{'student_ans'} = $student_ans;
-		return $res;
-	    }
-	}
-    } );
-}
-
-ANS( fun_cmp( "-1*$bsq*x/($asq*y)", 'var'=>['x','y'] ) );
-ANS( ans( ["(-1*$a, 0)", "($a, 0)"], 'strings'=>['none'] ) );
+ANS( List( Compute("(-1*$a,0)"), Compute("($a,0)") )->cmp() );
 
 if ( ($bsq/$asq) == int($bsq/$asq) ) {
     $ba = (($bsq/$asq) == 1) ? '' : ($bsq/$asq);
@@ -165,6 +79,7 @@ if ( ($bsq/$asq) == int($bsq/$asq) ) {
     $fr = "\frac{$bsq x}{$asq y}";
 }
 
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR SOLUTION $PAR
 
@@ -180,5 +95,6 @@ intersects that line in two places, \((-$a,0)\) and \(($a,0)\).  (These are
 the ``ends'' of the ellipse where the tangent is vertical.) 
 
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();

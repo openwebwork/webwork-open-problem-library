@@ -3,8 +3,8 @@
 # WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
 # ENDDESCRIPTION
 
-## KEYWORDS('calculus','derivative')
-## Tagged by cmd6a 09/05/07
+## KEYWORDS('calculus','derivative','implicit functions','implicit differentiation')
+## Tagged by glr 12/09/08
 
 ## DBsubject('Calculus')
 ## DBchapter('Differentiation')
@@ -16,7 +16,11 @@
 ## EditionText1('4')
 ## AuthorText1('Hughes-Hallett')
 ## Section1('3.7')
-## Problem1('')
+## Problem1('31')
+
+## Textbook tags
+## HHChapter('Short-Cuts to Differentiation')
+## HHSection('Implicit Functions')
 
 DOCUMENT();
 loadMacros(
@@ -25,9 +29,14 @@ loadMacros(
 "PGchoicemacros.pl",
 "PGanswermacros.pl",
 "PGauxiliaryFunctions.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
 );
  
-TEXT(&beginproblem);
+Context("Numeric");
+Context()->variables->add( y=>'Real' );
+
+TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
 # set up an initial equation and state
@@ -134,15 +143,40 @@ if ( $notDone ) {
     $diff = "abs($yest[0] - $y)";
 }
 
+@yestMO = ( map { Compute($_) } @yest );
+$yMO = Compute( $y );
+$diffMO = Compute($diff);
+
+$mp = MultiAnswer( Compute($dydx), @yestMO, $yMO, $diffMO )->with(
+    singleAnswer => 0,
+    checker => sub {
+	my ( $correct, $student, $self ) = @_;
+	my @stu = @{$student};
+	my @cor = @{$correct};
+
+	my $ret = [ $stu[0] == $cor[0],  ## dy/dx
+		    $stu[1] == $cor[1],  ## y(0.96)
+		    $stu[2] == $cor[2],  ## y(0.98)
+		    $stu[3] == $cor[3],  ## y(1.02)
+		    $stu[4] == $cor[4],  ## y(1.04)
+		    $stu[5] == $cor[5] ];  ## y at 0.96
+	Context()->flags->set( tolerance=>0.01 );
+	push( @{$ret}, $stu[6] == abs($stu[5] - $stu[1]) );
+
+	return $ret;
+    }
+);
+
 # this omits the parts about the tangent being horizontal and vertical
 # should they be included?  put into another problem?
 
+Context()->texStrings;
 BEGIN_TEXT
 
 If \( x^{$r} + y^3 - $ae x y^2 = $b \), find \( dy/dx \) in terms of
 \( x \) and \( y \).
 $BR
-\( {dy\over dx} = \) \{ ans_rule(65) \}
+\( {dy\over dx} = \) \{ $mp->ans_rule(65) \}
 $PAR
 Using your answer for \( dy/dx \), fill in the following table of
 approximate \( y \)-values of points on the curve near 
@@ -150,29 +184,27 @@ approximate \( y \)-values of points on the curve near
 $BR
 \{ begintable(4) \}
 \{ row( '0.96', '0.98', '1.02', '1.04' ) \}
-\{ row( ans_rule(8), ans_rule(8), ans_rule(8), ans_rule(8) ) \}
+\{ row( $mp->ans_rule(8), $mp->ans_rule(8), $mp->ans_rule(8), 
+        $mp->ans_rule(8) ) \}
 \{ endtable() \}
 
 $PAR
 Finally, find the \( y \)-value for \( x=0.96 \) by substituting 
 \( x=0.96 \) in the original equation and solving for \( y \) using a
-computer or calculator.  
+computer or calculator.
 $BR
-\( y(0.96) \approx \) \{ ans_rule(8) \}
+\( y(0.96) \approx \) \{ $mp->ans_rule(8) \}
 $PAR
 
 How large (in magnitude) is the difference between your estimate for 
 \( y(0.96) \)
 using \( dy/dx \) and your solution with a computer or calculator?
-\{ ans_rule(8) \}
+\{ $mp->ans_rule(8) \}
 
 END_TEXT
+Context()->normalStrings;
 
-
-ANS( fun_cmp( $dydx, 'var'=>['x','y'] ) );
-ANS( num_cmp( [ @yest ] ) );
-ANS( num_cmp( $y ) );
-ANS( num_cmp( $diff, 'tol'=>0.001 ) );
+ANS( $mp->cmp() );
 
 $rexp = ( $r==2 ) ? '' : '^{' . ($r-1) . '}';
 $twoa = 2*$a;
@@ -189,6 +221,7 @@ $yr = round(10000*$y)/10000;
 
 $diffn = round(10000*abs($yr - $yestr[0]))/10000;
 
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR SOLUTION $PAR
 
@@ -209,7 +242,7 @@ $PAR
 
 Using the \(y\)-values of the tangent line to approximate the \(y\)-values
 of the curve, we get 
-\( y(0.96) \approx $yestr[0] \), 
+\( y(0.96) \approx $yestr[0] \),
 \( y(0.98) \approx $yestr[1] \),
 \( y(1.02) \approx $yestr[2] \), and
 \( y(1.04) \approx $yestr[3] \).
@@ -226,5 +259,6 @@ The difference between $yr and the estimate is just
 \( |$yr - $yestr[0]| = $diffn \).
 
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();
