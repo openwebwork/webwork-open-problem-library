@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/local/bin/perl 
 
 sub _courseHeaders_init {
 #
@@ -122,10 +122,8 @@ sub courseHeader {
 
   if ($displayMode =~ m/^HTML/ || $displayMode eq "Latex2HTML") {
 #    TEXT($BBLOCKQUOTE);
-    TEXT(EV_trim($ops{topic_text}.$ops{preposition}.' '.$ops{topic}).".\n")
-      if (defined($ops{topic}) && $ops{topic} ne "");
-    TEXT(sprintf($ops{bookinfo_text},$ops{bookinfo}))
-      if (defined($ops{bookinfo}) && $ops{bookinfo} ne "");
+    TEXT(EV_trim($ops{topic_text}.$ops{preposition}.' '.$ops{topic}).".\n") if $ops{topic};
+    TEXT(sprintf($ops{bookinfo_text},$ops{bookinfo})) if $ops{bookinfo};
     TEXT($BR,$PAR,"\n\n");
     if (ref($ops{bookprobs}) eq "ARRAY") {
       TEXT($ops{bookprobs_text}."\n");
@@ -148,7 +146,7 @@ sub courseHeader {
         );
       }
     }
-    TEXT($HR,$PAR,EV_trim($ops{text})) if ($ops{text} ne "");
+    TEXT($HR,$PAR,EV_trim($ops{text})) if $ops{text};
     TEXT($HR,$PAR."\n\n",$BSMALL.$HINT.$ESMALL."\n\n",$PAR) 
       if ($ops{showhint});
 #    TEXT($EBLOCKQUOTE);
@@ -160,10 +158,8 @@ sub courseHeader {
       '\break\null\hfill '.
       "WeBWorK assignment $setNumber due $dateTime".'\par'."\n",
     );
-    TEXT(EV_trim($ops{topic_text}.$ops{preposition}.' '.$ops{topic}).".\n")
-      if (defined($ops{topic}) && $ops{topic} ne "");
-    TEXT(sprintf($ops{bookinfo_text},$ops{bookinfo}))
-      if (defined($ops{bookinfo}) && $ops{bookinfo} ne "");
+    TEXT(EV_trim($ops{topic_text}.$ops{preposition}.' '.$ops{topic}).".\n") if $ops{topic};
+    TEXT(sprintf($ops{bookinfo_text},$ops{bookinfo})) if $ops{bookinfo};
     TEXT('\par',"\n\n");
     if (ref($ops{bookprobs}) eq "ARRAY") {
       TEXT($ops{bookprobs_text}.' ');
@@ -183,7 +179,7 @@ sub courseHeader {
         );
       }
     }
-    TEXT(EV_trim($ops{text}).'\par'."\n\n") if ($ops{text} ne "");
+    TEXT(EV_trim($ops{text}).'\par'."\n\n") if $ops{text};
     TEXT('\par}',$END_ONE_COLUMN);
   } else {
     warn "courseHeader: Unknown display mode: $displayMode"

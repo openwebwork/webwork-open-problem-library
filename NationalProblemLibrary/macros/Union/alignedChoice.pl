@@ -27,7 +27,7 @@ sub aligned_print_q {
     foreach $quest (@questions) {
       if (ref($quest) eq 'ARRAY') {($quest,$rest) = @{$quest}} else {$rest = ''}
       $out .= "<TR VALIGN=$valign>";
-      $out .= "<TD VALIGN=TOP><B>" . $i++ . ".</B> &nbsp;</TD>" if ($numbered);
+      $out .= "<TD><B>" . $i++ . ".</B> &nbsp;</TD>" if ($numbered);
       $out .= "<TD ALIGN=$align>$quest</TD>";
       $out .= "<TD>=</TD>" if ($equals);
       $out .= "<TD>" . ans_rule($length) . $rest . "</TD></TR>\n";
@@ -48,7 +48,7 @@ sub aligned_print_q {
       $out .= "\\begin{rawhtml}<TR><TD HEIGHT=\"$rsep\"></TD></TR>\\end{rawhtml}\n" if ($rsep);
     }
     $out .= "\\begin{rawhtml}</TABLE>\n\\end{rawhtml}";
-  }  elsif ($main::displayMode eq 'TeX') {
+  } elsif ($main::displayMode eq 'TeX') {
     my $num = ''; $num = 'r' if ($numbered);
     my $algn = 'r'; $algn = 'l' if (uc($align) eq "LEFT");
     $algn = 'c' if (uc($align) eq "CENTER");

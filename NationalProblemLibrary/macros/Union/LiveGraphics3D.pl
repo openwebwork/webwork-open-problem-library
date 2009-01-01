@@ -65,7 +65,8 @@ sub _LiveGraphics3D_init {}; # don't reload this file
 sub LiveGraphics3D {
   my %options = (
     size => [250,250],
-    jar => "${htmlURL}live.jar",
+    jar => "live.jar", # "${htmlURL}live.jar",
+    codebase => findAppletCodebase("live.jar"),
     background => "#FFFFFF",
     scale => 1.,
     tex_size => 500,
@@ -103,18 +104,18 @@ sub LiveGraphics3D {
     #  start the applet
     #
     $out .= qq{
-      <APPLET ARCHIVE="$options{jar}" CODE="Live.class" WIDTH="$w" HEIGHT="$h">
+      <APPLET CODEBASE="$options{codebase}" ARCHIVE="$options{jar}" CODE="Live.class" WIDTH="$w" HEIGHT="$h">
       <PARAM NAME="BGCOLOR" VALUE="$options{background}">
       <PARAM NAME="MAGNIFICATION" VALUE="$options{scale}">
     };
     #
     #  include the file or data
     #
-    $out .= qq{<PARAM NAME="INPUT_ARCHIVE" VALUE="$options{archive}">\n} 
+    $out .= qq{<PARAM NAME="INPUT_ARCHIVE" VALUE="$options{archive}">\n}
       if ($options{archive});
-    $out .= qq{<PARAM NAME="INPUT_FILE" VALUE="$options{file}">\n} 
+    $out .= qq{<PARAM NAME="INPUT_FILE" VALUE="$options{file}">\n}
       if ($options{file});
-    $out .= qq{<PARAM NAME="INPUT" VALUE="$options{input}">\n} 
+    $out .= qq{<PARAM NAME="INPUT" VALUE="$options{input}">\n}
       if ($options{input});
     #
     #  include any independent variables

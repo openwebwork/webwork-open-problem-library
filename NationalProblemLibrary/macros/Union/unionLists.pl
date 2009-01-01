@@ -47,18 +47,19 @@ sub _unionLists_init {}; # don't reload this file
 sub BeginList {
   my $LIST = 'OL';
   $LIST = shift if (uc($_[0]) eq "OL" or uc($_[0]) eq "UL");
+  my $enum = ($LIST eq 'OL' ? "enumerate" : "itemize");
   my %options = @_;
   $LIST .= ' TYPE="'.$options{type}.'"' if defined($options{type});
   $LIST .= ' START="'.$options{value}.'"' if defined($options{value});
   $LIST = "<$LIST>";
   my $tex = ""; my $type = ""; my $top = "";
   $tex .= "\\parindent=0pt \\parskip=.75\\baselineskip\n" if $options{tex_par};
-  $tex .= "\\setcounter{enumi}{".($options{value}-1)."}" if defined($options{value});
-  $type = "[\\quad $options{type}.]" if defined($options{type});
+  $tex .= "\\setcounter{enumi}{".($options{value}-1)."}" if defined($options{value}) && $LIST eq 'OL';
+  $type = "[\\quad $options{type}.]" if defined($options{type}) && $LIST eq 'OL';
   $top = '\vskip-\parskip\hrule height 0pt' if $options{noTopSkip};
 
   MODES(
-    TeX => "\\par${top}{\\parskip=0pt\\begin{enumerate}$type\n$tex",
+    TeX => "\\par${top}{\\parskip=0pt\\begin{$enum}$type\n$tex",
     Latex2HTML => $bHTML.$LIST.$eHTML,
     HTML => $LIST."\n"
   );
@@ -71,9 +72,10 @@ sub BeginList {
 #
 sub EndList {
   my $LIST = shift; $LIST = 'OL' unless defined $LIST;
+  my $enum = ($LIST eq 'OL' ? "enumerate" : "itemize");
   $LIST = "</$LIST>";
   MODES(
-    TeX => '\end{enumerate}}',
+    TeX => "\\end{$enum}}",
     Latex2HTML => $bHTML.$LIST.$eHTML,
     HTML => $LIST."\n"
   );
@@ -95,7 +97,7 @@ sub EndParList {EndList(@_)};
 #  Use $ITEM to introduce a new list item
 #
 $ITEM = MODES(
-  TeX => '\item\ignorespaces',
+  TeX => '\item\ignorespaces ',
   Latex2HTML => $bHTML.'<LI>'.$eHTML,
   HTML => "<LI>"
 );
@@ -105,7 +107,7 @@ $ITEM = MODES(
 #  space between list items properly
 #
 $ITEMSEP = MODES(
-  TeX => '\par\vskip-\parskip\vskip\baselineskip',
+  TeX => '\par\vskip-\parskip\vskip\baselineskip ',
   Latex2HTML => $bHTML."<BR><BR>".$eHTML,
   HTML => "<BR><BR>"
 );

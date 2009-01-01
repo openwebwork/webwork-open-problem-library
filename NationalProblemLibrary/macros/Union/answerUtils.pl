@@ -18,13 +18,14 @@ sub evaluateAnswer {
   return if ($skipblanks && trimString($student_answer) eq '');
   clearEvaluator($ans_evaluator);
   if (ref($ans_evaluator) eq 'AnswerEvaluator') {
+    $ans_evaluator->{rh_ans}{ans_label} = "" unless defined($ans_evaluator->{rh_ans}{ans_label});
     return($ans_evaluator->evaluate($student_answer));
   } elsif (ref($ans_evaluator) eq 'CODE' ) {
     return(&$ans_evaluator($student_answer));
   } else {
     warn "There is a problem using the answer evaluator";
   }
-} 
+}
 
 #
 #  Call an answer evaluator (works for new- and old-style checkers)
@@ -35,7 +36,7 @@ sub isCorrectAnswer {
   $cmp->{rh_ans}->{correct_ans} = $correct;
   return(0) unless defined($hash);
   return($hash->{score} == 1);
-} 
+}
 
 #
 #  Clear the error condition for an answer evaluator

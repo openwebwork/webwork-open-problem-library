@@ -90,12 +90,6 @@ $Q = MODES(TeX => '{\bf Q}', HTML_tth => '{\bf Q}', HTML => '<B>Q</B>');
 $C = MODES(TeX => '{\bf C}', HTML_tth => '{\bf C}', HTML => '<B>C</B>');
 
 #
-#  Smart-quotes in TeX mode, regular quotes in HTML mode
-#
-#$LQ = MODES(TeX => '``', Latex2HTML => '"', HTML => '"');
-#$RQ = MODES(TeX => "''", Latex2HTML => '"', HTML => '"');
-
-#
 #  Superscripts and subscript (mostly for if you want answer
 #  rules in these positions).
 #
@@ -123,7 +117,7 @@ sub Title {
   my $title = shift;
 
   TEXT(MODES(
-    TeX => "\\par\\centerline{\\bf $title}\\par\\nobreak\n",
+    TeX => "\\par\\begin{centering}{\\bf $title}\\par\\end{centering}\\nobreak\n",
     Latex2HTML => $bHTML.'<CENTER><H2>'.$title.'</H2></CENTER>'.$eHTML,
     HTML => '<CENTER><H2>'.$title.'</H2></CENTER>'
   ));

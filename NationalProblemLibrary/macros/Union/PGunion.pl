@@ -9,6 +9,7 @@ loadMacros(
   "unionImage.pl",
   "unionLists.pl",
   "unionTables.pl",
+  "unionMessages.pl",
 );
 
 1;

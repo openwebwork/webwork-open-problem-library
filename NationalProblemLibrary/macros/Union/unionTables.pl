@@ -141,6 +141,8 @@ sub EndTable {
 #    separation => num       Specifies separation of columns
 #                            (default:  spearation => 30)
 #
+#    tex_vspace => "dimen"   Specifies additional vertical spacing for TeX
+#
 #    align => "type"         Specifies alignment of initial column
 #                            (default:  align => "LEFT")
 #
@@ -161,9 +163,11 @@ sub Row {
   my $fill = '';
   $fill = '\hfil' if (uc($align) eq "CENTER");
   $fill = '\hfill' if (uc($align) eq "RIGHT");
+  my $vspace = '';
+  $vspace = '\noalign{\vskip '.$options{tex_vspace}.'}' if $options{tex_vspace};
 
   MODES(
-    TeX => "\\cr\n". $fill . join('& ',@row),
+    TeX => '\cr'.$vspace."\n". $fill . join('& ',@row),
     Latex2HTML =>
       $bHTML."<TR VALIGN=\"$valign\">$ind<TD ALIGN=\"$align\">".$eHTML .
       join($bHTML."</TD>$sep<TD>".$eHTML,@row) .
@@ -183,6 +187,8 @@ sub Row {
 #
 #    separation => num       Specifies separation of columns
 #                            (default:  spearation => 30)
+#
+#    tex_vspace => "dimen"   Specifies additional vertical spacing for TeX
 #
 #    align => "type"         Specifies alignment of all columns
 #                            (default:  align => "CENTER")
@@ -204,9 +210,11 @@ sub AlignedRow {
   my $fill = '';
   $fill = '\hfil ' if (uc($align) eq "CENTER");
   $fill = '\hfill ' if (uc($align) eq "RIGHT");
+  my $vspace = '';
+  $vspace = '\noalign{\vskip '.$options{tex_vspace}.'}' if $options{tex_vspace};
 
   MODES(
-    TeX => "\\cr\n". $fill . join('&'.$fill,@row),
+    TeX => '\cr'.$vspace."\n". $fill . join('&'.$fill,@row),
     Latex2HTML =>
       $bHTML."<TR VALIGN=\"$valign\">$ind<TD ALIGN=\"$align\">".$eHTML .
       join($bHTML."</TD>$sep<TD ALIGN=\"$align\">".$eHTML,@row) .

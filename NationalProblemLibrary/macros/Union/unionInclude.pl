@@ -20,6 +20,7 @@ sub includePGfile {
   my $PGfile = $main::envir{'fileName'};
   $PGfile =~ s![^/]+$!!; $PGfile .= $name;
   while ($PGfile =~ s![^/]*/../!!) {}
+  $PGfile =~ s!^tmpEdit/!!;
   my $problem = read_whole_problem_file($main::templateDirectory.$PGfile);
 
   my ($oldpname,$oldname) = 
@@ -48,8 +49,10 @@ sub includePGfile {
 sub includeRandomProblem {
   my @flist = @_;
   my @shuffle = _NchooseK(scalar(@flist),scalar(@flist));
-  my $n = (@shuffle)[$probNum-1];
+  my $start = $initialProblemNumber; $start = 1 unless defined $start;
+  my $n = (@shuffle)[$probNum-$start];
   includePGfile($flist[$n]);
+  $main::problemPostamble->{HTML} = "";  # Hack to prevent ENDDOCUMENT from adding it again
 }
 
 #
@@ -61,7 +64,7 @@ sub BEGIN_INCLUSION {}
 sub END_INCLUSION {}
 
 ######################################################################
-#  
+#
 #  This is a service routine for includeRandomProblem() above.
 #  It an array of k numbers chosen from 0 to n-1, but preserves the
 #  random seed so that the included problem won't be affected by
@@ -72,8 +75,9 @@ sub _NchooseK {
   my ($n,$k)=@_;
   my @array = 0..($n-1);
   my @out = ();
+  my $seed = ($main::psvn || 23)*101 + ($initialProblemNumber || 1);
   my $oldseed = $main::PG_random_generator->{seed};
-  $main::PG_random_generator->srand($psvn);
+  $main::PG_random_generator->srand($seed);
   while (@out<$k) {
     push(@out,
          splice(@array,$main::PG_random_generator->random(0,$#array,1),1));
