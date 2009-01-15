@@ -58,11 +58,18 @@ sub Image {
   my $HTML; my $TeX;
   ($image,$ilink) = @{$image} if (ref($image) eq "ARRAY");
   $image = alias(insertGraph($image)) if (ref($image) eq "WWPlot");
-  $image = alias($image) unless ($image =~ m!^/!i);
+  $image = alias($image) unless ($image =~ m!^/|^http:!i); # see note
   if ($ilink) {
     $ilink = alias(insertGraph($ilink)) if (ref($ilink) eq "WWPlot");
-    $ilink = alias($ilink) unless ($ilink =~ m!^/!i);
+    $ilink = alias($ilink) unless ($ilink =~ m!^/|^http:!i); # see note
   } else {$ilink = $image}
+  #
+  # Note: These cases were added to handle the examples where the 
+  # $image tag has a full url -- in practice this arises when using lighttpd 
+  # to server images from a different port
+  # e.g. http://hosted2.webwork.rochester.edu:8000/webwork2_course_files/....
+  # A smarter implementation of alias might make this check unnecessary
+  #
   $border = (($link || $ilink ne $image)? 2: 1) unless defined($border);
   $HTML = '<IMG SRC="'.$image.'" WIDTH="'.$w.
           '" HEIGHT="'.$h.'" BORDER="'.$border.'" ALIGN="'.$align.'">';
