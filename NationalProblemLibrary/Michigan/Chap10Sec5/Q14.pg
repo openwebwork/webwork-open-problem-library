@@ -1,0 +1,178 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','integral', 'fourier', 'series', 'approximation')
+## Tagged by glr 02/03/09
+
+## DBsubject('Calculus')
+## DBchapter('Infinite Sequences and Series')
+## DBsection('Fourier Series')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('10.5')
+## Problem1('14')
+
+## Textbook tags
+## HHChapter('Approximating Functions Using Series')
+## HHSection('Fourier Series')
+
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+## the graph is an even function,
+##    h(t) = $y0, for -pi/4 < t < pi/4
+##         = $y1, for -pi/2 < t < -pi/4 and pi/4 < t < pi/2
+##         = $y2, for -pi < t < -3 pi/4 and 3pi/4 < t < pi
+##         = 0,   otherwise
+## this means that when we expand the received signal h(t) in
+## a Fourier series we know that all the b_n are zero.  we pick
+## y0 = -(y1 + y2), so that the average value of h(t) is zero,
+## which makes a0 zero.  then we can find A from the first cosine
+## term.
+
+$y0sgn = list_random(-1,1);
+$y0 = random(50,90,10);
+$y1 = random(10,30,10);
+$y2 = $y0 - $y1;
+
+$y0 = $y0sgn*$y0;
+$y1 = -1*$y0sgn*$y1;
+$y2 = -1*$y0sgn*$y2;
+
+$ymin = $y0;
+$ymax = $y0;
+foreach my $y ( $y1, $y2 ) { 
+    $ymin = $y if ( $y < $ymin );
+    $ymax = $y if ( $y > $ymax );
+}
+$ymin -= 10;
+$ymax += 10;
+$ygrid = ($ymax - $ymin)/10;
+
+$gr = init_graph( -3.1416,$ymin,3.1416,$ymax, axes=>[0,0], grid=>[8,$ygrid],
+		  size=>[300,300] );
+$gr->lb('reset');
+$gr->lb( new Label(-3.1416,0,"-pi","black","left","top") );
+$gr->lb( new Label(3.1416,0,"pi","black","right","top") );
+$gr->lb( new Label(-1.5708,0,"-pi/2","black","center","top") );
+$gr->lb( new Label(1.5708,0,"pi/2","black","center","top") );
+$gr->lb( new Label(0,10,"10","black","left","middle") );
+$gr->lb( new Label(0,$y0,"$y0","black","left","middle") );
+$gr->lb( new Label(0,$y1,"$y1","black","left","middle") );
+$gr->lb( new Label(0,$y2,"$y2","black","left","middle") );
+
+add_functions($gr,
+	      "$y2 for x in <-3.1416,-2.35619> using color:blue and weight:2",
+	      "$y1 for x in <-1.5708,-0.78540> using color:blue and weight:2",
+	      "$y0 for x in <-0.78540,0.78540> using color:blue and weight:2",
+	      "$y1 for x in <0.78540,1.5708> using color:blue and weight:2",
+	      "$y2 for x in <2.35619,3.1416> using color:blue and weight:2" );
+
+$a = Compute("(sqrt(2)*$y0 + (2 - sqrt(2))*$y1 - sqrt(2)*$y2)/pi");
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Suppose that a spacecraft near Neptune has measured a quantity \( A \) and
+sent it to earth in the form of a periodic signal \( A\cos t \) of
+amplitude \( A \).  On its way to earth, the signal picks up periodic
+noise, containing only second and higher harmonics.  Suppose that the
+signal \( h(t) \) actually received on earth is graphed below.
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>350, height=>300, width=>300,
+	  extra_html_tags=>'alt="graph of a piecewise constant function ' .
+	  'h(t) = ' . $y2 . ' for t between -pi and -3pi/4; = 0 for t ' .
+	  'between -3pi/4 and -pi/2; = ' . $y1 . ' for t between -pi/2 ' .
+	  'and -pi/4; = ' . $y0 . ' for t between -pi/4 and pi/4; = ' .
+	  $y1 . ' for t between pi/4 and pi/2; = 0 for t between pi/2 ' .
+	  'and 3pi/4; and = ' . $y2 . ' for t between 3pi/4 and pi."' ) \}
+$ECENTER
+$PAR
+Determine the signal that the spacecraft originally sent and hence the
+value \( A \) of the measurement.
+
+$PAR
+\( A = \) \{ ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $a->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The signal received on earth is in the form of a periodic function
+\(h(t)\), which can be expanded in a Fourier series
+\[ h(t) = a_0 + a_1\cos t + a_2\cos 2t  + a_3\cos 3t + \cdots +
+	b_1\sin t + b_2\sin 2t + b_3\sin3t + \cdots \]
+
+$PAR
+If the periodic noise consists of ${BITALIC}only$EITALIC the second and higher
+harmonics of the Fourier series, then the original signal contributed
+the fundamental harmonic plus the constant term, i.e.,
+\[ \mbox{constant term} + \mbox{fundamental harmonic} = a_0 +
+    a_1\cos t +b_1\sin t = A\cos t =
+    \mbox{original signal}. \]
+$PAR
+
+In order to find \(A\), we need to find \(a_0\), \(a_1\), and \(b_1\).
+Looking at the graph of \(h(t)\), we see
+\[ a_0  =  \mbox{average value of} h(t) =
+    \frac{1}{2\pi} (\mbox{Area above the axis} - \mbox{Area under the axis})
+    = 0 \]
+(which we can see by adding the areas in the graph).
+$PAR
+
+Then
+\[ a_1 = \frac{1}{\pi}\int_{-\pi}^{\pi} h(t)\cos t \,dt, \]
+which we can find by breaking it into the different sections over which
+\(h(t)\) is defined:
+\[ a_1 = \frac{1}{\pi}\left(
+    \int_{-\pi}^{-3\pi/4}\,$y2\,\cos t\,dt +
+    \int_{-\pi/2}^{-\pi/4}\,$y1\,\cos t\,dt +
+    \int_{-\pi/4}^{\pi/4}\,$y0\,\cos t\,dt + \right.\]
+\[ \left.
+    \int_{\pi/4}^{-\pi/2}\,$y1\,\cos t\,dt +
+    \int_{3\pi/4}^{\pi}\,$y2\,\cos t\,dt\right).
+\]
+Evaluating these, we get \( a_1 = $a \).
+$PAR
+
+Finally, we note that
+\[ b_1 = \frac{1}{\pi}\int_{-\pi}^{\pi}h(t)\sin t\,dt=0 \]
+because \(h(t)\sin t\) is an odd function.
+$PAR
+
+Substituting in, we get
+\[ a_0 + a_1\cos t + b_1\sin t = 0 + $a \cos t + 0 = A\cos t.\]
+So \( A= $a\).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
