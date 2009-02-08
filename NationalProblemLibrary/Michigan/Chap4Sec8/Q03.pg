@@ -1,0 +1,283 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## DBsubject('Calculus')
+## DBchapter('Using the Derivative')
+## DBsection('Parametric Equations')
+## KEYWORDS('parametric equations')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('4.8')
+## Problem1('3')
+## Author('Gavin LaRose')
+## Institution('UMich')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add(t=>"Real");
+Context()->strings->add(undef=>{}, Undef=>{alias=>"undef"});
+$showPartialCorrectAnswers = 1;
+
+# we pick one of the functions f(t) given by
+#    f(t) = 2-t, t<=2; f(t) = (t-2), t<=4, or
+#    f(t) = t,   t<=2; f(t) = 4-t,   t<=4
+# and on of the functions g(t) given by
+#    g(t) = 2t, t<=1/2; 2-2t, t<=3/2; -4+2t, t<=5/2; 6-2t, t<=7/2; -8+2t, t<=4,
+#    g(t) = -2t, t<=1/2; -2+2t, t<=3/2; 4-2t, t<=5/2; -6+2t, t<=7/2; 8-2t, t<=4,
+# or
+#    g(t) = 1-2t, t<=1; -3+2t, t<=2; 5-2t, t<=3; -7+2t, t<=4
+#    g(t) = -1+2t, t<=1; 3-2t, t<=2; -5+2t, t<=3; 7-2t, t<=4
+
+$whichF = list_random(0,1);
+$whichG = list_random(0,1);
+
+# make @f = ( formula for t<=2, formula for t<=4 )
+@fBreak = ( "2", "4" );
+if ( $whichF ) {
+    @f = ( Formula("2-t"), Formula("t-2") );
+    $fdesc = "a piecewise linear function extending from (0,2) to (2,0) " .
+      "to (4,2)";
+} else {
+    @f = ( Formula("t"), Formula("4-t") );
+    $fdesc = "a piecewise linear function extending from (0,0) to (2,2) " .
+      "to (4,0)";
+}
+
+# and @g = similar, for the given breakpoints
+@gBreak = ( "0.5", "1.5", "2.5", "3.5", "4" );
+@g = ( Formula("2t"), Formula("2-2t"), Formula("-4+2t"),
+	   Formula("6-2t"), Formula("-8+2t") );
+$gdesc = "a piecewise linear function extending from (0,0) to (0.5,1) " .
+  "to (1.5,-1) to (2.5,1) to (3.5,-1) to (4,0)";
+
+# the solution graphs are determined by which g functions we use
+@solfx = ( [ "2*x for x in <0,0.5> using color:red and weight:2",
+	     "2-2*x for x in <0.5,1.5> using color:red and weight:2",
+	     "2*x-4 for x in <1.5,2> using color:red and weight:2" ],
+	   [ "-2*x for x in <0,0.5> using color:red and weight:2",
+	     "-2+2*x for x in <0.5,1.5> using color:red and weight:2",
+	     "-2*x+4 for x in <1.5,2> using color:red and weight:2" ] );
+
+if ( $whichG == 1 ) {
+    for ( my $i=0; $i<@g; $i++ ) { $g[$i] *= -1; }
+
+    $gdesc =~ s/0~~.5,1/0~~.5,-1/;  $gdesc =~ s/1~~.5,-1/1~~.5,1/;
+    $gdesc =~ s/2~~.5,1/2~~.5,-1/;  $gdesc =~ s/3~~.5,-1/3~~.5,1/;
+}
+
+# make the graphs
+$fgr = init_graph(-1,-1,4,3,axes=>[0,0],grid=>[5,4],size=>[200,150]);
+$ggr = init_graph(-1,-2,4,2,axes=>[0,0],grid=>[5,4],size=>[200,150]);
+
+@ffunc = ();
+for ( my $i=0; $i<@f; $i++ ) {
+    my $xmin = ( $i==0 ) ? "0" : $fBreak[$i-1];
+    push( @ffunc, $f[$i]->substitute(t=>"x") . " for x in <$xmin, " .
+	  "$fBreak[$i]> using color:blue and weight:2" );
+}
+add_functions( $fgr, @ffunc );
+
+@gfunc = ();
+for ( my $i=0; $i<@g; $i++ ) {
+    my $xmin = ( $i==0 ) ? "0" : $gBreak[$i-1];
+    push( @gfunc, $g[$i]->substitute(t=>"x") . " for x in <$xmin, " .
+	  "$gBreak[$i]> using color:blue and weight:2" );
+}
+add_functions( $ggr, @gfunc );
+
+## now, what to ask?
+## likely candidates are:
+##    (x,y) at a corner and non-corner point,
+##    the direction of motion (x,y) at a corner and non-corner point
+## the point when t=1/4
+$x0 = $f[0]->eval(t=>0.25);
+$y0 = $g[0]->eval(t=>0.25);
+$p0 = Point($x0,$y0);
+## the slope here is
+$mx0 = $f[0]->D()->eval(t=>0.25);
+$my0 = $g[0]->D()->eval(t=>0.25);
+$m0  = $my0/$mx0;
+
+## what direction are we moving here?
+@lroptions = ( "neither left nor right", "to the left", "to the right" );
+$lr0 = $lroptions[ -1*$mx0 <=> 0 ];
+@udoptions = ( "neither up nor down", "up", "down" );
+$ud0 = $udoptions[ $my0 <=> 0 ];
+$horizMove0 = PopUp( [ @lroptions ], $lr0 );
+$vertMove0  = PopUp( [ @udoptions ], $ud0 );
+
+## the point when t=9/4
+$f1ind = 0;  while ( $fBreak[$f1ind] < 2.25 ) { $f1ind++; }
+$g1ind = 0;  while ( $gBreak[$g1ind] < 2.25 ) { $g1ind++; }
+$x1 = $f[$f1ind]->eval(t=>2.25);
+$y1 = $g[$g1ind]->eval(t=>2.25);
+$p1 = Point($x1,$y1);
+## the slope here is
+$mx1 = $f[$f1ind]->D()->eval(t=>2.25);
+$my1 = $g[$g1ind]->D()->eval(t=>2.25);
+$m1  = $my1/$mx1;
+
+## what direction are we moving here?
+$lr1 = $lroptions[ -1*$mx1 <=> 0 ];
+$ud1 = $udoptions[ $my1 <=> 0 ];
+$horizMove1 = PopUp( [ @lroptions ], $lr1 );
+$vertMove1  = PopUp( [ @udoptions ], $ud1 );
+
+TEXT(&beginproblem);
+Context()->texStrings;
+BEGIN_TEXT
+
+The functions \(f(t)\) and \(g(t)\) are shown below.
+
+$BR
+$BCENTER
+\{ begintable(2) \}
+\{ row( image(insertGraph($fgr), tex_size=>250, height=>150, width=>200,
+	      extra_html_tags=>'alt="graph of ' . $fdesc . '"'), 
+	image(insertGraph($ggr), tex_size=>250, height=>150, width=>200,
+	      extra_html_tags=>'alt="graph of ' . $gdesc . '"') ) \}
+\{ row( "\(f(t)\)", "\(g(t)\)" ) \}
+\{ endtable() \}
+$ECENTER
+$BR
+
+If the motion of a particle whose position at time \( t \) is
+given by \( x=f(t) \), \( y=g(t) \), sketch a graph of the
+resulting motion and use your graph to answer the following
+questions:
+
+$PAR
+${BBOLD}(a)$EBOLD
+The slope of the graph at \($p0\) is \{ ans_rule(15) \} 
+$BR
+${BITALIC}(enter ${BBOLD}undef$EBOLD if the slope is not defined)$EITALIC
+
+$PAR
+${BBOLD}(b)$EBOLD
+At this point the particle is moving
+\{ $horizMove0->menu \} and \{ $vertMove0->menu \}.
+
+
+$PAR
+${BBOLD}(c)$EBOLD
+The slope of the graph at \($p1\) is \{ ans_rule(15) \} 
+$BR
+${BITALIC}(enter ${BBOLD}undef$EBOLD if the slope is not defined)$EITALIC
+
+$PAR
+${BBOLD}(d)$EBOLD
+At this point the particle is moving
+\{ $horizMove1->menu \} and \{ $vertMove1->menu \}.
+
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $m0->cmp() );
+ANS( $horizMove0->cmp() );
+ANS( $vertMove0->cmp() );
+ANS( $m1->cmp() );
+ANS( $horizMove1->cmp() );
+ANS( $vertMove1->cmp() );
+
+## set up the solution
+
+# the solution graph(s)
+$solgr1 = init_graph(-1,-2,3,2,axes=>[0,0],grid=>[4,4],size=>[200,150]);
+$solgr2 = init_graph(-1,-2,3,2,axes=>[0,0],grid=>[4,4],size=>[200,150]);
+$solgr3 = init_graph(-1,-2,3,2,axes=>[0,0],grid=>[4,4],size=>[200,150]);
+add_functions( $solgr1, @{$solfx[($whichF+$whichG)%2]} );
+add_functions( $solgr2, @{$solfx[($whichF+$whichG+1)%2]} );
+
+# add_functions( $solgr1, @{$solfx[($whichG+1)%2]} );
+# add_functions( $solgr2, @{$solfx[$whichG]} );
+add_functions( $solgr3, @{$solfx[0]}, @{$solfx[1]} );
+
+$startpoint = "\((";
+$movement1 = "";
+for ( $mi=0; $mi<@gBreak/2-1; $mi++ ) {
+    $movement1 .= "\((" . $f[0]->eval(t=>$gBreak[$mi]) . ", " . 
+      $g[$mi]->eval(t=>$gBreak[$mi]) . ")\) to ";
+}
+$movement1 .= "\((" . $f[0]->eval(t=>2) . ", " . $g[$mi]->eval(t=>2) . ")\)";
+
+# solution text
+if ( $whichF ) {
+    # then we go in from x=2, then out
+    $startpoint .= "2, ";
+    $text1 = "the particle starts at \(x=2\) and moves towards " .
+      "\(x=0\) as \(0 < t < 2\), then moves back out to \(x=2\).";
+    $text3 = "for \(t>2\), the graph of \(f(t)\) shows us that " .
+      "the particle moves from \(x=0\) back out to \(x=2\),";
+} else {
+    $startpoint .= "0, ";
+    $text1 = "the particle starts at \(x=0\) and moves out towards " .
+      "\(x=2\) as \(0 < t < 2\), then moves back to \(x=0\).";
+    $text3 = "for \(t>2\), the graph of \(f(t)\) shows us that " .
+      "the particle moves from \(x=2\) back in to \(x=0\),";
+}
+$text2 = "the vertical position of the particle starts at \(y=0\) ";
+$startpoint .= "0)\)";
+
+if ( $whichG == 0 ) {
+	$text2 .= "and increases to \(y=1\) at \(t=0.5\), then " .
+	  "decreases to \(y=-1\) at \(t=1.5\), then increases, etc.";
+} else {
+	$text2 .= "and decreases to \(y=-1\) at \(t=0.5\), then " .
+	  "increases to \(y=1\) at \(t=1.5\), then decreases, etc.";
+}
+$moresolution = "Putting these two together, the graph of the " .
+  "particle's full path is given by $BR $BCENTER " .
+    image( insertGraph( $solgr3 ), tex_size=>250, height=>150, 
+	   width=>200, extra_html_tags=>'alt=""' ) . " $ECENTER ";
+
+$sf = join(', ', @{$solfx[$whichF]});
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+$whichF, $whichG $BR
+$sf
+$PAR
+
+We note from the graph of \(f(t)\) that $text1
+As this occurs, the graph of \(g(t)\) tells us that $text2
+Thus the graph of the motion for \(0\le t\le 2\) is given as
+shown in the graph below, with the particle moving from $startpoint
+at \(t=0\) to $movement1.
+$BR
+$BCENTER
+\{ image( insertGraph( $solgr1 ), tex_size=>250, height=>150, width=>200,
+          extra_html_tags=>'alt=""' ) \}
+$ECENTER
+$PAR
+Then, $text3
+while the vertical movement, which we read from \(g(t)\), is
+just the same as for \(0\le t\le 2\), repeated.  Thus for \(2\le t\le 4\)
+the graph is
+$BR
+$BCENTER
+\{ image( insertGraph( $solgr2 ), tex_size=>250, height=>150, width=>200,
+          extra_html_tags=>'alt=""' ) \}
+$ECENTER
+$PAR
+$moresolution
+
+END_SOLUTION
+
+Context()->normalStrings;
+
+ENDDOCUMENT();
