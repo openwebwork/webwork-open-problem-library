@@ -3,12 +3,12 @@
 # WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
 # ENDDESCRIPTION
 
-## KEYWORDS('calculus')
-## Tagged by cmd6a 09/05/07
+## KEYWORDS('calculus', 'integral', 'fundamental theorem of calculus', 'area', 'properties of integrals')
+## Tagged by glr 02/08/09
 
 ## DBsubject('Calculus')
 ## DBchapter('Integrals')
-## DBsection('The Definite Integral')
+## DBsection('The Fundamental Theorem of Calculus')
 ## Date('')
 ## Author('Gavin LaRose')
 ## Institution('University of Michigan')
@@ -16,7 +16,11 @@
 ## EditionText1('4')
 ## AuthorText1('Hughes-Hallett')
 ## Section1('5.3')
-## Problem1('')
+## Problem1('19')
+
+## Textbook tags
+## HHChapter('Key Concept: The Definite Integral')
+## HHSection('The Fundamental Theorem and Interpretations')
 
 DOCUMENT();
 loadMacros(
@@ -25,10 +29,13 @@ loadMacros(
 "PGchoicemacros.pl",
 "PGanswermacros.pl",
 "PGauxiliaryFunctions.pl",
-"PGgraphmacros.pl", 
+"PGgraphmacros.pl",
+"MathObjects.pl",
 );
  
-TEXT(&beginproblem);
+Context("Numeric");
+
+TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
 # we graph the number of workers as the function 
@@ -47,10 +54,10 @@ $overtime = 1.5*$pay;
 
 $ymax = $a+$b;
 $ymax += ( $ymax/10 == int($ymax/10) ) ? 10 : 5;
-$gr = init_graph(0,0,48,$ymax,'axes'=>[0,0],'grid'=>[6,$ymax/10]);
+$gr = init_graph(0,0,48,$ymax,axes=>[0,0],grid=>[12,$ymax/5],size=>[250,250]);
 $gr->lb('reset');
-$gr->lb(new Label(8,2,'8','black','center','right'));
-$gr->lb(new Label(48,2,'48','black','center','right'));
+$gr->lb(new Label(8,0,'8','black','bottom','right'));
+$gr->lb(new Label(48,0,'48','black','bottom','right'));
 $gr->lb(new Label(0,10,'10','black','top','left'));
 $gr->lb(new Label(0,$ymax,"$ymax",'black','top','left'));
 $f1 = "$a + $b*sin(pi*x/8) for x in <0,12> using color:blue and weight:2";
@@ -66,15 +73,23 @@ $day = 16*($a + 2*$b/$pi);
 # and the overtime area is 
 $night = 16*(2*$a - (1 + 2/$pi)*$b);
 
+Context()->texStrings;
 BEGIN_TEXT
 
 A two-day environmental clean up started at 9AM on the first day.  The
 number of workers fluctuated as shown in the following figure.
 $PAR
 $BCENTER
-\{ image(insertGraph($gr),'tex_size'=>500) \}
-$BR
-${BITALIC}(Click on the graph for a larger version.)$EITALIC
+\{ image(insertGraph($gr), tex_size=>500, height=>250,
+	 width=>250, extra_html_tags=>'alt="graph of number of workers ' .
+	 'vs. time; between t=0 hours and t=8 hours the graph behaves ' .
+	 'as a sine curve with centerline ' . $a . ', amplitude ' . $b .
+	 ' and period 16; between t=12 and t=20, the graph is constant ' .
+	 'at ' . ($a-$b) . '.  Then, at t=20 the graph becomes a sine ' .
+	 'curve again, starting at its minimum and completing one ' .
+	 'period between t=20 and t=36.  The graph is then constant ' .
+	 'at ' . ($a-$b) . ' until t=44, before increasing as a sine ' .
+	 'again until t=48."' ) \}
 $ECENTER
 $PAR
 Suppose that the workers were paid $pay dollars per hour for work during
@@ -85,8 +100,22 @@ $BR
 total cost = \{ ans_rule(35) \} dollars
 
 END_TEXT
+Context()->normalStrings;
 
-ANS( num_cmp( "$day*$pay + $night*$overtime", 'tol'=>80*($pay) ) );
+## note that a reasonable estimate is to approximate the sine curve
+##    as a series of triangles, which gives the estimate
+##    total pay = (day)(pay) = (16*a + 8*b)(pay) (vs. (16*a + 10.19*b)(pay))
+##             + (nght)(otm) = (32*a - 24*b)(otm) (vs. (32*a - 26*b)(otm))
+##    so a reasonable tolerance for error would be something like the
+##    difference between this estimate and the actual value.  we actually
+##    allow 3x this
+
+$est = (16*$a + 8*$b)*$pay + (32*$a - 24*$b)*$overtime;
+$tol = abs(($day*$pay + $night*$overtime) - $est)*3;
+
+$cost = Compute("$day*$pay + $night*$overtime")->with(tolType=>'absolute',
+						      tolerance=>$tol);
+ANS( $cost->cmp() );
 
 # each box is 8 hours by 10 people = 80 person-hours large
 $dayboxes = round($day/8)/10;
@@ -97,6 +126,7 @@ $regular = $daywh*$pay;
 $extra = $nightwh*$overtime;
 $totalcost = $regular + $extra;
 
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR SOLUTION $PAR
  
@@ -110,6 +140,11 @@ worker-hours.  The total cost for this time period is
 \(($nightwh)($overtime) = $extra\) dollars.  The total cost is about
 \($regular + $extra = $totalcost\) dollars.
 
+$PAR
+Another estimate would be to approximate the curved sections of the graph
+with straight lines; this gives the estimate $est dollars.
+
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();
