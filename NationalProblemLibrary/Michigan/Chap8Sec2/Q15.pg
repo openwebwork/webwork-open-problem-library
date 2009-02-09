@@ -3,20 +3,24 @@
 # WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
 # ENDDESCRIPTION
 
-##KEYWORDS('Calculus', 'Arc Length')
-##Tagged by jjh2b
+## KEYWORDS('calculus', 'integral', 'definite integrals', 'volume', 'rotation', 'area')
+## Tagged by glr 02/08/09
 
-##DBsubject('Calculus')
-##DBchapter('Applications of Integration')
-##DBsection('Arc Length')
-##Date('')
-##Author('LaRose')
-##Institution('Michigan')
-##TitleText1('Calculus')
-##EditionText1('4')
-##AuthorText1('Hughes-Hallett')
-##Section1('8.2')
-##Problem1('')
+## DBsubject('Calculus')
+## DBchapter('Applications of Integration')
+## DBsection('Volumes')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('8.2')
+## Problem1('15')
+
+## Textbook tags
+## HHChapter('Using the Definite Integral')
+## HHSection('Applications to Geometry')
 
 DOCUMENT();
 loadMacros(
@@ -25,9 +29,12 @@ loadMacros(
 "PGchoicemacros.pl",
 "PGanswermacros.pl",
 "PGauxiliaryFunctions.pl",
+"MathObjects.pl"
 );
  
-TEXT(&beginproblem);
+Context("Numeric");
+
+TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
 $r = random(2,4,1);
@@ -36,34 +43,90 @@ $r1d = ( $r1 == 1 ) ? '' : $r1;
 # we'll use one of these functions
 @f = ( "t^{$r}",   "e^{$r t}", "\sin($r t)", "\cos($r t)",
        "\sqrt{t}", "5 - $r t", );
+@f2 = ( "t^{$r}",   "e^{$r t}", "\sin($r t)", "-\cos($r t)",
+       "\sqrt{t}", "5 - $r t", );
 @d = ( "$r t^{$r1d}", "$r e^{$r t}", "$r\cos($r t)", "-$r\sin($r t)",
        "{1\over 2\sqrt{t}}", "-$r" );
+@d2 = ( "$r t^{$r1d}", "$r e^{$r t}", "$r\cos($r t)", "$r\sin($r t)",
+       "{1\over 2\sqrt{t}}", "$r" );
 # the value of the integral is then
-@v = ( 1, "e^($r) - 1", "sin($r)", "cos($r) - 1", 1, "$r" );
-@vtex = ( 1, "e - 1", "\sin($r)", "\cos($r) - 1", 1, "$r" );
+@v = ( 1, "e^($r) - 1", "sin($r)", "1 - cos($r)", 1, "$r" );
+@vtex = ( 1, "e^$r - 1", "\sin($r)", "1 - \cos($r)", 1, "$r" );
 @lft = ( 0, 1, 0, 1, 0, 0 );
-@rgt = ( 1, "e", "\sin($r)", "\cos($r)", 1, "-$r" );
+@rgt = ( 1, "e^$r", "\sin($r)", "\cos($r)", 1, "-$r" );
 $whichf = random(0,(scalar(@f) - 1),1);
 
 $ft = $f[$whichf];
+$ft2 = $f2[$whichf];
 $dt = $d[$whichf];
+$dt2 = $d2[$whichf];
 $x0 = $lft[$whichf];
 $x1 = $rgt[$whichf];
 
+## catch the case of antiderivatives not necessarily having the
+##   same constant of integration as we started with
+$at2 = $ft2;
+if ( $whichf == 5 ) { $at2 = "$r t"; }
+
+## There are two special cases we have to be careful about:
+##   when $ft == cos($r t) ($whichf == 3) and $r == 4, and
+##   when $ft == sin($r t) ($whichf == 2) and any $r.
+## in these cases the function $ft' crosses the x-axis at some
+## point between t=0 and t=1, with the result that we have to
+## worry that sqrt( $ft'^2 ) = | $ft' |, not $ft'.
+##
+## in general,
+$ans = Compute( $v[$whichf] );
+$absvalNote = "\int_{0}^1\,$dt2\,dt = ";
+$aderivEval = "$at2\bigg|_0^1";
+$note1 = "";
+$note2 = "";
+
+## special cases
+if ( $whichf == 3 && $r == 4 ) {
+    # in this case, we cross the axis at t = pi/4
+    $absvalNote = "\int_0^{\pi/4}\,$dt2\,dt - \int_{\pi/4}^1\,$dt2\,dt = \]\[";
+    $aderivEval = "$ft2\bigg|_0^{\pi/4} - $ft\bigg|_{\pi/4}^1";
+    $ans = Compute("3 + cos(4)");
+    $vtex[$whichf] = "3 + \cos(4)";
+    $note1 = " (with retracing: because \($ft\) decreases and then " .
+        "increases for \(0\le t\le1\), the actual length traced out " .
+	"is longer than the arclength between \(t = 0\) and " .
+	"\(t = \cos(4) \approx -0.654\))";
+    $note2 = " (again, with the indicated retracing)";
+} elsif ( $whichf == 2 ) {
+    # in this case, we cross the axis at t=pi/(2*r)
+    $twor = 2*$r;
+    $absvalNote = "\int_0^{\pi/$twor}\,$dt2\,dt - " .
+        "\int_{\pi/$twor}^1\,$dt2\,dt = \]\[";
+    $aderivEval = "$ft2\bigg|_0^{\pi/$twor} - $ft2\bigg|_{\pi/$twor}^1";
+    $ans = Compute("2 - sin($r)");
+    $vtex[$whichf] = "2 - \sin($r)";
+    $dec = round(1000*sin($r))/1000;
+    $note1 = " (with retracing: because \($ft\) increases and then " .
+        "decreases for \(0\le t\le1\), the actual length traced out " .
+	"is longer than the arclength between \(t = 0\) and " .
+	"\(t = \sin($r) \approx $dec\))";
+    $note2 = " (again, with the indicated retracing)";
+}
+
+Context()->texStrings;
 BEGIN_TEXT
 
-Find the length of the parametric curve
-\( x = \cos($ft) \), \( y = \sin($ft) \) for 
-\( 0 \leq t \leq 1 \). 
+Find the length traced out along the parametric curve
+\( x = \cos($ft) \), \( y = \sin($ft) \) as \(t\) goes through
+the range \( 0 \leq t \leq 1 \).
 (Be sure you can explain why your answer is reasonable).
 
 $PAR
 arc length = \{ ans_rule(35) \}
 
 END_TEXT
+Context()->normalStrings;
 
-ANS( num_cmp( $v[$whichf] ) );
+ANS( $ans->cmp() );
 
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR SOLUTION $PAR
 
@@ -72,16 +135,18 @@ Note that \(\left({dx\over dt}\right)^2 = ($dt)^2 \sin^2($ft)\) and
 arc length \(D\) along the curve is 
 \[
   D = \int_{0}^{1} \sqrt{\left($dt\right)^2(\sin^2($ft) + \cos^2($ft))}\, dt 
+    = \int_{0}^{1} \sqrt{\left($dt\right)^2}\,dt =
 \]
-\[
-    = \int_{0}^{1} \sqrt{\left($dt\right)^2}\,dt = \int_{0}^{1}\,$dt\,dt = 
-    $ft\bigg|_0^1 = $vtex[$whichf].
+\[\int_{0}^{1}\,|$dt2|\,dt =
+    $absvalNote
+    $aderivEval = $vtex[$whichf].
 \]
 This is the length of the arc of a unit circle from the point 
-\((\cos($x0), \sin($x0))\) to \((\cos($x1), \sin($x1))\), that is, 
-between the angles \(\theta = $x0\) and \(\theta = $x1\).  The length
+\((\cos($x0), \sin($x0))\) to \((\cos($x1), \sin($x1))\)$note1, that is,
+between the angles \(\theta = $x0\) and \(\theta = $x1\)$note2.  The length
 of this arc is \($vtex[$whichf]\).
 
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();
