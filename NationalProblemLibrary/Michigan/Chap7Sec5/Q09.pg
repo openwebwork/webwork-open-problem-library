@@ -1,0 +1,196 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus', 'integral', 'definite integrals', 'numerical calculation')
+## Tagged by glr 02/08/09
+
+## DBsubject('Calculus')
+## DBchapter('Techniques of Integration')
+## DBsection('Approximating Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('7.5')
+## Problem1('9')
+
+## Textbook tags
+## HHChapter('Integration')
+## HHSection('Approximating Definite Integrals')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+);
+
+Context("Numeric");
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+SRAND($psvn);  # make sure we know what happened in the prev problem
+
+# we consider one of the functions
+@func = ( "x^2 + 1", "5 - x^2", "5(1-e^{-2x})", "{5\over(x+1)^3}",
+          "x^2 - 5", "-x^2",    "-5(1-e^{-2x})", "{-5\over(x+1)^3}", );
+# which function to use
+$i = (random(0,7,1) + 1)%7;  # make sure it's not the same as last time
+
+# and we use the range [0,xmax] with n=2
+$xmax = random(4,6,2);
+$dx = $xmax/2;
+
+@ymin = ( -1, 5-$xmax*$xmax, -1, -1, -6, -1*$xmax*$xmax-1, -5, -5 );
+@ymax = ( $xmax*$xmax+2, 6, 6, 6,
+	  $xmax*$xmax-4, 1, 1, 1 );
+
+$left = $dx*(f($i,0) + f($i,$dx));
+$right = $dx*(f($i,$dx) + f($i,$xmax));
+$trap = (1/2)*($left + $right);
+$mid = $dx*(f($i,$dx/2) + f($i,(1.5*$dx)));
+
+$esttype0 = new_multiple_choice();
+$esttype1 = new_multiple_choice();
+$esttype0->qa("Is MID(2) an over- or underestimate?",
+	      ($i == 0 || $i == 3 || $i == 4 || $i == 6) ?
+	      "under" : "over");
+$esttype0->extra( ($i == 0 || $i == 3 || $i == 4 || $i == 6) ? 
+		  'over' : 'under' );
+$esttype1->qa("Is TRAP(2) an over- or underestimate?",
+	      ($i == 0 || $i == 3 || $i == 4 || $i == 6) ?
+	      "over" : "under");
+$esttype1->extra( ($i == 0 || $i == 3 || $i == 4 || $i == 6) ? 
+		  'under' : 'over' );
+
+# @ans gives formatted answers for the solution
+@ans = ();
+$ans[0] = ($i == 0 || $i == 3 || $i == 4 || $i == 6) ?
+	      "under" : "over";
+$ans[1] = ($i == 0 || $i == 3 || $i == 4 || $i == 6) ?
+	      "over" : "under";
+
+# build the solution graphs
+$gr1 = init_graph(-1,$ymin[$i],$xmax,$ymax[$i],axes=>[0,0],
+		  grid=>[1,1]);
+$gr2 = init_graph(-1,$ymin[$i],$xmax,$ymax[$i],axes=>[0,0],
+		  grid=>[1,1]);
+if ( $i == 0 )    { $f = "x^2 + 1"; }
+elsif ( $i == 1 ) { $f = "5 - x^2"; }
+elsif ( $i == 2 ) { $f = "5*(1-e^(-2*x))"; }
+elsif ( $i == 3 ) { $f = "5/(x+1)^3"; }
+elsif ( $i == 4 ) { $f = "x^2-5"; }
+elsif ( $i == 5 ) { $f = "-x^2"; }
+elsif ( $i == 6 ) { $f = "-5*(1-e^(-2*x))"; }
+elsif ( $i == 7 ) { $f = "-5/(x+1)^3"; }
+$f = "$f for x in <-1,$xmax> using color:blue and weight:2";
+add_functions( $gr1, $f );
+add_functions( $gr2, $f );
+
+# finally, add the mid and trap rules
+# mid
+$gr1->moveTo(0,0);
+$gr1->lineTo(0,f($i,$xmax/4),'black');
+$gr1->lineTo($xmax/2,f($i,$xmax/4),'black');
+$gr1->lineTo($xmax/2,0);
+$gr1->lineTo($xmax/2,f($i,3*$xmax/4),'black');
+$gr1->lineTo($xmax,f($i,3*$xmax/4),'black');
+$gr1->lineTo($xmax,0,'black');
+# trap
+$gr2->moveTo(0,0);
+$gr2->lineTo(0,f($i,0),'black');
+$gr2->lineTo($xmax/2,f($i,$xmax/2),'black');
+$gr2->moveTo($xmax/2,0);
+$gr2->lineTo($xmax/2,f($i,$xmax/2),'black');
+$gr2->lineTo($xmax,f($i,$xmax),'black');
+$gr2->lineTo($xmax,0,'black');
+
+# useful function for generating points on the graphs
+sub f {
+    my ( $i, $x ) = @_;
+    if ( $i == 0 )    { return( $x*$x + 1 ); }
+    elsif ( $i == 1 ) { return( 5 - $x*$x ); }
+    elsif ( $i == 2 ) { return( 5*(1 - exp(-2*$x)) ); }
+    elsif ( $i == 3 ) { return( 5/((1 + $x)**3) ); }
+    elsif ( $i == 4 ) { return( $x*$x - 5 ); }
+    elsif ( $i == 5 ) { return( -1*$x*$x ); }
+    elsif ( $i == 6 ) { return( -5*(1 - exp(-2*$x)) ); }
+    elsif ( $i == 7 ) { return( -5/((1 + $x)**3) ); }
+}
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Find MID(2) and TRAP(2) for 
+\(\int_0^{$xmax}\,$func[$i]\,dx\).
+$BR
+MID(2) = \{ ans_rule(35) \}
+$BR
+TRAP(2) = \{ ans_rule(35) \}
+
+$PAR
+Sketch the function \(f(x) = $func[$i]\) twice and illustrate your
+answers above on your sketches.
+$BR
+\{ $esttype0->print_q() \}
+$BR
+\{ $esttype0->print_a() \}
+$BR
+\{ $esttype1->print_q() \}
+$BR
+\{ $esttype1->print_a() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( num_cmp( [ $mid, $trap ] ) );
+ANS( radio_cmp( $esttype0->correct_ans() ) );
+ANS( radio_cmp( $esttype1->correct_ans() ) );
+
+$hdx = $dx/2;
+$threhdx = 1.5*$dx;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+We calculate each estimate with two subintervals of with $dx: with 
+\(f(x) = $func[$i]\),
+$BR
+LEFT(2) = \($dx f(0) + $dx f($dx) = $left\),
+$BR
+RIGHT(2) = \($dx f($dx) + $dx f($xmax) = $right\), so that 
+$BR
+TRAP(2) = \({1\over2}\)(LEFT(2) + RIGHT(2)) = $trap, and 
+$BR
+MID(2) = \($dx f($hdx) + $dx f($threhdx) = $mid\),
+
+$PAR
+These are shown in the figures below.
+$BR
+$BCENTER
+\{begintable(2)\}
+\{row( image(insertGraph($gr1),'tex_size'=>300), 
+       image(insertGraph($gr2),'tex_size'=>300) ) \}
+\{row( "MID(2)", "TRAP(2)" )\}
+\{endtable()\}
+$ECENTER
+
+$PAR
+Then, because of the concavity of \(f(x)\), we can see from the sketched
+graphs that MID(2) is an $ans[0]-estimate for the
+actual area and TRAP(2) is an $ans[1]-estimate.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

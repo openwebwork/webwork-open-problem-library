@@ -1,0 +1,203 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus', 'integral', 'definite integrals', 'numerical calculation')
+## Tagged by glr 02/08/09
+
+## DBsubject('Calculus')
+## DBchapter('Techniques of Integration')
+## DBsection('Approximating Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## AuthorText1('Hughes-Hallett')
+## Section1('7.5')
+## Problem1('15')
+
+## Textbook tags
+## HHChapter('Integration')
+## HHSection('Approximating Definite Integrals')
+
+
+DOCUMENT();
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGgraphmacros.pl",
+);
+
+Context("Numeric");
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+# we graph two functions from among
+@func = ( '(x-2.5)^3+2.5^3', '(-x+2.5)^3+2.5^3', 'x^2+5',
+	  '(5-x)^2+5', '2.6^2-(x-2.4)^2', '2+(x-2.4)^2' );
+$whichf1 = random(0,5,1);
+# pick the second graph to avoid reflections
+$whichf2 = (($whichf1/2==int($whichf1/2)?$whichf1-1:$whichf) + random(2,5))%6;
+
+# the integer "maximum value" on these graphs
+@maxv = ( 32, 32, 30, 30, 9, 9 );
+
+$gr1 = init_graph( 0,0,5,$maxv[$whichf1],axes=>[0,0],grid=>[1,1] );
+$gr1->lb('reset');
+$gr1->lb(new Label(0.15,0.05*$maxv[$whichf1],"0",'black','center','center'));
+$gr1->lb(new Label(4.85,0.05*$maxv[$whichf1],"5",'black','center','center'));
+add_functions($gr1, 
+              "$func[$whichf1] for x in <0,5> using color:blue and weight:2");
+$gr2 = init_graph( 0,0,5,$maxv[$whichf2],axes=>[0,0],grid=>[1,1] );
+$gr2->lb('reset');
+$gr2->lb(new Label(0.15,0.025*$maxv[$whichf2],"0",'black','center','center'));
+$gr2->lb(new Label(4.85,0.025*$maxv[$whichf2],"5",'black','center','center'));
+add_functions($gr2, 
+              "$func[$whichf2] for x in <0,5> using color:blue and weight:2");
+
+# now create some multiple choice objects for the answers
+@under = ();  @over = ();  $i = 0;
+$under[0] = new_checkbox_multiple_choice();
+$under[1] = new_checkbox_multiple_choice();
+$over[0] = new_checkbox_multiple_choice();
+$over[1] = new_checkbox_multiple_choice();
+# solution variables
+@underrules = ();  $overrules = ();
+
+foreach my $ind ( $whichf1, $whichf2 ) {
+    if ( $ind == 0 ) {
+	$under[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		       'underestimate for the integral',
+		       'LEFT(n)');
+	$under[$i]->extra('RIGHT(n)','MID(n)','TRAP(n)');
+	$over[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		      'overestimate for the integral',
+		      'RIGHT(n)');
+	$over[$i]->extra('LEFT(n)','MID(n)','TRAP(n)');
+	$underrules[$i] = 'LEFT(n)';  $overrules[$i] = 'RIGHT(n)';
+    } elsif( $ind == 1 ) {
+	$under[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		       'underestimate for the integral',
+		       'RIGHT(n)');
+	$under[$i]->extra('LEFT(n)','MID(n)','TRAP(n)');
+	$over[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		      'overestimate for the integral',
+		      'LEFT(n)');
+	$over[$i]->extra('RIGHT(n)','MID(n)','TRAP(n)');
+	$underrules[$i] = 'RIGHT(n)';  $overrules[$i] = 'LEFT(n)';
+    } elsif( $ind == 2 ) {
+	$under[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		       'underestimate for the integral',
+		       'LEFT(n)','MID(n)');
+	$under[$i]->extra('RIGHT(n)','TRAP(n)');
+	$over[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		      'overestimate for the integral',
+		      'RIGHT(n)','TRAP(n)');
+	$over[$i]->extra('LEFT(n)','MID(n)');
+	$underrules[$i] = 'LEFT(n) and MID(n)';  
+	$overrules[$i] = 'RIGHT(n) and TRAP(n)';
+    } elsif( $ind == 3 ) {
+	$under[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		       'underestimate for the integral',
+		       'RIGHT(n)','MID(n)');
+	$under[$i]->extra('LEFT(n)','TRAP(n)');
+	$over[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		       'overestimate for the integral',
+		       'LEFT(n)','TRAP(n)');
+	$over[$i]->extra('RIGHT(n)','MID(n)');
+	$underrules[$i] = 'RIGHT(n) and MID(n)';
+	$overrules[$i] = 'LEFT(n) and TRAP(n)';  
+    } elsif( $ind == 4 ) {
+	$under[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		       'underestimate for the integral',
+		      'TRAP(n)');
+	$under[$i]->extra('LEFT(n)','RIGHT(n)','MID(n)');
+	$over[$i]->qa('Indicate which give an overestimate for the integral',
+		       'MID(n)');
+	$over[$i]->extra('LEFT(n)','RIGHT(n)','TRAP(n)');
+	$underrules[$i] = 'TRAP(n)';  $overrules[$i] = 'MID(n)';
+    } elsif( $ind == 5 ) {
+	$under[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		       'underestimate for the integral',
+		      'MID(n)');
+	$under[$i]->extra('LEFT(n)','RIGHT(n)','TRAP(n)');
+	$over[$i]->qa('For this \(f(x)\), indicate which give(s) an ' .
+		       'overestimate for the integral',
+		       'TRAP(n)');
+	$over[$i]->extra('LEFT(n)','RIGHT(n)','MID(n)');
+	$underrules[$i] = 'MID(n)';  $overrules[$i] = 'TRAP(n)';
+    }
+    $i++;
+}
+
+Context()->texStrings;
+BEGIN_TEXT
+
+For the functions \(f(x)\) graphed below, indicate which approximation
+or approximations is or are guaranteed to give an underestimate for 
+\(\int_0^5\,f(x)\,dx\) and which an overestimate.
+
+$PAR
+$BCENTER
+\{image(insertGraph($gr1),tex_size=>500)\}
+$BR
+${BITALIC}(Click on the graph for a larger version.)$EITALIC
+$ECENTER
+$PAR
+\{ $under[0]->print_q() \}
+$BR
+\{ $under[0]->print_a() \}
+$PAR
+\{ $over[0]->print_q() \}
+$BR
+\{ $over[0]->print_a() \}
+
+$PAR
+$BCENTER
+\{image(insertGraph($gr2),tex_size=>500)\}
+$BR
+${BITALIC}(Click on the graph for a larger version.)$EITALIC
+$ECENTER
+$PAR
+\{ $under[1]->print_q() \}
+$BR
+\{ $under[1]->print_a() \}
+$PAR
+\{ $over[1]->print_q() \}
+$BR
+\{ $over[1]->print_a() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( checkbox_cmp( $under[0]->correct_ans() ) );
+ANS( checkbox_cmp( $over[0]->correct_ans() ) );
+ANS( checkbox_cmp( $under[1]->correct_ans() ) );
+ANS( checkbox_cmp( $over[1]->correct_ans() ) );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Recall that the left sum is an underestimate if the function is always
+increasing (or, at least, increasing somewhere and never decreasing).
+Similarly, the right sum is an overestimate in this case.  The
+midpoint rule is an underestimate when the function lies above its
+tangent (is concave up), and the trapezoid rule is an overestimate in
+this case.
+$PAR
+
+Thus, for the first graph, $underrules[0] give(s) an underestimate and
+$overrules[0] an overestimate, and for the second graph $underrules[1] 
+give(s) an underestimate and $overrules[1] an overestimate.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
