@@ -1,0 +1,161 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','derivative','mean value theorem','theory')
+## Tagged by glr 12/16/08
+
+## DBsubject('Calculus')
+## DBchapter('Differentiation')
+## DBsection('The Mean VAlue Theorem')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## EditionText2('5')
+## AuthorText1('Hughes-Hallett')
+## AuthorText2('Hughes-Hallett')
+## Section1('3.10')
+## Section2('3.10')
+## Problem1('11')
+## Problem2('15')
+
+## Textbook tags
+## HHChapter1('Short-Cuts to Differentiation')
+## HHChapter2('Short-Cuts to Differentiation')
+## HHSection1('Theorems About Differentiable Functions')
+## HHSection2('Theorems About Differentiable Functions')
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+"parserMultiAnswer.pl",
+"parserPopUp.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+## use the line x - 1 and one of the functions ln(x) or e^(x-1)-1
+$whichF = list_random( "ln(x)", "e^(x-1) - 1" );
+$f = Compute($whichF);
+$g = Compute("x-1");
+
+$tanline = Compute("x-1");
+## a custom checker that gives credit for a correctly calculated
+##    tangent line at the point c given
+$mp = MultiAnswer( Compute("1"), $tanline )->with(
+    singleResult=>0,
+    checker=>sub {
+	my ( $cor, $stu, $self ) = @_;
+	my ( $stuC, $stuL ) = @{$stu};
+	my ( $corC, $corL ) = @{$cor};
+
+	if ( $stuC == $corC && $stuL == $corL ) {
+	    return [1, 1]
+	} else {
+	    my $fderiv = $f->D();
+	    my $slope = $fderiv->eval( x=>$stuC );
+	    my $yval = $f->eval( x=>$stuC );
+	    my $tangent = Compute( "$slope*(x-$stuC) + $yval" );
+
+	    my @ret = ( 0, 0 );
+	    $ret[0] = 1 if ( $stuC == $corC );
+	    $ret[1] = 1 if ( $stuL == $tangent );
+	    if ( $ret[1] && ! $ret[0] ) {
+		$self->setMessage(2, "Your tangent line is correct for " .
+				  "the value of c you gave, but your c " .
+				  "is incorrect.");
+	    }
+	    return [ @ret ];
+	}
+    } );
+
+$fderiv = $f->D();
+
+$deriv1 = PopUp( ["?", "<", "<=", "=", ">=", ">"],
+		 ($whichF eq "ln(x)") ? ">=" : "<=" );
+$deriv2 = PopUp( ["?", "<", "<=", "=", ">=", ">"],
+		 ($whichF eq "ln(x)") ? "<=" : ">=" );
+$func1  = PopUp( ["?", "<", "<=", "=", ">=", ">"],
+		 ($whichF eq "ln(x)") ? "<=" : ">=" );
+$func2  = PopUp( ["?", "<", "<=", "=", ">=", ">"],
+		 ($whichF eq "ln(x)") ? "<=" : ">=" );
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the functions \(f(x) = $f\) and \(g(x) = $g\).  These are
+continuous and differentiable for \(x > 0\).  In this problem we use
+the Racetrack Principle to show that one of these functions is greater
+than the other.
+$PAR
+${BBOLD}(a)$EBOLD
+Find a point \(c\) such that \(f(c) = g(c)\).  \(c = \)
+\{ $mp->ans_rule(15) \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Find the equation of the tangent line to \(f(x) = $f\) at \(x = c\) for the
+value of \(c\) that you found in (a).
+$BR
+\( y = \) \{ $mp->ans_rule(35) \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+Based on your work in (a) and (b), what can you say about the derivatives
+of \(f\) and \(g\)?
+$BR
+\( f'(x) \) \{ $deriv1->menu() \} \( g'(x) \) for \( 0 < x < c \), and
+$BR
+\( f'(x) \) \{ $deriv2->menu() \} \( g'(x) \) for \( c < x < \infty \).
+
+$PAR
+${BBOLD}(d)$EBOLD
+Therefore, the Racetrack Principle gives
+$BR
+\( f(x) \) \{ $func1->menu \} \( g(x) \) for \( x \le c \), and
+$BR
+\( f(x) \) \{ $func2->menu \} \( g(x) \) for \( x \ge c \).
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $mp->cmp() );
+ANS( $deriv1->cmp() );
+ANS( $deriv2->cmp() );
+ANS( $func1->cmp() );
+ANS( $func2->cmp() );
+
+$ds1 = ( $whichF eq "ln(x)" ) ? "\ge" : "\le";
+$ds2 = ( $whichF eq "ln(x)" ) ? "\le" : "\ge";
+$fs  = ( $whichF eq "ln(x)" ) ? "\le" : "\ge";
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Note that at \(c = 1\) we have \(f(c) = g(c) = 0\).  Then,
+at \(x = 1\) \(f'(x) = $fderiv\), so that \(f'(1) = 1\), and
+the equation of the tangent line is \(y = $g\).
+$PAR
+Then we note that for \(x \le 1\) we have \(f'(x) $ds1 g'(x) = 1\)
+and for \( x\ge 1\), that \(f'(x) $ds2 g'(x) = 1\).  Therefore, by
+the Racetrack Principle, we know that \(f(x) $fs g(x)\).
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

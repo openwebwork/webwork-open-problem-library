@@ -1,0 +1,334 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus', 'integral', 'probability distributions', 'probability')
+## Tagged by glr 02/08/09
+
+## DBsubject('Calculus')
+## DBchapter('Applications of Integration')
+## DBsection('Distribution Functions')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## EditionText2('5')
+## AuthorText1('Hughes-Hallett')
+## AuthorText2('Hughes-Hallett')
+## Section1('8.7')
+## Section2('8.7')
+## Problem1('5')
+## Problem2('6')
+
+## Textbook tags
+## HHChapter1('Using the Definite Integral')
+## HHChapter2('Using the Definite Integral')
+## HHSection1('Distribution Functions')
+## HHSection2('Distribution Functions')
+
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+"hhAdditionalMacros.pl",
+);
+
+Context("Numeric");
+Context()->flags->set( reduceConstants=>0 );
+$showPartialCorrectAnswers = 1;
+
+## we want this to be selecting from the same set of functions in
+##    three problems (#5, #7 and #9), so we specify the seed for the
+##    problem here
+SRAND($psvn);
+$thisIsProblem = 5;
+
+## this is set up to randomize between #5, #7, and #9 in the text, 
+##    showing one for each of three problems
+($order, $n) = shufflemap(3);
+@problemOrder = values(%{$order});
+$whichProblem = $problemOrder[($thisIsProblem - 5)/2];
+
+## distribution 1: a line from (0,c) down to ($a,0)  (#5 in text)
+## distribution 2: a step function from (0,$b c) to (.5, $b c) and from
+##    (.5, c) to (1,c)  (#7 in text)
+## distribution 3: a line from (0,0) up to ($c/2,c) down to ($c,0)  (#9)
+
+$a = random(2,8,1);
+$b = list_random(2,3,4);
+$c = random(2,8,2);
+
+$distType = new_multiple_choice();
+$distType->qa("What type of function is shown in this graph?",
+	      "density function (pdf)");
+$distType->makeLast("cumulative distribution function (cdf)");
+
+if ( $whichProblem == 0 ) {
+    $twoa = 2*$a;
+    $gr = init_graph(-1,-1,$twoa,($a+0.5),axes=>[0,0],size=>[150,150]);
+    $gr->lb('reset');
+    $gr->lb(new Label($a,-0.05,"$a",'black','center','center'));
+    $gr->lb(new Label(-0.5,$a+.2,"c",'black','center','center'));
+
+    add_functions($gr, "0 for x in <$a,$twoa> using color:blue and weight:2",
+		  "$a-x for x in <0,$a> using color:blue and weight:2");
+    $graph = image(insertGraph($gr), tex_size=>250, height=>150, width=>150,
+		   extra_html_tags=>'alt="graph of a piecewise linear ' .
+		   'function extending from (0,c) to (' . $a . ',0) and ' .
+		   'along the x axis to the right of (' . $a . ',0)."');
+
+    $cval = Compute("2/$a");
+
+    ## in this case the CDF is the integral of this, viz.,
+    ##    P(x) = c(x - x^2/(2a)) + 1 - c(a/2).  for the function to be
+    ##    a PDF, c = 2/a, so this reduces to
+    ##    P(x) = (2/a)(x - x^2/(2a))
+    $solGr = init_graph(-0.5,-0.5,$twoa,1.5,axes=>[0,0],size=>[250,150]);
+    $solGr->lb('reset');
+    $solGr->lb(new Label(($a-0.25),1.25,"($a,1)",'black','center','center'));
+    $solGr->lb(new Label(-0.25,1.1,"1",'black','center','center'));
+    $solGr->moveTo(-0.05,1);
+    $solGr->lineTo(0.05,1,'black');
+
+    add_functions($solGr,"1 for x in <$a,$twoa> using color:blue and weight:2",
+		  "(2/$a)*(x-x^2/($twoa)) for x in <0,$a] using color:blue " .
+		  "and weight:2");
+    $sgraph = image(insertGraph($solGr), tex_size=>250, height=>150, width=>250,
+		    extra_html_tags=>'alt="graph of a piecewise function ' .
+		    'with a parabolic curve from (0,0) to (' . $a . ',1) ' .
+		    'and a horizontal linear section from (' . $a . ',1) ' .
+		    'extending to the right."');
+
+    ## some variables for the solution
+    $cform = "{$a c\over 2}";
+    $twooa = reduced_frac(2,$a);
+    $pdfform = "\begin{cases}($twooa)(1 - {x\over $a}), & \; x < $a; \quad \\ " .
+        "0, & \; x \ge $a, \end{cases}";
+    $cdfform = "\begin{cases}($twooa)(x - {x^2\over $twoa}), & \; x < $a; " .
+        "\quad \\ 1, & \; x \ge $a.\end{cases}";
+
+} elsif ( $whichProblem == 1 ) {
+    $ch = 1/$b;
+
+    $gr = init_graph(-.5,-.5,1.5,1.5,axes=>[0,0],size=>[150,150]);
+    $gr->lb('reset');
+    $gr->lb(new Label(0.5,-0.1,"0.5",'black','center','center'));
+    $gr->moveTo(0.5,-0.05);  $gr->lineTo(0.5,0.05,'black');
+    $gr->lb(new Label(1,-0.1,"1",'black','center','center'));
+    $gr->lb(new Label(-0.17,($ch+.1),"c",'black','center','center'));
+    $gr->moveTo(-0.05,$ch);  $gr->lineTo(0.05,$ch,'black');
+    $gr->lb(new Label(-0.15,1.1,"$b" . "c",'black','center','center'));
+
+    add_functions($gr,"1 for x in <0,0.5> using color:blue and weight:2",
+		  "1/$b for x in <0.5,1> using color:blue and weight:2",
+		  "0 for x in <1,1.5> using color:blue and weight:2");
+    ## add dashed lines too
+    $dh = 1/20;
+    $newy = 1 - $dh;
+    $gr->moveTo(0.5,1);
+    while ( $newy - $dh > $ch )  {
+	$gr->lineTo(0.5,$newy,'black');
+	$newy -= $dh;
+	$gr->moveTo(0.5,$newy);
+	$newy -= $dh;
+    }
+    $newy = $ch;
+    $gr->moveTo(1,$ch);
+    while ( $newy - $dh > 0 ) {
+	$gr->lineTo(1,$newy,'black');
+	$newy -= $dh;
+	$gr->moveTo(1,$newy);
+	$newy -= $dh;
+    }
+    $graph = image(insertGraph($gr), tex_size=>250, height=>150, width=>150,
+		   extra_html_tags=>'alt="graph of a piecewise linear ' .
+		   'function extending from (0,' . $b . 'c) to (0.5, ' .
+		   $b . 'c) and then from (0.5,c) to (1,c), and then ' .
+		   'along the x axis to the right of (1,0)."');
+
+    $cval = Compute("2/($b+1)");
+
+    ## here the CDF is
+    ##    P(x) = b c x, x < 0.5; P(x) = c x + k, x < 1;
+    ##    and P(x) = 1 for remaining x
+    ##    for the original function to be a PDF, we have c = 2/(b+1) and
+    ##    k = (b-1)/(b+1)
+    $solGr = init_graph(-0.5,-0.5,1.5,1.75,axes=>[0,0],size=>[250,150]);
+    $solGr->lb('reset');
+    $h1l = round(100*$b/($b+1))/100;
+    $solGr->lb(new Label(-0.2,($b/($b+1)+.1),"$h1l",'black',
+			 'center','center'));
+    $solGr->moveTo(-0.05,($b/($b+1)));
+    $solGr->lineTo(0.05,($b/($b+1)),'black');
+    $solGr->lb(new Label(-0.1,1.1,"1",'black','center','center'));
+    $solGr->moveTo(-0.05,1);  $solGr->lineTo(0.05,1,'black');
+    $solGr->lb(new Label(0.5,-0.1,"0.5",'black','center','center'));
+    $solGr->moveTo(0.5,-0.05);  $solGr->lineTo(0.5,0.05,'black');
+    $solGr->lb(new Label(1,-0.1,"1",'black','center','center'));
+    $solGr->moveTo(1,-0.05);  $solGr->lineTo(1,0.05,'black');
+    $twob = 2*$b;
+    add_functions($solGr,"1 for x in <1,1.5> using color:blue and weight:2",
+		  "$twob*x/($b+1) for x in <0,0.5> using color:blue and " .
+		      "weight:2",
+		  "2*x/($b+1)+($b-1)/($b+1) for x in <0.5,1> using " .
+		      "color:blue and weight:2");
+    $sgraph = image(insertGraph($solGr), tex_size=>250, height=>150, width=>250,
+		    extra_html_tags=>'alt="graph of a piecewise linear ' .
+		    'function extending from (0,0) to (0.5,c/2) to (1,1) ' .
+		    'and a horizontal extending from (1,1) to the right."');
+
+    ## and the variables for the solution
+    $bo2 = reduced_frac($b,2);
+    $cform = "($bo2 + {1\over 2})c";
+    $bc = reduced_frac($twob,($b+1));
+    $cf = reduced_frac(2,($b+1));
+    $pdfform = "\begin{cases}$bc, & \; 0\le x<{1\over2}; \quad \\ " .
+        "$cf, & \;{1\over2}<x<1; \quad \hbox{and}\quad \\ " .
+        "0, & \; x>1, \end{cases}";
+
+    $bm1obp1 = reduced_frac(($b-1),($b+1));
+    $cdfform = "\begin{cases} $bc x, & \; 0\le x<{1\over2}; \quad \\ " .
+        "$cf x + $bm1obp1, & \; {1\over 2}< x < 1; \quad \hbox{and} \\ " .
+	"1, & \; x > 1. \end{cases}";
+} else {
+    ## $whichProblem == 2
+    $co2 = $c/2;
+    ## distribution 3: a line from (0,0) up to ($c/2,c) down to ($c,0)  (#9)
+    $gr = init_graph(-.5,-.5,1.5,1.5,axes=>[0,0],size=>[150,150]);
+    $gr->lb('reset');
+    $gr->lb(new Label(0.5,-0.1,"$co2",'black','center','center'));
+    $gr->lb(new Label(1,-0.1,"$c",'black','center','center'));
+    $gr->lb(new Label(-0.15,1.1,"c",'black','center','center'));
+    $gr->moveTo(0.5,-0.05);  $gr->lineTo(0.5,0.05,'black');
+    $gr->moveTo(-0.05,1);    $gr->lineTo(0.05,1,'black');
+
+
+    add_functions($gr, "2*x for x in <0,0.5> using color:blue and weight:2",
+		  "2-2*x for x in <0.5,1> using color:blue and weight:2");
+    $graph = image(insertGraph($gr), tex_size=>250, height=>150, width=>150,
+		   extra_html_tags=>'alt="graph of a piecewise linear ' .
+		   'function extending from (0,0) to ($co2,c) to ($c,0)."');
+
+    $cval = Compute("2/$c");
+
+    ## the CDF is y = 2x^2/$c^2, x<$c/2; -2x^2/$c^2 + 4x/$c - 1, x<$c; 1
+    $solGr = init_graph(-1,-0.5,($c+1),1.5,axes=>[0,0],size=>[250,150]);
+    $solGr->lb('reset');
+    $solGr->lb(new Label($co2,-0.15,"$co2",'black','center','center'));
+    $solGr->lb(new Label($c,-0.15,"$c",'black','center','center'));
+    $solGr->moveTo($co2,-0.05);  $solGr->lineTo($co2,0.05,'black');
+    $solGr->moveTo($c,-0.05);    $solGr->lineTo($c,0.05,'black');
+    $solGr->lb(new Label(-0.25,1.1,"1",'black','center','center'));
+    $solGr->moveTo(-0.05,1);     $solGr->lineTo(0.05,1,'black');
+
+    $csq = $c*$c;  $tocs = 2/$csq;  $foc = 4/$c;  $cp1 = $c+1;
+    add_functions($solGr,
+		  "2*x^2/$csq for x in <0,$co2> using color:blue and weight:2",
+		  "-2*x^2/$csq + 4*x/$c - 1 for x in <$co2,$c> using " .
+		      "color:blue and weight:2",
+		  "1 for x in <$c,$cp1> using color:blue and weight:2");
+    $sgraph = image(insertGraph($solGr), tex_size=>250, height=>150, width=>250,
+		    extra_html_tags=>'alt="graph of the function $tocs x^2 ' .
+		    'for x in [0,$co2], -$tocs x^2 + $foc x - 1 for x in ' .
+		    '[$co2,$c], and 1 for x larger than 1."');
+
+    ## solution variables
+    $focsq = reduced_frac(4,$csq);  $tocsq = reduced_frac(2,$csq);
+    $foct = reduced_frac(4,$c);     
+    $cform = "{$c c\over 2}";
+    $pdfform = "\begin{cases}$focsq x, & \; x < $co2; \quad \\ " .
+        "-$focsq x + $foct, & \; $co2 < x < $c, \end{cases}";
+    $cdfform = "\begin{cases}$tocsq x^2, & \; x < $co2; \quad \\ " .
+        "-$tocsq x^2 + $foct x - 1, & \; $co2 < x < $c; \quad \\ " .
+	"1, & \; x > $c. \end{cases}";
+}
+
+
+
+Context("Numeric");
+
+TEXT(beginproblem());
+Context()->texStrings;
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the function shown below.
+$BR
+$BCENTER
+$graph
+$ECENTER
+$PAR
+\{$distType->print_q()\}
+\{$distType->print_a()\}
+$BR
+${BITALIC}(Be sure that you can give reasons for your answer.)$EITALIC
+
+$PAR
+What value must \(c\) have?
+$BR
+\(c = \) \{ ans_rule(10) \}
+
+$PAR
+Finally, sketch and label the other function (that is, sketch and label
+the cdf if the problem shows a pdf, and the pdf if the problem shows a
+cdf.)  ${BITALIC}(You will not be able to enter this in the web homework,
+but should be able to identify the (x,y) coordinates of all significant
+points on the graph and carefully explain how you found them.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+Context()->normalStrings;
+
+ANS( radio_cmp( $distType->correct_ans() ) );
+ANS( $cval->cmp() );
+
+$expl = ($whichProblem == 2) ? "" : "Finally, we can note that for a " .
+				    "cdf the value for the smallest " .
+				    "possible value of \(x\) (here, " .
+				    "\(x=0\)), the cdf must be zero " .
+				    "(there is no accumulated population), " .
+				    "which is not the case for this graph.";
+
+Context()->texStrings;
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Since the function is decreasing, it cannot be a cdf (whose values
+never decrease).  Thus, the function is a pdf.  We can also see this
+by noting that for a cdf the final value (as \(x\to\infty\)) of the
+function must be one, while here the function finishes at zero.
+$expl
+$PAR
+The area under a pdf is 1, so, by calculating the are under the graph
+using geometry, we have \($cform = 1\), so that \(c = $cval\).
+$PAR
+To find the cdf, we graph the antiderivative of the pdf, as shown
+in the graph below.
+$BR
+$BCENTER
+$sgraph
+$ECENTER
+$PAR
+Note that we can find an explicit formula for this by, because we can
+find an explicit formula for the pdf:
+\[ \hbox{pdf} = $pdfform \]
+so
+\[ \hbox{cdf} = $cdfform \]
+
+END_SOLUTION
+Context()->normalStrings;
+Context()->normalStrings;
+
+ENDDOCUMENT();

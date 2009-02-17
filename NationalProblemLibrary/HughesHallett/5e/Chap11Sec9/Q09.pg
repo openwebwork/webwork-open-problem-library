@@ -1,0 +1,203 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','differential equations', 'systems')
+## Tagged by glr 02/05/09
+
+## DBsubject('Calculus')
+## DBchapter('Differential Equations')
+## DBsection('Systems of Differential Equations')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## EditionText2('5')
+## AuthorText1('Hughes-Hallett')
+## AuthorText2('Hughes-Hallett')
+## Section1('11.9')
+## Section2('11.9')
+## Problem1('9')
+## Problem2('9')
+
+## Textbook tags
+## HHChapter1('Differential Equations')
+## HHChapter2('Differential Equations')
+## HHSection1('Analyzing the Phase Plane')
+## HHSection2('Analyzing the Phase Plane')
+
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"PGgraphmacros.pl",
+"parserImplicitEquation.pl",
+"parserMultiAnswer.pl",
+"parserPopUp.pl",
+"hhAdditionalMacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( y=>'Real' );
+Context()->flags->set( reduceConstants=>0 );
+$showPartialCorrectAnswers = 1;
+
+$a = random(2,5,1);
+$b = $a + 1;
+
+$cntxt = Context()->copy();
+Context("ImplicitEquation");
+$xnull1 = ImplicitEquation("x = 0");
+$xnull2 = ImplicitEquation("y = 1 - x/$a");
+$ynull1 = ImplicitEquation("y = 0");
+$ynull2 = ImplicitEquation("y = $b*(1 - x)");
+
+Context("Point");
+$xeq = Compute("$a^2/($a^2 + $a - 1)");
+$yeq = Compute("($a^2 - 1)/($a^2 + $a - 1)");
+$equilib = List( Point(0,0), Point(0,$b), Point($a,0),
+		 Point($xeq,$yeq) );
+
+$traj = PopUp( [ "?", "converge to", "diverge from",
+		 "cycle around", "spiral into", "spiral out from" ],
+	       "converge to" );
+if ( random(0,1) ) {
+    $x0 = ( $a == 2 ) ? "\frac{3}{2}" : $a - 1;
+    $y0 = "\frac{1}{2}";
+
+    $centereq = Point($a,0);
+} else {
+    $x0 = "\frac{1}{2}";
+    $y0 = reduced_frac( $a+1, $a );
+
+    $centereq = Point(0,$b);
+}
+
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the system of equations
+\[ \frac{dx}{dt} = x\left(1-\frac{x}{$a}-y\right) \]
+\[ \frac{dy}{dt} = y\left(1-\frac{y}{$b}-x\right), \]
+taking \((x,y) > 0\).
+
+$PAR
+${BBOLD}(a)$EBOLD
+Write an equation for the (non-zero) vertical (\(x\)-)nullcline
+of this system:
+$BR
+\{ ans_rule(35) \}
+$BR
+${BITALIC}(Enter your equation, e.g., ${BBOLD}y=x$EBOLD.)$EITALIC
+$PAR
+And for the (non-zero) horizontal (\(y\)-)nullcline:
+$BR
+\{ ans_rule(35) \}
+$BR
+${BITALIC}(Enter your equation, e.g., ${BBOLD}y=x$EBOLD.)$EITALIC
+$BR
+(Note that there are also nullclines lying along the axes.)
+
+$PAR
+${BBOLD}(b)$EBOLD
+What are the equilibrium points for the system?
+$BR
+Equilibria = \{ ans_rule(55) \}
+$BR
+${BITALIC}(Enter the points as comma-separated (x,y) pairs, e.g.,
+${BBOLD}(1,2), (3,4)$EBOLD.)$EITALIC
+
+$PAR
+${BBOLD}(c)$EBOLD
+Use your nullclines to estimate trajectories in the phase plane,
+completing the following sentence:
+$BR
+If we start at the initial position \(($x0,$y0)\), trajectories
+\{ $traj->menu() \}
+the point \{ ans_rule(15) \}.
+$BR
+${BITALIC}(Enter the point as an (x,y) pair, e.g.,
+${BBOLD}(1,2)$EBOLD.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $xnull2->cmp() );
+ANS( $ynull2->cmp() );
+
+ANS( $equilib->cmp() );
+ANS( $traj->cmp() );
+ANS( $centereq->cmp() );
+
+$gr = init_graph(-.1,-.1,$a+2,$b+2, axes=>[0,0], size=>[200,200]);
+$gr->lb( new Label($a, 0, "$a", "black", "left", "bottom") );
+$gr->lb( new Label($a+2, 0, $a+2, "black", "right", "bottom") );
+$gr->lb( new Label(0, $b, "$b", "black", "left", "middle") );
+$gr->lb( new Label(0, $b+2, $b+2, "black", "left", "top") );
+add_functions( $gr,
+	       "1 - x/$a for x in <0,$a> using color:blue and weight:1",
+	       "$b*(1 - x) for x in <0,1> using color:blue and weight:1" );
+$gr->stamps( closed_circle( $xeq, $yeq, "blue" ) );
+$gr->stamps( closed_circle( 0, $b, "blue" ) );
+$gr->stamps( closed_circle( $a, 0, "blue" ) );
+$gr->stamps( closed_circle( 0, 0, "blue" ) );
+
+## add the vector field
+# $dx = sub { return $_[0]*(1 - $_[0]/$a - $_[1]); };
+# $dy = sub { return $_[1]*(1 - $_[1]/$b - $_[0]); };
+# $fn = new VectorField( $dx, $dy, $gr );
+# $fn->dot_radius(0);
+# $fn->x_steps(20);
+# $fn->y_steps(20);
+# $fn->rf_arrow_length( sub{
+#     my($dx,$dy)=@_;
+#     return(0) if sqrt($dx*$dx + $dy*$dy)==0;
+#     0.125*1/sqrt($dx*$dx + $dy*$dy);
+# } );
+
+$xeqdisp = reduced_frac( $a*$a, $a*$a + $a - 1 );
+$yeqdisp = reduced_frac( $a*$a - 1, $a*$a + $a - 1 );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+
+We first find the nullclines.
+\(\frac{dx}{dt}=x(1-\frac{x}{$a}-y)=0\) when \(x=0\) or
+\(y+\frac{x}{$a}=1\).
+$PAR
+\(\frac{dy}{dt}=y(1-\frac{y}{$b}-x)=0\) when \(y=0\) or
+\(x+\frac{y}{$b}=1\).
+$PAR
+We find the equilibrium points. They are ($a,0), (0,$b), (0,0), and
+\(($xeqdisp, $yeqdisp)\).  The nullclines and equilibrium points are shown
+in the figure below.
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>250, height=>200, width=>200,
+          extra_html_tags=>'alt="graph of the nullclines, and ' .
+          'equilibrium points."' ) \}
+$ECENTER
+$PAR
+By calculating the derivatives of \(x\) and \(y\) in each region
+of the phase plane, we can see that for the initial point
+\(($x0,$y0)\), the trajectory converges to the equilibrium
+point \($centereq\).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

@@ -1,0 +1,160 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## DBsubject('Calculus')
+## DBchapter('Using the Derivative')
+## DBsection('Parametric Equations')
+## KEYWORDS('parametric equations')
+## TitleText1('Calculus')
+## EditionText1('4')
+## EditionText2('5')
+## AuthorText1('Hughes-Hallett')
+## AuthorText2('Hughes-Hallett')
+## Section1('4.8')
+## Section2('4.8')
+## Problem1('23')
+## Problem2('25')
+## Author('Gavin LaRose')
+## Institution('UMich')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"parserMultiPart.pl",
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add(t=>"Real");
+$showPartialCorrectAnswers = 1;
+
+$a = random(3,7,2);
+$b = $a + 1;
+$xfunc = Compute("sin($a*t)");
+$yfunc = Compute("sin($b*t)");
+
+$p = Real("pi");
+
+## then we're looking for the tangent at (0,0) with slope -$b/$a
+$xsl = -1*$a;
+$ysl = $b;
+$xline = Compute("$xsl*(t-$p)");
+$yline = Compute("$ysl*(t-$p)");
+
+$mult = MultiAnswer($xline, $yline)->with(
+    singleResult => 0,
+    checker => sub {
+	my ($correct, $student, $self) = @_;
+	my ($xstu, $ystu) = @{$student};
+	my ($xcor, $ycor) = @{$correct};
+
+	$xstu = Formula($xstu);
+	$ystu = Formula($ystu);
+
+	## if we got exactly the same functions, we're ok
+	if ( $xstu == $xcor && $ystu == $ycor ) {
+	    return [1,1];
+	} else {
+	    ## otherwise, the two functions must be linear, the
+	    ##    slope must be correct, and they must pass through
+	    ##    the point in question
+	    $xd_stu = $xstu->D('t');
+	    $yd_stu = $ystu->D('t');
+
+	    if ( $xd_stu->isConstant && $yd_stu->isConstant ) {
+		$xpoint = $xcor->eval(t=>$p);
+		$ypoint = $ycor->eval(t=>$p);
+
+		$xsl_stu = $xd_stu->eval(t=>0);
+		$xpt_stu = $xstu->eval(t=>0);
+		$ysl_stu = $yd_stu->eval(t=>0);
+		$ypt_stu = $ystu->eval(t=>0);
+
+		if ( $xsl_stu != 0 ) {
+		    $sl_stu = $ysl_stu/$xsl_stu;
+		    if ( $sl_stu == $ysl/$xsl ) {
+			## what t value do we need to get to the point?
+			$stu_t = ($xpoint - $xpt_stu)/$xsl_stu;
+
+			## and does this give the y point in the y equation?
+			if ( $ystu->eval(t=>$stu_t) == $ypoint ) {
+			    return [1,1];
+			}
+		    }
+		    ## if these didn't match, then we just check to see
+		    ##    if one or the other of these matches
+		    if ( $xstu == $xcor ) {
+			return [1,0];
+		    } elsif ( $ystu == $ycor ) {
+			return [0,1];
+		    } else {
+			return [0,0];
+		    }
+		} else {
+		    ## we know that the x-equation is wrong; check
+		    ##    to see if the y-equation is right (that is,
+		    ##    exactly what we have)
+		    if ( $ystu == $ycor ) {
+			return [0,1];
+		    } else {
+			return [0,0];
+		    }
+		}
+
+	    } elsif ( $xd_stu->isConstant && $xstu == $xcor ) {
+		return [1,0];
+	    } elsif ( $yd_stu->isConstant && $ystu == $ycor ) {
+		return [0,1];
+	    } else {
+		return [0,0];
+	    }
+	}
+    }
+);
+
+
+TEXT(&beginproblem);
+Context()->texStrings;
+BEGIN_TEXT
+
+Find an equation of the tangent line to the curve
+\( x = $xfunc,\quad  y=$yfunc \)
+at \( t=\pi\).
+$PAR
+
+\( x(t) = \) \{ $mult->ans_rule(35) \} $BR
+\( y(t) = \) \{ $mult->ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $mult->cmp() );
+
+$xfd = $xfunc->D('t');
+$yfd = $yfunc->D('t');
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+At \(t=\pi\), the curve passes through \((0,0)\), so we need
+a curve that goes through that point.  The derivatives of the
+\(x\) and \(y\) parametric equations are \(x'(t) = $xfd\) and
+\(y'(t) = $yfd\), so that \(x'(\pi) = $xsl\) and \(y'(\pi) = $ysl\).
+Thus, we can write the equations of the tangent line as
+\[
+x(t) = $xsl(t - \pi),\qquad y(t) = $ysl(t - \pi).
+\]
+Alternately, any line passing through \((0,0)\) with the correct 
+slope will work (e.g., \((x,y) = ($xsl t, $ysl t)\)).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

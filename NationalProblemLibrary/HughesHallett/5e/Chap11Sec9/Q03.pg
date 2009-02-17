@@ -1,0 +1,271 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus','differential equations', 'systems')
+## Tagged by glr 02/05/09
+
+## DBsubject('Calculus')
+## DBchapter('Differential Equations')
+## DBsection('Systems of Differential Equations')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## EditionText2('5')
+## AuthorText1('Hughes-Hallett')
+## AuthorText2('Hughes-Hallett')
+## Section1('11.9')
+## Section2('11.9')
+## Problem1('3')
+## Problem2('3')
+
+## Textbook tags
+## HHChapter1('Differential Equations')
+## HHChapter2('Differential Equations')
+## HHSection1('Analyzing the Phase Plane')
+## HHSection2('Analyzing the Phase Plane')
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"PGgraphmacros.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->strings->add( increasing=>{}, decreasing=>{} );
+$showPartialCorrectAnswers = 1;
+
+@p0 = ( Compute(.5), Compute(.5), String("increasing"), String("decreasing") );
+@p1 = ( Compute(2),  Compute(.5), String("increasing"), String("increasing") );
+@p2 = ( Compute(2),  Compute(2),  String("decreasing"), String("increasing") );
+@p3 = ( Compute(.5), Compute(2),  String("decreasing"), String("decreasing") );
+
+$mp = MultiAnswer( @p0, @p1, @p2, @p3 )->with(
+    singleResult=>0,
+    checker=>sub {
+	my ( $correct, $student, $self ) = @_;
+	my @stu = @{$student};
+	my @cor = @{$correct};
+
+	## break up the student answers
+	my @stuWpt = ( $stu[0], $stu[4], $stu[8],  $stu[12] );
+	my @stuRpt = ( $stu[1], $stu[5], $stu[9],  $stu[13] );
+	my @stuWdt = ( $stu[2], $stu[6], $stu[10], $stu[14] );
+	my @stuRdt = ( $stu[3], $stu[7], $stu[11], $stu[15] );
+
+	## and the directions for the correct answers
+	my @corWdt = ( $cor[2], $cor[6], $cor[10], $cor[14] );
+	my @corRdt = ( $cor[3], $cor[7], $cor[11], $cor[15] );
+
+	## which regions we've found;
+	##    $regions[r] = index of student answer corresponding
+	##                  to the answer region r
+	my @regions = ( -1, -1, -1, -1 );
+
+        ## the score we return
+	my @sc = ( 0, 0, 0, 0,
+		   0, 0, 0, 0,
+		   0, 0, 0, 0,
+		   0, 0, 0, 0 );
+
+	## look to see if the student answer is in each of the regions
+	foreach my $i ( 0, 1, 2, 3 ) {
+
+	    my $r;  my $x = $stuWpt[$i]; my $y = $stuRpt[$i];
+	    if ( $x > 0 && $x < 1 && $y < 1 && $y > 0 ) { $r = 0; }
+	    elsif ( $x > 1 && $y < 1 && $y > 0 )        { $r = 1; }
+	    elsif ( $x > 1 && $y > 1 )                  { $r = 2; }
+	    elsif ( $x < 1 && $x > 0 && $y > 1 )        { $r = 3; }
+	    else { $r = -1; }
+
+	    ## $i = the index of the student answer
+	    ## $r = the region index that matches
+
+	    if ( $r > -1 && $regions[$r] == -1 ) {
+		$regions[$r] = $i;
+		$sc[4*$i]    = 1;
+		$sc[4*$i+1]  = 1;
+
+	    } elsif ( $r > -1 && $regions[$r] > -1 ) {
+		## the same region was specified twice (or more times)
+		##    this means that we just mark all four of the blanks
+		##    wrong
+		my $th;  my $prev = $regions[$r]+1;
+		if ( $prev == 1 ) { $th = "st"; }
+		elsif ( $prev == 2 ) { $th = "nd"; }
+		elsif ( $prev == 3 ) { $th = "rd"; }
+		else { $th = "th"; }
+
+		$self->setMessage(4*$i+1, "This point is in the same region " .
+				  "as your $prev$th point.");
+		$self->setMessage(4*$i+2, "This point is in the same region " .
+				  "as your $prev$th point.");
+	    }
+	    ## otherwise the region is nonsensical; just ignore it and
+	    ##    mark them wrong
+	}
+
+	## now for each of the regions we check the strings
+	foreach my $r ( 0, 1, 2, 3 ){
+	    if ( $regions[$r] != -1 ) {
+		$i = $regions[$r];
+		## are the directions correct?
+		$sc[4*$i+2] = 1 if ( $stuWdt[$i] == $corWdt[$r] );
+		$sc[4*$i+3] = 1 if ( $stuRdt[$i] == $corRdt[$r] );
+	    }
+	}
+	return [ @sc ];
+    }
+);
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the equations describing the interactions of robins
+\(r\) and worms \(w\),
+\[
+\frac{dw}{dt} = w-wr,\qquad\mbox{and}\qquad
+\frac{dr}{dt} = -r+rw.
+\]
+
+${BBOLD}(a)$EBOLD
+What are the (non-zero) nullclines for this system?
+$BR
+\( w = \) \{ ans_rule(35) \}
+$BR
+\( r = \) \{ ans_rule(35) \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Your nullclines divide the phase plane into four regions.
+Give a sample point in each region, and indicate for that
+point whether each of the populations is increasing or
+decreasing (by entering the word ${BBOLD}increasing$EBOLD
+or ${BBOLD}decreasing$EBOLD appropriate blank):
+$PAR
+(i)
+\((w, r) = \) (\{ $mp->ans_rule(10) \}, \{ $mp->ans_rule(10) \})
+is in one region, where
+$BR
+the population of worms, \(w\) is \{ $mp->ans_rule(20) \}
+$BR
+and the population of robins, \(r\) is \{ $mp->ans_rule(20) \}.
+$PAR
+(ii)
+\((w, r) = \) (\{ $mp->ans_rule(10) \}, \{ $mp->ans_rule(10) \})
+is in a second region, where
+$BR
+the population of worms, \(w\) is \{ $mp->ans_rule(20) \}
+$BR
+and the population of robins, \(r\) is \{ $mp->ans_rule(20) \}.
+$PAR
+(iii)
+\((w, r) = \) (\{ $mp->ans_rule(10) \}, \{ $mp->ans_rule(10) \})
+is in a third region, where
+$BR
+the population of worms, \(w\) is \{ $mp->ans_rule(20) \}
+$BR
+and the population of robins, \(r\) is \{ $mp->ans_rule(20) \}.
+$PAR
+(iv)
+\((w, r) = \) (\{ $mp->ans_rule(10) \}, \{ $mp->ans_rule(10) \})
+is in the fourth region, where
+$BR
+the population of worms, \(w\) is \{ $mp->ans_rule(20) \}
+$BR
+and the population of robins, \(r\) is \{ $mp->ans_rule(20) \}.
+
+$PAR
+Notice what your conclusions about these four regions say about how
+the populations change with time.
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( Compute("1")->cmp() );
+ANS( Compute("1")->cmp() );
+ANS( $mp->cmp() );
+
+$gr = init_graph(0,0,2,2, axes=>[0,0], size=>[200,200] );
+$gr->moveTo( 1,0 );
+$gr->lineTo( 1,2, "blue" );
+$gr->moveTo( 0,1 );
+$gr->lineTo( 2,1, "blue" );
+$gr->lb( new Label( 1,0, "1", "black", "right", "bottom" ) );
+$gr->lb( new Label( 2,0, "r", "black", "right", "bottom" ) );
+$gr->lb( new Label( 0,1, "1", "black", "left", "top" ) );
+$gr->lb( new Label( 0,2, "w", "black", "left", "top" ) );
+$gr->lb( new Label( 0.5,0.5, "(I): w' > 0", "black", "center", "bottom" ) );
+$gr->lb( new Label( 0.75,0.25, "r' < 0", "black", "center", "bottom" ) );
+$gr->lb( new Label( 1.5,0.5, "(II): w' > 0", "black", "center", "bottom" ) );
+$gr->lb( new Label( 1.75,0.25, "r' > 0", "black", "center", "bottom" ) );
+$gr->lb( new Label( 1.5,1.5, "(III): w' < 0", "black", "center", "bottom" ) );
+$gr->lb( new Label( 1.75,1.25, "r' > 0", "black", "center", "bottom" ) );
+$gr->lb( new Label( 0.5,1.5, "(IV): w' < 0", "black", "center", "bottom" ) );
+$gr->lb( new Label( 0.75,1.25, "r' < 0", "black", "center", "bottom" ) );
+$gr->stamps( closed_circle( 0,0, "blue" ) );
+$gr->stamps( closed_circle( 1,1, "blue" ) );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The nullclines are where \(\frac{dw}{dt}=0\) or \(\frac{dr}{dt}=0\).
+\(\frac{dw}{dt}=0\) when \(w-wr=0\), so \(w(1-r)=0\) giving \(w=0\) or
+\(r=1\).
+$BR
+\(\frac{dr}{dt}=0\) when \(-r+rw=0\), so \(r(w-1)=0\) giving \(r=0\) or
+\(w=1\).
+$PAR
+The non-zero nullclines are therefore \(w=1\) and \(r=1\).
+
+$PAR
+The equilibrium points are where the nullclines intersect: (0,0)
+and (1,1).  The nullclines split the first quadrant into four
+sectors, as shown in the figure below.
+We can get a feel for how the
+populations interact by seeing the direction of the trajectories in
+each sector. If the populations
+reach an equilibrium point, they will stay there. If the worm
+population dies out, the robin population will also die out,
+too. However, if the robin population dies out, the worm population
+will continue to grow.
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>250, height=>200, width=>200,
+          extra_html_tags=>'alt="graph of the first quadrant for x ' .
+          ' and y, corresponding to w and r, respectively, less than 2.  ' .
+          'the nullclines x=w=1 and y=r=1 are shown.  in the bottom-left ' .
+          'region (I) between the nullclines ' . "w'" . '>0 and ' . "r'" .
+          '<0; in the bottom-' .
+          'right (II), ' . "w'" . '>0 and ' . "r'" . '>0; in the top ' .
+          'right (III), ' . "w'" . '<0 and ' . "r'" . '>0; and in the ' .
+          'top left (IV), ' . "w'" . '<0 and ' . "r'" . '<0."' ) \}
+$ECENTER
+$PAR
+Otherwise, it seems that the populations cycle around the equilibrium
+(1,1). The trajectory moves from sector to sector: trajectories in
+sector (I) move to sector (II); trajectories in sector (II) move to
+sector (III); trajectories in sector (III) move to sector (IV);
+trajectories in sector (IV) move back to sector (I). The robins keep
+the worm population down by feeding on them, but the robins need the
+worms (as food) to sustain the population. These conflicting needs
+keep the populations moving in a cycle around the equilibrium.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
