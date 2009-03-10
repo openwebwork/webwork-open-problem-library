@@ -49,15 +49,15 @@ $showPartialCorrectAnswers = 1;
 # x^r + y^3 - a x y^2 = b
 # note that y=x is a solution to this if 
 # x^r + x^3 - a x^3 = b, in particular, if a = 2 and r = 3, b goes to
-# zero and we end up with y=x being a solution.  we don't like this, 
+# zero and we end up with y=x being a solution.  we don't like this,
 # so tweak the parameters to be sure to avoid it.
 
 $numTries = 0;
 $notDone = 1;
 
 
-# we try up to three times to be sure that the Newton's method on 
-#   the solution converges; if it doesn't work by then, we bail 
+# we try up to three times to be sure that the Newton's method on
+#   the solution converges; if it doesn't work by then, we bail
 #   and deal with the carnage later
 while ( $numTries < 3 && $notDone ) {
     $r = random(2,5,1);
@@ -154,7 +154,8 @@ $yMO = Compute( $y );
 $diffMO = Compute($diff);
 
 $mp = MultiAnswer( @yestMO, $yMO, $diffMO )->with(
-    singleAnswer => 0,
+    singleResult => 0,
+    allowBlankAnswers => 1,
     checker => sub {
 	my ( $correct, $student, $self ) = @_;
 	my @stu = @{$student};
@@ -165,8 +166,18 @@ $mp = MultiAnswer( @yestMO, $yMO, $diffMO )->with(
 		    $stu[2] == $cor[2],  ## y(1.02)
 		    $stu[3] == $cor[3],  ## y(1.04)
 		    $stu[4] == $cor[4] ];  ## y at 0.96
-	Context()->flags->set( tolerance=>0.01 );
-	push( @{$ret}, $stu[5] == abs($stu[4] - $stu[0]) );
+
+	if ( ref($stu[4]) eq ref($stu[0]) ) {
+	    Context()->flags->set( tolerance=>0.01 );
+	    push( @{$ret}, $stu[5] == abs( $stu[4] - $stu[0] ) );
+	} else {
+	    push( @{$ret}, 0 );
+	}
+	$self->setMessage(6, "Your difference is correct, but one or both " .
+			  "of the values for y and the estimate are wrong.  " .
+			  "Be sure to calculate the new, correct difference " .
+			  "when you correct the other value(s).")
+	    if ( $stu[5] != $cor[5] && $ret->[5] );
 
 	return $ret;
     }
