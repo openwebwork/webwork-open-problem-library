@@ -1,0 +1,240 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al., 4th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus', 'integral', 'differential equations', 'modeling', 'population growth')
+## Tagged by glr 02/08/09
+
+## DBsubject('Calculus')
+## DBchapter('Differential Equations')
+## DBsection('The Logistic Equation')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('4')
+## EditionText2('5')
+## AuthorText1('Hughes-Hallett')
+## AuthorText2('Hughes-Hallett')
+## Section1('11.7')
+## Section2('11.7')
+## Problem1('5')
+## Problem2('20')
+
+## Textbook tags
+## HHChapter1('Differential Equations')
+## HHChapter2('Differential Equations')
+## HHSection1('Models of Population Growth')
+## HHSection2('Models of Population Growth')
+
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+## the derivatives at t=1980, 1985 and 1990 are reasonably
+##    t=1980: 0.6, 0.7, or 0.65
+##    t=1985: 10.2, 15.2, or 12.7
+##    t=1990: 0, 7.3, or 3.65
+$der1 = Compute("0.65")->with(tolType=>'absolute', tolerance=>'0.06');
+$der2 = Compute("12.7")->with(tolType=>'absolute', tolerance=>'2.6');
+$der3 = Compute("3.65")->with(tolType=>'absolute', tolerance=>'3.66');
+
+## the maximum derivative occurs in 1985 or 1986, depending on how we
+##    calculate it, so we should really allow 1985 or 86.  However, in
+##    that the maximum predicted P for 1985 is clearly wrong, we'll
+##    force the issue to be 1986
+$inflyear1 = Compute("1985");
+$inflyear2 = Compute("1986");
+
+## if the year is 1985, then the maximum predicted percent is twice
+##    that in 1985, etc.; thus the limiting value is estimated to be
+##    41.6 (unlikely) or 72 (more likely).  Note that taking the 1987
+##    value (48.7) and doubling still gives a reasonable value, 97.4,
+##    but 1988 doesn't (116%?)
+$p_infl1 = Compute("20.8");
+$p_infl2 = Compute("36.0");
+
+## the limiting value is therefore really required to be 72, but we
+##    want to be careful about what error message we give
+$limit = Compute("72");
+$limit2 = Compute("41.6");
+
+$mp = MultiAnswer($inflyear1, $p_infl1, $limit )->with(
+    singleResult => 0,
+    checker => sub {
+        my ( $correct, $student, $self ) = @_;
+	my @stu = @{$student};
+
+	my @ret = (0,0,0);
+
+	if ( ( $stu[0] == $inflyear1 && $stu[1] == $p_infl1 ) ||
+	     ( $stu[0] == $inflyear2 && $stu[1] == $p_infl2 ) ) {
+	    $ret[0] = 1;
+	    $ret[1] = 1;
+	} elsif ( $stu[0] == $inflyear1 || $stu[0] == $inflyear2 ) {
+	    $self->setMessage(2,"This percent doesn't match the " .
+			      "value at the year you gave.");
+	    $ret[0] = 1;
+	} elsif ( $stu[1] == $p_infl1 || $stu[1] == $p_infl2 ) {
+	    $self->setMessage(1,"This year doesn't match the " .
+			      "value for P you gave.");
+	    $ret[1] = 1;
+	}
+
+	if ( $stu[2] == $limit ) {
+	    $ret[2] = 1;
+	} elsif ( $stu[2] == $limit2 && $ret[0] && $ret[1] ) {
+	    $self->setMessage(3,"This value matches the year and P " .
+			      "value you gave, but it doesn't make " .
+			      "sense given the data after 1987.  " .
+			      "Think about when else the inflection " .
+			      "point might be and work this out " .
+			      "again.");
+	} elsif ( $stu[2] == 71.9 ) {
+	    $self->setMessage(3,"This value is reasonable given the " .
+			      "data in 1990 and 1991, but isn't the " .
+			      "answer based on your inflection point.");
+	}
+	return @ret;
+    }
+);
+
+Context("Numeric");
+
+TEXT(beginproblem());
+Context()->texStrings;
+Context()->texStrings;
+BEGIN_TEXT
+
+
+The table below gives the percentage, \( P\), of households
+with a VCR, as a function of year.
+$PAR
+$BCENTER
+\{begintable(8)\}
+\{row( "Year", "1978", "1979", "1980", "1981", "1982", "1983", "1984")\}
+\{row( "P", "0.3", "0.5", "1.1", "1.8", "3.1", "5.5", "10.6") \}
+\{row( "Year", "1985", "1986", "1987", "1988", "1989", "1990", "1991")\}
+\{row( "P", "20.8", "36.0", "48.7", "58.0", "64.6", "71.9", "71.9") \}
+\{endtable()\}
+$ECENTER
+
+${BBOLD}(a)$EBOLD
+A logistic model is a good one to use for these data.  Explain why this
+might be the case: logically, how large would the growth in VCR ownership
+be when they are first introduced?  How large can the ownership ever be?
+$BR
+We can also investigate this by estimating the growth rate of \(P\) for
+the given data.  Do this at the beginning, middle, and near
+the end of the data:
+$BR
+\(P'(1980) \approx\) \{ ans_rule(15) \} $BR
+\(P'(1985) \approx\) \{ ans_rule(15) \} $BR
+\(P'(1990) \approx\) \{ ans_rule(15) \}
+$BR
+Be sure you can explain why this suggests that a logistic model
+is appropriate.
+
+${BBOLD}(b)$EBOLD
+Use the data to estimate the year when the point of inflection
+of \( P \) occurs.$BR
+The inflection point occurs approximately at
+\{ $mp->ans_rule(10) \}. $BR
+${BITALIC}(Give the year in which it occurs.)$EITALIC
+$PAR
+What percent of households had VCRs then?
+\(P =\) \{ $mp->ans_rule(10) \}
+
+$PAR
+What limiting value \( L \) does this point of inflection predict
+(note that if the logistic model is reasonable, this prediction
+should agree with the data for 1990 and 1991)?
+$BR
+\( L = \) \{ $mp->ans_rule(10) \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+The best logistic equation (solution to the logistic differential
+equation) for these data turns out to be the following.
+\[
+P=\frac{75}{1+316.75e^{-0.699t}}.
+\]
+
+What limiting value does this predict?$BR
+\( L = \) \{ ans_rule(10) \}
+
+END_TEXT
+Context()->normalStrings;
+Context()->normalStrings;
+
+ANS( $der1->cmp() );
+ANS( $der2->cmp() );
+ANS( $der3->cmp() );
+ANS( $mp->cmp() );
+ANS( Compute("75")->cmp() );
+
+Context()->texStrings;
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+The logistic model is a reasonable one because at first very few
+houses have a VCR. As movie rentals become popular and as VCRs get
+cheaper, more people will buy VCRs. However, we know that the
+rate of VCR buying will start slowing down at some point as it is
+impossible for more than 100
+$PAR
+
+${BBOLD}(b)$EBOLD
+To find the point of inflection, we must find the year at which the
+rate of VCR buying changes from increasing to
+decreasing. The following table
+shows the rate of change \(=(P(y+1)-P(y))/1\) in the
+years from 1978 to 1990.
+$PAR
+
+$BCENTER
+\{ begintable(8) \}
+\{ row( "Year", "1978", "1979", "1980", "1981", "1982", "1983", "1984" ) \}
+\{ row("Change per year", "0.2", "0.6", "0.7", "1.3", "2.4", "5.1", "10.2") \}
+\{ row( "Year", "1985", "1986", "1987", "1988", "1989", "1990", "1991" ) \}
+\{ row("Change per year", "15.2", "12.7", "9.3", "6.6", "7.3", "0", "") \}
+\{ endtable() \}
+$ECENTER
+$PAR
+Looking at the table, we see that the rate of percent change per year
+changes from increasing to decreasing in the year 1986. At this time
+(at the inflection point) we expect the vertical coordinate to be \(L/2\),
+one-half of the limiting value for the population.  Thus
+we have
+\(L/2 = 36\), or \(L = 72\), which fits in well with
+the data that we have for 1990 and 1991.
+
+$PAR
+${BBOLD}(c)$EBOLD
+Since the general form of a logistic equation is
+\[P=\frac{L}{1+Ce^{-kt}}\]
+where \(L\) is the limiting value, we have that in our case \(L=75\)
+and the limiting value is 75.
+
+END_SOLUTION
+Context()->normalStrings;
+Context()->normalStrings;
+
+ENDDOCUMENT();
