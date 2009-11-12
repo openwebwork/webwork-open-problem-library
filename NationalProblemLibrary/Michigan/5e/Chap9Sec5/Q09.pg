@@ -1,0 +1,142 @@
+# DESCRIPTION
+# Problem from Calculus, single variable, Hughes-Hallett et al.,
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('calculus', 'integral', 'series', 'power series', 'interval of convergence', 'radius of convergence')
+## Tagged by glr 10/16/09
+
+## DBsubject('Calculus')
+## DBchapter('Infinite Sequences and Series')
+## DBsection('Power Series')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('9.5')
+## Problem1('9')
+
+## Textbook tags
+## HHChapter1('Sequences and Series')
+## HHSection1('Power Series and Interval of Convergence')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"parserMultiAnswer.pl",
+# "PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( n=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+$a = random(5,9,1);
+Context()->flags->set( limits=>[$a - 1, $a + 1] );
+
+$b = random(2,3,1);  $bm1  = ($b == 2) ? '' : $b - 1;
+$b2 = 2*$b;          $b2m1 = $b2 - 1;
+$b3 = 3*$b;          $b3m1 = $b3 - 1;
+$b4 = 4*$b;          $b4m1 = $b4 - 1;
+
+$c = random(2, 5, 1);
+$csq = $c*$c;
+$ccu = $csq*$c;
+$cqu = $ccu*$c;
+
+## construct a general term, either
+##    (x - a)^(b*n)/(c^(n-1) n!)
+## or
+##    (x - a)^(b*n-1)/(c^n n!)
+$which = random(0,1,1);
+$which = 1;
+if ( $which ) {
+    $a1 = "(x - $a)^{$b}";                       # n = 1
+    $a2 = "\frac{(x - $a)^{$b2}}{$c\cdot 2!}";   # n = 2
+    $a3 = "\frac{(x - $a)^{$b3}}{$csq\cdot 3!}"; # n = 3
+    $a4 = "\frac{(x - $a)^{$b4}}{$ccu\cdot 4!}"; # n = 4
+    $an = Compute("(x - $a)^($b*n)/($c^(n-1)*n!)");
+} else {
+    $a1 = "\frac{(x - $a)^{$bm1}}{$c}";            # n = 1
+    $a2 = "\frac{(x - $a)^{$b2m1}}{$csq\cdot 2!}"; # n = 2
+    $a3 = "\frac{(x - $a)^{$b3m1}}{$ccu\cdot 3!}"; # n = 3
+    $a4 = "\frac{(x - $a)^{$b4m1}}{$cqu\cdot 4!}"; # n = 4
+    $an = Compute("(x - $a)^($b*n-1)/($c^(n)*n!)");
+}
+
+## then our evaluator makes sure that the input agrees with our
+##    answer at each of the points in question.
+$one = Compute(1);
+$term = MultiAnswer($an, $one)->with(
+    singleAnswer=>0,
+    checker=>sub {
+        my ( $cor, $stu, $self ) = @_;
+	my ( $an, $n0 ) = @$cor;
+        my ( $s_an, $s_n0 ) = @$stu;
+        ## just check that the terms generated are
+	##    the same
+	my @ret = ( 1, 1 );
+	my @wrong = ();
+	foreach my $i ( 0, 1, 2, 3 ) {
+	    my $a = $an->substitute( n=>($n0 + $i) );
+	    my $b = $s_an->substitute( n=>($s_n0 + $i) );
+	    if ( $a != $b ) {
+	        push( @wrong, $i+1 );
+	    }
+	}
+	if ( @wrong ) {
+	    my $s = ( @wrong > 1 ) ? "s" : "";
+	    $self->setMessage( 1, "Your expression generates the " .
+			       "wrong term for term$s " .
+			       join(",", @wrong ) );
+	    @ret = ( 0, 0 );
+	}
+	return [ @ret ];
+    } );
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the series
+
+\[\sum_{n = 1}^{\infty}\,a_n = $a1 + $a2 + $a3 + $a4 + \cdots \]
+Find an expression for \(a_n\).
+$PAR
+\(a_n = \) \{ $term->ans_rule(35) \}
+$BR
+What is your starting index of \(n\)?
+$BR
+\(n = \) \{ $term->ans_rule(15) \}
+$BR
+${BITALIC}(Note that because the validity of either of your answers
+depends on the other, if you enter only one, both will be marked
+wrong.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $term->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The general term can be written as
+\( a_n = $an \), for
+\(n \ge 1\).
+Other answers are possible.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
