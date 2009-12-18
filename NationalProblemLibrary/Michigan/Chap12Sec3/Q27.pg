@@ -1,0 +1,270 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+## KEYWORDS('contour', 'graphs', 'multivariable', 'functions')
+## Tagged by glr 05/08/09
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Graphs and Level Surfaces')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('12.3')
+## Problem1('27')
+
+## Textbook tags
+## HHChapter1('Functions of Several Variables')
+## HHSection1('Contour Diagrams')
+
+Context("Numeric");
+$showPartialCorrectAnswers = 0;
+
+## the functions we could consider; these are grouped by the total
+##    exponent along the line K = L.
+##    f[i] = [ "tex", "grfxn", [ contour values ] ]
+@f0p5 = ( [ "L^{0.25}\,K^{0.25}", "c^4/x", [ 1, 1.5 ] ],
+	  [ "L^{0.125}\,K^{0.375}", "c^(8/3)/x^(1/3)", [ 1, 1.5 ] ],
+	  [ "L^{0.375}\,K^{0.125}", "c^(8)/x^(3)", [ 1, 1.5 ] ] );
+@f1p0 = ( [ "L^{0.25}\,K^{0.75}", "c^(4/3)/x^(1/3)", [ 1, 2, 3 ] ],
+	  [ "L^{0.5}\,K^{0.5}", "c^(2)/x", [ 1, 2, 3 ] ],
+	  [ "L^{0.75}\,K^{0.25}", "c^(4)/x^(3)", [ 1, 2, 3 ] ] );
+@f1p5 = ( [ "L^{0.625}\,K^{0.875}", "c^(8/7)/x^(5/7)", [ 1, 2, 3, 4 ] ],
+	  [ "L^{0.75}\,K^{0.75}", "c^(3/4)/x", [ 1, 2, 3, 4 ] ],
+	  [ "L^{0.825}\,K^{0.625}", "c^(7/8)/x^(7/5)", [ 1, 2, 3, 4 ] ] );
+
+## for the 0.5 functions, we have that quadrupling each input doubles output
+## for the 1.0 functions, that tripling each input triples output,
+##    or, that doubling output triples output, or that quadrupling...
+## and for 1.5 functions, that doubling each input almost triples output
+@desc2 = ( "doubling each input doubles output",
+	   "tripling each input triples output" );
+## we use this one
+$dInd = list_random(0,1);
+$m2 = ( $dInd ) ? 3 : 2;
+
+
+## pick one of each group of functions
+$funcInd1 = random(0,2,1);
+$funcInd2 = random(0,2,1);
+$funcInd3 = random(0,2,1);
+
+## then, set up the descriptions for each function in the groups
+@desc = ( "quadrupling each input doubles output",
+	  $desc2[ $dInd ],
+	  "doubling each input almost triples output" );
+
+## and the graphs
+@f = ( $f0p5[$funcInd1], $f1p0[$funcInd2], $f1p5[$funcInd3] );
+@graphs = ();
+foreach my $i ( 0, 1, 2 ) {
+    $graphs[$i] = init_graph( 0,0,3,3, axes=>[0,0], ticks=>[3,3],
+			      size=>[200,200] );
+    $graphs[$i]->lb('reset');
+
+    ## add the axes labels
+    foreach my $j ( 1, 2, 3 ) {
+	$graphs[$i]->lb( new Label($j,0.05,"$j", "black", "right", "bottom") );
+	$graphs[$i]->lb( new Label(0.1,$j,"$j", "black", "left", "top") );
+    }
+    $graphs[$i]->lb( new Label(2.5, 0.05, "L", "black", "right", "bottom") );
+    $graphs[$i]->lb( new Label(0.1, 2.5, "K", "black", "left", "top") );
+
+    ## add each of the contours, and label them
+    for ( my $j=0; $j<@{$f[$i]->[2]}; $j++ ) {
+	my $ft = $f[$i]->[1];
+	$ft =~ s/c/$f[$i]->[2]->[$j]/;
+	add_functions( $graphs[$i], "$ft for x in <0.03,3> using color:" .
+		       "blue and weight:2" );
+	my $pft = Compute( $ft );
+	my $yl =  $pft->eval( x=>3 )+0.05;
+	## we have to be careful with the placement of labels in the
+	##    extreme cases
+	if ( $j == 0 && ( $i == 0 || $i == 1 ) &&
+	     ( $funcInd1 == 2 && $funcInd2 == 2 ) ) {
+	    $graphs[$i]->lb( new Label( 0.8, 2.95, "F=" . $f[$i]->[2]->[$j],
+					"black", "left", "top" ) );
+	} else {
+	    $graphs[$i]->lb( new Label( 3, $yl, "F=" . $f[$i]->[2]->[$j],
+					"black", "right", "bottom" ) );
+	}
+    }
+    ## if we're on the middle graph we have to force a graph of a fake
+    ##    contour through (3,3)
+    if ( $i == 1 ) {
+	add_functions( $graphs[$i], "5.9-x for x in <2.8,3.> using " .
+		       "color:blue and weight:2" );
+	$graphs[$i]->lb( new Label( 3, 2.95, "F=3", "black", "right", "top" ) );
+    }
+}
+
+## we order the descriptions and graphs randomly
+@descOrd = NchooseK(3,3);
+@grphOrd = NchooseK(3,3);
+
+## the reverse mappings are
+%descInv = (); for ( my $i=0; $i<3; $i++ ) { $descInv{$descOrd[$i]} = $i; }
+%grphInv = (); for ( my $i=0; $i<3; $i++ ) { $grphInv{$grphOrd[$i]} = $i; }
+
+## so that the correct matchings are
+@matchOpts = ( '?', 'a', 'b', 'c' );
+@descMatches = ( PopUp( [ @matchOpts ], 'a' ),
+		 PopUp( [ @matchOpts ], 'b' ),
+		 PopUp( [ @matchOpts ], 'c' ) );
+@grphMatches = ( PopUp( [ @matchOpts ], 'a' ),
+		 PopUp( [ @matchOpts ], 'b' ),
+		 PopUp( [ @matchOpts ], 'c' ) );
+
+## finally, the TeX for the functions we're showing is
+$ftex1 = $f0p5[$funcInd1]->[0];
+$ftex2 = $f1p0[$funcInd2]->[0];
+$ftex3 = $f1p5[$funcInd3]->[0];
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Match each Cobb-Douglas production function
+${BBOLD}(a)${EBOLD}-${BBOLD}(c)$EBOLD with a graph in the figure
+below and a statement ${BBOLD}(D)${EBOLD}-${BBOLD}(G)${EBOLD}.
+
+$PAR
+${BBOLD}(a)$EBOLD
+\( F(L,K) = $ftex1 \)
+$BR
+${BBOLD}(b)$EBOLD
+\( F(L,K) = $ftex2 \)
+$BR
+${BBOLD}(c)$EBOLD
+\( F(L,K) = $ftex3 \)
+$PAR
+
+${BBOLD}(D)$EBOLD
+$desc[$descOrd[0]] : \{ $descMatches[$descOrd[0]]->menu() \}
+$BR
+${BBOLD}(E)$EBOLD
+$desc[$descOrd[1]] : \{ $descMatches[$descOrd[1]]->menu() \}
+$BR
+${BBOLD}(G)$EBOLD
+$desc[$descOrd[2]] : \{ $descMatches[$descOrd[2]]->menu() \}
+
+$PAR
+${BBOLD}(1)$EBOLD: graph (1) : \{ $grphMatches[$grphOrd[0]]->menu() \}
+$BR
+${BBOLD}(2)$EBOLD: graph (2) : \{ $grphMatches[$grphOrd[1]]->menu() \}
+$BR
+${BBOLD}(3)$EBOLD: graph (3) : \{ $grphMatches[$grphOrd[2]]->menu() \}
+$BR
+${BCENTER}
+\{ begintable(6) \}
+\{ row( "${BBOLD}1.$EBOLD",
+	image(insertGraph($graphs[$grphOrd[0]]), tex_size=>200, height=>200,
+	      width=>200, extra_html_tags=>'alt=""' ),
+	"${BBOLD}2.$EBOLD",
+	image(insertGraph($graphs[$grphOrd[1]]), tex_size=>200, height=>200,
+	      width=>200, extra_html_tags=>'alt=""' ),
+	"${BBOLD}3.$EBOLD",
+	image(insertGraph($graphs[$grphOrd[2]]), tex_size=>200, height=>200,
+	      width=>200, extra_html_tags=>'alt=""' ) ) \}
+\{ endtable() \}
+$ECENTER
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $descMatches[$descOrd[0]]->cmp() );
+ANS( $descMatches[$descOrd[1]]->cmp() );
+ANS( $descMatches[$descOrd[2]]->cmp() );
+ANS( $grphMatches[$grphOrd[0]]->cmp() );
+ANS( $grphMatches[$grphOrd[1]]->cmp() );
+ANS( $grphMatches[$grphOrd[2]]->cmp() );
+
+@stmatch = ( ('D', 'E', 'G')[$descInv{0}],
+	     ('D', 'E', 'G')[$descInv{1}],
+	     ('D', 'E', 'G')[$descInv{2}] );
+@grmatch = ( ('1', '2', '3')[$grphInv{0}],
+	     ('1', '2', '3')[$grphInv{1}],
+	     ('1', '2', '3')[$grphInv{2}] );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+For any Cobb-Douglass function \(F(K,L)=bL^{\alpha} K^{\beta}\), if we
+increase the inputs by a factor of \(m\), from \((K,L)\) to \((mK,mL)\) we
+get:
+\[ F(mK,mL) = b(mL)^{\alpha}(mK)^{\beta} =
+	m^{\alpha + \beta}bL^{\alpha}K^{\beta} =
+	m^{\alpha + \beta}F(K,L). \]
+Thus we see that increasing inputs by a factor of \(m\) increases
+outputs by a factor of \(m^{\alpha + \beta}\).
+$PAR
+
+If \(\alpha + \beta < 1\), then increasing each input by a factor of \(m\)
+will result in an increase in output of less than a factor of \(m\).
+This applies to the function in ${BBOLD}(a)$EBOLD and statement
+${BBOLD}($stmatch[0])$EBOLD.  In
+${BBOLD}(a)$EBOLD, we have \(\alpha + \beta = 0.5\), so increasing inputs
+by a factor of \(m=4\), as in statement 
+${BBOLD}($stmatch[0])$EBOLD, increases output by a
+factor of 2.  We can match this function and statement to graph
+${BBOLD}($grmatch[0])$EBOLD by noting that when
+\((K,L)=(1,1)\), we have \(F=1\) and when we double the inputs \((m=2)\) to
+\((K,L)=(2,2)\), \(F\) increases by ${BITALIC}less than$EITALIC a factor of
+2. This is called decreasing returns to scale.
+$PAR
+
+If \(\alpha + \beta = 1\), then increasing \(K\) and \(L\) by a factor of
+\(m\) will result in an increase in \(F\) by the same factor \(m\).  This
+applies to the function ${BBOLD}(b)$EBOLD and statement
+${BBOLD}($stmatch[1])$EBOLD.  In
+${BBOLD}(b)$EBOLD, we have \(\alpha + \beta = 1.0\), so increasing inputs
+by a factor of \(m=$m2\), as in statement
+${BBOLD}($stmatch[1])$EBOLD, increases output by a
+factor of $m2.  We can match this function and statement to graph
+${BBOLD}($grmatch[1])$EBOLD by noting that when
+\((K,L)=(1,1)\), we have \(F=1\) and when we multiply the inputs by \(m=$m2\)
+to \((K,L)=($m2,$m2)\), there is an increase in \(F\) from \(F=1\) to
+\(F = $m2\).  This is called constant returns to scale.
+$PAR
+
+If \(\alpha + \beta > 1\), then we have increasing returns to scale, i.e.
+an increase in \(K\) and \(L\) by a factor of \(m\) results in an increase in
+\(F\) by more than a factor of \(m\).  This is the case for equation
+${BBOLD}(c)$EBOLD, where \(\alpha + \beta = 1.5\).  Statement
+${BBOLD}($stmatch[2])$EBOLD
+also applies an increase
+in inputs by a factor of \(m=2\) and results in an increase in output by
+${BITALIC}more than$EITALIC 2, in this case by a factor of almost 3.  We can
+match equation ${BBOLD}(c)$EBOLD and
+${BBOLD}($stmatch[2])$EBOLD to graph
+${BBOLD}($grmatch[2])$EBOLD, where we see that
+increasing \((K,L)\) from \((1,1)\) to \((2,2)\) results in a change in \(F\)
+by more than a factor of 2 (but less than a factor of 3). This is
+called increasing returns to scale.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

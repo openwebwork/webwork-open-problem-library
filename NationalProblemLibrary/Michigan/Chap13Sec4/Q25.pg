@@ -1,0 +1,158 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserImplicitEquation.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+## KEYWORDS('cross product', 'vectors')
+## Tagged by glr 06/18/09
+
+
+## DBsubject('Calculus')
+## DBchapter('Vectors and the Geometry of Space')
+## DBsection('The Cross Product')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('13.4')
+## Problem1('25')
+
+## Textbook tags
+## HHChapter1('A Fundamental Tool: Vectors')
+## HHSection1('The Cross Product')
+
+Context("Vector");
+Context()->flags->set( ijk=>1 );
+
+Context()->constants->set(
+  i => {TeX => "\mathit{\vec i}"},
+  j => {TeX => "\mathit{\vec j}"},
+  k => {TeX => "\mathit{\vec k}"},
+);
+
+$showPartialCorrectAnswers = 1;
+
+$nz1 = random(0,2,1);
+@p1 = ( 0, 0, 0 );
+$p1[$nz1] = 1;
+
+@p2 = ( 1, list_random(-1,1), non_zero_random(-2,2,1) );
+@p3 = ( non_zero_random(-2,2,1), list_random(-1,1), 1 );
+for ( my $i=0; $i<3; $i++ ) {
+    $p3[$i] *= -1 if ( $p3[$i] == $p2[$i] );
+}
+
+## the vectors from p1 to p2 and p1 to p3 are
+@v1 = ( $p2[0]-$p1[0], $p2[1]-$p1[1], $p2[2]-$p1[2] );
+@v2 = ( $p3[0]-$p1[0], $p3[1]-$p1[1], $p3[2]-$p1[2] );
+## so that the cross product is
+@n  = ( $v1[1]*$v2[2]-$v1[2]*$v2[1], $v1[2]*$v2[0]-$v1[0]*$v2[2],
+	$v1[0]*$v2[1]-$v1[1]*$v2[0] );
+
+## define these as vectors
+$vec1 = Vector( @v1 );
+$vec2 = Vector( @v2 );
+$nvec = Vector( @n );
+
+## then define the triangle area and plane
+Context("ImplicitEquation");
+Context()->variables->add( z=>'Real' );
+
+## the triangle's area is half the norm of this, or
+$norm = "\sqrt{ ($n[0])^2 + ($n[1])^2 + ($n[2])^2 }";
+$normval = round(1000*sqrt($n[0]*$n[0] + $n[1]*$n[1] + $n[2]*$n[2]))/1000;
+$tarea = Compute( "sqrt( $n[0]*$n[0] + $n[1]*$n[1] + $n[2]*$n[2] )/2" );
+
+## and for the plane we make sure that the domain is well defined
+$z1 = ($n[0]*(5-$p1[0]) + $n[1]*(5-$p1[1]))/$n[2] + $p1[2];
+$z2 = ($n[0]*(5-$p1[0]) + $n[1]*(-5-$p1[1]))/$n[2] + $p1[2];
+$z3 = ($n[0]*(-5-$p1[0]) + $n[1]*(5-$p1[1]))/$n[2] + $p1[2];
+$z4 = ($n[0]*(-5-$p1[0]) + $n[1]*(-5-$p1[1]))/$n[2] + $p1[2];
+$min = $z1;
+$max = $z1;
+foreach my $z ( ( $z2, $z3, $z4 ) ) {
+    $min = $z if ( $z < $min );
+    $max = $z if ( $z > $max );
+}
+$min--;
+$max++;
+
+Context()->variables->set(
+    x=>{limits=>[-5,5]},
+    y=>{limits=>[-5,5]},
+    z=>{limits=>[$min,$max]},
+);
+
+$plane = ImplicitEquation( "$n[0]*(x-$p1[0]) + $n[1]*(y-$p1[1]) + " .
+			   "$n[2]*(z-$p1[2]) = 0" );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Let \( P=($p1[0],$p1[1],$p1[2]), Q=($p2[0],$p2[1],$p2[2]),
+       R=($p3[0],$p3[1],$p3[2]) \).
+Find
+$PAR
+
+${BBOLD}(a)$EBOLD
+The area of the triangle \( PQR \).
+$BR
+area = \{ ans_rule(45) \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+The equation for a plane that contains \( P \), \( Q \), and \( R \).
+$BR
+This plane is \{ ans_rule(45) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $tarea->cmp() );
+ANS( $plane->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+If we let \(\overrightarrow{PQ}\) be the vector
+from point \(P\) to point \(Q\) and
+\(\overrightarrow{PR}\) be the vector from \(P\) to \(R\), then
+\[ \overrightarrow {PQ} = $vec1 \qquad\mbox{and}\qquad
+   \overrightarrow {PR} = $vec2,\]
+and the area of the parallelogram determined by
+\(\overrightarrow{PQ}\) and \(\overrightarrow{PR}\) is
+\[ \Vert \overrightarrow{PQ}\times \overrightarrow{PR}\Vert =
+   \Vert $nvec \Vert = $norm \approx $normval. \]
+Thus, the area of the triangle \(PQR\) is half of this,
+area\( = $tarea\).
+
+$PAR
+${BBOLD}(b)$EBOLD
+Since \(\vec n = \overrightarrow{PQ}\times\overrightarrow{PR}\)
+is perpendicular to the
+plane \(PQR\), and from above, we have \(\vec n = $nvec\), the equation
+of the plane is \( $plane \).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

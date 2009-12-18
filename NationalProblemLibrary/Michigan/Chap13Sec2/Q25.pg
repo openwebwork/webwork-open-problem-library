@@ -1,0 +1,203 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+## KEYWORDS('vectors', 'force')
+## Tagged by glr 06/09/09
+
+
+## DBsubject('Calculus')
+## DBchapter('Vectors and the Geometry of Space')
+## DBsection('Vectors')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('13.2')
+## Problem1('25')
+
+## Textbook tags
+## HHChapter1('A Fundamental Tool: Vectors')
+## HHSection1('Vectors in General')
+
+Context("Vector");
+Context()->flags->set( ijk=>1 );
+
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+  k => {TeX => "\,\mathit{\vec k}"},
+);
+
+$showPartialCorrectAnswers = 1;
+
+$rvrspd = random(2,6,1);
+$rowspd = $rvrspd + random(1,2,1);
+$maxwind = int( sqrt(2)*($rvrspd + $rowspd) );
+$wndspd = random(5,$maxwind,1);
+
+$dir1 = PopUp( [ "?", "west", "east" ], "east" );
+$ang1 = Compute( "180*arcsin($rvrspd/$rowspd)/pi" );
+
+if ( $wndspd/sqrt(2) > $rvrspd ) {
+    $dir2 = PopUp( [ "?", "west", "east" ], "west" );
+    $diff = "$wndspd/sqrt(2) - $rvrspd";
+    $pos  = "positive";
+} else {
+    $dir2 = PopUp( [ "?", "west", "east" ], "east" );
+    $diff = "$rvrspd - $wndspd/sqrt(2)";
+    $pos  = "negative";
+}
+
+$ang2 = Compute( "180*arcsin(($diff)/$rowspd)/pi" );
+
+## the residual rowing speed across the river is
+$d = abs( $rvrspd - $wndspd/sqrt(2) );
+$dr = round(100*$d)/100;
+$res = sqrt($rowspd*$rowspd - $d*$d) - $wndspd/sqrt(2);
+$resr = round(100*$d)/100;
+if ( $res > 0 ) {
+    $bank = PopUp( [ "?", "The north", "The south", "Neither" ], "The south" );
+    $grlt = "greater than";
+    $which = "the south";
+    $expl = "";
+} elsif ( $res == 0 ) {
+    ## I don't think this should ever happen
+    $bank = PopUp( [ "?", "The north", "The south", "Neither" ], "Neither" );
+    $grlt = "equal to";
+    $which = "neither";
+    $expl = " (he will remain in the center of the river until the " .
+        "wind dies or he changes his direction)";
+} else {
+    $bank = PopUp( [ "?", "The north", "The south", "Neither" ], "The north" );
+    $grlt = "less than";
+    $which = "the north";
+    $expl = " (he will be blown back to the north bank)";
+}
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+A man wishes to row the shortest possible distance from
+north to south across a river which is flowing at
+$rvrspd km/hr from the east.  He can row at
+$rowspd km/hr.
+$PAR
+${BBOLD}(a)$EBOLD
+In which direction should he steer?
+$BR
+At an angle (in degrees) of \{ ans_rule(35) \}
+\{ $dir1->menu() \} of south.
+
+$PAR
+${BBOLD}(b)$EBOLD
+Suppose that when the man is in the middle of the river, a wind of
+$wndspd km/hr from the southwest starts.
+$PAR
+In which direction should he steer to move straight across the river?
+$BR
+At an angle (in degrees) of \{ ans_rule(35) \}
+\{ $dir2->menu() \} of south.
+$PAR
+Which bank of the river will the rower reach first?
+$BR
+\{ $bank->menu() \} bank.
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $ang1->cmp() );
+ANS( $dir1->cmp() );
+ANS( $ang2->cmp() );
+ANS( $dir2->cmp() );
+ANS( $bank->cmp() );
+
+$solgr = init_graph(-3,-3,3,3, axes=>[0,0], size=>[200,200]);
+$solgr->lb('reset');
+$solgr->lb( new Label( 3, 0, "East", "black", "right", "top" ) );
+$solgr->lb( new Label( 0, 3, "North", "black", "left", "top" ) );
+$solgr->moveTo(-3,2);
+$solgr->lineTo(3,2,'black');
+$solgr->lb( new Label( 2.5, 2, "north bank", "black", "right", "bottom" ) );
+$solgr->moveTo(-3,-2);
+$solgr->lineTo(3,-2,'black');
+$solgr->lb( new Label( 2.5, -2, "south bank", "black", "right", "top" ) );
+
+$solgr->stamps( closed_circle(0,2,'blue') );
+$solgr->lb( new Label( -0.1, 2.1, "start", "black", "right", "bottom" ) );
+
+$solgr->moveTo( 2.5, -1 );
+$solgr->arrowTo( 1.5, -1, "blue", 2 );
+$solgr->lb( new Label( 2, -1.1, "river velocity", "black", "right", "top" ) );
+
+$solgr->moveTo(0,2);
+$solgr->arrowTo( 1, .5, "blue", 2 );
+$solgr->lb( new Label(.75, .5, "rower velocity", "black", "right", "bottom") );
+
+$solgr->lb( new Label(0.1,1.7, "t", "black", "left", "top" ));
+
+$rowspdsq = $rowspd*$rowspd;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Let \(x\)-axis be the East direction and \(y\)-axis be the North
+direction, as suggested in the figure below.
+$PAR
+$BCENTER
+\{ image( insertGraph( $solgr ), height=>200, width=>200, tex_size=>250,
+	  extra_html_tags=>'alt="figure showing the river and rower ' .
+	  'velocities."' ) \}
+$ECENTER
+$PAR
+${BBOLD}(a)$EBOLD
+If the rower is going straight across the river we know that his
+\(x\) velocity component is equal to the river's velocity (in the
+opposite direction), $rvrspd, so that the angle
+\[t = \sin ^{-1}($rvrspd/$rowspd) \approx $ang1^{\circ}.\]
+That is, he should steer approximately \($ang1^{\circ}\) east of south.
+
+$PAR
+${BBOLD}(b)$EBOLD
+Let \(\vec R\) be the resultant of the wind and river velocities,
+that is 
+\[ \vec R = -$rvrspd\, \vec i +
+	($wndspd\cos(\frac{\pi}{4})\,\vec i +
+	$wndspd\sin(\frac{\pi}{4})\,\vec j).
+\]
+The \(x\) component of this is approximately $dr km/hr in the $pos \(x\)
+direction, which the rower's velocity in the \(x\) direction must cancel.
+Thus the rower should row at an angle of
+\[ t_1 \approx \sin^{-1}($dr/$rowspd) \approx $ang2^{\circ} \]
+\{ $dir2->correct_ans() \} of south.
+$PAR
+Then, the \(y\) component of the rower's velocity is
+\( v_y = \sqrt{ $rowspdsq - $dr^2 } \approx $resr. \)
+This is $grlt the component of the wind that is pushing
+north, so the rower will get to $which
+bank first$expl.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

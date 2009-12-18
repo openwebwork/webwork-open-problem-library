@@ -1,0 +1,143 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+## KEYWORDS('contour', 'graphs', 'multivariable', 'functions')
+## Tagged by glr 05/08/09
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Graphs and Level Surfaces')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('12.3')
+## Problem1('19')
+
+## Textbook tags
+## HHChapter1('Functions of Several Variables')
+## HHSection1('Contour Diagrams')
+
+Context("Numeric");
+Context()->variables->add( y=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+$a = random(60,140,20);
+$a = 140;
+$b = random(30, $a-10, 10);
+
+$f = Compute( "$a*e^x - $b*y^2" );
+$f0 = $f->eval( x=>0, y=>1 );
+$f1 = $f->eval( x=>1, y=>0 );
+if ( $f0 < $f1 ) {
+    $fmin = $f0; $fmax = $f1;
+} else {
+    $fmin = $f1; $fmax = $f1;
+}
+
+$c0 = $a;
+$c1 = 1.5*$c0;
+$cdiff = $c1 - $c0;
+
+@contourVals = ( $c0, $c1, $c1+$cdiff, $c1+2*$cdiff );
+
+$gr = init_graph( 0,0,1,1, axes=>[0,0], grid=>[5,5], size=>[200,200] );
+$gr->lb('reset');
+foreach my $i ( 0.2, 0.4, 0.6, 0.8, 1 ) {
+    $gr->lb( new Label($i,0,"$i", "black", "right", "bottom") );
+    $gr->lb( new Label(0,$i,"$i", "black", "left", "top") );
+}
+$lb = 65;
+@xfun = ();
+@yfun = ();
+@fn = ();
+
+## it turns out that we have to plot these parametrically to get the
+##    curves to resolve down to the x-axis
+foreach my $c ( @contourVals ) {
+    $x0 = exp($c/$a);
+    $x0 += 0.001 if ( $x0 == 0 );
+    push( @xfun, sub { return log( $_[0] ); } );
+    push( @yfun, sub { return sqrt(($a*$_[0] - $c)/$b); } );
+    push( @fn, new Fun( $xfun[-1], $yfun[-1], $gr ) );
+    $fn[-1]->domain( log($x0), 2.71828 );
+
+    $xl = log($c/$a + $b*0.25/$a);
+    $gr->lb( new Label($xl, 0.5, chr($lb), "black", "right", "bottom" ) );
+    $lb++;
+}
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+$x0l$PAR
+
+The figure below shows contours of \( f(x, y) = $a e^x - $b y^2 \).
+Find the values of \( f \) on the  contours.
+They are equally spaced multiples of 10.
+
+$PAR
+$BCENTER
+\{ image( insertGraph($gr), tex_size=>350, height=>200, width=>200,
+	  extra_html_tags=>'alt="graph of four increasing concave down ' .
+	  'curves, the first starting at the origin, the second passing ' .
+	  'appoximately through (0.4,0), and the other two starting at ' .
+	  'decreasing intervals along the x-axis after that. ' .
+	  'The curves are labeled A-D from left to right, and ' .
+	  'The graph shows x- and y-values over  the range [0,1]."' ) \}
+$ECENTER
+$PAR
+Curve A: \{ ans_rule(25) \} $BR
+Curve B: \{ ans_rule(25) \} $BR
+Curve C: \{ ans_rule(25) \} $BR
+Curve D: \{ ans_rule(25) \}
+
+END_TEXT
+Context()->normalStrings;
+
+foreach my $c ( @contourVals ) { ANS( Compute($c)->cmp() ); }
+
+$fp4 = round(100*$a*1.491825)/100;  # e^(0.4) = 1.491824
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+To find a valu on a contour, we can evaluate \(f(x, y) = $a e^x - $b y^2\)
+at any point \((x, y)\) on the contour.  We know that the first contour goes
+through the point \((0,0)\), so the value on that contour must be
+\(f(0,0) = $cO\).  We can similarly estimate values for the other
+contours by seeing where they intersect the \(x\)-axis and evaluating
+the function \(f\) there.  At the second contour, we have \(x\approx 0.4\),
+so that its value must be approximately \(f(0.4,0) = $fp4\).  We also know
+that the values are equally spaced multiples of 10, the contour value here
+must be $c1.  Then, by extension, we must have:
+$BR
+Contour A: \(f(x,y) = $contourVals[0] \)$BR
+Contour B: \(f(x,y) = $contourVals[1] \)$BR
+Contour C: \(f(x,y) = $contourVals[2] \)$BR
+Contour D: \(f(x,y) = $contourVals[3] \).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

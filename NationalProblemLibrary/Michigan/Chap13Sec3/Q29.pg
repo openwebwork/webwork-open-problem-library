@@ -1,0 +1,316 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+## KEYWORDS('vectors', 'dot product')
+## Tagged by glr 06/12/09
+
+
+## DBsubject('Calculus')
+## DBchapter('Vectors and the Geometry of Space')
+## DBsection('The Dot Product')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('13.3')
+## Problem1('29')
+
+## Textbook tags
+## HHChapter1('A Fundamental Tool: Vectors')
+## HHSection1('The Dot Product')
+
+Context("Vector");
+Context()->flags->set( ijk=>1 );
+Context()->strings->add( a=>{}, b=>{}, c=>{}, d=>{}, g=>{}, none=>{} );
+
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+  k => {TeX => "\,\mathit{\vec k}"},
+);
+
+## this is kludgy.  there should be a routine to do this
+##    for us.
+sub redfrac {
+    my ( $n, $d, $form ) = @_;
+    $form = '' if ! $form;
+    ( $n, $d ) = reduce( $n, $d );
+
+    if ( $n == 1 && $d == 1 ) {
+        return 1;
+    } elsif ( $n == 1 ) {
+	if ( $form eq 'tex' ) {
+	    return "\frac{1}{$d}";
+	} else {
+	    return "1/$d";
+	}
+    } elsif ( $d == 1 ) {
+        return "$n";
+    } else {
+	if ( $form eq 'tex' ) {
+	    return "\frac{$n}{$d}";
+	} else {
+	    return "$n/$d";
+	}
+    }
+}
+
+$showPartialCorrectAnswers = 1;
+
+$a = random(1,5,1);
+$b = ( $a == 1 ) ? random(2,5,1) : 1;
+$maxab = ( $a > $b ) ? $a : $b;
+
+$c = ($a + $b);
+$d = -1*$a;
+
+# a vector
+$vec1 = Vector( ($a, $b, -1) );
+# a couple of parallel vectors
+@vec1par = ( Vector( (-1*$a, -1*$b, 1 ) ),
+	     Vector( ( 1, redfrac($b, $a), "1/$a" ) ) );
+# some perpendicular ones
+@vec1per = ( Vector( ($b, -1*$a, 0) ),
+	     Vector( ( ($a == 1) ? $b : 1, ($b == 1) ? $a : 1, $c ) ),
+	     Vector( ( 1, 1, $c ) ),
+	     Vector( ( -1, $a, (-1+$b)*$a ) ) );
+# and some others
+@vec1oth = ( Vector( ( $b, $a, 1 ) ),
+	     Vector( ( $b, $a, -1 ) ),
+	     Vector( ( -1*$a, -1*$b, 1 ) ),
+	     Vector( ( -1*$b, -1*$a, 1 ) ),
+	     Vector( ( -1, -1*$a, $b ) ),
+	     Vector( ( $maxab, -1, 1 ) ) );
+
+@allVec = ( @vec1par, @vec1per, @vec1oth );
+
+## pick 4 of these
+@which = NchooseK( scalar(@allVec), 4 );
+## make sure that we get at least pair that is perpendicular
+my $ok = 0;
+foreach ( @which ) {
+    if ( $_ > 1 && $_ < 6 ) {
+	$ok = 1;
+	last;
+    }
+}
+$which[2] = random(2,5,1) if ( ! $ok );
+
+## our vectors are then
+@showVec = ( $vec1, @allVec[@which] );
+
+## reset the Context before assembling the lists, to avoid getting
+##    confused about points and lists
+Context("Numeric");
+Context()->strings->add( a=>{}, b=>{}, c=>{}, d=>{}, g=>{}, none=>{} );
+
+## figure out which are parallel, perpendicular, and have angles
+##    less than and greater than pi/2, and set up the strings that
+##    we'll use in the explanation.
+@par = ();     @per = ();     @les = ();     @mor = ();
+$parstr = '';  $perstr = '';  $lesstr = '';  $morstr = '';
+for ( my $i=0; $i<@showVec; $i++ ) {
+    my $v1 = ( 'a', 'b', 'c', 'd', 'g' )[$i];
+    for ( my $j=$i+1; $j<@showVec; $j++ ) {
+	my $v2 = ( 'a', 'b', 'c', 'd', 'g' )[$j];
+	my @v1v = $showVec[$i]->value;
+	my @v2v = $showVec[$j]->value;
+
+	if ( $showVec[$i].$showVec[$j] == 0 ) {
+	    push( @per, List(String($v1), String($v2)) );
+	    if ( $perstr ) {
+		$perstr .= ( $perstr =~ " and similarly " ) ? ", " :
+		    " and similarly ";
+		$perstr .= "\(\vec $v1\cdot\vec $v2 = 0\)";
+	    } else {
+		$perstr .= "\(\vec $v1\cdot\vec $v2 = " .
+		  "($v1v[0])\cdot($v2v[0]) + ($v1v[1])\cdot($v2v[1]) + " .
+		    "($v1v[2])\cdot($v2v[2]) = 0\)";
+	    }
+
+	} elsif ( $showVec[$i]->isParallel( $showVec[$j] ) ) {
+	    push( @par, List(String($v1), String($v2)) );
+	    if ( $parstr ) {
+		$parstr .= ( $parstr =~ " and similarly " ) ? ", " :
+		    " and similarly for ";
+		$parstr .= "\(\vec $v1\) and \(\vec $v2\)";
+	    } else {
+		$parstr .= "\(\vec $v1\) and \(\vec $v2\) are constant " .
+		    "multiples of each other";
+	    }
+
+	} elsif ( $showVec[$i].$showVec[$j] > 0 ) {
+	    push( @les, List(String($v1), String($v2)) );
+	    if ( $lesstr ) {
+		$lesstr .= ( $lesstr =~ " and similarly " ) ? ", " :
+		    " and similarly ";
+		$lesstr .= "\(\vec $v1\cdot\vec $v2 > 0\)";
+	    } else {
+		$lesstr .= "\(\vec $v1\cdot\vec $v2 = " .
+		  "($v1v[0])\cdot($v2v[0]) + ($v1v[1])\cdot($v2v[1]) + " .
+		    "($v1v[2])\cdot($v2v[2]) > 0\)";
+	    }
+
+	} elsif ( $showVec[$i].$showVec[$j] < 0 ) {
+	    push( @mor, List(String($v1), String($v2)) );
+	    if ( $morstr ) {
+		$morstr .= ( $morstr =~ " and similarly " ) ? ", " :
+		    " and similarly ";
+		$morstr .= "\(\vec $v1\cdot\vec $v2 < 0\)";
+	    } else {
+		$morstr .= "\(\vec $v1\cdot\vec $v2 = " .
+		  "($v1v[0])\cdot($v2v[0]) + ($v1v[1])\cdot($v2v[1]) + " .
+		    "($v1v[2])\cdot($v2v[2]) < 0\)";
+	    }
+	}
+    }
+}
+
+## a string finishing routine
+sub addVec {
+    my ($addstr, @li) = @_;
+
+    foreach my $pr ( @li ) {
+	my @s = $pr->value;
+	$addstr .= ( $addstr =~ /(is $)|(are $)/ ) ? "" : ", ";
+	$addstr .= " \((\vec $s[0], \vec $s[1])\)";
+    }
+    $addstr .= ".";
+    return $addstr;
+}
+
+## finish up the string formatting
+if ( $perstr ) {
+    $perstr = "Since " . $perstr . ", the pair" . ( @per > 1 ? "s" : "" ) .
+        " we want " . ( @per > 1 ? "are " : "is " );
+    $perstr = addVec( $perstr, @per );
+} else {
+    $perstr = "Since this is not the case for any of the pairs of " .
+        "vectors here, there are no perpendicular pairs.";
+}
+if ( $parstr ) {
+    $parstr = "Since " . $parstr . ", the pair" . ( @par > 1 ? "s" : "" ) .
+        " we want " . ( @par > 1 ? "are " : "is " );
+    $parstr = addVec( $parstr, @par );
+} else {
+    $parstr = "Since this is not the case for any of the pairs of " .
+        "vectors here, there are no parallel pairs.";
+}
+if ( $lesstr ) {
+    $lesstr = "Since " . $lesstr . ", the pair" . ( @les > 1 ? "s" : "" ) .
+        " we want " . ( @les > 1 ? "are " : "is " );
+    $lesstr = addVec( $lesstr, @les );
+} else {
+    $lesstr = "Since this is not the case for any of the pairs of " .
+        "vectors here, there are no pairs the angle between which " .
+	"is less than \(\pi/2\).";
+}
+if ( $morstr ) {
+    $morstr = "Since " . $morstr . ", the pair" . ( @mor > 1 ? "s" : "" ) .
+        " we want " . ( @mor > 1 ? "are " : "is " );
+    $morstr = addVec( $morstr, @mor );
+} else {
+    $morstr = "Since this is not the case for any of the pairs of " .
+        "vectors here, there are no pairs the angle between which " .
+	"is more than \(\pi/2\).";
+}
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Consider the vectors
+\[ \vec a = $vec1, \qquad \vec b = $allVec[$which[0]], \qquad
+   \vec c = $allVec[$which[1]] \]
+\[ \vec d = $allVec[$which[2]],\qquad \vec g = $allVec[$which[3]]. \]
+Which pairs (if any) of these vectors are
+$PAR
+${BBOLD}(a)$EBOLD
+Are perpendicular?
+$BR
+\{ ans_rule(55) \}
+$BR
+${BITALIC}(Enter ${BBOLD}none$EBOLD or a pair or list of pairs,
+e.g., if \(\vec a\) is perpendicular to \(\vec b\) and \(\vec c\),
+enter ${BBOLD}(a,b),(a,c)$EBOLD.)$EITALIC
+
+$PAR
+${BBOLD}(b)$EBOLD
+Are parallel?
+$BR
+\{ ans_rule(55) \}
+$BR
+${BITALIC}(Enter ${BBOLD}none$EBOLD or a pair or list of pairs,
+e.g., if \(\vec a\) is perpendicular to \(\vec b\) and \(\vec c\),
+enter ${BBOLD}(a,b),(a,c)$EBOLD.)$EITALIC
+
+$PAR
+${BBOLD}(c)$EBOLD
+Have an angles less than \( \pi/2 \) between them?
+$BR
+\{ ans_rule(55) \}
+$BR
+${BITALIC}(Enter ${BBOLD}none$EBOLD or a pair or list of pairs,
+e.g., if \(\vec a\) is perpendicular to \(\vec b\) and \(\vec c\),
+enter ${BBOLD}(a,b),(a,c)$EBOLD.)$EITALIC
+
+$PAR
+${BBOLD}(d)$EBOLD
+Have an angle of more than \( \pi/2 \) between them?
+$BR
+\{ ans_rule(55) \}
+$BR
+${BITALIC}(Enter ${BBOLD}none$EBOLD or a pair or list of pairs,
+e.g., if \(\vec a\) is perpendicular to \(\vec b\) and \(\vec c\),
+enter ${BBOLD}(a,b),(a,c)$EBOLD.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( List( @per )->cmp() );
+ANS( List( @par )->cmp() );
+ANS( List( @les )->cmp() );
+ANS( List( @mor )->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+Perpendicular vectors have a dot product of 0.  $perstr
+
+$PAR
+${BBOLD}(b)$EBOLD
+Parallel vectors are multiples of one another. $parstr
+
+$PAR
+${BBOLD}(c)$EBOLD
+Since \(\vec v\cdot\vec  w= \Vert\vec v\Vert \Vert\vec w\Vert\cos\theta\),
+the dot product of the vectors we want is positive.  $lesstr
+
+$PAR
+${BBOLD}(d)$EBOLD
+Vectors with an angle of more than \(\pi/2\) between them have a
+negative dot product.  $morstr
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

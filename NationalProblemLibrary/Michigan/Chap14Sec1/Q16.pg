@@ -1,0 +1,185 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+## KEYWORDS('partial', 'derivative', 'multivariable', 'functions')
+## Tagged by glr 06/22/09
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Partial Derivatives')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('14.1')
+## Problem1('16')
+
+## Textbook tags
+## HHChapter1('Differentiating Functions of Several Variables')
+## HHSection1('The Partial Derivative')
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+## the graph is of a bunch of ellipses; we graph them, then label
+##    the contours and points
+$cgr = init_graph(0,0,10,10, axes=>[0,0], size=>[300,300], grid=>[10,10]);
+$cgr->lb('reset');
+# $cgr->lb( new Label( 9.5, 0.1, "x", "black", "right", "bottom" ) );
+# $cgr->lb( new Label( 0.1, 9.5, "y", "black", "left", "top" ) );
+foreach my $x ( (2, 4, 6, 8, 10 ) ) {
+    $xe = ( $x == 2 ) ? "x=" : "";
+    $ye = ( $x == 2 ) ? "y=" : "";
+    $cgr->lb( new Label( $x, 0.1, "${xe}$x", "black", "right", "bottom" ) );
+    $cgr->lb( new Label( 0.1, $x, "${ye}$x", "black", "left", "top" ) );
+}
+
+## the curves we graph are ellipses centered on (10,0) with
+##    major and minor axes
+@axes = ( [10, 7], [8, 5.8], [6, 4.2], [4, 2.8], [2, 1.4], [12, 8.5],
+	  [14, 10], [16, 11.5] );
+my @xf = ();
+my @yf = ();
+my @fn = ();
+foreach my $r ( @axes ) {
+    push( @xf, sub { my $t=shift(); return 10+($r->[0])*cos($t); } );
+    push( @yf, sub { my $t=shift(); return ($r->[1])*sin($t); } );
+    push( @fn, new Fun( $xf[-1], $yf[-1], $cgr ) );
+    $fn[-1]->domain(1.57,3.142);
+}
+
+## countours increment by
+$delc   = list_random(-2,2);
+## and start at
+$cstart = ($delc == -2) ? random(10,20,2) : random(2,12,2);
+
+## put in contour labels
+my @labelpos = ( [1,9], [2,8.5], [3,7], [4,5.8], [5,4.8], [6,3.5],
+		 [8,2.5], [9,1.3] );
+my $cval = $cstart;
+foreach my $p ( @labelpos ) {
+    $cgr->lb( new Label($p->[0], $p->[1], $cval, "black", "right", "bottom") );
+    $cval += $delc;
+}
+
+## points that work are (3,5); (1,3);
+##   counting back in x, we could also use (4,9); (6,5); (6,8); (8,4)
+$whichp = list_random(0,1);
+if ( $whichp ) {
+    $x0 = 3;
+    $y0 = 5;
+    ## the value at this point
+    $c0 = $cstart + 3*$delc;
+    ## an approximate value to the right of this
+    $cx = $cstart + 4*$delc;
+    ## which is at a distance
+    $delx = 3;
+    ## and approximate value above this
+    $cy = $cstart + 2*$delc;
+    ## which is at a distance
+    $dely = 2;
+    $fx = Compute( "($cx - $c0)/$delx" );
+    $fy = Compute( "($cy - $c0)/$dely" );
+} else {
+    $x0 = 1;
+    $y0 = 3;
+    ## the value at this point
+    $c0 = $cstart + 3*$delc;
+    ## an approximate value to the right of this
+    $cx = $cstart + 4*$delc;
+    ## which is at a distance
+    $delx = 2.2;
+    ## and approximate value above this
+    $cy = $cstart + 2*$delc;
+    ## which is at a distance
+    $dely = 2.5;
+    $fx = Compute( "($cx - $c0)/$delx" );
+    $fy = Compute( "($cy - $c0)/$dely" );
+}
+$c2 = $cstart + 4*$delc;
+
+$whichder = list_random(0,1);
+$dx = ('x','y')[$whichder];
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Approximate  \( f_{$dx}($x0,$y0)  \) using  the contour diagram of
+\( f(x, y) \) shown below.
+$PAR
+$BCENTER
+\{ image( insertGraph($cgr), tex_size=>250, height=>300, width=>300,
+	  extra_html_tags=>'alt="a graph of the contour diagram."' ) \}
+$ECENTER
+$PAR
+\( f_{$dx}($x0,$y0) \approx \) \{ ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+if ( $whichder ) {
+    Context()->flags->set( tolerance => 0.5/$dely,
+			   tolType => 'absolute' );
+    ANS( $fy->cmp() );
+    $num = "f(x_0,y_0+h) - f(x_0,y_0)";
+    $x1 = $x0;
+    $y1 = $y0 + $dely;
+    $delh = $dely;
+    $c1 = $cy;
+    $fval = $fy;
+} else {
+    Context()->flags->set( tolerance => 0.5/$delx,
+			   tolType => 'absolute' );
+    ANS( $fx->cmp() );
+    $num = "f(x_0+h,y_0) - f(x_0,y_0)";
+    $x1 = $x0 + $delx;
+    $y1 = $y0;
+    $delh = $delx;
+    $c1 = $cx;
+    $fval = $fx;
+}
+
+if ( $x0 != 1 ) {
+    $msg = "Of course, we could take \(h < 0\) and use the contour " .
+        "\(f = $c2\) as well, or average the two results.";
+} else {
+    $msg = "";
+}
+
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+To estimate \(f_{$dx}\), we want to find a difference quotient
+\(f_{$dx} \approx \frac{$num}{h}\).  Here, we have
+\(f($x0,$y0) \approx $c0\), and \(f($x1,$y1) \approx $c1\).
+Thus, we can take
+\[ f_{$dx} \approx \frac{f($x1,$y1) - f($x0,$y0)}{$delh} =
+    \frac{$c1 - $c0}{$delh} = $fval. \]
+$msg
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

@@ -1,0 +1,157 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+## KEYWORDS('derivatives', 'partial', 'functions', 'multivariable')
+## Tagged by glr 07/31/09
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Partial Derivatives')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('14.2')
+## Problem1('45')
+
+## Textbook tags
+## HHChapter1('Differentiating Functions of Several Variables')
+## HHSection1('Computing Partial Derivatives Algebraically')
+
+Context("Numeric");
+Context()->variables->add( y=>'Real' );
+Context()->strings->add( none=>{} );
+
+$showPartialCorrectAnswers = 1;
+
+$r1 = random(3,5,1);
+$r2 = $r1 + non_zero_random(-1,3,1);
+$r3 = random(2,5,1);
+$a  = random(2,5,1);
+
+$ar3 = $a*$r3;
+$r1m1 = $r1 - 1;
+$r2m1 = $r2 - 1;
+$r3m1 = $r3 - 1;
+
+## we give a a small chance that there isn't a function
+##    with the given partial derivatives
+$isfunc = random(0,20,1);
+
+$which = list_random(0,1);
+$which = 0;
+if ( $which ) {
+    $f = Compute( "x^$r1*y^$r2 - $a*x*y^$r3" )->reduce();
+    $fx = $f->D('x')->reduce();
+    $fy = Compute( "$r2*x^$r1*y^$r2m1 - $ar3*x*y^$r3m1" )->reduce();
+} else {
+    $f = Compute( "x^$r1*y^$r2 - $a*x^$r3*y" )->reduce();
+    $fx = Compute( "$r1*x^$r1m1*y^$r2 - $ar3*x^$r3m1*y" )->reduce();
+    $fy = Compute( "$r2*x^$r1*y^$r2m1 - $a*x^$r3" )->reduce();
+}
+$fyd = $fy;
+
+## if there isn't a function, tweak the f_y that we give
+if ( ! $isfunc ) {
+    $b = random(2,5,1);
+    $fy = $fy + Compute("$b*x");
+    $fans = String("none");
+    $ispop = PopUp( [ '?', 'Yes', 'No' ], 'No' );
+    $otherspop = PopUp( [ '?', 'Yes', 'No' ], 'No' );
+} else {
+    $fans = $f;
+    $ispop = PopUp( [ '?', 'Yes', 'No' ], 'Yes' );
+    $otherspop = PopUp( [ '?', 'Yes', 'No' ], 'Yes' );
+}
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Consider the partial derivatives
+\[
+f_{x}(x,y) = $fx,
+\]
+\[
+f_{y}(x,y) = $fy.
+\]
+Is there a function \( f \) which has these partial derivatives?
+$BR
+\{ $ispop->menu() \}
+$PAR
+If so, what is it?
+$BR
+\( f = \) \{ ans_rule(35) \}
+$BR
+${BITALIC}(Enter ${BBOLD}none$EBOLD if there is no such function.)$EITALIC
+
+$PAR
+Are there any others?
+$BR
+\{ $otherspop->menu() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $ispop->cmp() );
+ANS( $fans->cmp( checker=>sub {
+    my ( $correct, $student, $ansHash ) = @_;
+    if ( ref( $correct ) eq 'Value::String' ) {
+	return $student == $correct;
+    } else {
+	$sdx = $student->D('x');
+	$sdy = $student->D('y');
+	return $student == $correct || ( $sdx == $fx && $sdy == $fy );
+    } } ) );
+ANS( $otherspop->cmp() );
+
+Context()->texStrings;
+
+if ( $isfunc ) {
+    $concl = <<eoc;
+Thus, this is a function that has the given partial
+derivatives.  More generally, we could
+have \( f(x,y) = $f + C\), where \(C\) is any constant.
+eoc
+} else {
+    $concl = <<eoc;
+However, this doesn't work!  The partial derivative \(f_y\)
+that we are given differs from this by a factor of \($b x\),
+which would require that the partial derivative \(f_x\) include
+an additive factor of $b.  Which it doesn't.  So in this case
+there is no function \(f\) that has the given partial derivatives.
+eoc
+}
+
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Since \(f_{x}(x,y) = $fx\), we could have
+\[ f(x,y) = $f.\]
+In that case,
+\[ f_{y}(x,y)=\frac{\partial}{\partial y}($f) = $fyd. \]
+$concl
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

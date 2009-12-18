@@ -1,0 +1,238 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+## KEYWORDS('linearization', 'differentials', 'multivariable', 'functions')
+## Tagged by glr 08/10/09
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Tangent Planes')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('14.3')
+## Problem1('19')
+
+## Textbook tags
+## HHChapter1('Differentiating Functions of Several Variables')
+## HHSection1('Local Linearity and the Differential')
+
+Context("Numeric");
+Context()->variables->add( y=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+$whichTrig = list_random(0,1);
+$whichSign = list_random(-1,1);
+$v1 = list_random('x','y');
+$x0 = -1*$whichSign;
+$y0 = random(1.5,2.5,0.5);
+if ( $v1 eq 'x' ) {
+    $v2 = 'y';
+} else {
+    $v2 = 'x';
+    $x0 = $y0;
+    $y0 = -1*$whichSign;
+}
+
+if ( $whichTrig ) {
+    $f = Compute( "e^($whichSign*$v1)*cos($v2)" )->reduce();
+} else {
+    $f = Compute( "e^($whichSign*$v1)*sin($v2)" )->reduce();
+}
+
+$x0m = $x0 - 0.1;
+$x0p = $x0 + 0.1;
+$y0m = $y0 - 0.1;
+$y0p = $y0 + 0.1;
+
+$x0mm = $x0 - 0.01;
+$x0pp = $x0 + 0.01;
+$y0mm = $y0 - 0.01;
+$y0pp = $y0 + 0.01;
+
+$fx = $f->D('x')->reduce();
+$fy = $f->D('y')->reduce();
+$fx0 = $fx->eval( x=>$x0, y=>$y0 );
+$fy0 = $fy->eval( x=>$x0, y=>$y0 );
+$f0 = $f->eval( x=>$x0, y=>$y0 );
+
+## the tabular values
+@t1 = ( Compute( round(10000*($f->eval(x=>$x0m,y=>$y0m)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0,y=>$y0m)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0p,y=>$y0m)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0m,y=>$y0)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0,y=>$y0)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0p,y=>$y0)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0m,y=>$y0p)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0,y=>$y0p)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0p,y=>$y0p)))/10000 ) );
+@t2 = ( Compute( round(10000*($f->eval(x=>$x0mm,y=>$y0mm)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0,y=>$y0mm)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0pp,y=>$y0mm)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0mm,y=>$y0)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0,y=>$y0)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0pp,y=>$y0)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0mm,y=>$y0pp)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0,y=>$y0pp)))/10000 ),
+	Compute( round(10000*($f->eval(x=>$x0pp,y=>$y0pp)))/10000 ) );
+
+## linearizations with the tabular values:
+$fx0est = Compute( "($t2[5]-$t2[3])/.02" );
+$fy0est = Compute( "($t2[7]-$t2[1])/.02" );
+$plnum = Compute( "$t2[4] + ($t2[5]-$t2[3])*(x-$x0)/0.02 + " .
+		  "($t2[7]-$t2[1])*(y-$y0)/0.02" );
+## reasonable alternate x and y slopes are
+@fxEst = ( Compute( "($t2[5]-$t2[4])/0.01" ),
+	   Compute( "($t2[4]-$t2[3])/0.01" ) );
+@fyEst = ( Compute( "($t2[7]-$t2[4])/0.01" ),
+	   Compute( "($t2[4]-$t2[1])/0.01" ) );
+
+## and the actual linearization is
+$plexact = Compute( "$f0 + $fx0*(x - $x0) + $fy0*(y - $y0)" );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+${BBOLD}(a)$EBOLD
+Check the local linearity of \( f(x,y) = $f \) near \( x=$x0,\ y=$y0 \)
+by filling in the following table of values of \( f \) for
+\( x=$x0m,\ $x0,\ $x0p \) and \( y=$y0m,\ $y0,\ $y0p\).
+Express values of \( f \) with 4 digits after the decimal point.
+$PAR
+${BCENTER}
+\{ begintable(4) \}
+\{ row( '\(x = \)', $x0m, $x0, $x0p ) \}
+\{ row( "\(y = $y0m\)", ans_rule(6), ans_rule(6), ans_rule(6) ) \}
+\{ row( "\(y = $y0\)", ans_rule(6), ans_rule(6), ans_rule(6) ) \}
+\{ row( "\(y = $y0p\)", ans_rule(6), ans_rule(6), ans_rule(6) ) \}
+\{ endtable() \}
+$ECENTER
+
+$PAR
+${BBOLD}(b)$EBOLD
+Next, fill in the table for the values \( x=$x0mm,\ $x0,\ $x0pp\) and
+\( y = $y0mm,\ $y0,\ $y0pp, \) again showing 4 digits after
+the decimal point.
+$PAR
+${BCENTER}
+\{ begintable(4) \}
+\{ row( '\(x = \)', $x0mm, $x0, $x0pp ) \}
+\{ row( "\(y = $y0mm\)", ans_rule(6), ans_rule(6), ans_rule(6) ) \}
+\{ row( "\(y = $y0\)", ans_rule(6), ans_rule(6), ans_rule(6) ) \}
+\{ row( "\(y = $y0pp\)", ans_rule(6), ans_rule(6), ans_rule(6) ) \}
+\{ endtable() \}
+$ECENTER
+
+$PAR
+Notice if the two tables look nearly linear, and whether the second
+looks more linear than the first (in particular, think about how you
+would decide if they were linear, or if the one were more closely
+linear than the other).
+
+$PAR
+${BBOLD}(c)$EBOLD
+Give the local linearization of \( f(x,y) = $f \) at \( ($x0,$y0) \):
+$BR
+Using the second of your tables: $BR
+\( f(x,y) \approx \) \{ ans_rule(55) \}
+$BR
+Using the fact that
+\( f_x(x,y) = $fx \) and \( f_y(x,y) = $fy \): $BR
+\( f(x,y) \approx \) \{ ans_rule(55) \}
+
+END_TEXT
+Context()->normalStrings;
+
+foreach my $t ( @t1 ) { ANS( $t->cmp() ); }
+foreach my $t ( @t2 ) { ANS( $t->cmp() ); }
+
+ANS( $plnum->cmp( checker=>sub {
+    my ( $correct, $student, $ansHash ) = @_;
+    return $student == $correct ||
+      ( $student->eval( x=>$x0, y=>$y0 ) == $t2[4] &&
+	( $student->D('x') == $fxEst[0] || $student->D('x') == $fxEst[1] ) &&
+	( $student->D('y') == $fyEst[0] || $student->D('y') == $fyEst[1] ) );
+} ) );
+
+ANS( $plexact->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a),(b)$EBOLD
+The two tables of values are shown below
+$PAR
+$BCENTER
+\{ begintable(4) \}
+\{ row( '\(x = \)', $x0m, $x0, $x0p ) \}
+\{ row( "\(y = $y0m\)", $t1[0], $t1[1], $t1[2] ) \}
+\{ row( "\(y = $y0\)",  $t1[3], $t1[4], $t1[5] ) \}
+\{ row( "\(y = $y0p\)", $t1[6], $t1[7], $t1[8] ) \}
+\{ endtable() \}
+$PAR
+\{ begintable(4) \}
+\{ row( '\(x = \)', $x0mm, $x0, $x0pp ) \}
+\{ row( "\(y = $y0mm\)", $t2[0], $t2[1], $t2[2] ) \}
+\{ row( "\(y = $y0\)",   $t2[3], $t2[4], $t2[5] ) \}
+\{ row( "\(y = $y0pp\)", $t2[6], $t2[7], $t2[8] ) \}
+\{ endtable() \}
+$ECENTER
+
+Both tables are nearly linear. To check this, observe that the
+increments in each row (column) are equal, or nearly so.  The
+second table is more linear due to finer data.
+
+$PAR
+${BBOLD}(c)$EBOLD
+From either table we see that \(f($x0,$y0)\approx $t2[4]\).
+Also, using the second table,
+\[
+f_x($x0,$y0) \approx \frac{f($x0pp,$y0) - f($x0mm,$y0)}{.02} =
+	\frac{$t2[5] - $t2[3]}{0.02} = $fx0est,
+\]
+\[
+f_y($x0,$y0) \approx \frac{f($x0,$y0pp) - f($x0,$y0mm)}{.02} =
+	\frac{$t2[7] - $t2[1]}{0.02} = $fy0est.
+\]
+Using these estimates for the partial derivatives, we get that the
+local linearization of \(f\) around \(($x0,$y0)\) is
+\[
+f(x,y) \approx f($x0,$y0)+f_x($x0,$y0)(x-$x0)+f_y($x0,$y0)(y-$y0)
+	= $t2[4] + ($fx0est)(x - $x0) + ($fy0est)(y - $y0).
+\]
+$PAR
+Now we use \(f_x = $fx\) and \(f_y = $fy\), giving
+\[
+f_x($x0,$y0) = $fx0,
+f_y($x0,$y0) = $fy0,
+\]
+we have the local linearization of \(f\) around \(($x0,$y0)\)
+\[ f(x,y) \approx $plexact. \]
+Note that these agree to a reasonable number of decimal places.
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

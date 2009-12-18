@@ -1,0 +1,151 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+## KEYWORDS('linear', 'functions', 'multivariable', 'plane')
+## Tagged by glr 05/12/09
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Tangent Planes')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('12.4')
+## Problem1('21')
+
+## Textbook tags
+## HHChapter1('Functions of Several Variables')
+## HHSection1('Linear Functions')
+
+Context("Numeric");
+Context()->variables->add( y => 'Real' );
+$showPartialCorrectAnswers = 1;
+
+$d = random(1,5,1);
+$xsl = non_zero_random(-3,3,1);
+$ysl = non_zero_random(-3,3,1);
+$z0  = random(-4,4,1);
+$func = Compute("$xsl*x + $ysl*y + $z0");
+
+$gr = init_graph( -3,-3,3,3, axes=>[0,0], grid=>[6,6], size=>[250,250] );
+
+## the maximum and minimum contour values will show up at the corners
+if ( $xsl > 0 && $ysl > 0 ) {
+    $cmax = $func->eval( x=>3, y=>3 );
+    $cmin = $func->eval( x=>-3, y=>-3 );
+} elsif ( $xsl < 0 && $ysl < 0 ) {
+    $cmax = $func->eval( x=>-3, y=>-3 );
+    $cmin = $func->eval( x=>3, y=>3 );
+} elsif ( $xsl > 0 && $ysl < 0 ) {
+    $cmax = $func->eval( x=>3, y=>-3 );
+    $cmin = $func->eval( x=>-3, y=>3 );
+} else {
+    $cmax = $func->eval( x=>-3, y=>3 );
+    $cmin = $func->eval( x=>3, y=>-3 );
+}
+## a reasonable contour increment
+if ( $cmax - $cmin > 20 ) {
+    $dc = 4;
+    $c0 = 4*int($cmin/4) + $z0 - 4;
+    $c1 = 4*int($cmax/4) + $z0 + 4;
+} elsif ( $cmax - $cmin > 10 ) {
+    $dc = 2;
+    $c0 = 2*int($cmin/2) + $z0 - 2;
+    $c1 = 2*int($cmax/2) + $z0 + 2;
+} else {
+    $dc = 1;
+    $c0 = $cmin;
+    $c1 = $cmax;
+}
+
+if ( $xsl*$ysl > 0 ) {
+    $j1 = 'left'; $j2 = 'bottom';
+} else {
+    $j1 = 'right'; $j2 = 'bottom';
+}
+
+## then add the appropriate contours to the graph
+@grfunc = ();
+@grlabs = ();
+for ( my $c=$c0; $c<=$cmax; $c+=$dc ) {
+    push( @grfunc, "($c - $xsl*x - $z0)/$ysl for x in <-3,3> using " .
+	  "color:blue and weight:2" );
+    ## put the labels on the line y=x or y=-x
+    my $y1;
+    my $x1;
+    if ( $xsl*$ysl < 0 ) {
+	$y1 = ($c-$z0)/(-$xsl+$ysl);
+	$x1 = -1*$y1;
+    } else {
+	$y1 = ($c-$z0)/($xsl+$ysl);
+	$x1 = $y1;
+    }
+    $gr->lb( new Label( $x1, $y1, "$c", 'black', $j1, $j2 ) );
+}
+add_functions( $gr, @grfunc );
+$gr->lb( new Label( 3,0,"x ","black","right","bottom" ) );
+$gr->lb( new Label( 0,3,"y ","black","right","top" ) );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Find a possible equation for the linear function \(g(x,y)\) shown in the
+graph below:
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>350, height=>250, width=>250,
+	  extra_html_tags=>'alt="graph of contours"' ) \}
+$ECENTER
+$PAR
+$PAR
+\( g(x,y) = \) \{ ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $func->cmp() );
+
+$xsldd = ( abs($xsl) == 1 ) ? '' : abs($xsl);
+$xsld  = ( $xsl > 0 ) ? $xldd : " - $xldd ";
+$ysldd = ( abs($ysl) == 1 ) ? '' : abs($ysl);
+$ysld = ( $ysl > 0 ) ? " + $ysldd " : " - $ysldd ";
+if ( $z0 < 0 )     { $z0d = "$z0"; }
+elsif ( $z0 == 0 ) { $z0d = ''; }
+else {               $z0d = "+ $z0"; }
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The function, has a slope
+of \($xsl\) in the \(x\) direction and a slope of
+\($ysl\) in the \(y\) direction,
+so \(g(x,y) = $xsld x $ysld y + c \).
+Since \(g(0,0) = $z0\), the formula is \(g(x,y) = $xsld x $ysld y $z0d\).
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
