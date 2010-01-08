@@ -21,10 +21,8 @@ loadMacros(
   "PGstandard.pl",
   "PGchoicemacros.pl",
   "MathObjects.pl",
-  "contextInequalitiesAllowStrings.pl",
-  "answerHints.pl",
-  "PGgraphmacros.pl",
-  "PGnauGraphics.pl"
+  "contextLimitedNumeric.pl",
+  "contextPiecewiseFunction.pl"
 );
 
 TEXT(beginproblem);
@@ -32,146 +30,61 @@ TEXT(beginproblem);
 ######################################
 #  Setup
 
-Context("Numeric");
+Context("PiecewiseFunction");
 
-#--------Define the function-----------
+$m1 = random(2,5,1);
+$b1 = non_zero_random(-6,6,1);
+$m2 = random(-5,-2,1);
+$b2 = random(1,6,1);
+$x = random(-4,4,1);
 
-$h = random(-3,3,1);
-$k = random(-3,3,1);
-$a = non_zero_random(-2,2,1);
+$g = Formula("$m1 x + $b1 if x <= $x else $m2 x - $b2 if x > $x");
+$g = $g->reduce('(-x)-y'=>0,'(-x)*y'=>0);  #Makes g look nicer--negative signs
 
-$f = Formula("$a*(x - $h)^3 + $k");
-
-@dom = ($h-1,$h+1);  #Stay in the grid
-
-@interval = ("[$dom[0],$dom[1])","($dom[0],$dom[1]]");
-$n = random(0,1,1);                      
-
-#------------Define the graph-----------------------
-
-$choose = random(0,2,1);
-@colors = ("blue", "red", "green");
-$rc = $colors[$choose];   #Pick a random color
-
-$xmin = -6;
-$ymin = -6;
-$xmax = 6;
-$ymax = 6;
-
-$graph = init_graph_no_labels($xmin,$ymin,$xmax,$ymax,
-                             'axes'=>[0,0],'grid'=>[$xmax-$xmin,$ymax-$ymin]);
-$f_graph = FEQ("$f for x in $interval[$n] using color:$rc and weight:3");
-add_functions( $graph,$f_graph );
-
-$label = new Label($xmin+2,$ymax-.5, "y = h(x)",'black','center');
-$graph->lb($label);
-
-$i = 0;           # Number the axes
-do {
-  $xtick = $i + $xmin + 1;
-  $labelx[$i] = new Label($xtick,0, "$xtick",'black','center');
-  if ($xtick!=0) {$graph->lb($labelx[$i]);}
-  $i =$i+1;
-} while ($i<($xmax-$xmin)-1);
-
-$i = 0;
-do {
-  $ytick = $i +$ymin + 1;
-  $labely[$i] = new Label(-.2,$ytick+.1, "$ytick",'black','center');
-  if ($ytick!=0) {$graph->lb($labely[$i]);} 
-  $i =$i+1;
-} while ($i<($ymax-$ymin)-1);
-
-#------------Pick the points---------------
-
-@xnum = (random($dom[0]+1,$dom[1]-1,1), $dom[$n]);
-@slice = NchooseK(2,2);
-@input = @xnum[@slice];  
+@xnum = (random($x-3,$x-1,1),random($x+1,$x+3,1),$x);
+@slice = NchooseK(3,3);
+@input = @xnum[@slice];
 
 ######################################
-#  Main text (part 1)
-#  Note:  tex_size=>n is for the size on the hardcopy: 600=60%
+#  Main text
 
 BEGIN_TEXT
-\{ Plot($graph,tex_size=>600) \} 
-$BR $BR
-Use the graph of \(y=h(x)\) given above to find:
+The following function is defined by two equations.  The equation in the 
+first row gives the output for values of \(x\) less than
+$x.  The equation in the second row gives the ouput for values
+of \(x\) which are greater or equal to $x.  
+
+ \[ g(x) = \{$g->TeX\} \]
+
+Find the indicated values:
 $PAR
-a) \( h($input[0]) \) = \{ans_rule(10)\}
+a) \( g($input[0]) \) = \{ans_rule(15)\}
 $PAR
-b) \( h($input[1]) \) = \{ans_rule(10)\}
+b) \( g($input[1]) \) = \{ans_rule(15)\}
+$PAR
+c) \( g($input[2]) \) = \{ans_rule(15)\}
 END_TEXT
 
 ######################################
-#  Answers (part 1)
+#  Answers
 
+Context("LimitedNumeric");
 Context()->strings->add("No solution"=>{},
                         "Not defined"=>{},
                         "Does not exist"=> {},
                         "All real numbers"=>{});
 
-$ans_a = $f->eval(x=>$input[0])->with(tolerance=>0.15, tolType=>'absolute');
+$ans_a = $g->eval(x=>$input[0])->inContext(Context());
 ANS($ans_a->cmp);
 
-$ans_b = $f->eval(x=>$input[1])->with(tolerance=>0.15, tolType=>'absolute');
+$ans_b = $g->eval(x=>$input[1])->inContext(Context());
 ANS($ans_b->cmp);
 
-######################################
-#  Main text (part 2)
-
-BEGIN_TEXT
-$PAR
-c) The domain: \{ans_rule(20)\}
-$PAR
-d) The range: \{ans_rule(20)\}
-END_TEXT
-
-######################################
-#  Answers  (part 2)
-#  Note:  The context is changed to inequalites that allow 
-#         "All real numbers" as an alias for "R" in a customized 
-#         context.
-#  Note:  The PostFilter check is to make sure the inequality has the 
-#         correct variable. The comparison is to -infinity<x<infinity, 
-#         so the check is only done if the student's answer is in 
-#         inequality form.
-
-Context("Inequalities-AllowStrings");
-Context()->variables->add(y=>'Real');
-
-@domain = ("$dom[0] <= x < $dom[1]", "$dom[0] < x <= $dom[1]");
-$ans_c = Compute($domain[$n]);
-ANS($ans_c->cmp->withPostFilter(AnswerHints(
-            sub {
-                my ($correct,$student,$ans) = @_;
-                return $student =~ /y/ && $student=~/[<>]/;
-                } => ["Use the variable $BITALIC x $EITALIC for the domain of a function.", 
-                      checkCorrect => 1, 
-                      score => 0]
-)));
-
-$ran1 = $f->eval(x=>$dom[0]);
-$ran2 = $f->eval(x=>$dom[1]);
-if ($ran2<$ran1) {
-    $ran2 = $ran1;
-    $ran1 = $f->eval(x=>$dom[1]);
-}
-@range = ("$ran1 <= y < $ran2", "$ran1 < y <= $ran2");
-if ($a<0) {
-  @range = ("$ran1 < y <= $ran2", "$ran1 <= y < $ran2");
-}
-$ans_d = Compute($range[$n]);
-ANS($ans_d->cmp->withPostFilter(AnswerHints(
-            sub {
-                my ($correct,$student,$ans) = @_;
-                return $student =~ /x/;
-                } => ["Use the variable $BITALIC y $EITALIC for the range of a function.", 
-                      checkCorrect => 1, 
-                      score => 0]
-)));
+$ans_c = $g->eval(x=>$input[2])->inContext(Context());
+ANS($ans_c->cmp);
 
 $showPartialCorrectAnswers = 1;
 
 ######################################
 
-ENDDOCUMENT(); # This should be the last executable line in the problem.
+ENDDOCUMENT();        # This should be the last executable line in the problem.
