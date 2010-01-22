@@ -1,0 +1,218 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('chain rule', 'multivariable', 'functions', 'calculus', 'derivatives', 'second derivative')
+## Tagged by glr 01/11/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Partial Derivatives')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('14.7')
+## Problem1('21')
+
+## Textbook tags
+## HHChapter1('Differentiating Functions of Several Variables')
+## HHSection1('Second-Order Partial Derivatives')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+@gr = ();  @fx = ();  @fy = ();  @fxx = ();
+@fyy = (); @fxy = ();
+
+$gr[0] = init_graph(0,0,2,2, size=>[250,250]);
+$gr[0]->lb('reset');
+$gr[1] = init_graph(0,0,2,2, size=>[250,250]);
+$gr[1]->lb('reset');
+
+$x_sl = random(-1,1,2);
+$xx_sl = random(-1,1,2);
+$y_sl = random(-1,1,2);
+$yy_sl = random(-1,1,2);
+
+@lineLoc = ( [ .25, 1, 1.5, 1.75, 1.875 ],
+	     [ .125, .25, .5, 1, 1.75 ] );
+$xl0 = ( $xx_sl == -1 ) ? 1 : 0;  # which set of line locations to use
+$yl0 = ( $yy_sl == -1 ) ? 1 : 0;
+$xv0 = ( $x_sl == -1 ) ? 5 : 1;   # the value of the left-most contour
+$yv0 = ( $y_sl == -1 ) ? 5 : 1;   # the value of the bottom contour
+for ( my $i=0; $i<5; $i++ ) {
+    $gr[0]->moveTo( $lineLoc[$xl0]->[$i], 0 );
+    $gr[0]->lineTo( $lineLoc[$xl0]->[$i], 2, 'blue', 2 );
+    $gr[1]->moveTo( 0, $lineLoc[$yl0]->[$i] );
+    $gr[1]->lineTo( 2, $lineLoc[$yl0]->[$i], 'blue', 2 );
+
+    $gr[0]->lb( new Label( $lineLoc[$xl0]->[$i]+.02, 0.025, $xv0, 'black', 'left',
+			   'bottom' ) );
+    $gr[1]->lb( new Label( 0.025, $lineLoc[$yl0]->[$i], $yv0, 'black', 'left',
+			   'bottom' ) );
+    $xv0 += $x_sl;
+    $yv0 += $y_sl;
+}
+$gr[0]->stamps( closed_circle( 1, 1, 'black' ) );
+$gr[1]->stamps( closed_circle( 1, 1, 'black' ) );
+$gr[0]->lb( new Label( 1.05,1.05,'P','black','left','bottom' ) );
+$gr[1]->lb( new Label( 1.05,1.05,'P','black','left','bottom' ) );
+@grDesc = ( "Graph with vertical contours having values " .
+	        ( $x_sl > 0 ) ? "1 to 5 " : "5 to 1 " .
+	        "left to right across the graph, which are " .
+	        "closer together at the " .
+	        ( $xx_sl > 0 ) ? "right " : "left " .
+	        "side of the graph.",
+	    "Graph with horizontal contours having values " .
+	        ( $y_sl > 0 ) ? "1 to 5 " : "5 to 1 " .
+	        "from the bottom to the top of the graph, which are " .
+	        "closer together at the " .
+	        ( $yy_sl > 0 ) ? "top " : "bottom " .
+	        "of the graph." );
+
+## the signs of the derivatives and second derivatives for each
+##    of these graphs are then
+$fx[0] = PopUp( [ '?', 'positive', 'negative', 'zero' ],
+		$x_sl > 0 ? 'positive' : 'negative' );
+$fx[1] = PopUp( [ '?', 'positive', 'negative', 'zero' ], 'zero' );
+$fy[0] = PopUp( [ '?', 'positive', 'negative', 'zero' ], 'zero' );
+$fy[1] = PopUp( [ '?', 'positive', 'negative', 'zero' ],
+		$y_sl > 0 ? 'positive' : 'negative' );
+$fxx[0] = PopUp( [ '?', 'positive', 'negative', 'zero' ],
+		 $xx_sl*$x_sl > 0 ? 'positive' : 'negative' );
+$fxx[1] = PopUp( [ '?', 'positive', 'negative', 'zero' ], 'zero' );
+$fyy[0] = PopUp( [ '?', 'positive', 'negative', 'zero' ], 'zero' );
+$fyy[1] = PopUp( [ '?', 'positive', 'negative', 'zero' ],
+		 $yy_sl*$y_sl > 0 ? 'positive' : 'negative' );
+$fxy[0] = PopUp( [ '?', 'positive', 'negative', 'zero' ], 'zero' );
+$fxy[1] = PopUp( [ '?', 'positive', 'negative', 'zero' ], 'zero' );
+
+## the explanations for what these are
+@fxExpl = ( $x_sl > 0 ? "increases" : "decreases" .
+	        " as we move left-to-right",
+	    "does not change as we move left-to-right" );
+@fyExpl = ( "does not change as we move up or down",
+	    $y_sl > 0 ? "increases" : "decreases" . " as we move up" );
+@fxxExpl = ( $xx_sl > 0 ? "increases" : "decreases" .
+	        " as we move left-to-right",
+	    "does not change as we move left-to-right" );
+@fyExpl = ( "does not change as we move up or down",
+	    $yy_sl > 0 ? "increases" : "decreases" . " as we move up" );
+
+## the order in which we display these
+@order = ( random(0,1,1) );
+push( @order, ($order[0] + 1)%2 );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+For each of the graphs below, use the level
+curves of the function \( z=f(x,y) \) to decide the
+sign (positive, negative, or zero) of each of the
+partial derivatives at the point \( P \).
+Assume the \( x \)- and \( y \)-axes are in the usual positions.
+$PAR
+$BCENTER
+\{ begintable(2) \}
+\{ row(
+ image( insertGraph( $gr[$order[0]] ), tex_size=>200, height=>250,
+		       width=>250, extra_html_tags=>'alt="' .
+		       $grDesc[$order[0]] . '"' ),
+ image( insertGraph( $gr[$order[1]] ), tex_size=>200, height=>250,
+		       width=>250, extra_html_tags=>'alt="' .
+		       $grDesc[$order[1]] . '"' ) ) \}
+\{ row(
+"\(f_x(P)\) is " . $fx[$order[0]]->menu() . "$BR" .
+    "\(f_y(P)\) is " . $fy[$order[0]]->menu() . "$BR" .
+    "\(f_{xx}(P)\) is " . $fxx[$order[0]]->menu() . "$BR" .
+    "\(f_{yy}(P)\) is " . $fyy[$order[0]]->menu() . "$BR" .
+    "\(f_{xy}(P)\) is " . $fxy[$order[0]]->menu() . "$BR",
+"\(f_x(P)\) is " . $fx[$order[1]]->menu() . "$BR" .
+    "\(f_y(P)\) is " . $fy[$order[1]]->menu() . "$BR" .
+    "\(f_{xx}(P)\) is " . $fxx[$order[1]]->menu() . "$BR" .
+    "\(f_{yy}(P)\) is " . $fyy[$order[1]]->menu() . "$BR" .
+    "\(f_{xy}(P)\) is " . $fxy[$order[1]]->menu() . "$BR" ) \}
+\{ endtable() \}
+$ECENTER
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $fx[$order[0]]->cmp() );
+ANS( $fy[$order[0]]->cmp() );
+ANS( $fxx[$order[0]]->cmp() );
+ANS( $fyy[$order[0]]->cmp() );
+ANS( $fxy[$order[0]]->cmp() );
+ANS( $fx[$order[1]]->cmp() );
+ANS( $fy[$order[1]]->cmp() );
+ANS( $fxx[$order[1]]->cmp() );
+ANS( $fyy[$order[1]]->cmp() );
+ANS( $fxy[$order[1]]->cmp() );
+
+@ovar = ( 'x', 'y' );
+@dir  = ( 'up', 'left-to-right' );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+For the left graph,
+$BR
+\(f_x(P)\) is \{ $fx[$order[0]]->correct_ans() \} because \(f\)
+$fxExpl[$order[0]].
+$BR
+\(f_y(P)\) is \{ $fy[$order[0]]->correct_ans() \} because \(f\)
+$fyExpl[$order[0]].
+$BR
+\(f_{xx}(P)\) is \{ $fxx[$order[0]]->correct_ans() \} because \(f_x\)
+$fxxExpl[$order[0]].
+$BR
+\(f_{yy}(P)\) is \{ $fyy[$order[0]]->correct_ans() \} because \(f_y\)
+$fyyExpl[$order[0]].
+$BR
+\(f_{xy}(P)\) is zero because \(f_{$ovar[$order[0]]}\) does not change as
+we go $dir[$order[0]].
+
+$PAR
+For the right graph,
+$BR
+\(f_x(P)\) is \{ $fx[$order[1]]->correct_ans() \} because \(f\)
+$fxExpl[$order[1]].
+$BR
+\(f_y(P)\) is \{ $fy[$order[1]]->correct_ans() \} because \(f\)
+$fyExpl[$order[1]].
+$BR
+\(f_{xx}(P)\) is \{ $fxx[$order[1]]->correct_ans() \} because \(f_x\)
+$fxxExpl[$order[1]].
+$BR
+\(f_{yy}(P)\) is \{ $fyy[$order[1]]->correct_ans() \} because \(f_y\)
+$fyyExpl[$order[1]].
+$BR
+\(f_{xy}(P)\) is zero because \(f_{$ovar[$order[1]]} does not change as
+we go $dir[$order[1]].
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

@@ -1,0 +1,231 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('chain rule', 'multivariable', 'functions', 'calculus', 'derivatives', 'second derivative')
+## Tagged by glr 01/11/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Partial Derivatives')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('14.7')
+## Problem1('27')
+
+## Textbook tags
+## HHChapter1('Differentiating Functions of Several Variables')
+## HHSection1('Second-Order Partial Derivatives')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+## we make this different from Q27 by making sure we get a different
+##    set of values from that problem.  we do this by changing the
+##    corner and the direction of increase, below
+SRAND( $psvn );
+
+## pick a corner for the origin of the contours: 1 is bottom left,
+##    2 is bottom right, 3 is top right, 4 is top left
+$corner = random(1,4,1);
+
+## we increase or decrease the density of the contours going
+##    into the corner
+$c_den = random(-1,1,2);
+
+## we increase or decrease values of the contours leading into
+##    the corner
+$valInc = random(-1,1,2);
+
+## all randomization is done now, so update the corner and increase
+$corner = ($corner + random(1,3,1));
+$corner = $corner%4 if $corner > 4;
+$valInc = $valInc*-1;
+$val0 = ( $valInc > 0 ) ? 1 : 7;
+
+## the long diagonal is then between (x0,y0) and (x1,y1), where
+$x0 = 0;
+$y0 = ( $corner == 2 || $corner == 4 ) ? 0 : 2;
+$x1 = ($x0 + 2)%4;
+$y1 = ($y0 + 2)%4;
+## then, successive contours have a start point that increments
+##    x0, y0 and x1, y1 up or down according to which corner we're
+##    going to.  the labels for the contour are on a diagonal going
+##    into the corner perpendicular to this line
+if ( $corner == 1 ) {
+    $dx_x0 = 0;   $dy_y0 = -1;
+    $dx_x1 = -1;  $dy_y1 = 0;
+
+    $labLR = 'left';  $labTB = 'bottom';
+} elsif ( $corner == 2 ) {
+    $dx_x0 = 1;   $dy_y0 = 0;
+    $dx_x1 = 0;   $dy_y1 = -1;
+
+    $labLR = 'right';  $labTB = 'bottom';
+} elsif ( $corner == 3 ) {
+    $dx_x0 = 1;   $dy_y0 = 0;
+    $dx_x1 = 0;   $dy_y1 = 1;
+
+    $labLR = 'right';  $labTB = 'top';
+} else {
+    $dx_x0 = 0;   $dy_y0 = 1;
+    $dx_x1 = -1;   $dy_y1 = 0;
+
+    $labLR = 'left';  $labTB = 'top';
+}
+## where to put contour labels
+sub labloc {
+    my @pt = @_;
+    my $v = $pt[0] + $pt[1];
+    if ( $corner == 1 )    { return ( $v/2, $v/2 ); }
+    elsif ( $corner == 2 ) { return ( $v/2, 2-$v/2 ); }
+    elsif ( $corner == 3 ) { return ( $v/2, $v/2 ); }
+    else                   { return ( $v/2, 2-$v/2 ); }
+}
+
+$labLRc = 'center';
+$labTBc = 'middle';
+
+$gr = init_graph( 0,0,2,2, size=>[250,250] );
+$gr->lb('reset');
+
+## the deltas between the x (or y) endpoints of the contour lines
+##    we draw are
+@deltas = ( 0.035, 0.05, 0.1, 0.125, 0.25, 0.5, 0.75 );
+## if the density is increasing, we reverse the order of these
+$del_index0 = ( $c_den > 0 ) ? 6 : 0;
+$del_increment = ( $c_den > 0 ) ? -1 : 1;
+
+## then put in the contours
+$xstart = $x0;  $xend = $x1;
+$ystart = $y0;  $yend = $y1;
+for ( my $i=0; $i<7; $i++ ) {
+    $gr->moveTo($xstart, $ystart);
+    $gr->lineTo($xend, $yend,'blue',2);
+
+    ## and label the contour
+    ($xlab, $ylab) = labloc( $xstart, $xend );
+    $gr->lb( new Label( $xlab, $ylab, "$val0 ", "black", $labLRc, $labTBc ) );
+
+    $xstart += $dx_x0*$deltas[$del_index0];
+    $ystart += $dy_y0*$deltas[$del_index0];
+    $xend   += $dx_x1*$deltas[$del_index0];
+    $yend   += $dy_y1*$deltas[$del_index0];
+
+    $val0 += $valInc;
+    $del_index0 += $del_increment;
+}
+
+$gr->stamps( closed_circle( 1, ($corner == 1 || $corner == 2 ) ? .5 : 1.5,
+			    'black' ) );
+$gr->lb( new Label( 1, ($corner == 1 || $corner == 2 ) ? .5 : 1.5, 
+		    'P', 'black', $labLR, $labTB ) );
+
+## then if we're going into corners 1 or 4, the sign of f_x reverses,
+##    and into corners 1 and 2, f_y reverses
+$fxsign = ( $corner == 1 || $corner == 4 ) ? -1 : 1;
+$fysign = ( $corner == 1 || $corner == 2 ) ? -1 : 1;
+
+$fx = PopUp( [ "?", "positive", "negative", "zero" ],
+	     ($valInc*$fxsign > 0) ? "positive" : "negative" );
+$fy = PopUp( [ "?", "positive", "negative", "zero" ],
+	     ($valInc*$fysign > 0) ? "positive" : "negative" );
+$fxx = PopUp( [ "?", "positive", "negative", "zero" ],
+	     ($valInc*$c_den > 0) ? "positive" : "negative" );
+$fyy = PopUp( [ "?", "positive", "negative", "zero" ],
+	     ($valInc*$c_den > 0) ? "positive" : "negative" );
+$fxy = PopUp( [ "?", "positive", "negative", "zero" ],
+	     ($valInc*$fxsign*$fysign*$c_den > 0) ? "positive" : "negative" );
+
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Use the level curves of the function \( z=f(x,y) \) to decide the
+sign (positive, negative, or zero) of each of the
+partial derivatives at the point \( P \).
+Assume the \( x \)- and \( y \)-axes are in the usual positions.
+
+$PAR
+$BCENTER
+\{ begintable(2) \}
+\{ row( image( insertGraph( $gr ), tex_size=>200, height=>250, width=>250,
+	       extra_html_tags=>'alt="' . $grDesc . '"' ),
+"\(f_x(P)\) is " . $fx->menu() . "$BR" .
+    "\(f_y(P)\) is " . $fy->menu() . "$BR" .
+    "\(f_{xx}(P)\) is " . $fxx->menu() . "$BR" .
+    "\(f_{yy}(P)\) is " . $fyy->menu() . "$BR" .
+    "\(f_{xy}(P)\) is " . $fxy->menu() . "$BR" ) \}
+\{ endtable() \}
+$ECENTER
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $fx->cmp() );
+ANS( $fy->cmp() );
+ANS( $fxx->cmp() );
+ANS( $fyy->cmp() );
+ANS( $fxy->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+\(f_x(P)\) is \{ $fx->correct_ans() \} because \(f\)
+\{ $fx->correct_ans() eq 'positive' ? 'increases' : 'decreases' \}
+as you go to the right.
+
+$BR
+\(f_y(P)\) is \{ $fy->correct_ans() \} because \(f\)
+\{ $fy->correct_ans() eq 'positive' ? 'increases' : 'decreases' \}
+as you go up.
+
+$BR
+\(f_{xx}(P)\) is \{ $fxx->correct_ans() \} because the level curves are
+\{ ($fxx->correct_ans() eq 'positive') ? 'closer together' : 'further apart' \}
+as you go to the right, so the rate of increase of \( f \) is
+\{ ($fxx->correct_ans() eq 'positive') ? 'faster' : 'slower' \}
+as you move to the right. Therefore, \(f_x\)
+\{ ($fxx->correct_ans() eq 'positive') ? 'increases' : 'decreases' \}
+as you go to the right.
+
+$BR
+\(f_{yy}(P)\) is \{ $fyy->correct_ans() \} because \(f_y\)
+\{ ($fyy->correct_ans() eq 'positive') ? 'increases' : 'decreases' \}
+as you move up.
+
+$BR
+\(f_{xy}(P)\) is \{ $fxy->correct_ans() \} because the rate of change
+of \(f\) with respect to \(x\) at \(P\) is
+\{ ($fxy->correct_ans() eq 'positive') ? 'lower' : 'higher' \}
+than at points above \(P\). Therefore \(f_x\)
+\{ ($fxy->correct_ans() eq 'positive') ? 'increases' : 'decreases' \}
+as you move up.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

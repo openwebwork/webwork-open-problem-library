@@ -1,0 +1,315 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('chain rule', 'multivariable', 'functions', 'calculus', 'derivatives', 'second derivative')
+## Tagged by glr 01/11/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Partial Derivatives')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('14.7')
+## Problem1('44')
+
+## Textbook tags
+## HHChapter1('Differentiating Functions of Several Variables')
+## HHSection1('Second-Order Partial Derivatives')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl",
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Vector2D");
+$showPartialCorrectAnswers = 1;
+
+## whether contours increase or decrease in value as x increases
+$c_inc = random(-1,1,2);
+## thus the starting value is
+$c0 = ( $c_inc == -1 ) ? 10 : 1;
+
+$gr = init_graph( -1,-1,6,6, axes=>[0,0], ticks=>[7,7], size=>[250,250] );
+## draw rays out from the origin or in to the top corner
+$dir = random(0,1,1);
+if ( $dir ) {
+    ## then draw out from the origin
+    $grExpl = "Graph with lines extending radially in a direction out " .
+        "from the origin, starting a short ways out from the origin.  " .
+	"The values on the contours are $c0 to $c1, from the contour " .
+	"closest to the y-axis to that closest to the x-axis.";
+    sub stptA { my $m=shift(); return 1/sqrt(1 + $m*$m); }
+
+    ## the lines have slopes
+    @slopes = ( 6/1.5, 6/2.25, 6/2.75, 6/3.5, 6/4.75, 5.25/6, 3.5/6,
+		2.25/6, 1.25/6, .5/6 );
+    ## the lines
+    @f = ();
+    foreach my $m ( @slopes ) {
+	$x0 = stptA( $m );
+	push( @f, "$m*x for x in <$x0,6> using color:blue and weight:2" );
+    }
+    add_functions( $gr, @f );
+
+    ## add the points P and Q
+    $gr->stamps( closed_circle( 1, 6/1.5, 'black' ) );
+    $gr->lb( new Label( 1, 6/1.5, "P", 'black', 'right', 'bottom' ) );
+    $gr->stamps( closed_circle( 5, 5*3.5/6, 'black' ) );
+    $gr->lb( new Label( 5, 5*3.5/6, "Q", 'black', 'right', 'bottom' ) );
+
+    ## and the labels for the contours
+    $c = $c0;
+    for ( my $i=0; $i<5; $i++ ) {
+	$gr->lb( new Label( 6/$slopes[$i], 6, "$c ", 'black', 'right', 'top' ) );
+	$c += $c_inc;
+    }
+    for ( my $i=5; $i<10; $i++ ) {
+	$gr->lb( new Label( 5.8, 6*$slopes[$i], $c, 'black', 'right', 'top' ) );
+	$c += $c_inc;
+    }
+
+    ## then the answers to the various questions are
+    $z_incx = PopUp( [ "?", "increasing", "decreasing" ],
+		     $c_inc > 0 ? "increasing" : "decreasing" );
+    $z_incy = PopUp( [ "?", "increasing", "decreasing" ],
+		     $c_inc > 0 ? "decreasing" : "increasing" );
+    $fx_pos = PopUp( [ "?", "positive", "negative" ],
+		     $c_inc > 0 ? "positive" : "negative" );
+    $fy_pos = PopUp( [ "?", "positive", "negative" ],
+		     $c_inc > 0 ? "negative" : "positive" );
+    $fxx_pos = PopUp( [ "?", "positive", "negative" ],
+		      $c_inc > 0 ? "negative" : "positive" );
+    $fyy_pos = PopUp( [ "?", "positive", "negative" ],
+		      $c_inc > 0 ? "positive" : "negative" );
+
+    ## these are parallel to the gradient vectors at these points
+    ##   their magnitudes are very wrong
+    $dirP = Vector( (4*$c_inc, -1*$c_inc) );
+    $dirQ = Vector( (7*$c_inc/12, -1*$c_inc) );
+
+    $gradLonger = PopUp( [ "?", "P", "Q" ], "P" );
+
+} else {
+    ## in from top corner
+    $grExpl = "Graph with lines extending radially in a direction out " .
+        "from the origin, starting a short ways out from the origin.  " .
+	"The values on the contours are $c0 to $c1, from the contour " .
+	"closest to the y-axis to that closest to the x-axis.";
+    sub stpt {
+	my ($m, $x0, $y0) = @_;
+	return (1/(1+$m*$m))*(6 + $m*$m*$x0 - $m*($y0-6) -
+			      sqrt(-35 - $m*$m*(35 - 12*$x0 + $x0*$x0) +
+				   2*$m*($x0 - 6)*($y0 - 6) + 12*$y0 -
+				   $y0*$y0));
+    }
+
+    ## the lines have start points (which determine the slopes, because
+    ##    they all go through (6,6))
+    @x0 = ( 0, 0, 0, 0, 0, 0.75, 2.5, 3.75, 4.75, 5.5 );
+    @y0 = ( 4.5, 3.75, 3.25, 2.5, 1.25, 0, 0, 0, 0, 0 );
+    ## the lines
+    @f = ();
+    for ( my $i=0; $i<10; $i++ ) {
+	$m = (6 - $y0[$i])/(6 - $x0[$i]);
+	$x1 = stpt( $m, $x0[$i], $y0[$i] );
+	push( @f, "$y0[$i] + $m*(x-$x0[$i]) for x in <$x0[$i],$x1> using " .
+	      "color:blue and weight:2" );
+    }
+    add_functions( $gr, @f );
+
+    ## add the points P and Q
+    $gr->stamps( closed_circle( 4, 5.5, 'black' ) );
+    $gr->lb( new Label( 4, 5.4, "P", 'black', 'right', 'top' ) );
+    $gr->stamps( closed_circle( 5, 6/7, 'black' ) );
+    $gr->lb( new Label( 5, 6/7, "Q ", 'black', 'right', 'bottom' ) );
+
+    ## and the labels for the contours
+    $c = $c0;
+    for ( my $i=0; $i<5; $i++ ) {
+	$gr->lb( new Label( 0, $y0[$i]+.15, " $c", 'black', 'left', 'bottom' ) );
+	$c += $c_inc;
+    }
+    for ( my $i=5; $i<10; $i++ ) {
+	$gr->lb( new Label( $x0[$i], 0, $c, 'black', 'right', 'bottom' ) );
+	$c += $c_inc;
+    }
+
+    ## then the answers to the various questions are
+    $z_incx = PopUp( [ "?", "increasing", "decreasing" ],
+		     $c_inc > 0 ? "increasing" : "decreasing" );
+    $z_incy = PopUp( [ "?", "increasing", "decreasing" ],
+		     $c_inc > 0 ? "decreasing" : "increasing" );
+    $fx_pos = PopUp( [ "?", "positive", "negative" ],
+		     $c_inc > 0 ? "positive" : "negative" );
+    $fy_pos = PopUp( [ "?", "positive", "negative" ],
+		     $c_inc > 0 ? "negative" : "positive" );
+    $fxx_pos = PopUp( [ "?", "positive", "negative" ],
+		      $c_inc > 0 ? "positive" : "negative" );
+    $fyy_pos = PopUp( [ "?", "positive", "negative" ],
+		      $c_inc > 0 ? "negative" : "positive" );
+
+    ## these are parallel to the gradient vectors at these points
+    ##   their magnitudes are very wrong
+    $dirP = Vector( ($c_inc, -4*$c_inc) );
+    $dirQ = Vector( ($c_inc, -7*$c_inc/12) );
+
+    $gradLonger = PopUp( [ "?", "P", "Q" ], "P" );
+}
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+A contour diagram for the smooth function  \( z=f(x,y) \) is shown
+below.
+$PAR
+$BCENTER
+\{ image(insertGraph( $gr ), tex_size=>250, height=>250, width=>250,
+	 extra_html_tags=>'alt="' . $grExpl . '"') \}
+$ECENTER
+$PAR
+${BBOLD}(a)$EBOLD
+Is \( z \) an increasing or decreasing function of \( x \)?
+\{ $z_incx->menu() \}
+$BR
+Of \( y \)?
+\{ $z_incy->menu() \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Is \( f_x \) positive or negative?
+\{ $fx_pos->menu() \}
+$BR
+How about \( f_y \)?
+\{ $fy_pos->menu() \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+Is \( f_{xx} \) positive or negative?
+\{ $fxx_pos->menu() \}
+$BR
+How about \( f_{yy} \)?
+\{ $fyy_pos->menu() \}
+
+$PAR
+${BBOLD}(d)$EBOLD
+In what direction does \(\nabla f\) point at point \(P\)?
+$BR
+in the direction \{ ans_rule(25) \}
+$BR
+${BITALIC}(Give a vector that points generally in the right
+direction.)$EITALIC
+$BR
+In what direction does \(\nabla f\) point at point \(Q\)?
+$BR
+in the direction \{ ans_rule(25) \}
+$BR
+${BITALIC}(Again, give a vector that points generally in the right
+direction.)$EITALIC
+
+$PAR
+${BBOLD}(e)$EBOLD
+Is \( \nabla f \) longer at \( P \) or at \( Q \)?
+\{ $gradLonger->menu() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $z_incx->cmp() );   ANS( $z_incy->cmp() );
+ANS( $fx_pos->cmp() );   ANS( $fy_pos->cmp() );
+ANS( $fxx_pos->cmp() );  ANS( $fyy_pos->cmp() );
+ANS( $dirP->cmp( checker=>sub {
+    my ( $correct, $student, $ansHash ) = @_;
+    @cVals = $correct->value;
+    @sVals = $student->value;
+    return $cVals[0]*$sVals[0] > 0 && $cVals[1]*$sVals[1] > 0;
+} ) );
+ANS( $dirQ->cmp( checker=>sub {
+    my ( $correct, $student, $ansHash ) = @_;
+    @cVals = $correct->value;
+    @sVals = $student->value;
+    return $cVals[0]*$sVals[0] > 0 && $cVals[1]*$sVals[1] > 0;
+} ) );
+ANS( $gradLonger->cmp() );
+
+if ( $c_inc > 0 ) {
+    $inc_label = 'increase';
+    $inc_labeling = 'increasing';
+    $dec_label = 'decrease';
+    $dec_labeling = 'decreasing';
+} else {
+    $inc_label = 'decrease';
+    $inc_labeling = 'dereasing';
+    $dec_label = 'increase';
+    $dec_labeling = 'increasing';
+}
+if ( $dir ) {
+    $closer_label = "farther apart";
+    $pgrad_dir = ( $c_inc > 0 ) ? "to the right and slightly down" :
+        "to the left and slightly up";
+    $qgrad_dir = ( $c_inc > 0 ) ? "to the right and steeply down" :
+        "to the left and steeply up";
+} else {
+    $closer_label = "closer together";
+    $pgrad_dir = ( $c_inc > 0 ) ? "to the right and steeply down" :
+        "to the left and steeply up";
+    $qgrad_dir = ( $c_inc > 0 ) ? "to the right and slightly down" :
+        "to the left and slightly up";
+}
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+Moving parallel to the \(x\)-axis means that the \(z\)-labels on the
+contours $inc_label, so \(z\) is an $inc_labeling function of \(x\).
+Moving parallel to the \(y\)-axis, the \(z\)-labels $dec_label, so
+\(z\) is a $dec_labeling function of \(y\).
+
+$PAR
+${BBOLD}(b)$EBOLD
+Since \(z\) is an $inc_labeling function of \(x\), \(f_x\) is
+\{ $fx_pos->correct_ans() \}.  Similarly, \(f_y\) is
+\{ $fy_pos->correct_ans() \}.
+
+$PAR
+${BBOLD}(c)$EBOLD
+Since the contours get $closer_label together as we move parallel to the
+\(x\)-axis, \(f_{xx}\) is
+\{ $fxx_pos->correct_ans() \}.  Similar reasoning shows that \(f_{yy}\)
+is \{ $fyy_pos->correct_ans() \}.
+
+$PAR
+${BBOLD}(d)$EBOLD
+The vector \(\nabla f\) is perpendicular to the level curves and points in
+the direction of increasing \(f\) values.  Thus at \(P\), it must point
+$pgrad_dir, and at \(Q\) $qgrad_dir.
+
+$PAR
+${BBOLD}(e)$EBOLD
+The vector \(\nabla f\) is longer at
+\{ $gradLonger->correct_ans() \} because the contours are closer together
+there.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
