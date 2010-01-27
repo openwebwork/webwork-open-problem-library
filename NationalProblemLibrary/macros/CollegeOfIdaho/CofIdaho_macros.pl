@@ -214,10 +214,10 @@ my $new_evaluator = sub {
    if ($ans_hash_old->{score}!=1) {
           $ans_hash_old->{score}=0;
 #         $ans_hash_old->setKeys( 'ans_message' =>"Your equation must model the problem.");
-          $ans_hash_old->setKeys( 'ans_message'=>"At least one side of your equation is incorrect.");
+          $ans_hash_old->setKeys( 'ans_message'=>"At least one side is incorrect.");
           }
    if ($student !~ /[=]/) {
-      if ($ans =~/[RCP]/) {  #This is for revenue/cost/profit problems.
+      if ($ans =~/[RCP]/) {
         @side = split(/[=]/,$ans);
             $ans_hash_old->setKeys( 'ans_message'=>"Enter your answer in the form: $side[0] = expression.");}
       else  { $ans_hash_old->setKeys( 'ans_message' =>"You must enter an equation.");}
@@ -488,6 +488,8 @@ sub FactoringEvaluator {
  
          return $ans_hash;
        };   #END of SUB
+
+       Context()->strings->remove("Does not factor"=>());
           return $new_evaluator;
 }
 
@@ -657,6 +659,8 @@ sub RationalExpEvaluator {
       if ($ans_text=~/not/) {$ans_hash->{correct_ans} = $ans_text;}	
       return $ans_hash;
    };
+
+   Context()->strings->remove("Does not simplify"=>());
    return $new_evaluator;
 }
 
