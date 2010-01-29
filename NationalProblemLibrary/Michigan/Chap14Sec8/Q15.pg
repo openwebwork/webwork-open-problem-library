@@ -1,0 +1,304 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('differentiable function', 'multivariable', 'functions', 'derivatives', 'calculus')
+## Tagged by glr 01/11/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Limits and Continuity')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('14.8')
+## Problem1('15')
+
+## Textbook tags
+## HHChapter1('Differentiating Functions of Several Variables')
+## HHSection1('Differentiability')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl",
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( y=>'Real', h=>'Real', a=>'Real', b=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+## we pick between two functions for this problem
+$whichF = random(0,1,1);
+if ( $whichF ) {
+    $func = Compute( "(x*y^2)/(x^2 + y^2)" );
+    $fx = Compute( "(y^2*(x^2 + y^2) - 2*x^2*y^2)/(x^2 + y^2)^2" );
+    $fy = Compute( "(y^2*(x^2 + y^2) - 2*x^2*y^2)/(x^2 + y^2)^2" );
+    $limitfunc = Compute( "x*y^2/(x^2 + y^2)^(3/2)" );
+    $gpzero = Compute( "a*b^2/(a^2 + b^2)" );
+    $dirDerivTerm = Compute( "h^3*a*b^2/((a^2 + b^2)*h^2)" );
+    $dirDerivLimit = Compute( "a*b^2" );
+} else {
+    $func = Compute( "(x^2*y)/(x^2 + y^2)" );
+    $fx = Compute( "(y^2*(x^2 + y^2) - 2*x^2*y^2)/(x^2 + y^2)^2" );
+    $fy = Compute( "(y^2*(x^2 + y^2) - 2*x^2*y^2)/(x^2 + y^2)^2" );
+    $limitfunc = Compute( "x^2*y/(x^2 + y^2)^(3/2)" );
+    $gpzero = Compute( "a^2*b/(a^2 + b^2)" );
+    $dirDerivTerm = Compute( "h^3*a^2*b/((a^2 + b^2)*h^2)" );
+    $dirDerivLimit = Compute( "a^2*b" );
+}
+
+# the contour diagrams
+@figs = ( image( "q15fig1.png", height=>362, width=>360, tex_size=>200,
+		 extra_html_tags=>'alt="contour diagram"' ),
+	  image( "q15fig2.png", height=>362, width=>360, tex_size=>200,
+		 extra_html_tags=>'alt="contour diagram"' ),
+	  image( "q15fig3.png", height=>362, width=>360, tex_size=>200,
+		 extra_html_tags=>'alt="contour diagram"' ),
+	  image( "q15fig4.png", height=>362, width=>360, tex_size=>200,
+		 extra_html_tags=>'alt="contour diagram"' ) );
+@figOrder = NchooseK(4,4);
+for ( my $i=0; $i<@figOrder; $i++ ) {
+    if ( ( $whichF && $figOrder[$i] == 1 ) ||
+         ( ! $whichF && $figOrder[$i] == 0 ) ) {
+	$correctContour = "figure " . ($i+1);
+	break;
+    }
+}
+$whichFig = PopUp( [ "?", "figure 1", "figure 2", "figure 3", "figure 4" ],
+		   $correctContour );
+
+$diffable = PopUp( [ "?", "yes", "no" ], "yes" );
+
+$fxarg1 = Compute("h");
+$fxarg2 = Compute("0");
+$fyarg1 = Compute("0");
+$fyarg2 = Compute("h");
+$fxzero = Compute("0");
+$fyzero = Compute("0");
+
+$linapprox = Formula("0");
+
+$limit = Compute("1/2^(3/2)");
+$diffableAtZero = PopUp( [ "?", "yes", "no", "it is not possible to tell" ],
+			 "no" );
+
+$gpchain = Formula("0");
+
+$chainworks = PopUp( [ "?", "yes", "no", "it is not possible to tell" ],
+		     "no" );
+
+$dirDeriv = PopUp( [ "?", "yes", "no", "it is not possible to tell",
+		     "only for special vectors u" ], "yes" );
+
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Consider the function
+\[
+f(x,y) =
+\begin{cases}
+$func, & (x,y)\ne(0,0)\\
+0,     & (x,y) = (0,0)
+\end{cases}
+\]
+$PAR
+
+${BBOLD}(a)$EBOLD
+Use a computer to draw a contour diagram for \( f \).  Which of
+the following is the contour diagram?
+\{ $whichFig->menu() \}
+$PAR
+$BCENTER
+\{ begintable(4) \}
+\{ row( "${BBOLD}1.$EBOLD", $figs[$figOrder[0]],
+	"${BBOLD}2.$EBOLD", $figs[$figOrder[1]] ) \}
+\{ row( "${BBOLD}3.$EBOLD", $figs[$figOrder[2]],
+	"${BBOLD}4.$EBOLD", $figs[$figOrder[3]] ) \}
+\{ endtable() \}
+$ECENTER
+$PAR
+
+${BBOLD}(b)$EBOLD
+Is  \(f\)  differentiable for  \((x,y)\ne (0,0)\) ?
+\{ $diffable->menu() \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+Show that each of the partial derivatives \(f_x(0,0)\) and \(f_y(0,0)\)
+exist by directly calculating them: $BR
+\( f_x(0,0) = \lim\limits_{h\to0}\;\frac{1}{h} ( f(\)
+\{ ans_rule(5) \}, \{ ans_rule(5) \} \( ) - f( \)
+\{ ans_rule(5) \}, \{ ans_rule(5) \} \( )) \) =
+\{ ans_rule(15) \}
+$BR and $BR
+\( f_y(0,0) = \lim\limits_{h\to0}\;\frac{1}{h} ( f(\)
+\{ ans_rule(5) \}, \{ ans_rule(5) \} \( ) - f( \)
+\{ ans_rule(5) \}, \{ ans_rule(5) \} \( )) \) =
+\{ ans_rule(15) \}
+
+$PAR
+${BBOLD}(d)$EBOLD
+What is the linear approximation for \(f\)?
+$BR
+\( L(x,y) = \) \{ ans_rule(55) \}
+
+$PAR
+${BBOLD}(e)$EBOLD
+By the definition of differentiability, if \(f\) is differentiable
+at \((0,0)\), what limit must be zero?  Fill in the correct function:
+$BR
+If \(f\) is differentiable,
+\( \lim\limits_{(x,y)\to(0,0)} \) \{ ans_rule(55) \} must = 0.
+$PAR
+If we pick \(x = y = t\), and let \(t\to 0\), what is the limit?
+$BR
+Limit = \{ ans_rule(35) \}
+$PAR
+Is  \(f\)  differentiable at  \((0,0)\)?
+\{ $diffableAtZero->menu() \}
+
+$PAR
+${BBOLD}(f)$EBOLD
+Now suppose  \(x(t)=at\) and \(y(t)=bt\), where \(a\) and \(b\) are
+constants, not both zero.  If \(g(t) = f(x(t),y(t))\), find \(g'(t)\):
+$BR
+\( g'(t) = \) \{ ans_rule(55) \}
+
+$PAR
+${BBOLD}(g)$EBOLD
+Still considering \(g(t)\) from (e) above, calculating \(g'(0)\)
+using the chain rule:
+$BR
+\( g'(0) = \) \{ ans_rule(35) \}
+$PAR
+Does the chain rule hold for the composite function \(g(t)\) at
+\(t=0\) ?
+\{ $chainworks->menu() \}
+ 
+$PAR
+${BBOLD}(h)$EBOLD
+Let \(\vec u = \langle a, b\rangle\) be any unit vector.  Find the
+directional derivative \( f_{\vec u}(0,0) \) by filling out and
+evaluating the limit (simplify your answer as much as possible):
+$BR
+\( f_{\vec u}(0,0) = \lim\limits_{h\to0} \frac{1}{h} ( \)
+\{ ans_rule(35) \} \( - f(0,0) ) = \)
+\{ ans_rule(15) \} $BR
+${BITALIC}(Enter ${BBOLD}DNE$EBOLD for the limit if it does not
+exist.)$EITALIC
+
+$PAR
+Does this exist for every \(\vec u\)?
+\{ $dirDeriv->menu() \}
+
+$PAR
+${BITALIC}(Be sure that you can justify all of your answers in
+this problem.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $whichFig->cmp() );
+ANS( $diffable->cmp() );
+ANS( $fxarg1->cmp() );    ANS( $fxarg2->cmp() );
+ANS( $fxzero->cmp() );    ANS( $fxzero->cmp() );
+ANS( $fxzero->cmp() );
+ANS( $fyarg1->cmp() );    ANS( $fyarg2->cmp() );
+ANS( $fyzero->cmp() );    ANS( $fyzero->cmp() );
+ANS( $fyzero->cmp() );
+ANS( $linapprox->cmp() );
+ANS( $limitfunc->cmp() );
+ANS( $limit->cmp() );
+ANS( $diffableAtZero->cmp() );
+ANS( $gpzero->cmp() );
+ANS( $gpchain->cmp() );
+ANS( $chainworks->cmp() );
+ANS( $dirDerivTerm->cmp() );
+ANS( $dirDerivLimit->cmp() );
+ANS( $dirDeriv->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+
+${BBOLD}(a)$EBOLD
+The contour diagram for \(f(x,y) = xy/\sqrt{x^2+y^2}\) is
+\{ $whichFig->correct_ans() \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+\(f\) is differentiable at all \((x,y)\neq(0,0)\) as it is a rational
+function with nonvanishing denominator.
+
+$PAR
+${BBOLD}(c)$EBOLD
+\[ f_x(0,0)=\lim_{x\to 0}\frac{f(x,0)-f(0,0)}{x}=0 \]
+and similarly
+\[ f_y(0,0)=\lim_{y\to 0}\frac{f(0,y)-f(0,0)}{y}=0 \]
+
+$PAR
+${BBOLD}(d)$EBOLD
+We know the linear approximation for the function \(f\) at \((0,0)\) is
+\(L(x,y) = f(0,0) + f_x(0,0) x + f_y(0,0) y = 0 + 0 x + 0 y\).
+
+$PAR
+${BBOLD}(e)$EBOLD
+The definition of differentiability says that \(f\) is differentiable
+if
+\[ \lim\limits_{(x,y)\to(0,0)} \frac{f(x,y) - L(x,y)}{\sqrt{x^2 + y^2}} = 0. \]
+Here, for \((x,y)\ne (0,0)\), \(f(x,y) = $func\), and \(L(x,y) = 0\), so we
+have
+\[ \lim\limits_{(x,y)\to(0,0)} \frac{$func}{\sqrt{x^2 + y^2}} =
+   \lim\limits_{(x,y)\to(0,0)} $limitfunc. \]
+If we take \(x = y = t\) and let \(t\to 0\), we have
+\[ \lim\limits_{(x,y)\to(0,0)} $limitfunc =
+    \lim_{t\to 0} \frac{t^3}{(2t^2)^{3/2}} = 2^{-3/2} \ne 0. \]
+Thus the function is not differentiable at \((0,0)\).
+
+$PAR
+${BBOLD}(f)$EBOLD
+Now, if \(x(t) = at\) and \(y(t) = bt\), then
+\[ g(t) = f(x(t),y(t)) = $gpzero\cdot t, \]
+so \( g'(t) = g'(0) = $gpzero\).
+
+$PAR
+${BBOLD}(g)$EBOLD
+The chain rule says that
+\[ g'(t) = \frac{d}{dt} f(x(t),y(t)) = f_x\cdot x'(t) + f_y\cdot y'(t) =
+    f_x\cdot a + f_y\cdot b. \]
+But \(f_x(0,0) = 0 = f_y(0,0)\) (from above), so this gives
+\( g'(0) = 0\).  Thus the chain rule does not hold for this function.
+This happens because \(f\) is not differentiable at \((0,0)\).
+
+$PAR
+${BBOLD}(h)$EBOLD
+If \(\vec u=a\vec i+b\vec j\), then \(a^2+b^2=1\) (because \(\vec u\) is a
+unit vector). Thus, 
+\[ f_{\vec u}(0,0) = \lim_{h\to 0}\frac{f(ah,bh)}{h} =
+    \lim_{h\to 0}\frac{g(h)}{h} = $dirDerivLimit.\]
+Again, note that even though \(f\) has a directional derivative at
+\((0,0)\) for every unit vector \(\vec u\), it is still not differentiable
+at that point.
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
