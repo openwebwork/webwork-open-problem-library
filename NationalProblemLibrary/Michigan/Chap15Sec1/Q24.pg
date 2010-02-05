@@ -1,0 +1,224 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('extrema', 'multivariable', 'functions', 'calculus', 'derivatives')
+## Tagged by glr 01/11/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Maximum and Minimum Values')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('15.1')
+## Problem1('24')
+
+## Textbook tags
+## HHChapter1('Optimization: Local and Global Extrema')
+## HHSection1('Local Extrema')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Point");
+Context()->strings->add( maximum=>{}, minimum=>{}, 'saddle point'=>{},
+			 none=>{} );
+$showPartialCorrectAnswers = 1;
+
+# we consider one of four functions:
+$whichf = random(1,4,1);
+$a = random(1,8,1);
+$threea = 3*$a;
+$foura = 4*$a;
+$sixa = 6*$a;
+$twelvea = 12*$a;
+
+if ( $whichf == 1 ) {
+    $func = Compute( "$a*x^3 + e^(-y^2)" );
+    $fx = "$threea x^2";
+    $fy = "-2y e^{-y^2}";
+    $fxx = "$sixa x";
+    $fyy = "-2 e^{-y^2} + 4y^2 e^{-y^2}";
+    $fxy = "0";
+
+    $whichaxis = "\(x\) axis";
+
+    $expl = "Here we have \(f(x,0) = $a x^3 + 1\), so for positive \(x\) " .
+        "we have \(f(x,0) > 1 = f(0,0)\), and for negative \(x\) we have " .
+	"\(f(x,0) < 1 = f(0,0)\).";
+
+} elsif ( $whichf == 2 ) {
+    $func = Compute( "$a*x^4 + e^(-y^2)" );
+    $fx = "$foura x^3";
+    $fy = "-2y e^{-y^2}";
+    $fxx = "$twelvea x^2";
+    $fyy = "-2 e^{-y^2} + 4y^2 e^{-y^2}";
+    $fxy = "0";
+
+    $whichaxis = "\(x\) and \(y\) axes";
+
+    $expl = "Along the \(x\) axis we have \(f(x,0) = $a x^4 + 1\), which " .
+	"has \(f(x,0) > f(0,0) = 1\) for \(x \ne 0\); but along the \(y\)" .
+	" axis, \(f(0,y) = e^{-y^2}\), for which \(f(0,y) < f(0,0) = 1\) " .
+	"for \(y\ne 0\)."
+
+} elsif ( $whichf == 3 ) {
+    $func = Compute( "e^(-x^2) + $a*y^3" );
+    $fx = "-2x e^{-x^2}";
+    $fy = "$threea y^2";
+    $fxx = "-2 e^{-x^2} + 4x^2 e^{-x^2}";
+    $fyy = "$sixa y";
+    $fxy = "0";
+
+    $whichaxis = "\(y\) axis";
+
+    $expl = "Here we have \(f(0,y) = $a y^3 + 1\), so for positive \(y\) " .
+        "we have \(f(0,y) > 1 = f(0,0)\), and for negative \(y\) we have " .
+	"\(f(0,y) < 1 = f(0,0)\).";
+
+} else {
+    $func = Compute( "e^(-x^2) + $a*y^4" );
+    $fx = "-2x e^{-x^2}";
+    $fy = "$foura y^2";
+    $fxx = "-2 e^{-x^2} + 4x^2 e^{-x^2}";
+    $fyy = "$twelvea y";
+    $fxy = "0";
+
+    $whichaxis = "\(x\) and \(y\) axes";
+
+    $expl = "Along the \(x\) axis we have \(f(x,0) = e^{-x^2}\), which " .
+	"has \(f(x,0) < f(0,0) = 1\) for \(x \ne 0\); but along the \(y\)" .
+	" axis, \(f(0,y) = $a y^4 + 1\), for which \(f(0,y) > f(0,0) = 1\) " .
+	"for \(y\ne 0\)."
+
+}
+$critPts = List( Point("(0,0)") );
+$classify = List( String( "none" ) );
+
+$anschek = MultiAnswer( $critPts, $classify )->with(
+    singleResult => 0,
+    allowBlankAnswers => 1,
+    checkTypes => 0,
+    checker => sub {
+	my ( $cor, $stu, $self ) = @_;
+	my ($corList, $corClass) = @$cor;
+	my ($stuList, $stuClass) = @$stu;
+	$stuList = List( $stuList ) if ( ref( $stuList ) ne 'Value::List' );
+	$stuClass = List( $stuClass ) if ( ref( $stuClass ) ne 'Value::List' );
+
+	## now $corList and $stuList should be lists of points,
+	##    and the class veriables lists of strings
+	my @corPts = $corList->value;
+	my @stuPts = $stuList->value;
+	my @corStr = $corClass->value;
+	my @stuStr = $stuClass->value;
+
+	if ( @corPts != @stuPts ) {
+	    $self->setMessage( 1, "You have given too " .
+			       ((@corPts > @stuPts) ? "few " : "many ") .
+			       "points." );
+	}
+
+	my @ret = ( 0, 0 );
+	my $numpts = ( @corPts > @stuPts ) ? @corPts : @stuPts;
+	my $retInc = 1/$numpts;
+
+	my $i = 0; my $j = 0;
+	my %matched = ();
+	foreach my $cpt ( @corPts ) {
+	    $j = 0;
+	    foreach my $spt ( @stuPts ) {
+		$matched{$j} = 0 if ( ! defined( $matched{$j} ) );
+		if ( $matched{$j} ) {
+		    $j++;
+		    next;
+		}
+
+		if ( ref($cpt) eq ref($spt) && $cpt == $spt  ) {
+		    $ret[0] += $retInc;
+		    $matched{$j} = 1;
+
+		    if ( $j < @stuStr ) {
+			if ( ref($corStr[$i]) eq ref($stuStr[$j]) &&
+			     $corStr[$i] == $stuStr[$j] ) {
+			    $ret[1] += $retInc;
+			}
+		    }
+		}
+		$j++;
+	    }
+	    $i++;
+	}
+	$ret[0] = sprintf("%.2f", $ret[0]);
+	$ret[1] = sprintf("%.2f", $ret[1]);
+	return [ @ret ];
+    } );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Let
+\[ f(x,y) = $func. \]
+Find critical points and classify them as
+local maxima, local minima, saddle points, or none of these.
+
+$PAR
+critical points: \{ $anschek->ans_rule(55) \}
+$BR
+${BITALIC}(give your points as a comma separated list of (x,y)
+coordinates.)$EITALIC
+$PAR
+classifications: \{ $anschek->ans_rule(55) \}
+$BR
+${BITALIC}(give your answers in a comma separated list, specifying
+${BBOLD}maximum$EBOLD, ${BBOLD}minimum$EBOLD, ${BBOLD}saddle point$EBOLD,
+or ${BBOLD}none$EBOLD for each, in the same order as you entered your
+critical points)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $anschek->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+First, we identify the critical points. The partials are
+\( f_x(x,y) = $fx \) and \( f_y(x,y) = $fy\).. These will vanish
+simultaneously when \(x=0\) and \(y=0\), so our only critical point is
+\((0,0)\). The discriminant is
+\[
+D=f_{xx}(x,y)f_{yy}(x,y)-f_{xy}^2(x,y)
+    = ($fxx)($fyy) - ($fxy)^2.
+\]
+Unfortunately, the discriminant is zero at the origin so the second
+derivative test can tell us nothing about our critical point. We can,
+however, see that we are at a saddle point by looking at the behavior
+of \(f(x,y)\) along the $whichaxis.
+$expl
+Thus \(f(x,y)\) has neither a maximum nor a minimum at \((0,0)\).
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
