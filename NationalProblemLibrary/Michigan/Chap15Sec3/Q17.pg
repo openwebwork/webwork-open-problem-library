@@ -1,0 +1,174 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('lagrange multipliers', 'maximum', 'minimum', 'absolute maximum', 'absolute minimum', 'calculus', 'differentiation', 'multivariable', 'functions')
+## Tagged by glr 02/12/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Lagrange Multipliers')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('15.3')
+## Problem1('17')
+
+## Textbook tags
+## HHChapter1('Optimization: Local and Global Extrema')
+## HHSection1('Constrained Optimization: Lagrange Multipliers')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+## pick some numbers so that the values come out nicely
+$alpha = list_random(3,6);
+$m = random(1,5,1);
+$beta = 2*$m + $alpha/3;
+
+# then, with f = x^2 y + a y - y and x^2 + y^2 <= b,
+$a = 3*$m;
+$twoa = 2*$a;
+$b = 1 + 2*$alpha*$m + $alpha*$alpha/3;
+$y0 = ( sqrt($b) == int(sqrt($b)) ) ? sqrt($b) : "\sqrt{$b}";
+
+sub f {
+    my ( $x, $y ) = @_;
+    return $x*$x*$y + $a*$y*$y - $y;
+}
+
+# this gives
+$lam1 = -$alpha/3;
+$lam2 = (2*$m + $alpha/3);
+# then the corresponding values of x and y are
+$x1sq = 2*$lam1*$lam1 - 2*$a*$lam1 + 1;
+$x1 = sqrt($x1sq);
+$y1 = $lam1;
+$x2sq = 2*$lam2*$lam2 - 2*$a*$lam2 + 1;
+$x2 = sqrt($x2sq);
+$y2 = $lam2;
+
+$x1d = ( $x1 == int($x1) ) ? $x1 : "\sqrt{$x1sq}";
+$x2d = ( $x2 == int($x2) ) ? $x2 : "\sqrt{$x2sq}";
+
+# then our critical points (in the interior of the region) are
+#    (1,0) and (0,1/2a), there are the two points (x1,y1)
+#    and (x2,y2) on the boundary, and the point (0,+/-sqrt(b))
+@allCP = ( [1,0], [0,1/(2*$a)], [$x1,$y1], [$x2,$y2], [0,-1*sqrt($b)],
+	   [0,sqrt($b)] );
+@allCPd = ( ["\pm 1",0], [0, "\frac{1}{$twoa}"], ["\pm $x1d",$y1], 
+	    ["\pm $x2d",$y2], [0,"-$y0"], [0,"$y0"] );
+@fvals = ( );
+$min = 100;  $minInd = 0;
+$max = -100; $maxInd = 0;
+$i = 0;
+foreach my $xy ( @allCP ) {
+    $f = f( @{$xy} );
+    push( @fvals, round(1000*$f)/1000 );
+    if ( $f < $min ) {
+	$min = $f;
+	$minInd = $i;
+    }
+    if ( $f > $max ) {
+	$max = $f;
+	$maxInd = $i;
+    }
+    $i++;
+}
+$max = Compute( $max );
+$min = Compute( $min );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Use Lagrange multipliers to find the maximum and minimum values of
+\( f(x,y) = x^2 y + $a y^2 - y \), subject to the constraint
+\( x^2 + y^2 \leq $b \)
+
+$PAR
+maximum = \{ ans_rule(35) \}
+$BR
+minimum = \{ ans_rule(35) \}
+$BR
+${BITALIC}(For either value, enter ${BBOLD}DNE$EBOLD if there is
+no such value.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $max->cmp() );
+ANS( $min->cmp() );
+
+$bm1 = $b - 1;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+We first find the critical points of \(f\):
+\[ f_x = 2xy = 0, \quad
+   f_y = x^2 + $twoa y - 1 = 0. \]
+From the first equation, we get either \(x=0\) or \(y=0\).
+If \(x=0\), from the second equation we get \($twoa y - 1 = 0\),
+so \(y=1/$twoa\).  If instead \(y=0\),
+then from the second equation \(x=\pm 1\).  We conclude that the critical
+points are \((0,1/$twoa)\), \((1,0)\), and \((-1,0)\). All three critical
+points satisfy the constraint \(x^2+y^2\le $b\).
+
+$PAR
+The Lagrange conditions, \(\nabla f= \lambda\nabla g\), are:
+\[
+2xy=\lambda 2x,\qquad x^2 + $twoa y - 1 =\lambda 2y.
+\]
+From the first equation, when \(x\neq 0\), we divide by \(2x\)
+to get \(\lambda=y\).  Substituting into the second equation,
+we get
+\[ x^2 + $twoa y - 1 = 2y^2. \]
+Then using \(x^2 = $b - y^2\) from the constraint, we have
+\[ $b - y^2 + $twoa y - 1 = 2 y^2,\]
+so \( 3 y^2 - $twoa y - $bm1 = 0\).  Factoring, we get
+\( (3y + $alpha )( y - $beta ) = 0\), so
+\( y = $lam1 \) or \( y = $lam2 \).
+From the constraint, we get \(x=\pm $x1d\) when \(y=$lam1\) and
+\(x=\pm $x2d\) for \(y=$lam2\).
+$PAR
+If instead \(x=0\), so that we cannot
+divide by \(x\) in the first Lagrange equation, then from the constraint,
+\(y=\pm $y0\).
+$PAR
+Summarizing, the following points are either critical points or satisfy
+the Lagrange conditions:
+\[(\pm 1,0),(0,1/$twoa),(\pm $x1d, $y1),(\pm $x2d, $y2),
+(0, -$y0), \mbox{ and } (0, $y0).\]
+These are the candidates for global maximum or minimum points.
+The corresponding values for \(f(x,y)=x^2 y + $a y^2 - y\) are:
+\[ $fvals[0], $fvals[1], $fvals[2], $fvals[3], $fvals[4],
+   \mbox{ and } $fvals[5]. \]
+The largest value is \($max\) at the point
+\(($allCPd[$maxInd]->[0],$allCPd[$maxInd]->[1])\),
+and the smallest value is \($min\) at
+\(($allCPd[$minInd]->[0],$allCPd[$minInd]->[1])\),
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

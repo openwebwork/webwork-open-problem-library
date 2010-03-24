@@ -1,0 +1,221 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('lagrange multipliers', 'maximum', 'minimum', 'absolute maximum', 'absolute minimum', 'calculus', 'differentiation', 'multivariable', 'functions')
+## Tagged by glr 02/12/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Lagrange Multipliers')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('15.3')
+## Problem1('40')
+
+## Textbook tags
+## HHChapter1('Optimization: Local and Global Extrema')
+## HHSection1('Constrained Optimization: Lagrange Multipliers')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+## solving this is ugly, because it involves solving a cubic no matter what
+##    the initial point is picked to ensure that the resulting cubic has
+##    three solutions
+$x0 = 1;
+$y0 = random(1,5,1);
+$z0 = random(10,15,1);
+
+## then the solution to the lagrange problem requires
+##    2 (x - x0) = 2 L x,    (1)
+##    2 (y - y0) = 2 L y,    (2)
+##    2 (z - z0) = -L        (3)
+## from (1) and (2), y = (y0/x0) x, and dividing (1) by (3) gives
+##    z = z0 - (1 - x0/x)/2
+## therefore, plugging into x^2 + y^2 - z = 0, we have
+##    2(1 + (y0/x0)^2) x^3 - (2 z0 - 1) x - x0 = 0
+## zeros of this have to be found numerically.  we have 25 possibilities
+##    given our parameter choices; these are given in the @xvals array
+##    (which saves us coding Newton's method to find a sufficiently
+##    accurate answer)
+## a guess for the middle zero is x = 0; one Newton iterate gives
+$xzero = $x0/(1 - 2*$z0);
+## for the values of x0, y0 and z0 we are using, this is within about
+##    0.011% of the correct value
+
+@xvals = ( [ [ -2.152641074, -0.05266232621, 2.205303400 ], # y0=1, z0=10
+	     [ -2.267096556, -0.04763964188, 2.314736198 ], # y0=1, z0=11
+	     [ -2.375873639, -0.04349256882, 2.419366208 ], # y0=1, z0=12
+	     [ -2.479754742, -0.04001024787, 2.519764989 ], # y0=1, z0=13
+	     [ -2.579355845, -0.03704456834, 2.616400414 ], # y0=1, z0=14
+	     [ -2.675172533, -0.03448841687, 2.709660950 ] ], # y0=1, z0=15
+	   [ [ -1.351294523, -0.05270865014, 1.404003173 ], # y0=2, z0=10
+	     [ -1.424714176, -0.04767063381, 1.472384810 ], # y0=2, z0=11
+	     [ -1.494349779, -0.04351408385, 1.537863863 ], # y0=2, z0=12
+	     [ -1.560746000, -0.04002564928, 1.600771649 ], # y0=2, z0=13
+	     [ -1.624326327, -0.03705588254, 1.661382209 ], # y0=2, z0=14
+	     [ -1.685428104, -0.03449691469, 1.719925019 ] ], # y0=2, z0=15
+	   [ [ -0.947213595, -0.05278640450, 1.0 ],         # y0=3, z0=10
+	     [ -1.0,         -0.04772255751, 1.047722558 ], # y0=3, z0=11
+	     [ -1.049942058, -0.04355008480, 1.093492142 ], # y0=3, z0=12
+	     [ -1.097470124, -0.04005139762, 1.137521522 ], # y0=3, z0=13
+	     [ -1.142913895, -0.03707478575, 1.179988681 ], # y0=3, z0=14
+	     [ -1.186532941, -0.03451110572, 1.221044047 ] ], # y0=3, z0=15
+	   [ [ -0.719691855, -0.05289643167, 0.772588286 ], # y0=4, z0=10
+	     [ -0.760916541, -0.04779582616, 0.808712368 ], # y0=4, z0=11
+	     [ -0.799810716, -0.04360078852, 0.843411505 ], # y0=4, z0=12
+	     [ -0.836746048, -0.04008761319, 0.876833661 ], # y0=4, z0=13
+	     [ -0.872002673, -0.03710134788, 0.909104021 ], # y0=4, z0=14
+	     [ -0.905798340, -0.03453103221, 0.940329372 ] ], # y0=4, z0=15
+	   [ [ -0.576202752, -0.05303995396, 0.629242706 ], # y0=5, z0=10
+	     [ -0.610188531, -0.04789103370, 0.658079565 ], # y0=5, z0=11
+	     [ -0.642152907, -0.04366650472, 0.685819412 ], # y0=5, z0=12
+	     [ -0.672436304, -0.04013446704, 0.712570771 ], # y0=5, z0=13
+	     [ -0.701290816, -0.03713566801, 0.738426484 ], # y0=5, z0=14
+	     [ -0.728909723, -0.03455675393, 0.763466477 ] ] ); # y0=5, z0=15
+
+## so the x values we want are
+@xzeros = ( $xvals[$y0-1]->[$z0-10]->[0], $xvals[$y0-1]->[$z0-10]->[1],
+	    $xvals[$y0-1]->[$z0-10]->[2] );
+## the corresponding y and z values, and distances, are
+@yzeros = ();  @zzeros = ();  @dist = ();
+## the minimum distance is
+$min = 5000;   $minInd = 0;
+for ( my $i=0; $i<@xzeros; $i++ ) {
+    $yzeros[$i] = $y0*$xzeros[$i];
+    $zzeros[$i] = $xzeros[$i]*$xzeros[$i]+$yzeros[$i]*$yzeros[$i];
+    $dist[$i] = ($xzeros[$i]-$x0)**2 + ($yzeros[$i]-$y0)**2 + 
+        ($zzeros[$i]-$z0)**2;
+    if ( $dist[$i] < $min ) {
+	$minInd = $i;
+	$min = $dist[$i];
+    }
+}
+
+## so the solution is (ta da!)
+$minDist = Compute( "sqrt($min)" );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Find the minimum distance from the point \( ($x0,$y0,$z0) \)
+to the paraboloid given by the equation \( z=x^2+y^2 \).
+
+$PAR
+minimum distance = \{ ans_rule(35) \}
+$BR
+${BITALIC}(Also be sure that you can give a geometric
+justification for your answer.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $minDist->cmp() );
+
+$y0sq = $y0*$y0;
+$a = 2*(1 + $y0sq/($x0*$x0));
+$b = 2*$z0 - 1;
+
+$y0d = $y0 == 1 ? '' : $y0;
+$y0sqd = $y0sq == 1 ? '' : $y0sq;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Let \((x,y,z)\) be a point on the paraboloid.
+The square of the distance from
+\((x,y,z)\) to the point \(($x0,$y0,$z0)\) is given by
+\[
+  f(x,y,z) = (x-$x0)^2 + (y-$y0)^2 + (z-$z0)^2,
+\]
+and so we wish to minimize \(f(x,y,z)\) subject to the constraint
+\[
+  g(x,y,z) = x^2+y^2-z = 0.
+\]
+We look for solutions to the equations
+\(\nabla f = \lambda\nabla g\) and \(g=0\):
+\[ 2(x-$x0) = 2\lambda x, \]
+\[ 2(y-$y0) = 2\lambda y, \]
+\[ 2(z-$z0) = -\lambda, \]
+and
+\[ x^2+y^2-z = 0. \]
+If \(\lambda=0\), the first three equations would imply that
+\((x,y,z)=($x0,$y0,$z0)\), which does not satisfy the fourth
+equation and so \(\lambda\ne 0\). If collect terms in \(x\) and
+\(y\) in the first and second equations, respectively, we get
+\[ (1 - \lambda) x = $x0, \]
+and
+\[ (1 - \lambda) y = $y0. \]
+Note that we cannot have \(\lambda = 1\), \(x = 0\) or \(y = 0\),
+and so can divide these two equation to solve for \(y\), getting
+\[ y = $y0d x \].
+$PAR
+If we divide the first and third equations we got from the
+Lagrange multipliers method, we have
+\[ \frac{x - $x0}{z - $z0} = -2x, \]
+so that
+\[ z = $z0 - \frac12(1 - \frac{$x0}{x}). \]
+$PAR
+We can then plug all of these into the last equation, the constraint.
+This gives
+\[
+  x^2 + $y0sqd x^2 - $z0 + \frac12(1 - \frac{$x0}{x}) = 0.
+\]
+Multiplying by \(x\) and collecting terms, we have
+\[
+  $a x^3 - $b x - $x0 = 0.
+\]
+Let \(h(x) = $a x^3 - $b x - $x0\).  Clearly
+\(h(-3) < 0\), \(h(-\frac12) > 0\), \(h(0) < 0\) and \(h(3) > 0\).
+Thus there must be roots lying between \(x = -3\) and \(x = -0.5\),
+between \(x = -0.5\) and \(x = 0\), and between \(x = 0\) and
+\(x = 3\).  We can locate these numerically using a calculator or
+computer program, to find
+\[ x = $xzeros[0], \quad x = $xzeros[1], \quad\mbox{and}\quad
+   x = $xzeros[2]. \]
+Then, using the equations for \(y\) and \(z\) in terms of \(x\), we
+have the corresponding values of \(y\) and \(z\), and therefore
+have three solutions to the Lagrange multiplier equations:
+\[ x_1 = $xzeros[0], y_1 = $yzeros[0], z_1 = $zzeros[0], \]
+\[ x_2 = $xzeros[1], y_2 = $yzeros[1], z_2 = $zzeros[1], \]
+and
+\[ x_3 = $xzeros[2], y_3 = $yzeros[2], z_3 = $zzeros[2]. \]
+$PAR
+The distances (squared) from the paraboloid are
+\[ d_1 = d(x_1,y_1,z_1) = $dist[0], \]
+\[ d_2 = d(x_2,y_2,z_2) = $dist[1], \]
+and
+\[ d_3 = d(x_3,y_3,z_3) = $dist[2], \]
+so that the minimum distance is \( \sqrt{d_3} = $minDist \).
+
+$PAR
+Note that the geometric interpretation of this is that it is the
+length of a perpendicular line segment drawn from the paraboloid
+to the point.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

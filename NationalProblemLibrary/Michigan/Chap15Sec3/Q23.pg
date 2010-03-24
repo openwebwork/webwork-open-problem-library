@@ -1,0 +1,284 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('lagrange multipliers', 'maximum', 'minimum', 'absolute maximum', 'absolute minimum', 'calculus', 'differentiation', 'multivariable', 'functions')
+## Tagged by glr 02/12/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Lagrange Multipliers')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('15.3')
+## Problem1('23')
+
+## Textbook tags
+## HHChapter1('Optimization: Local and Global Extrema')
+## HHSection1('Constrained Optimization: Lagrange Multipliers')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserImplicitEquation.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("ImplicitEquation");
+Context()->variables->add( l=>'Real', s=>'Real' );
+Context()->variables->set( l=>{ limits=>[0,100] },
+			   s=>{ limits=>[200,1400] } );
+$showPartialCorrectAnswers = 1;
+
+## the original data for this problem were, in (weekly income, leisure hour)
+##    pairs,
+##    curve I: {{1125, 0}, {750, 10}, {500, 20}, {375, 30}, {250, 50}}
+##    curve II: {{1250, 20}, {875, 30}, {625, 40}, {500, 50}, {375, 70}}
+##    curve III: {{1375, 40}, {1000, 50}, {750, 60}, {625, 70}, {500, 90}}
+## and the given constraint is l = 100 - w/10, which is tangent to curve
+##    II at the point (500,50).
+
+## to randomize, we use the existing data, and come up with alternate
+##    points of tangency and therefore constraints
+@cI   = ( [1125,0], [750,10], [500,20], [375,30], [250,50] );
+@cII  = ( [1250,20], [875,30], [625,40], [500,50], [375,70] );
+@cIII = ( [1375,40], [1000, 50], [750,60], [625,70], [500,90] );
+
+## by playing with various more or less reasonable options, we have
+##    five possible constraints that are tangent to these curves
+$case = random(1,5,1);
+$case = 5;
+if ( $case == 1 ) {
+    ## then the line is leisure = 100 - s/18.5, intersecting curve III
+    ##    at the point (750,60)
+    $weekTime = 100;
+    $payRate  = "18.75";
+    $leisure  = ImplicitEquation( "l = 100 - s/18.75" );
+    $line = "100 - x/18.75";
+    $whichC = 'III';
+    $leisurehrs = Compute( 60 );  $lei = 60;
+    $income = Compute( 750 );     $inc = 750;
+} elsif ( $case == 2 ) {
+    ## the line is leisure = 100 - s/10, intersecting curve II at the
+    ##    point (500, 50)
+    $weekTime = 100;
+    $payRate  = 10;
+    $leisure  = ImplicitEquation( "l = 100 - s/10" );
+    $line = "100 - x/10";
+    $whichC = 'II';
+    $leisurehrs = Compute( 50 );  $lei = 50;
+    $income = Compute( 500 );     $inc = 500;
+} elsif ( $case == 3 ) {
+    ## the line is leisure = 78 - s/16.45, intersecting curve II at the
+    ##    point (625, 40)
+    $weekTime = 78;
+    $payRate  = "16.45";
+    $leisure  = ImplicitEquation( "l = 78 - s/16.45" );
+    $line = "78 - x/16.45";
+    $whichC = 'II';
+    $leisurehrs = Compute( 40 );  $lei = 40;
+    $income = Compute( 625 );     $inc = 625;
+} elsif ( $case == 4 ) {
+    ## the line is leisure = 105 - s/16.67, intersecting curve III at
+    ##    the point (750,60)
+    $weekTime = 105;
+    $payRate  = "16.67";
+    $leisure  = ImplicitEquation( "l = 105 - s/16.67" );
+    $line = "105 - x/16.5";
+    $whichC = 'III';
+    $leisurehrs = Compute( 60 );  $lei = 60;
+    $income = Compute( 750 );     $inc = 750;
+} else {
+    ## the line is leisure = 95 - s/21, intersecting curve III at the
+    ##    point (750, 60);
+    $weekTime = 95;
+    $payRate  = 21.45;
+    $leisure  = ImplicitEquation( "l = 95 - s/21.45" );
+    $line = "95 - x/21.45";
+    $whichC = 'III';
+    $leisurehrs = Compute( 60 );  $lei = 60;
+    $income = Compute( 750 );     $inc = 750;
+}
+$workhrs = Compute( "$weekTime - $leisurehrs" )->with(
+	tolType=>'absolute',tolerance=>'.04');
+
+$incomeTable = begintable(3) .
+    row( "${SPACE}I${SPACE}", "${SPACE}II${SPACE}", "${SPACE}III${SPACE}" ) .
+    row( $cI[0]->[0], $cII[0]->[0], $cIII[0]->[0] ) .
+    row( $cI[1]->[0], $cII[1]->[0], $cIII[1]->[0] ) .
+    row( $cI[2]->[0], $cII[2]->[0], $cIII[2]->[0] ) .
+    row( $cI[3]->[0], $cII[3]->[0], $cIII[3]->[0] ) .
+    row( $cI[4]->[0], $cII[4]->[0], $cIII[4]->[0] ) .
+    endtable();
+$leisureTable = begintable(3) .
+    row( "${SPACE}I${SPACE}", "${SPACE}II${SPACE}", "${SPACE}III${SPACE}" ) .
+    row( $cI[0]->[1], $cII[0]->[1], $cIII[0]->[1] ) .
+    row( $cI[1]->[1], $cII[1]->[1], $cIII[1]->[1] ) .
+    row( $cI[2]->[1], $cII[2]->[1], $cIII[2]->[1] ) .
+    row( $cI[3]->[1], $cII[3]->[1], $cIII[3]->[1] ) .
+    row( $cI[4]->[1], $cII[4]->[1], $cIII[4]->[1] ) .
+    endtable();
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Each person tries to balance his or her time between leisure and work.
+The tradeoff is that as you work less your income
+falls.  Therefore each person has ${BITALIC}indifference curves$EITALIC
+which connect
+the number of hours of leisure, \( l \), and income, \( s \).  If, for
+example, you are indifferent between 0 hours of leisure and an income
+of ${DOLLAR}1125  a week on the one hand, and 10 hours of leisure and an
+income of  ${DOLLAR}750 a week on the other hand, then the points \( l=0 \),
+\( s=1125 \), and \( l=10 \), \( s=750 \) both lie on the same indifference
+curve.
+$PAR
+The table below gives information on three indifference curves,
+I, II, and III.
+$PAR
+$BCENTER
+\{ begintable(2) \}
+\{ row( "Weekly Income", "Weekly Leisure Hours" ) \}
+\{ row( $incomeTable, $leisureTable ) \}
+\{ endtable() \}
+$ECENTER
+$PAR
+${BBOLD}(a)$EBOLD
+On a sheet of paper, or using a calculator or other technology,
+graph the three indifference curves.  (You will need these to answer
+part (d) of this problem.)
+
+$PAR
+${BBOLD}(b)$EBOLD
+You have $weekTime hours a week available for work and
+leisure combined, and you earn ${DOLLAR}$payRate/hour.
+Write an equation in terms of  \(l\)  and  \(s\) which represents
+this constraint.
+$BR
+constraint: \{ ans_rule(35) \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+Graph this constraint with your graph of the indifference
+curves.
+
+$PAR
+${BBOLD}(d)$EBOLD
+Estimate from the graph what combination of leisure hours and income
+you would choose under these circumstances.
+$BR
+leisure hours = \{ ans_rule(15) \}
+$BR
+weekly income = \{ ans_rule(15) \}
+$PAR
+What is the corresponding number of hours per week you would work?
+$BR
+work hours = \{ ans_rule(15) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $leisure->cmp() );
+ANS( $leisurehrs->cmp() );
+ANS( $income->cmp() );
+ANS( $workhrs->cmp() );
+
+## make graphs of these
+$gr1 = init_graph( 200,0,1600,100, grid=>[6,5], axes=>[200,0],
+		   size=>[250,250] );
+$gr2 = init_graph( 200,0,1600,100, grid=>[6,5], axes=>[200,0],
+		   size=>[250,250] );
+$gr1->lb( 'reset' );
+$gr2->lb( 'reset' );
+## add labels
+foreach my $x ( qw( 400 600 800 1000 1200 1400 1600 ) ) {
+    $gr1->lb( new Label( $x, 0, "$x", "black", "right", "bottom" ) );
+    $gr2->lb( new Label( $x, 0, "$x", "black", "right", "bottom" ) );
+}
+foreach my $y ( qw( 20 40 60 80 100 ) ) {
+    $gr1->lb( new Label( 0, $y, "$y", "black", "left", "top" ) );
+    $gr2->lb( new Label( 0, $y, "$y", "black", "left", "top" ) );
+}
+## and add the points... oh, for a listplot WeBWorK function
+for ( my $i=0; $i<@cI; $i++ ) {
+    $gr1->stamps( closed_circle( $cI[$i]->[0], $cI[$i]->[1], 'black' ) );
+    $gr2->stamps( closed_circle( $cI[$i]->[0], $cI[$i]->[1], 'black' ) );
+    $gr1->stamps( closed_circle( $cII[$i]->[0], $cII[$i]->[1], 'blue' ) );
+    $gr2->stamps( closed_circle( $cII[$i]->[0], $cII[$i]->[1], 'blue' ) );
+    $gr1->stamps( closed_circle( $cIII[$i]->[0], $cIII[$i]->[1], 'red' ) );
+    $gr2->stamps( closed_circle( $cIII[$i]->[0], $cIII[$i]->[1], 'red' ) );
+}
+## and the line, to the second graph
+add_functions( $gr2,
+	       "$line for x in <200,1500> using color:blue and weight:2" );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+The curves are shown in the graph below, with the curve I shown in black,
+curve II in blue and curve III in red.
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr1 ), tex_size=>250, height=>250, width=>250,
+	  extra_html_tags=>'alt="graph of the points shown in the ' .
+	  'table above.  each curve is a decreasing, concave up ' .
+	  'function with a maximum at its left-most end.  curve I ' .
+	  'lies everywhere below curve II, which lies everywhere ' .
+	  'below curve III."' ) \}
+$ECENTER
+$PAR
+${BBOLD}(b)$EBOLD
+The income equals ${DOLLAR}$payRate/hour times the number of hours of
+work:
+\[ s = $payRate ($weekTime - l ), \]
+or
+\[ l = $weekTime - s/$payRate. \]
+
+$PAR
+${BBOLD}(c)$EBOLD
+The graph of this constraint is a straight line; adding this to
+the graph, we see
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr2 ), tex_size=>250, height=>250, width=>250,
+	  extra_html_tags=>'alt="the graph from above, with a line ' .
+	  'with negative slope that appears to be approximately ' .
+	  'tangent to curve ' . $whichC . ' at (' . $inc . ',' .
+	  $lei . ')."' ) \}
+$ECENTER
+$PAR
+
+${BBOLD}(d)$EBOLD
+For any given salary, curve III allows for the most leisure time,
+curve I the least. Similarly, for any amount of leisure time, curve
+III also has the greatest salary, and curve I the least. Thus, any
+point on curve III is preferable to any point on curve II, which is
+preferable to any point on curve I. We prefer to be on the outermost
+curve that our constraint allows. We want to choose the point on
+\( l = $weekTime - s/$payRate \) which is on the most preferable curve.
+Since all the curves are concave up, this occurs at the point where
+\( l = $weekTime - s/$payRate \) is ${BITALIC}tangent$EITALIC to curve
+$whichC. So we choose \( l = $leisurehrs\), \(s = $income\), and
+work \($workhrs\) hours a week.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
