@@ -1,0 +1,222 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('double integral', 'definite integrals', 'functions', 'multivariable')
+## Tagged by glr 03/25/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Double Integrals over Rectangles')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.1')
+## Problem1('27')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('The Definite Integral of a Function of Two Variables')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+## the original problem uses the contours of
+##    ln(|(0.1 x-.5 + I 0.1 y - I 1.1)/(0.1 x+ I 0.1 y + 0.1+ I 0.1)|),
+## graphed over [0,10]x[0,10] and then relabeled to look like [0,5]x[0,5]
+## with appropriate contours.
+##
+## we fake this with a set of functions chosen to mimic the contour
+##    diagram provided.
+$gr = init_graph( 0,0,5,5, axes=>[0,0], grid=>[5,5], size=>[300,300] );
+$gr->lb('reset');
+## add axis labels
+for ( my $i=1; $i<=5; $i++ ) {
+    $gr->lb( new Label($i, 0, "$i", 'black', 'right', 'bottom') );
+    $gr->lb( new Label(0, $i, "$i", 'black', 'left', 'top') );
+}
+## add the functions
+add_functions( $gr,
+    "5.5 - sqrt(1 - (x - 2.5)^2) for x in <0,5> using color:blue and weight:2",
+    "6.3 - sqrt(5 - (x - 2.75)^2) for x in <0,5> using color:blue and weight:2",
+    "7.1 - sqrt(12 - (x - 3)^2) for x in <0,5> using color:blue and weight:2",
+    "9.25 - sqrt(40 - (x - 4)^2) for x in <0,5> using color:blue and weight:2",
+    "10.65 - sqrt(75 - (x - 5)^2) for x in <0,5> using color:blue and weight:2",
+    "2.75 - 2.75*x/6 for x in <0,5> using color:blue and weight:2",
+    "2.25 - 2*x/3 - .1*(x - 1.5)^2 for x in <0,5> using color:blue and weight:2",
+    "1.5 - (x + 1)^2/5.5 for x in <0,5> using color:blue and weight:2",
+    "1 - (x + 0.5)^2/2 for x in <0,5> using color:blue and weight:2",
+    "-0.5 + sqrt(1 - (x + 0.5)^2) for x in <0,5> using color:blue and weight:2"
+);
+
+## and put in some arbitrary contour values
+$t0 = list_random( 17, 18, 19, 20, 21,
+		   27, 28, 29, 30, 31 );
+$dt = ( $t0 > 25 ) ? -1 : 1;
+@tv = ( );
+
+## the locations for these on the given functions are
+@clabLoc = ( [ .2,.2 ], [ .8,.3 ], [ 1.25,.7 ], [ 2,1 ], [ 3,1.5 ],
+	     [ 3,2.25 ], [ 3,3.1 ], [ 4,3.9 ], [ 3.5,4.35 ], [ 2.75,4.65 ] );
+$t = $t0;
+for ( my $i=0; $i<@clabLoc; $i++ ) {
+    push( @tv, $t );
+    $gr->lb( new Label( @{$clabLoc[$i]}, $t, 'blue', 'middle', 'bottom' ) );
+    $t += $dt;
+}
+
+## estimate the maximum and minimum values in each box, and sum for the
+##    integral
+# $val1 =
+#     ($tv[2]+.3*$dt) + ($tv[3]+.15*$dt) + ($tv[3]+.7*$dt) + ($tv[4]+.1*$dt) +
+#     ($tv[4]+.4*$dt) +
+#     ($tv[3]+.6*$dt) + ($tv[4]+.3*$dt) + ($tv[4]+.7*$dt) + ($tv[4]+.9*$dt) +
+#     ($tv[5]) +
+#     ($tv[5]) + ($tv[5]+.6*$dt) + ($tv[6]) + ($tv[6]+.15*$dt) +
+#     ($tv[6]+.15*$dt) +
+#     ($tv[6]+.6*$dt) + ($tv[7]+.5*$dt) + ($tv[7]+.85*$dt) + ($tv[7]+.6*$dt) +
+#     ($tv[7]+.4*$dt) +
+#     ($tv[8]+.1*$dt) + ($tv[9]+.4*$dt) + ($tv[9]+.7*$dt) + ($tv[9]+.4*$dt) +
+#     ($tv[8]+.4*$dt);
+# $val2 =
+#     ($tv[0]-.4*$dt) + ($tv[2]-.85*$dt) + ($tv[3]-.7*$dt) + $tv[3] +
+#     ($tv[4]-.3*$dt) +
+#     ($tv[2]-.6*$dt) + ($tv[3]-.7*$dt) + ($tv[4]-.85*$dt) + ($tv[4]-.25*$dt) +
+#     ($tv[5]-.8*$dt) +
+#     ($tv[3]) + ($tv[4]-.4*$dt) + ($tv[5]-.8*$dt) + ($tv[5]-.3*$dt) + ($tv[5]) +
+#     ($tv[5]-.6*$dt) + ($tv[5]) + ($tv[6]-.3*$dt) + ($tv[6]) + ($tv[6]) +
+#     ($tv[6]-.3*$dt) + ($tv[7]-.3*$dt) + ($tv[8]-.15*$dt) + ($tv[8]-.6*$dt) +
+#     ($tv[7]-.3*$dt);
+$val1 = $tv[2] + $tv[3] + $tv[3] + $tv[4] + $tv[4] +
+        $tv[3] + $tv[4] + $tv[4] + $tv[4] + $tv[5] +
+        $tv[5] + $tv[5] + $tv[6] + $tv[6] + $tv[6] +
+        $tv[6] + $tv[7] + $tv[7] + $tv[7] + $tv[7] +
+        $tv[8] + $tv[9] + $tv[9] + $tv[9] + $tv[8];
+$val2 = $tv[0] + $tv[1] + $tv[2] + $tv[3] + $tv[3] +
+        $tv[1] + $tv[2] + $tv[3] + $tv[3] + $tv[4] +
+        $tv[3] + $tv[3] + $tv[4] + $tv[4] + $tv[4] +
+        $tv[4] + $tv[5] + $tv[5] + $tv[6] + $tv[6] +
+        $tv[5] + $tv[6] + $tv[7] + $tv[7] + $tv[6];
+
+if ( $val1 > $val2 ) {
+    $max = $val1+1;
+    $min = $val2-1;
+    $maxsum1 = "$tv[2] + $tv[3] + $tv[3] + $tv[4] + $tv[4] + " .
+        "$tv[3] + $tv[4] + $tv[4] + $tv[4] + $tv[5] + " .
+        "$tv[5] + $tv[5] + $tv[6] + $tv[6] + $tv[6] ";
+    $maxsum2 = "$tv[6] + $tv[7] + $tv[7] + $tv[7] + $tv[7] + " .
+        "$tv[8] + $tv[9] + " . ($tv[9]+1) . " + $tv[9] + $tv[8]";
+    $minsum1 = ($tv[0]-1) . " + $tv[1] + $tv[2] + $tv[3] + $tv[3] + " .
+        "$tv[1] + $tv[2] + $tv[3] + $tv[3] + $tv[4] + " .
+        "$tv[3] + $tv[3] + $tv[4] + $tv[4] + $tv[4]";
+    $minsum2 = "$tv[4] + $tv[5] + $tv[5] + $tv[6] + $tv[6] + " .
+        "$tv[5] + $tv[6] + $tv[7] + $tv[7] + $tv[6]";
+} else {
+    $max = $val2+1;
+    $min = $val1-1;
+    $maxsum1 = ($tv[0]+1) . " + $tv[1] + $tv[2] + $tv[3] + $tv[3] + " .
+        "$tv[1] + $tv[2] + $tv[3] + $tv[3] + $tv[4] + " .
+        "$tv[3] + $tv[3] + $tv[4] + $tv[4] + $tv[4]";
+    $maxsum2 = "$tv[4] + $tv[5] + $tv[5] + $tv[6] + $tv[6] + " .
+        "$tv[5] + $tv[6] + $tv[7] + $tv[7] + $tv[6]";
+    $minsum1 = "$tv[2] + $tv[3] + $tv[3] + $tv[4] + $tv[4] + " .
+        "$tv[3] + $tv[4] + $tv[4] + $tv[4] + $tv[5] + " .
+        "$tv[5] + $tv[5] + $tv[6] + $tv[6] + $tv[6]";
+    $minsum2 = "$tv[6] + $tv[7] + $tv[7] + $tv[7] + $tv[7] + " .
+        "$tv[8] + $tv[9] + " . ($tv[9]-1) . " + $tv[9] + $tv[8]";
+}
+$avgint = Compute( "($max + $min)/2" );
+$avg = Compute( "($max + $min)/50" );
+$tolval = ($max - $min)/50 + 0.1;
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+The figure below shows the distribution of temperature, in
+degrees C, in a 5 meter by 5 meter heated room.
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), height=>300, width=>300, tex_size=>300,
+	  extra_html_tags=>'alt="contour graph showing the temperatures ' .
+	  'in the room"' ) \}
+$ECENTER
+Using Riemann sums, estimate the average temperature in the room.
+$BR
+average temperature = \{ ans_rule(55) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $avg->cmp(tolType=>'absolute',
+               tolerance=>$tolval) );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Let's break up the room into 25 sections, each  of which
+is 1 meter by 1 meter and has area \(\Delta A=1\).
+
+$PAR
+We shall begin our sum as an upper estimate starting with the lower left
+corner of the room and continue across the bottom and
+moving upward using the highest temperature, \(T_i\), in each case. So the
+upper Riemann sum becomes
+\[
+\sum_{i=1}^{25} T_i \Delta A = T_1 \Delta A + T_2 \Delta A
++ T_3 \Delta A + \cdots + T_{25} \Delta A
+\]
+\[ = \Delta A (T_1 + T_2 + T_3 + \cdots + T_{25}). \]
+Thus, taking the maximum value for each region, we have
+\[
+\mbox{sum} = (1)($maxsum1
+\]
+\[ + $maxsum2) = $max. \]
+$PAR
+
+In the same way, the lower Riemann sum is formed by taking the lowest
+temperature, \(t_i\), in each case:
+\[
+\sum_{i=1}^{25} t_i \Delta A = t_1 \Delta A + t_2 \Delta A
++ t_3 \Delta A + \cdots + t_{25} \Delta A
+\]
+\[ = \Delta A (t_1 + t_2 + t_3 + \cdots + t_{25}). \]
+Thus, taking the minimum value for each region, we have
+\[
+\mbox{sum} = (1)($minsum1
+\]
+\[ + $minsum2) = $min. \]
+
+$PAR
+So, averaging the upper and lower sums we get: \($avgint\).
+
+$PAR
+To compute the average temperature, we divide by the area of the room,
+\[
+\mbox{Average temperature} = \frac{$avgint}{25} = $avg. \]
+That is, approximately \($avg^{\circ}\)C.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
