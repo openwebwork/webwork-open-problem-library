@@ -1,0 +1,175 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('iterated integral', 'double integral', 'definite integrals', 'functions', 'multivariable', 'calculus', 'integration')
+## Tagged by glr 03/25/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Iterated Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.2')
+## Problem1('13')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Iterated Integrals')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( y => 'Real' );
+$showPartialCorrectAnswers = 1;
+
+$x1 = random(2,6,1);
+$m  = random(2,3,1);
+$y1 = $m*$x1;
+
+$gr = init_graph( -1,-1,($x1+1),($y1+1), axes=>[0,0], size=>[250,250],
+		  ticks=>[($x1+2),($y1+2)] );
+
+$gr->moveTo( $x1, 0 );
+$gr->lineTo( $x1, .2, 'black' );
+$gr->moveTo( 0, $y1 );
+$gr->lineTo( .1, $y1, 'black' );
+$gr->lb( new Label( $x1, 0, "$x1", 'black', 'center', 'top' ) );
+$gr->lb( new Label( 0, $y1, "$y1", 'black', 'right', 'middle' ) );
+
+$slope = list_random(-1,1);
+if ( $slope == -1 ) {
+    $line = Compute( "$y1 - $m*x" );
+    @points = ( [ $x1, 0 ], [ $x1, $y1 ], [ 0, $y1 ] );
+    $desc = "Graph of a triangle with vertices (0,$y1), ($x1,0) " .
+        "and ($x1,$y1), with interior shaded light blue.";
+    $xf0 = Compute( "($y1 - y)/$m" );
+    $xf1 = Formula( "$x1" );
+} else {
+    $line = Compute( "$m*x" );
+    @points = ( [ $x1, $y1 ], [ 0, $y1 ], [ 0, 0 ] );
+    $desc = "Graph of a triangle with vertices (0,0), ($x1,$y1) " .
+        "and (0,$y1), with interior shaded light blue.";
+    $xf0 = Formula( "0" );
+    $xf1 = Compute( "y/$m" );
+}
+
+# $gr->new_color( 'grey', 240, 240, 240 );
+$gr->new_color( 'ltblue', 214, 230, 244 );
+$gr->moveTo( @{$points[-1]} );
+foreach my $pt ( @points ) {
+    $gr->lineTo( @$pt, 'blue', 2 );
+}
+if ( $slope == 1 ) {
+    $gr->fillRegion( [ 0.1, 0.1, 'ltblue' ] );
+} else {
+    $gr->fillRegion( [ ($x1-0.1), ($y1-0.1), 'ltblue' ] );
+}
+
+$dx = Compute( "y" );
+$dy = Compute( "x" );
+
+## then our answer is
+$iint = MultiAnswer( $dx, $dy, Formula("0"), Formula("$x1"), $line, 
+		    Formula("$y1") )->with(
+    singleResult => 0,
+    checker => sub {
+	my ( $correct, $student, $ansHash ) = @_;
+	($dxans, $dyans, $aans, $bans, $cans, $dans) = @{$correct};
+	($dxstu, $dystu, $astu, $bstu, $cstu, $dstu) = @{$student};
+
+	@ret = ( 0, 0, 0, 0, 0, 0 );
+
+	## for any answer to make sense, the dA must match one
+	##    of the two that we give
+	if ( $dxans == $dxstu && $dyans == $dystu ) {
+	    $ret[0] = 1;
+	    $ret[1] = 1;
+	    $ret[2] = 1 if ( $aans == $astu );  ## x = 0
+	    $ret[3] = 1 if ( $bans == $bstu );  ## x = $x1
+	    $ret[4] = 1 if ( $cans == $cstu );  ## y = $line
+	    $ret[5] = 1 if ( $dans == $dstu );  ## y = $y1
+
+	} elsif ( $dyans == $dxstu && $dxans == $dystu ) {
+	    $ret[0] = 1;
+	    $ret[1] = 1;
+	    $ret[2] = 1 if ( $aans == $astu );  ## y = 0
+	    $ret[3] = 1 if ( $dans == $bstu );  ## y = $y1
+	    $ret[4] = 1 if ( $xf0 == $cstu );   ## x = 0, or lineinv
+	    $ret[5] = 1 if ( $xf1 == $dstu );   ## x = lineinv, or x1
+	} else {
+	    ## dA is messed up; we don't know how to deal with this
+	    $ansHash->setMessage( 1, "Your differential dA doesn't " .
+				  "look like a combination of " .
+				  "differentials of the independent " .
+				  "variables." );
+	}
+	return [@ret];
+    }
+);
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Consider the shaded region in the graph below.
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), 'tex_size'=>250, height=>250, width=>250,
+          extra_html_tags=>'alt="' . $desc . '"' ) \}
+$ECENTER
+$PAR
+Write \( \int_R f\,dA \) on this region as an iterated integral:
+$BR
+\( \int_R f\,dA = \int_a^b\int_c^d f(x,y)\, d\)\{ $iint->ans_rule( 5 ) \}
+\(d\)\{ $iint->ans_rule(5)\},
+$BR
+where
+$BR
+\( a = \) \{ $iint->ans_rule(15) \}, $BR
+\( b = \) \{ $iint->ans_rule(15) \}, $BR
+\( c = \) \{ $iint->ans_rule(15) \}, and $BR
+\( d = \) \{ $iint->ans_rule(15) \}.
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $iint->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+This region lies between \(x = 0\) and \(x = $x1\) and between
+the lines \(y = $line\) and \(y = $y1\), and so the iterated integral is
+\[
+  \int_0^{$x1} \int_{$line}^{$y1}\, f(x,y)\, dy\, dx.
+\]
+Alternatively, we could have set up the integral as follows:
+\[
+  \int_0^{$y1} \int_{$xf0}^{$xf1} f(x,y)\, dx\, dy.
+\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

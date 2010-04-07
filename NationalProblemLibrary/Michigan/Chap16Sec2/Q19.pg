@@ -1,0 +1,206 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('iterated integral', 'double integral', 'definite integrals', 'functions', 'multivariable', 'calculus', 'integration')
+## Tagged by glr 04/05/10
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Iterated Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.2')
+## Problem1('19')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Iterated Integrals')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( y => 'Real' );
+## reset the limits of evaluation to avoid huge or tiny exponentials
+Context()->flags->set( limits=>[0.5,2] );
+$showPartialCorrectAnswers = 1;
+
+$a = random(1,5,1);
+
+## generate six possible graphs
+@gr = ();
+## the boundary function
+@fn = ( "x", "$a-x", "x", "$a-x", "e^(ln($a)*x/($a))", "e^(ln($a)*x/($a))" );
+## the points that delineate the vertical and horizontal edges
+##    of the region
+@pt = ( [ [$a,$a], [$a,0], [0,0] ],  ## graph 0
+	[ [0,$a], [0,0], [$a,0] ],   ## graph 1
+	[ [0,0], [0,$a], [$a,$a] ],  ## graph 2
+	[ [0,$a], [$a,$a], [$a,0] ], ## graph 3
+	[ [0,1], [0,0], [$a,0], [$a,$a] ],  ## graph 4
+	[ [0,1], [0,$a], [$a,$a] ] );       ## graph 5
+## for each, a point in the interior of the region
+@fillPt = ( [0.5,0.25], [0.1,0.1], [0.25,0.5], [($a-.5),($a-.5)],
+	    [0.1,0.1], [0.5,$a-.5] );
+## and a description of the region
+@desc = ( "Graph of a triangle with vertices (0,0), ($a,0) and ($a,$a), " .
+	      "with its interior shaded light blue.",
+	  "Graph of a triangle with vertices (0,0), (0,$a) and ($a,0), " .
+	      "with its interior shaded light blue.",
+	  "Graph of a triangle with vertices (0,0), ($a,$a) and (0,$a), " .
+	      "with its interior shaded light blue.",
+	  "Graph of a triangle with vertices (0,$a), ($a,0) and ($a,$a), " .
+	      "with its interior shaded light blue.",
+	  "Graph of a region bounded by an exponential curve extending " .
+	      "from (0,1) to ($a,exp($a^2), the vertical lines x=0 (for " .
+	      "y=0 to y=1) and x=$a (for y=0 to y=exp($a^2)), and the " .
+	      "horizontal line y=0 (for x=0 to x=$a).",
+	  "Graph of a region bounded by an exponential curve extending " .
+	      "from (0,1) to ($a,exp($a^2), the vertical line x=0 (for " .
+	      "y=1 to y=exp($a^2), and the horizontal line y=exp($a^2) " .
+	      "(for x=0 to x=$a)." );
+
+## build the graphs
+for ( my $i=0; $i<6; $i++ ) {
+    if ( $i < 4 ) {
+	$gr[$i] = init_graph( -1, -1, ($a+1), ($a+1), axes=>[0,0],
+			      size=>[200,200], ticks=>[($a+2),($a+2)] );
+	$gr[$i]->lb('reset');
+    } else {
+	$gr[$i] = init_graph( -1, -1, ($a+1), ($a+1), axes=>[0,0],
+			      size=>[200,200], ticks=>[($a+2),1] );
+	$gr[$i]->lb('reset');
+	$gr[$i]->lb( new Label( 0, 1, "1", 'black', 'right', 'middle' ) );
+    }
+    $gr[$i]->moveTo( $a, 0 );  $gr[$i]->lineTo( $a, 0.2, 'black' );
+    $gr[$i]->moveTo( 0, $a );  $gr[$i]->lineTo( 0.2, $a, 'black' );
+    $gr[$i]->lb( new Label( $a, 0, "$a", 'black', 'left', 'bottom' ) );
+    $gr[$i]->lb( new Label( ($a+.5), 0, "x", 'black', 'left', 'bottom' ) );
+    if ( $i < 4 ) {
+	$gr[$i]->lb( new Label( 0, $a, "$a", 'black', 'left', 'bottom' ) );
+    } else {
+	$gr[$i]->lb( new Label(0, $a, "exp($a^2)", 'black', 'left', 'bottom'));
+    }
+    $gr[$i]->lb( new Label( 0, ($a+.5), "y", 'black', 'left', 'bottom' ) );
+
+    add_functions( $gr[$i], "$fn[$i] for x in <0,$a> using color:blue and " .
+		   "weight:2" );
+    $gr[$i]->moveTo( $pt[$i]->[0]->[0], $pt[$i]->[0]->[1] );
+    for ( my $j=1; $j<@{$pt[$i]}; $j++ ) {
+	$gr[$i]->lineTo( $pt[$i]->[$j]->[0], $pt[$i]->[$j]->[1], 'blue', 2 );
+    }
+
+    # $gr[$i]->new_color( 'grey', 240, 240, 240 );
+    $gr[$i]->new_color( 'ltblue', 214, 230, 244 );
+    $gr[$i]->fillRegion( [$fillPt[$i]->[0], $fillPt[$i]->[1], 'ltblue'] );
+}
+
+## display the graphs in this order
+@grOrder = shuffle(6);
+## then the correct answer is
+for ( my $i=0; $i<6; $i++ ) {
+    if ( $grOrder[$i] == 0 ) {
+	$cor = ($i + 1);
+	last;
+    }
+}
+## and put them in a table
+$grTab = begintable(3) .
+    row( "1." . image( insertGraph($gr[$grOrder[0]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[0]] . '"' ),
+	 "2." . image( insertGraph($gr[$grOrder[1]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[1]] . '"' ),
+	 "3." . image( insertGraph($gr[$grOrder[2]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[2]] . '"' ) ) .
+    row( "4." . image( insertGraph($gr[$grOrder[3]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[3]] . '"' ),
+	 "5." . image( insertGraph($gr[$grOrder[4]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[4]] . '"' ),
+	 "6." . image( insertGraph($gr[$grOrder[5]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[5]] . '"' ) ) .
+    endtable();
+
+## the correct graph pop up
+$grSelect = PopUp( [ '?',1,2,3,4,5,6], $cor );
+
+## and the integral value is
+$intVal = Compute( "(1/2)*(e^($a^2) - 1)" )->with( tolType=>'absolute',
+						   tolerance=>0.00001 );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+For the integral
+\[
+    \int_0^{$a} \int_0^{x} e^{x^2}\,dy\,dx,
+\]
+sketch the region of integration and evaluate the integral.
+$PAR
+Your sketch should be approximately the same as one of the
+graphs shown below; which is the correct region?
+Graph \{ $grSelect->menu() \}
+$PAR
+Then
+\( \int_0^{$a} \int_0^{x} e^{x^2}\,dy\,dx = \) \{ ans_rule(35) \}
+
+$PAR
+Graphs:
+$BR
+$BCENTER
+$grTab
+$ECENTER
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $grSelect->cmp() );
+ANS( $intVal->cmp() );
+
+$asq = $a*$a;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The region of integration is bounded by \(x=0\) and \(x=$a\),
+below by \(y=0\) and above by \(y=x\).  Thus the correct region
+of integration is graph \{ $grSelect->correct_ans() \}.  Evaluating
+the integral, we have
+\[
+  \int_{0}^{$a}\int_{0}^{x} e^{x^{2}}\, dy\, dx =
+    \int_{0}^{$a} e^{x^{2}} y\bigg|_{0}^{x}\, dx =
+    \int_{0}^{$a} x e^{x^{2}} \, dx =
+    \frac{1}{2} e^{x^{2}}\bigg|_{0}^{$a} =
+    \frac{1}{2} (e^{$asq}-1).
+\]
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

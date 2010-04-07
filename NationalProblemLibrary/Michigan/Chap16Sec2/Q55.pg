@@ -1,0 +1,186 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('iterated integral', 'double integral', 'definite integrals', 'functions', 'multivariable')
+## Tagged by glr 03/25/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Iterated Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.2')
+## Problem1('55')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Iterated Integrals')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserImplicitEquation.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("ImplicitEquation");
+Context()->variables->add( a=>'Real', b=>'Real' );
+Context()->variables->set(
+  a=>{limits=>[1,5]},
+  b=>{limits=>[1,5]}
+);
+$showPartialCorrectAnswers = 1;
+
+$x0 = random(1,5,1);
+$y0 = random(2,7,1);
+$y0++ if ( $y0 == $x0 );
+
+$aval = random(20,50,5);
+
+$eqn = ImplicitEquation( "$x0*a + $y0*b = 2*$aval" );
+
+$f1 = Compute( "2*$aval*y/$y0" );
+$f2 = Compute( "2*$aval*x/$x0" );
+
+$mp = MultiAnswer( $f1, $f2 )->with(
+    singleAnswer=>0,
+    checker=>sub {
+	my ( $c, $s, $ansH ) = @_;
+	my ($s1, $s2) = @{$s};
+
+	my @ret = ( 0, 0 );
+
+	## make sure that these are functions
+	my $s1f = Formula( $s1 );
+	my $s2f = Formula( $s2 );
+	my $s1fx = $s1f->D('x');
+	my $s1fy = $s1f->D('y');
+	my $s2fx = $s2f->D('x');
+	my $s2fy = $s2f->D('y');
+
+	my $ok1 = 1;
+	my $ok2 = 1;
+
+	## these have to be linear in x and y
+	if ( ref( $s1fx ) != "Value::Constant" ||
+	     ref( $s1fy ) != "Value::Constant" ) {
+	    $ansH->setMessage( 1, "Your function isn't of the correct " .
+			       "form." );
+	    $ok1 = 0;
+	}
+	if ( ref( $s2fx ) != "Value::Constant" ||
+	     ref( $s2fy ) != "Value::Constant" ) {
+	    $ansH->setMessage( 2, "Your function isn't of the correct " .
+			       "form." );
+	    $ok2 = 0;
+	}
+
+	if ( $ok1 ) {
+	    $ret[0] = ( $s1fx*$x0 + $s1fy*$y0 == 2*$aval ) ? 1 : 0;
+	}
+	if ( $ok2 ) {
+	    $ret[1] = ( $s2fx*$x0 + $s2fy*$y0 == 2*$aval &&
+			( ! $ok1 || $s2fx != $s1fx ) ) ? 1 : 0;
+	    $ansH->setMessage( 2, "This is the same function as your " .
+			       "first function." ) if ( $ok1 && $s2fx == $s1fx );
+	}
+	return [ @ret ];
+    } );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+The function \( f(x,y)=ax+by \) has an average value of \( $aval \) on the
+rectangle \( 0 \le x \le $x0 \), \( 0 \le y \le $y0 \).
+$PAR
+
+${BBOLD}(a)$EBOLD
+What can you say about the constants \( a \) and  \( b \)?
+$BR
+\{ ans_rule(55) \}
+$BR
+${BITALIC}(Give your answer as an equation that
+describes the values of a and b.)$EITALIC
+
+$PAR
+${BBOLD}(b)$EBOLD
+Find two different choices for \( f \) that have average value \( $aval \)
+on the rectangle.
+\( f = \) \{ $mp->ans_rule(20) \}, or
+$BR
+\( f = \) \{ $mp->ans_rule(20) \}.
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $eqn->cmp() );
+ANS( $mp->cmp() );
+
+$xy0 = $x0*$y0;
+$ysq = $y0*$y0;
+$yso2 = (int($ysq/2) == $ysq/2) ? $ysq/2 : "\frac{$ysq}2";
+
+($c1n,$c1d) = reduce( $xy0*$x0, 2 );
+$c1 = ( $c1d == 1 ) ? $c1n : "\frac{$c1n}{$c1d}";
+($c2n,$c2d) = reduce( $xy0*$y0, 2 );
+$c2 = ( $c2d == 1 ) ? $c2n : "\frac{$c2n}{$c2d}";
+
+$rhs = $aval*$xy0;
+$twoaval = 2*$aval;
+
+($bvn, $bvd) = reduce( $twoaval, $y0 );
+$bv = ( $bvd == 1 ) ? $bvn : "\frac{$bvn}{$bvd}";
+($avn, $avd) = reduce( $twoaval, $x0 );
+$av = ( $avd == 1 ) ? $avn : "\frac{$avn}{$avd}";
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+We have
+\[
+\mbox{Avg value} = \frac1{\mbox{area}} \int_{R} f\, dA,
+\]
+so
+\[
+$aval = \frac{1}{$xy0}\int_0^{$x0}\int_0^{$y0}\,(ax+by)\,dy\,dx
+      = \frac{1}{$xy0}\int_0^{$x0} $y0 a x  + $yso2 b\, dx,
+\]
+and
+\[
+$aval = \frac{1}{$xy0}( $c1 a + $c2 b ).
+\]
+The average value will be $aval if and only if
+\( $c1 a + $c2 b = $rhs\).
+This equation can also be expressed as \($x0 a + $y0 b = $twoaval\),
+which shows that \(f(x,y)=ax+by\) has average value of $aval on the
+rectangle \(0 \le x \le $x0\), \(0 \le y \le $y0\) if and only if
+\(f($x0,$y0)=$twoaval\).
+
+$PAR
+${BBOLD}(b)$EBOLD
+Since \( $x0 a + $y0 b = $twoaval\), we can pick any pairs of values
+for \(a\) and \(b\) satisfying this relationship.  Two such are
+\(a = 0\), \(b = $bv\), and \(a = $av\), \(b = 0\).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

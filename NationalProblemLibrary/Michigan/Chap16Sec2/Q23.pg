@@ -1,0 +1,232 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('iterated integral', 'double integral', 'definite integrals', 'functions', 'multivariable', 'calculus', 'integration')
+## Tagged by glr 03/25/10
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Iterated Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.2')
+## Problem1('23')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Iterated Integrals')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( y => 'Real' );
+$showPartialCorrectAnswers = 1;
+
+## we plot a section of a circle with radius $r0
+$r0 = random(2,5,1);
+$dr = ( $r0 == 2 ) ? 1 : list_random(1,2);
+## for an x- or y-range that extends betwee 0 and +/- $a
+$a  = $r0 - $dr;
+
+## the x ranges for the different graphs are
+@x0 = ( -1*$a, -1*$r0, 0, 0, -1*$r0, -1*$a );
+@x1 = ( 0, 0, $a, $r0, 0, 0 );
+## and the circle segments are plotted for
+@xpl = ( "<-$a,0>", "<-$r0,-" . sqrt($r0*$r0-$a*$a) . ">", "<0,$a>",
+	 "<" . sqrt($r0*$r0-$a*$a). ",$r0>",
+	 "<-$r0,-" . sqrt($r0*$r0-$a*$a) . ">", "<-$a,0>" );
+## and y ranges
+@y0 = ( -1*($r0+1), -1*$r0, -1*($r0+1), -1*$r0, -1 -1 );
+@y1 = ( 1, 1, 1, 1, $r0, ($r0+1) );
+## x-ticks at
+@xticks = ( -1*$a, -1*$r0, $a, $r0, -1*$r0, -1*$a );
+## and y-ticks
+@yticks = ( -1*$r0, -1*$a, -1*$r0, -1*$a, $a, $r0 );
+
+## the extra lines we add connect the points
+@pts = ( [ [0,-1*$r0], [0,0], [-1*$a,0], [-1*$a,-1*sqrt($r0*$r0 - $a*$a)] ],
+	 [ [-1*$r0,0], [0,0], [0,-1*$a], [-1*sqrt($r0*$r0-$a*$a), -1*$a] ],
+	 [ [0,-1*$r0], [0,0], [$a,0], [$a,-1*sqrt($r0*$r0 - $a*$a)] ],
+	 [ [$r0,0], [0,0], [0,-1*$a], [sqrt($r0*$r0-$a*$a), -1*$a] ],
+	 [ [-1*$r0,0], [0,0], [0,$a], [-1*sqrt($r0*$r0-$a*$a), $a] ],
+	 [ [0,$r0], [0,0], [-1*$a,0], [-1*$a,sqrt($r0*$r0-$a*$a)] ] );
+## and a point in the interior of the region to fill
+@fillPt = ( [-.1,-.1], [-.1,-.1], [.1,-.1], [.1,-.1], [-.1,.1], [-.1,.1] );
+
+## descriptions of the graphs
+@desc = ( "Graph of part of the lower half of a circle of radius $r0, " .
+	      "between x=-$a and x=0.",
+	  "Graph of part of the left half of a circle of radius $r0, " .
+	      "between y=-$a and y=0.",
+	  "Graph of part of the lower half of a circle of radius $r0, " .
+	      "between x=0 and x=$a.",
+	  "Graph of part of the right half of a circle of radius $r0, " .
+	      "between y=-$a and y=0.",
+	  "Graph of part of the left half of a circle of radius $r0, " .
+	      "between y=0 and y=$a.",
+	  "Graph of part of the top half of a circle of radius $r0, " .
+	      "between x=-$a and x=0." );
+
+## the possible graphs are
+@gr = ();
+
+## build the graphs
+for ( my $i=0; $i<6; $i++ ) {
+    $gr[$i] = init_graph( ($x0[$i]-1), $y0[$i], ($x1[$i]+1), $y1[$i],
+			  axes=>[0,0], size=>[200,200] );
+    $gr[$i]->lb('reset');
+    $gr[$i]->moveTo( $xticks[$i], -.1 );
+    $gr[$i]->lineTo( $xticks[$i], 0.1, 'black' );
+    $gr[$i]->moveTo( -.1, $yticks[$i] );
+    $gr[$i]->lineTo( 0.1, $yticks[$i], 'black' );
+    $gr[$i]->lb( new Label( $xticks[$i], 0, "$xticks[$i]", 'black',
+			    'left', 'top' ) );
+    $gr[$i]->lb( new Label( 0, $yticks[$i], "$yticks[$i]", 'black',
+			    'right', 'top' ) );
+
+    if ( $i < 4 ) { $f = "-1*sqrt($r0^2 - x^2)"; }
+    else {          $f = "sqrt($r0^2 - x^2)"; }
+
+    add_functions( $gr[$i], "$f for x in $xpl[$i] using " .
+		   "color:blue and weight:2" );
+
+    $gr[$i]->moveTo( $pts[$i]->[0]->[0], $pts[$i]->[0]->[1] );
+    for ( my $j=1; $j<@{$pts[$i]}; $j++ ) {
+	$gr[$i]->lineTo( $pts[$i]->[$j]->[0], $pts[$i]->[$j]->[1], 'blue', 2 );
+    }
+    $gr[$i]->new_color( 'ltblue', 214, 230, 244 );
+    $gr[$i]->fillRegion( [$fillPt[$i]->[0], $fillPt[$i]->[1], 'ltblue'] );
+}
+
+## display the graphs in this order
+@grOrder = shuffle(6);
+## then the correct answer is
+for ( my $i=0; $i<6; $i++ ) {
+    if ( $grOrder[$i] == 0 ) {
+	$cor = ($i + 1);
+	last;
+    }
+}
+## and put them in a table
+$grTab = begintable(3) .
+    row( "1." . image( insertGraph($gr[$grOrder[0]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[0]] . '"' ),
+	 "2." . image( insertGraph($gr[$grOrder[1]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[1]] . '"' ),
+	 "3." . image( insertGraph($gr[$grOrder[2]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[2]] . '"' ) ) .
+    row( "4." . image( insertGraph($gr[$grOrder[3]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[3]] . '"' ),
+	 "5." . image( insertGraph($gr[$grOrder[4]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[4]] . '"' ),
+	 "6." . image( insertGraph($gr[$grOrder[5]]), tex_size=>200,
+		       height=>200, width=>200, extra_html_tags=>'alt="' .
+		       $desc[$grOrder[5]] . '"' ) ) .
+    endtable();
+
+## the correct graph pop up
+$grSelect = PopUp( [ '?',1,2,3,4,5,6], $cor );
+
+$rsq = $r0*$r0;
+
+## the integral value
+$intVal = Compute( "(1/4)*$a^3*$rsq - (1/8)*$a^5" );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+For the integral
+\[
+    \int_{-$a}^{0} \int_{-\sqrt{$rsq-x^2}}^{0} $a x y\,dy\,dx,
+\]
+sketch the region of integration and evaluate the integral.
+$PAR
+Your sketch should be approximately the same as one of the
+graphs shown below; which is the correct region?
+Graph \{ $grSelect->menu() \}
+$PAR
+Then
+\(     \int_{-$a}^{0} \int_{-\sqrt{$rsq-x^2}}^{0} $a x y\,dy\,dx = \)
+\{ ans_rule(35) \}
+
+$PAR
+Graphs:
+$BR
+$BCENTER
+$grTab
+$ECENTER
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $grSelect->cmp() );
+ANS( $intVal->cmp() );
+
+$acu = $a*$a*$a;
+$afi = $acu*$a*$a;
+if ( $a == 2 ) {
+    $ao2 = '';
+    $acuo4 = 2;
+    $afio8 = 4;
+} elsif ( $a/2 == int($a/2) ) {
+    $ao2 = $a/2;
+    $acuo4 = $acu/4;
+    $afio8 = $afi/8;
+} else {
+    $ao2 = "\frac{$a}{2}";
+    $acuo4 = "\frac{$acu}{4}";
+    $afio8 = "\frac{$afi}{8}";
+}
+($vn, $vd) = reduce( ($a*$a*$a*$rsq*2 - $afi), 8 );
+$v = ( $vd == 1 ) ? "$vn" : "\frac{$vn}{$vd}";
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The region of integration is bounded by \(x = -$a\) and \(x = 0\),
+below by \(y = -\sqrt{$rsq - x^2}\) and above by \(y = 0\).  The
+correct region is therefore \{ $grSelect->correct_ans() \}.
+Evaluating the integral, we have
+\[
+  \int_{-$a}^{0}\int_{-\sqrt{$rsq-x^{2}}}^{0} $a x y\, dy dx =
+    \int_{-$a}^{0} $ao2\, x \, y^{2}\bigg|_{-\sqrt{$rsq-x^{2}}}^{0} dx
+    = \int_{-$a}^{0} -$ao2 x ($rsq - x^2)\,dx
+\]
+\[
+  -$ao2\int_{-$a}^{0} $rsq x - x^{3}\, dx
+    = -$ao2\left( $rsq(\frac12)(x^2) - (\frac14)(x^4)\right)\bigg|_{-$a}^{0}
+\]
+\[
+    = $acuo4\,$rsq - $afio8 = $v.
+\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
