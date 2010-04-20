@@ -31,20 +31,14 @@
 
 DOCUMENT();
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGauxiliaryFunctions.pl",
+"PGstandard.pl",
 "PGgraphmacros.pl",
-"MathObjects.pl",
-"hhAdditionalMacros.pl",
+"PGunion.pl",
+"imageChoice.pl",
 );
 
-Context("Numeric");
-
 TEXT(beginproblem());
-$showPartialCorrectAnswers = 1;
+$refreshCachedImages = 1;
 
 $a = random(1,4,1);
 $b = random(1,4,1);
@@ -56,25 +50,6 @@ $seq[1] = "s_n = $a + (-1)^n/n";
 $seq[2] = "s_n = $a/n";
 $seq[3] = "s_n = $a + $b/n";
 
-# make graphs for each
-@gra = ();
-for ( my $i=0; $i<4; $i++ ) {
-    $gra[$i] = init_graph(-1,-1,10,($a+$b),'axes'=>[0,0],'grid'=>[1,1]);
-    for ( my $j=1; $j<11; $j++ ) {
-	$gra[$i]->stamps(closed_circle($j, sn($i, $j), 'blue') );
-    }
-}
-
-# make a matching list
-$grmatch = new_match_list();
-$grmatch->qa( 
-    "\($seq[0]\)", image(insertGraph($gra[0]),'tex_size'=>300),
-    "\($seq[1]\)", image(insertGraph($gra[1]),'tex_size'=>300),
-    "\($seq[2]\)", image(insertGraph($gra[2]),'tex_size'=>300),
-    "\($seq[3]\)", image(insertGraph($gra[3]),'tex_size'=>300),
-);
-$grmatch->choose(4);
-
 # handy routine for generating sequence values
 sub sn { 
     my ( $snum, $nval ) = @_;
@@ -85,36 +60,77 @@ sub sn {
     else { return(1); } # shouldn't ever happen; bail out
 }
 
-Context()->texStrings;
+# make graphs for each
+@gr = ();
+foreach my $i (0..3) {
+    $gr[$i] = init_graph(-1,-1,10,($a+$b),'axes'=>[0,0],'grid'=>[1,1]);
+    foreach my $j (1..10) {
+	$gr[$i]->stamps(closed_circle($j, sn($i, $j), 'blue') );
+    }
+}
+
+@QA = ();
+foreach my $i (0..3) { push( @QA, "\($seq[$i]\)",  $gr[$i] ); }
+
+$ml = new_image_match_list(
+  link => 1,                #  do not link to separate image
+  size => [200,200],        #  image size in pixels
+  tex_size => 450,          #  tex size in precent times 10
+  columns => 2,             #  number of columns
+  separation => 20,         #  separation between image columns 
+);
+
+$ml->rf_print_q(~~&pop_up_list_print_q); # use pop-up-lists
+$ml->ra_pop_up_list([ No_answer=>"?", A=>"A", B=>"B", C=>"C", D=>"D"] );
+
+$ml->qa(@QA);               #  set the questions and answers
+$ml->choose(4);             #  select 4 of them
+#$ml->choose_extra(0);      #  and show the other 1
+
+
+
+##############################################
+#  Main text
+
 BEGIN_TEXT
-
-Match the graphs with the corresponding formulas.  (Click on any graph
-for a larger version.)
-
-\{ $grmatch->print_q() \}
-\{ $grmatch->print_a() \}
-
+\{
+ColumnTable(
+"Match the graphs with the corresponding formulas.".
+$ml->print_q(), # comma!
+$BCENTER.
+$ml->print_a().
+$BR.
+"(Click on a graph to enlarge it)".
+$ECENTER, # comma!
+indent => 0, separation => 30, valign => "TOP"
+)
+\}
 END_TEXT
-Context()->normalStrings;
 
-ANS(str_cmp($grmatch->ra_correct_ans));
 
-$a0 = $grmatch->ra_correct_ans->[0];
-$a1 = $grmatch->ra_correct_ans->[1];
-$a2 = $grmatch->ra_correct_ans->[2];
-$a3 = $grmatch->ra_correct_ans->[3];
+#############################################
+#  Answer evaluation
 
-Context()->texStrings;
-SOLUTION(EV3(<<'END_SOLUTION'));
+install_problem_grader(~~&std_problem_grader);
+$showPartialCorrectAnswers = 0;
+
+ANS(str_cmp($ml->ra_correct_ans));
+
+
+#################################################
+#  Solution
+
+foreach my $i (0..3) {
+  $a[$i] = $ml->ra_correct_ans->[$i];
+}
+
+BEGIN_SOLUTION
 $PAR SOLUTION $PAR
-
 The formulas match as follows: 
-1 matches graph $a0, 
-2 matches graph $a1, 
-3 matches graph $a2, and
-4 matches graph $a3.
-
+1 matches graph $a[0], 
+2 matches graph $a[1], 
+3 matches graph $a[2], and
+4 matches graph $a[3].
 END_SOLUTION
-Context()->normalStrings;
 
 ENDDOCUMENT();
