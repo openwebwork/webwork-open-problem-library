@@ -1,0 +1,180 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('polar coordinates', 'integral', 'calculus')
+## Tagged by glr 04/29/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Double Integrals in Polar Coordinates')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.4')
+## Problem1('33')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Double Integrals in Polar Coordinates')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->are( r=>'Real', t=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+$a = random(2,9,1);
+
+$t0 = Compute( "-arccos(1/$a)" );
+$t1 = Compute( "arccos(1/$a)" );
+$r0 = Compute( "1/($a*cos(t))" );
+$r1 = Compute( "1" );
+$rvar = Compute( "r" );
+$tvar = Compute( "t" );
+
+$chk = MultiAnswer( $t0, $t1, $r0, $r1, $rvar, $rvar, $tvar )->with(
+    singleAnswer=>0,
+    checker=>sub {
+	my ( $c, $s, $self ) = @_;
+	my @res = ( 0, 0, 0, 0, 0, 0, 0 );
+
+	## the order must be
+	$res[5] = ( $c->[5] == $s->[5] ) ? 1 : 0;
+	$res[6] = ( $c->[6] == $s->[6] ) ? 1 : 0;
+
+	## the theta limits can be half of those indicated if we
+	##    double the integrand.  we assume that the integrand
+	##    isn't changed other than that (e.g., by multiplying
+	##    by negative one.  blech.)
+	if ( $c->[4]*2 == $s->[4] ) {
+	    if ( c->[0] == $s->[0] && Compute(0) == $s->[1] ||
+		 Compute(0) == $s->[0] && $c->[1] == $s->[1] ) {
+		$res[0] = 1;
+		$res[1] = 1;
+		$res[4] = 1;
+	    } elsif ( $c->[0] == $s->[0] && $c->[1] == $s->[1] ) {
+		$res[0] = 1;
+		$res[1] = 1;
+	    }
+	} else {
+	    $res[0] = ( $c->[0] == $s->[0] ) ? 1 : 0;
+	    $res[1] = ( $c->[1] == $s->[1] ) ? 1 : 0;
+	    $res[4] = ( $c->[4] == $s->[4] ) ? 1 : 0;
+	}
+	$res[2] = ( $c->[2] == $s->[2] ) ? 1 : 0;
+	$res[3] = ( $c->[3] == $s->[3] ) ? 1 : 0;
+
+	return [ @res ];
+    }
+);
+
+$area = Compute( "arccos(1/$a) - tan(arccos(1/$a))/($a^2)" );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+${BBOLD}(a)$EBOLD
+Graph \( r=1/($a\cos\theta) \) for \( -\pi/2\le\theta\le\pi/2 \) and
+\( r=1 \).  Then write an iterated integral in polar coordinates
+representing the area inside the curve \( r=1 \) and to the right of
+\( r=1/($a\cos\theta) \).  (Use \(t\) for \(\theta\) in your work.)
+$BR
+With
+\(a = \)\{ $chk->ans_rule(10) \}, \(b = \)\{ $chk->ans_rule(10) \},$BR
+\(c = \)\{ $chk->ans_rule(10) \}, and \(d = \)\{ $chk->ans_rule(10) \},
+$BR
+area = \(\int_a^b\int_c^d\,\)\{$chk->ans_rule(10)\}\(d\)\{$chk->ans_rule(5)\}
+\(d\)\{$chk->ans_rule(5)\}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Evaluate your integral to find the area.
+$BR
+area = \{ ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $chk->cmp() );
+ANS( $area->cmp() );
+
+sub acos { atan2( sqrt(1 - $_[0] * $_[0]), $_[0] ) };
+
+$gr = init_graph(-1.25,-1.25,1.25,1.25, axes=>[0,0], size=>[250,250],
+		 ticks=>[10,10]);
+$gr->moveTo( 1/$a,-sin(acos(1/$a)) );
+$gr->lineTo( 1/$a,sin(acos(1/$a)), 'blue', 2 );
+$fn = new Fun( sub { cos($_[0]) }, sub { sin($_[0]) }, $gr );
+$fn->domain( -acos(1/$a), acos(1/$a) );
+$gr->new_color("lightblue", 214,230,244);
+$gr->fillRegion( [ 0.9, 0, 'lightblue' ] );
+
+$note = ( $a == 2 ) ? "(= \(\pm\pi/3\))" : "";
+$th = ( $a == 2 ) ? "\pi/3" : "\arccos(1/$a)";
+
+$asq = $a*$a;
+
+$areafmt = ( $a == 2 ) ? "\frac{4\pi-3\sqrt{3}}{12}" :
+    "\arccos(\frac1{$a}) - \frac1{$asq}\,\tan(\arccos(\frac1{$a}))";
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+The curve \(r=1/($a\cos\theta)\), or \(r\cos\theta=1/$a\), is the line
+\( x = 1/$a\).  The curve \(r=1\) is the circle of radius 1 centered
+at the origin.  This gives the graph
+$BR
+$BCENTER
+\{ image( insertGraph($gr), height=>250, width=>250, tex_size=>200,
+          extra_html_tags=>'alt="graph of the indicated region."' ) \}
+$ECENTER
+$BR
+The line intersects the circle where \($a\cos\theta=1\), so
+\(\theta = \pm\arccos(1/$a)\)$note.
+Thus
+\[
+\hbox{Area }=\int_{-$th}^{$th}\int_{1/($a\cos\theta)}^1 r\,dr\,d\theta.
+\]
+Evaluating gives
+\[
+\hbox{Area }=
+\int_{-$th}^{$th}\left(\frac{r^2}{2}\bigg|_{1/($a\cos\theta)}^1\right)d\theta
+  =\frac{1}{2}\int_{-$th}^{$th}\left(1-\frac{1}{$asq\cos^2\theta}\right)d\theta
+\]
+so
+\[
+\mbox{Area }=\frac{1}{2}\left(\theta -\frac{\tan\theta}{$asq}\right)
+   \bigg|_{-$th}^{$th}
+  =\frac{1}{2}\left(2($th) - 2\frac{\tan($th)}{$asq}\right)
+\]
+\[
+  = $areafmt.
+\]
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

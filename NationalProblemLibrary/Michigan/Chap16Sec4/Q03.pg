@@ -1,0 +1,232 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('polar coordinates', 'integral', 'calculus')
+## Tagged by glr 04/29/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Double Integrals in Polar Coordinates')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.4')
+## Problem1('3')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Double Integrals in Polar Coordinates')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->are( r=>'Real', t=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+$r0 = list_random(1,2,3);
+$r1 = $r0 + list_random(1,2);
+$whichGr = list_random(1,2);
+$whichGr = ($whichGr % 2) + 1;
+
+$gr = init_graph( -$r1-1, -$r1-1, $r1+1, $r1+1, axes=>[0,0],
+		  ticks=>[2*$r1+2,2*$r1+2], size=>[250,250] );
+$gr->new_color("lightblue", 214,230,244);
+
+if ( $whichGr == 1 ) {
+    ## then show the region between $r0 and $r1 for theta between
+    ##    pi/2 and 3pi/2
+    @xf = ( sub { return $r0*cos( $_[0] ); },
+	    sub { return $r1*cos( $_[0] ); },
+	    sub { return 0; },
+	    sub { return 0; } );
+    @yf = ( sub { return $r0*sin( $_[0] ); },
+	    sub { return $r1*sin( $_[0] ); },
+	    sub { return $_[0]; },
+	    sub { return $_[0]; } );
+    @dm = ( [ 1.5708, 4.7124 ], [ 1.5708, 4.7124 ], [ -$r1, -$r0 ],
+	    [ $r0, $r1 ] );
+    $fillx = -0.1;  $filly = $r0;
+
+    $desc = "Half a washer, with inner radius $r0 and outer radius $r1, " .
+        "in the left half-plane.";
+
+    $rlower = Compute( $r0 );
+    $rupper = Compute( $r1 );
+    $tlower = Compute( "pi/2" );    $tl = "\pi/2";
+    $tupper = Compute( "3*pi/2" );  $tu = "\pi/2";
+
+    @mid = ( Compute( -$r1 ), Compute( 0 ) );
+
+} elsif ( $whichGr == 2 ) {
+    ## then show the region beween $r0 and $r1 for theta between
+    ##  -pi/2 and pi/2
+    @xf = ( sub { return $r0*cos( $_[0] ); },
+	    sub { return $r1*cos( $_[0] ); },
+	    sub { return 0; },
+	    sub { return 0; } );
+    @yf = ( sub { return $r0*sin( $_[0] ); },
+	    sub { return $r1*sin( $_[0] ); },
+	    sub { return $_[0]; },
+	    sub { return $_[0]; } );
+    @dm = ( [ -1.5708, 1.5708 ], [ -1.5708, 1.5708 ], [ -$r1, -$r0 ],
+	    [ $r0, $r1 ] );
+    $fillx = 0.1;  $filly = $r0;
+
+    $desc = "Half a washer, with inner radius $r0 and outer radius $r1, " .
+        "in the right half-plane.";
+
+    $rlower = Compute( $r0 );
+    $rupper = Compute( $r1 );
+    $tlower = Compute( "-pi/2" );  $tl = "\pi/2";
+    $tupper = Compute( "pi/2" );   $tu = "\pi/2";
+
+    @mid = ( Compute( $r1 ), Compute( 0 ) );
+}
+
+@fn = ();
+for ( my $i=0; $i<@xf; $i++ ) {
+    $f[$i] = new Fun( $xf[$i], $yf[$i], $gr );
+    $f[$i]->domain( @{$dm[$i]} );
+    $f[$i]->color( 'blue' );
+}
+$gr->fillRegion( [ $fillx, $filly, 'lightblue' ] );
+
+$r = Compute( 'r' );
+$t = Compute( 't' );
+
+$intChk = MultiAnswer( $tlower, $tupper, $rlower, $rupper, $r, $r, $t )->with(
+    singleAnswer=>0,
+    checker=>sub {
+        my ( $c, $s, $self ) = @_;
+
+	@res = ( 0, 0, 0, 0, 0, 0, 0 );
+
+	## establish the order of the variables
+	if ( $c->[6] == $s->[6] ) {
+	    $res[6] = 1;
+	    @st = ( $s->[0], $s->[1] );
+
+	    if ( $c->[5] == $s->[5] ) {
+		$res[5] = 1;
+		@sr = ( $s->[2], $s->[3] );
+	    } else {
+		@sr = ();
+	    }
+	} elsif ( $c->[5] == $s->[6] ) {
+	    $res[6] = 1;
+	    @sr = ( $s->[0], $s->[1] );
+
+	    if ( $c->[6] == $s->[5] ) {
+		$res[5] = 1;
+		@st = ( $s->[2], $s->[3] );
+	    } else {
+		@st = ();
+	    }
+	} else {
+	    $res[5] = ( $c->[6] == $s->[5] || $c->[5] == $s->[5] ) ? 1 : 0;
+	    @sr = ();
+	    @st = ();
+	}
+
+	## check dA
+	$res[4] = ( $c->[4] == $s->[4] ) ? 1 : 0;
+
+	## now, can we check the limits?
+	if ( @sr && @st ) {
+	    ## then we have to cover the polar rectangle we want.  this
+	    ##    is only tricky because polar representations aren't
+	    ##    unique.
+	    ## the correct corners of the rectangle are
+	    @p = ( $rlower*cos($tlower), $rlower*sin($tlower) );
+	    @q = ( $rupper*cos($tupper), $rupper*sin($tupper) );
+
+	    ## the students' answers are correct if the integral goes
+	    ##    from P to Q or vice versa (because the two negative
+	    ##    signs cancel)
+	    @pstu = ( $sr[0]*cos($st[0]), $sr[0]*sin($st[0]) );
+	    @qstu = ( $sr[1]*cos($st[1]), $sr[1]*sin($st[1]) );
+
+	    if ( $p[0] == $pstu[0] && $p[1] == $pstu[1] ) {
+		$res[0] = 1;
+		$res[1] = 1;
+
+		if ( $q[0] == $qstu[0] && $q[1] == $qstu[1] ) {
+		    ## check the midpoint just to be sure
+		    if ( $mid[0] == $sr[1]*cos(($st[1]+$st[0])/2) &&
+			 $mid[1] == $sr[1]*sin(($st[1]+$st[0])/2) ) {
+			$res[2] = 1;
+			$res[3] = 1;
+		    }
+		}
+	    } elsif ( $p[0] == $qstu[0] && $p[1] == $qstu[1] &&
+		      $q[0] == $pstu[0] && $q[1] == $pstu[1] ) {
+		if ( $mid[0] == $sr[0]*cos(($st[1]+$st[0])/2) &&
+		     $mid[1] == $sr[0]*sin(($st[1]+$st[0])/2) ) {
+		    $res[1] = 1;  $res[0] = 1;
+		    $res[2] = 1;  $res[3] = 1;
+		}
+	    }
+	}
+
+	return [ @res ];
+    }
+);
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+For the regions \( R \) below, write \( \int\!\!\!\int_R f\,dA \)
+as an iterated integral in polar coordinates.  (Use \(t\) for \(\theta\)
+in your expressions.)
+$PAR
+${BCENTER}
+\{ image( insertGraph( $gr ), tex_size=>250, height=>250, width=>250,
+	  extra_html_tags=>'alt="' . $desc . '"' ) \}
+$ECENTER
+$PAR
+With
+\(a = \) \{ $intChk->ans_rule(5) \}, \(b = \) \{ $intChk->ans_rule(5) \},
+$BR
+\(c = \) \{ $intChk->ans_rule(5) \}, and \(d = \) \{ $intChk->ans_rule(5) \},
+$BR
+\( \int\!\!\!\int_R f\,dA = \int_a^b\!\!\int_c^d\, f\,dA \), where
+$BR
+\(dA = \) \{ $intChk->ans_rule(5) \} \(d\)\{ $intChk->ans_rule(5) \}
+\(d\)\{ $intChk->ans_rule(5) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $intChk->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+\[ \int\!\!\!\int_R f\,dA =
+   \int_{$tl}^{$tu}\int_{$r0}^{$r1} f\,r\,dr\,d\theta. \]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
