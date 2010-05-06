@@ -1,0 +1,403 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('coordinates', 'cylindrical', 'spherical', 'integrals', 'calculus')
+## Tagged by glr 05/05/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Triple Integrals in Cylindrical and Spherical Coordinates')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.5')
+## Problem1('32')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Integrals in Cylindrical and Spherical Coordinates')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( y=>'Real', z=>'Real',
+			   r=>'Real', theta=>'Real',
+			   rho=>'Real', phi=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+$ang = list_random(0,1,2);
+$angle = ( "\pi/3", "\pi/2", "2\pi/3" )[$ang];
+$angleo2 = ( "\pi/6", "\pi/4", "\pi/3" )[$ang];
+$a = ( "pi/6", "pi/4", "pi/3" )[$ang];
+
+$rad = random(1,8,1);
+$height = ( "$rad\sqrt{3}", "$rad", "$rad/\sqrt{3}" )[$ang];
+$h = ( "$rad*sqrt(3)", $rad, "$rad/sqrt(3)" )[$ang];
+$m = ( "sqrt(3)", "1", "(1/sqrt(3))" )[$ang];
+$mdisp = ( "\sqrt{3}", "", "\frac{1}{\sqrt{3}}" )[$ang];
+
+$cart = MultiAnswer( Compute("-$rad"), Compute("$rad"),
+		     Compute("-sqrt($rad^2-x^2)"), Compute("sqrt($rad^2-x^2)"),
+		     Compute("$m*sqrt(x^2+y^2)"), Formula("$h"),
+		     Formula("1"),
+		     Compute("z"), Compute("y"), Compute("x") )->with(
+    singleAnswer=>0,
+    checker=>sub {
+	my ( $c, $s, $self ) = @_;
+	@res = ( 0,0, 0,0, 0,0, 0, 0,0,0 );
+	$res[6] = ( $c->[6] == $s->[6] ) ? 1 : 0;
+	## z must be the innermost
+	if ( $c->[7] == $s->[7] ) {
+	    $res[7] = 1;
+	    $res[4] = ( $c->[4] == $s->[4] ) ? 1 : 0;
+	    $res[5] = ( $c->[5] == $s->[5] ) ? 1 : 0;
+	}
+	## then x and y can be in either order
+	if ( $c->[9] == $s->[9] ) {
+	    $res[9] = 1;
+	    $yind = 2;
+	    $res[0] = ( $c->[0] == $s->[0] ) ? 1 : 0;
+	    $res[1] = ( $c->[1] == $s->[1] ) ? 1 : 0;
+	} elsif ( $c->[9] == $s->[8] ) {
+	    $res[8] = 1;
+	    $yind = 0;
+	    $res[2] = ( Compute("-sqrt($rad^2-y^2)") == $s->[2] ) ? 1 : 0;
+	    $res[3] = ( Compute("sqrt($rad^2-y^2)") == $s->[3] ) ? 1 : 0;
+	}
+	$res[9-$yind/2] = ( $c->[8] == $s->[9-$yind/2] ) ? 1 : 0;
+	$res[$yind] = ( ($yind == 2 && $c->[2] == $s->[$yind]) ||
+			($yind == 0 && $c->[0] == $s->[$yind]) ) ? 1 : 0;
+	$res[1+$yind] = ( ($yind == 2 && $c->[3] == $s->[1+$yind]) ||
+			  ($yind == 0 && $c->[1] == $s->[1+$yind]) ) ? 1 : 0;
+
+	return [ @res ]; } );
+
+$cyl = MultiAnswer( Compute("0"), Compute("2*pi"),
+		    Formula("0"), Formula("$rad"),
+		    Compute("$m*r"), Formula("$h"),
+		    Compute("r"), Compute("z"), Compute("r"),
+		    Compute("theta") )->with(
+    singleAnswer=>0,
+    checker=>sub {
+	my ( $c, $s, $self ) = @_;
+	@res = ( 0,0, 0,0, 0,0, 0, 0,0,0 );
+
+	$res[6] = ( $c->[6] == $s->[6] ) ? 1 : 0;
+	## theta can be in any of the three positions
+	if ( $c->[9] == $s->[7] ) {
+	    ## inner is theta
+	    $res[7] = 1;
+	    $res[4] = ( $c->[0] == $s->[4] ) ? 1 : 0;
+	    $res[5] = ( $c->[1] == $s->[5] ) ? 1 : 0;
+
+	    ## then if z is next innermost we have
+	    if ( $c->[7] == $s->[8] ) {
+		$res[8] = 1;
+		$res[2] = ( $c->[4] == $s->[2] ) ? 1 : 0;
+		$res[3] = ( $c->[5] == $s->[3] ) ? 1 : 0;
+
+		## then outer is r
+		if ( $c->[8] == $s->[9] ) {
+		    $res[9] = 1;
+		    $res[0] = ( $c->[2] == $s->[0] ) ? 1 : 0;
+		    $res[1] = ( $c->[3] == $s->[1] ) ? 1 : 0;
+		}
+	    } elsif ( $c->[7] == $s->[9] ) {
+		## and if z is the outer limit, we have
+		$res[9] = 1;
+		$res[0] = ( $c->[2] == $s->[0] ) ? 1 : 0;
+		$res[1] = ( $c->[3] == $s->[1] ) ? 1 : 0;
+
+		## and the middle limit must be
+		if ( $c->[8] == $s->[8] ) {
+		    $res[8] = 1;
+		    $res[2] = ( $c->[2] == $s->[2] ) ? 1 : 0;
+		    $res[3] = ( Compute("z") == $s->[3] ) ? 1 : 0;
+		}
+	    } else {
+		## if both of those fail, then z isn't one
+		##    of the variables given.  check for r
+		if ( $c->[8] == $s->[8] ) {
+		    $res[8] = 1;
+		    $res[2] = ( $c->[2] == $s->[2] ) ? 1 : 0;
+		    $res[3] = ( Compute("z") == $s->[3] ) ? 1 : 0;
+		} elsif ( $c->[8] == $s->[9] ) {
+		    $res[9] = 1;
+		    $res[0] = ( $c->[2] == $s->[0] ) ? 1 : 0;
+		    $res[1] = ( $c->[3] == $s->[1] ) ? 1 : 0;
+		}
+	    }
+
+	} elsif ( $c->[9] == $s->[8] ) {
+	    ## middle is theta
+	    $res[8] = 1;
+	    $res[2] = ( $c->[0] == $s->[2] ) ? 1 : 0;
+	    $res[3] = ( $c->[1] == $s->[3] ) ? 1 : 0;
+
+	    ## if innermost is z
+	    if ( $c->[7] == $s->[7] ) {
+		$res[7] = 1;
+		$res[4] = ( $c->[4] == $s->[4] ) ? 1 : 0;
+		$res[5] = ( $c->[5] == $s->[5] ) ? 1 : 0;
+		## outer is r
+		if ( $c->[8] == $s->[9] ) {
+		    $res[9] = 1;
+		    $res[0] = ( $c->[2] == $s->[0] ) ? 1 : 0;
+		    $res[1] = ( $c->[3] == $s->[1] ) ? 1 : 0;
+		}
+	    } elsif ( $c->[7] == $s->[9] ) {
+		## and if the outermost is z, the innermost is r
+		$res[9] = 1;
+		$res[0] = ( $c->[0] == $s->[0] ) ? 1 : 0;
+		$res[1] = ( $c->[3] == $s->[1] ) ? 1 : 0;
+		if ( $c->[8] == $s->[7] ) {
+		    $res[7] = 1;
+		    $res[4] = ( $c->[0] == $s->[4] ) ? 1 : 0;
+		    $res[5] = ( Compute("z") == $s->[5] ) ? 1 : 0;
+		}
+	    } else {
+		## if both of the preceding failed, then z isn't
+		##    one of the given variables.  Just check to see
+		##    if r is correct
+		if ( $c->[8] == $s->[9] ) {
+		    $res[9] = 1;
+		    $res[0] = ( $c->[2] == $s->[0] ) ? 1 : 0;
+		    $res[1] = ( $c->[3] == $s->[1] ) ? 1 : 0;
+		} elsif ( $c->[8] == $s->[7] ) {
+		    $res[7] = 1;
+		    $res[4] = ( $c->[0] == $s->[4] ) ? 1 : 0;
+		    $res[5] = ( Compute("z") == $s->[5] ) ? 1 : 0;
+		}
+	    }
+	} elsif ( $c->[9] == $s->[9] ) {
+	    ## outer is theta
+	    $res[9] = 1;
+	    $res[0] = ( $c->[0] == $s->[0] ) ? 1 : 0;
+	    $res[1] = ( $c->[1] == $s->[1] ) ? 1 : 0;
+
+	    ## if the innermost is z
+	    if ( $c->[7] == $s->[7] ) {
+		$res[7] = 1;
+		$res[4] = ( $c->[4] == $s->[4] ) ? 1 : 0;
+		$res[5] = ( $c->[5] == $s->[5] ) ? 1 : 0;
+		## then middle must be r
+		if ( $c->[8] == $s->[8] ) {
+		    $res[8] = 1;
+		    $res[2] = ( $c->[2] == $s->[2] ) ? 1 : 0;
+		    $res[3] = ( $c->[3] == $s->[3] ) ? 1 : 0;
+		}
+	    } elsif ( $c->[7] == $s->[8] ) {
+		## and if the middle is z
+		$res[8] = 1;
+		$res[2] = ( $c->[2] == $s->[2] ) ? 1 : 0;
+		$res[3] = ( $c->[3] == $s->[3] ) ? 1 : 0;
+		## then the innermost is r
+		if ( $c->[8] == $s->[7] ) {
+		    $res[7] = 1;
+		    $res[4] = ( $c->[0] == $s->[4] ) ? 1 : 0;
+		    $res[5] = ( Compute("z") == $s->[5] ) ? 1 : 0;
+		}
+	    } else {
+		## and then, with no z
+		if ( $c->[8] == $s->[8] ) {
+		    $res[8] = 1;
+		    $res[2] = ( $c->[2] == $s->[2] ) ? 1 : 0;
+		    $res[3] = ( $c->[3] == $s->[3] ) ? 1 : 0;
+		} elsif ( $c->[8] == $s->[7] ) {
+		    $res[7] = 1;
+		    $res[4] = ( $c->[0] == $s->[4] ) ? 1 : 0;
+		    $res[5] = ( Compute("z") == $s->[5] ) ? 1 : 0;
+		}
+	    }
+	}
+	return [ @res ]; } );
+
+$sph = MultiAnswer( Compute("0"), Compute("2*pi"),
+		    Formula("0"), Formula("$a"),
+		    Formula("0"), Formula("$h/cos(phi)"),
+		    Compute("(rho^2)*sin(phi)"),
+		    Compute("rho"), Compute("phi"),
+		    Compute("theta") )->with(
+    singleAnswer=>0,
+    checker=>sub {
+	my ( $c, $s, $self ) = @_;
+	@res = ( 0,0, 0,0, 0,0, 0, 0,0,0 );
+	$res[6] = ( $c->[6] == $s->[6] ) ? 1 : 0;
+	## rho must be one of the two inner limits
+	if ( $c->[7] == $s->[7] ) {
+	    $res[7] = 1;
+	    $res[4] = ( $c->[4] == $s->[4] ) ? 1 : 0;
+	    $res[5] = ( $c->[5] == $s->[5] ) ? 1 : 0;
+	    @check = ( 8, 9 );
+	} elsif ( $c->[7] == $s->[8] ) {
+	    $res[8] = 1;
+	    $res[2] = ( $c->[4] == $s->[2] ) ? 1 : 0;
+	    $res[3] = ( $c->[5] == $s->[3] ) ? 1 : 0;
+	    @check = ( 7, 9 );
+	} else {
+	    ## hmm.  no correct rho.  how to check?  look for first correct
+	    ##    variables, outside to in, and mark those
+	    if ( $c->[9] == $s->[9] || $c->[8] == $s->[9] ) {
+		@check = ( 9 );
+		if ( ($c->[9] == $s->[9] || $c->[8] == $s->[9]) &&
+		     $s->[9] != $s->[8] ) {
+		    unshift( @check, 8 );
+		} elsif ( ($c->[9] == $s->[7] || $c->[8] == $s->[7] ) &&
+			  $s->[9] != $s->[7] ) {
+		    unshift( @check, 7 );
+		}
+	    } else {
+		@check = ( 7, 8 );
+	    }
+	}
+	$donep = 0;
+	$donet = 0;
+	foreach my $i ( @check ) {
+	    $low = 2*(9 - $i);  $hi = $low+1;
+	    if ( ! $donet && $c->[9] == $s->[$i] ) {
+		$res[$i] = 1;
+		$donet = 1;
+		$res[$low] = ( $c->[0] == $s->[$low] ) ? 1 : 0;
+		$res[$hi] = ( $c->[1] == $s->[$hi] ) ? 1 : 0;
+	    } elsif ( ! $donep && $c->[8] == $s->[$i] ) {
+		$res[$i] = 1;
+		$donep = 1;
+		$res[$low] = ( $c->[2] == $s->[$low] ) ? 1 : 0;
+		$res[$hi] = ( $c->[3] == $s->[$hi] ) ? 1 : 0;
+	    }
+	}
+	return [ @res ]; } );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+The region \(W\) is the cone shown below.
+$BR
+$BCENTER
+\{ image( "cone.png", tex_size=>250, height=>244, width=>360,
+	  extra_html_tags=>'alt="graph of a cone, with base at ' .
+	  'the origin and opening around the z-axis."' ) \}
+$ECENTER
+$BR
+The angle at the vertex is \($angle\), and the top is flat and at a
+height of \($height\).
+$PAR
+Write the limits of integration for \( \int_W\,dV \) in the following
+coordinates (do ${BBOLD}not$EBOLD reduce the domain of integration by
+taking advantage of symmetry):
+$PAR
+${BBOLD}(a)$EBOLD
+Cartesian:
+$BR
+With
+\( a = \)\{$cart->ans_rule(15)\},
+\( b = \)\{$cart->ans_rule(15)\}, $BR
+\( c = \)\{$cart->ans_rule(15)\},
+\( d = \)\{$cart->ans_rule(15)\}, $BR
+\( e = \)\{$cart->ans_rule(15)\}, and
+\( f = \)\{$cart->ans_rule(15)\}, $BR
+Volume = \(\int_a^b\int_c^d\int_e^f\)\{$cart->ans_rule(15)\}
+\(d\)\{$cart->ans_rule(5)\}
+\(d\)\{$cart->ans_rule(5)\}
+\(d\)\{$cart->ans_rule(5)\}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Cylindrical:
+$BR
+With
+\( a = \)\{$cyl->ans_rule(15)\},
+\( b = \)\{$cyl->ans_rule(15)\}, $BR
+\( c = \)\{$cyl->ans_rule(15)\},
+\( d = \)\{$cyl->ans_rule(15)\}, $BR
+\( e = \)\{$cyl->ans_rule(15)\}, and
+\( f = \)\{$cyl->ans_rule(15)\}, $BR
+Volume = \(\int_a^b\int_c^d\int_e^f\)\{$cyl->ans_rule(15)\}
+\(d\)\{$cyl->ans_rule(5)\}
+\(d\)\{$cyl->ans_rule(5)\}
+\(d\)\{$cyl->ans_rule(5)\}
+
+$PAR
+${BBOLD}(c)$EBOLD
+Spherical:
+$BR
+With
+\( a = \)\{$sph->ans_rule(15)\},
+\( b = \)\{$sph->ans_rule(15)\}, $BR
+\( c = \)\{$sph->ans_rule(15)\},
+\( d = \)\{$sph->ans_rule(15)\}, $BR
+\( e = \)\{$sph->ans_rule(15)\}, and
+\( f = \)\{$sph->ans_rule(15)\}, $BR
+Volume = \(\int_a^b\int_c^d\int_e^f\)\{$sph->ans_rule(15)\}
+\(d\)\{$sph->ans_rule(5)\}
+\(d\)\{$sph->ans_rule(5)\}
+\(d\)\{$sph->ans_rule(5)\}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $cart->cmp() );
+ANS( $cyl->cmp() );
+ANS( $sph->cmp() );
+
+$r2 = $r*$r;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+Since the cone has an angle of \($angle\) at its vertex,
+it has equation
+\[ z = $mdisp \sqrt{x^2+y^2}. \]
+The top of the cone, the plane with equation \(z = $height\),
+intersects the cone in the circle
+\( x^2 + y^2 = $rad\). Thus,
+in cartesian coordinates we have
+\[
+\int_W\, dV = \int_{-$rad}^{$rad}\int_{-\sqrt{$r2-x^2}}^{\sqrt{r2-x^2}}
+  \int_{$mdisp\sqrt{x^2+y^2}}^{$height}\,1\,dz\,dy\,dx.
+\]
+
+$PAR
+${BBOLD}(b)$EBOLD
+In cylindrical coordinates the cone has equation \(z = $mdisp r\), so
+the integral becomes
+\[
+\int_W\,dV = \int_{0}^{2\pi}\int{0}^{$rad}\int_{$mdisp r}^{$height}
+  r\,dz\,dr\,d\theta.
+\]
+
+$PAR
+${BBOLD}(c)$EBOLD
+In spherical coordinates, the cone has equation \(\phi = $angleo2\)
+and the plane \(z = $height\) is \(\rho\cos\phi = $height\).  Thus
+we have
+\[
+\int_W\,dV = \int_{0}^{2\pi}\int_{0}^{$angleo2}\int_{0}^{$height/\cos\phi}
+  \rho^2\sin\phi\,d\rho\,d\phi\,d\theta.
+\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

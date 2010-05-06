@@ -1,0 +1,265 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('coordinates', 'cylindrical', 'spherical', 'integrals', 'calculus')
+## Tagged by glr 05/05/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Triple Integrals in Cylindrical and Spherical Coordinates')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.5')
+## Problem1('25')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Integrals in Cylindrical and Spherical Coordinates')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl",
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( y=>'Real', z=>'Real',
+			   r=>'Real', theta=>'Real',
+			   rho=>'Real', phi=>'Real' );
+Context()->strings->add( cartesian=>{}, cylindrical=>{}, spherical=>{} );
+$showPartialCorrectAnswers = 1;
+
+$b = random(1,4,1);
+$z0 = random(1,5,1);
+$a = $b*$b + $z0*$z0;
+
+$coord = String('cylindrical');
+$int = MultiAnswer( $coord,
+		    Compute("0"), Compute("pi/2"),
+		    Formula("0"), Formula("$b"),
+		    Formula("$z0"), Formula("sqrt($a - r^2)"),
+		    Compute("r"), Compute("z"), Compute("r"),
+		    Compute("theta") )->with(
+    singleAnswer=>0,
+    checker=>sub {
+	my ( $c, $s, $self ) = @_;
+	@res = ( 0, 0,0, 0,0, 0,0, 0, 0,0,0 );
+
+	if ( $c->[0] == $s->[0] ) {
+	    ## cylindrical
+	    $res[0] = 1;
+	    $res[7] = ( $c->[7] == $s->[7] ) ? 1 : 0;
+	    ## theta can be in any of the three positions
+	    if ( $c->[10] == $s->[8] ) {
+		## inner is theta
+		$res[8] = 1;
+		$res[5] = ( $c->[1] == $s->[5] ) ? 1 : 0;
+		$res[6] = ( $c->[2] == $s->[6] ) ? 1 : 0;
+
+		## next innermost must be z
+		if ( $c->[8] == $s->[9] ) {
+		    $res[9] = 1;
+		    $res[3] = ( $c->[5] == $s->[3] ) ? 1 : 0;
+		    $res[4] = ( $c->[6] == $s->[4] ) ? 1 : 0;
+		}
+		## outer is r
+		if ( $c->[9] == $s->[10] ) {
+		    $res[10] = 1;
+		    $res[1] = ( $c->[3] == $s->[1] ) ? 1 : 0;
+		    $res[2] = ( $c->[4] == $s->[2] ) ? 1 : 0;
+		}
+
+	    } elsif ( $c->[10] == $s->[9] ) {
+		## middle is theta
+		$res[9] = 1;
+		$res[3] = ( $c->[1] == $s->[3] ) ? 1 : 0;
+		$res[4] = ( $c->[2] == $s->[4] ) ? 1 : 0;
+
+		## innermost must be z
+		if ( $c->[8] == $s->[8] ) {
+		    $res[8] = 1;
+		    $res[5] = ( $c->[5] == $s->[5] ) ? 1 : 0;
+		    $res[6] = ( $c->[6] == $s->[6] ) ? 1 : 0;
+		}
+		## outer is r
+		if ( $c->[9] == $s->[10] ) {
+		    $res[10] = 1;
+		    $res[1] = ( $c->[3] == $s->[1] ) ? 1 : 0;
+		    $res[2] = ( $c->[4] == $s->[2] ) ? 1 : 0;
+		}
+	    } elsif ( $c->[10] == $s->[10] ) {
+		## outer is theta
+		$res[10] = 1;
+		$res[1] = ( $c->[1] == $s->[1] ) ? 1 : 0;
+		$res[2] = ( $c->[2] == $s->[2] ) ? 1 : 0;
+
+		## innermost must be z
+		if ( $c->[8] == $s->[8] ) {
+		    $res[8] = 1;
+		    $res[5] = ( $c->[5] == $s->[5] ) ? 1 : 0;
+		    $res[6] = ( $c->[6] == $s->[6] ) ? 1 : 0;
+		}
+		## middle must be r
+		if ( $c->[9] == $s->[9] ) {
+		    $res[9] = 1;
+		    $res[3] = ( $c->[3] == $s->[3] ) ? 1 : 0;
+		    $res[4] = ( $c->[4] == $s->[4] ) ? 1 : 0;
+		}
+	    }
+
+	} elsif ( String('cartesian') == $s->[0] ) {
+	    $res[0] = 1;
+	    $res[7] = ( Formula("1") == $s->[7] ) ? 1 : 0;
+	    ## z must be the innermost
+	    if ( Compute("z") == $s->[8] ) {
+		$res[8] = 1;
+		$res[5] = ( Formula("$z0") == $s->[5] ) ? 1 : 0;
+		$res[6] = ( Compute("sqrt($a-x^2-y^2)") == $s->[6] ) ? 1 : 0;
+	    }
+	    ## then x and y can be in either order
+	    if ( Compute("x") == $s->[10] ) {
+		$res[10] = 1;
+		$yind = 2;
+		$res[1] = ( Compute("0") == $s->[1] ) ? 1 : 0;
+		$res[2] = ( Compute("$b") == $s->[2] ) ? 1 : 0;
+	    } elsif ( Compute("x") == $s->[9] ) {
+		$res[9] = 1;
+		$yind = 0;
+		$res[3] = ( Formula("0") == $s->[3] ) ? 1 : 0;
+		$res[4] = ( Compute("sqrt($b-y^2)") == $s->[4] ) ? 1 : 0;
+	    }
+	    $res[10-$yind/2] = ( Compute("y") == $s->[10-$yind/2] ) ? 1 : 0;
+	    $res[1+$yind] = ( Formula("0") == $s->[1+$yind] ) ? 1 : 0;
+	    $res[2+$yind] = ( ($yind == 2 &&
+			       Compute("sqrt($b-x^2)") == $s->[2+$yind]) ||
+			      ($yind == 0 &&
+			       Compute("$b") == $s->[2+$yind]) ) ? 1 : 0;
+
+	} elsif ( String('spherical') == $s->[0] ) {
+	    $res[0] = 1;
+	    $res[7] = ( Compute("rho^2*sin(phi)") == $s->[7] ) ? 1 : 0;
+	    ## rho must be one of the two inner limits
+	    if ( Compute("rho") == $s->[8] ) {
+		$res[8] = 1;
+		$res[5] = ( Compute("$z0/cos(phi)") == $s->[5] ) ? 1 : 0;
+		$res[6] = ( Formula("sqrt($a)") == $s->[6] ) ? 1 : 0;
+		@check = ( 9, 10 );
+	    } elsif ( Compute("rho") == $s->[9] ) {
+		$res[9] = 1;
+		$res[3] = ( Compute("$z0/cos(phi)") == $s->[3] ) ? 1 : 0;
+		$res[4] = ( Formula("sqrt($a)") == $s->[4] ) ? 1 : 0;
+		@check = ( 8, 10 );
+	    } else {
+		## hmm.  no rho.  how to check?  look for first correct
+		##    variables, outside to in, and mark those
+		if ( Compute("theta") == $s->[10] ||
+		     Compute("phi") == $s->[10] ) {
+		    @check = ( 10 );
+		    if ( (Compute("theta") == $s->[9] ||
+			  Compute("phi") == $s->[9]) && $s->[10] != $s->[9] ) {
+			unshift( @check, 9 );
+		    } elsif ( (Compute("theta") == $s->[8] ||
+			       Compute("phi") == $s->[8]) && $s->[10] != $s->[8] ) {
+			unshift( @check, 8 );
+		    }
+		} else {
+		    @check = ( 8, 9 );
+		}
+	    }
+	    $donep = 0;
+	    $donet = 0;
+	    foreach my $i ( @check ) {
+		$low = 1 + 2*(10 - $i);  $hi = $low + 1;
+		if ( ! $donet && Compute("theta") == $s->[$i] ) {
+		    $res[$i] = 1;
+		    $donet = 1;
+		    $res[$low] = ( Formula("0") == $s->[$low] ) ? 1 : 0;
+		    $res[$hi] = ( Formula("pi/2") == $s->[$hi] ) ? 1 : 0;
+		} elsif ( ! $donep && Compute("phi") == $s->[$i] ) {
+		    $res[$i] = 1;
+		    $donep = 1;
+		    $res[$low] = ( Formula("0") == $s->[$low] ) ? 1 : 0;
+		    $res[$hi] = ( Formula("arccos($z0/sqrt($a))") == $s->[$hi] ) ? 1 : 0;
+		}
+	    }
+	}
+
+	return [ @res ];
+    }
+);
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Write a triple integral including limits of integration
+that gives the volume of the cap of the solid sphere
+\( x^2+y^2+z^2\le $a \) cut off by the plane
+\( z=$z0 \) and restricted to the first octant.
+(In your integral, use theta, rho, and phi for \(\theta\),
+\(\rho\) and \(\phi\), as needed.)
+
+$PAR
+What coordinates are you using?  \{ $int->ans_rule(11) \}
+$BR
+${BITALIC}(Enter ${BBOLD}cartesian$EBOLD, ${BBOLD}cylindrical$EBOLD,
+or ${BBOLD}spherical$EBOLD.)$EITALIC
+$PAR
+With
+\( a = \)\{$int->ans_rule(15)\},
+\( b = \)\{$int->ans_rule(15)\}, $BR
+\( c = \)\{$int->ans_rule(15)\},
+\( d = \)\{$int->ans_rule(15)\}, $BR
+\( e = \)\{$int->ans_rule(15)\}, and
+\( f = \)\{$int->ans_rule(15)\}, $BR
+Volume = \(\int_a^b\int_c^d\int_e^f\)\{$int->ans_rule(15)\}
+\(d\)\{$int->ans_rule(5)\}
+\(d\)\{$int->ans_rule(5)\}
+\(d\)\{$int->ans_rule(5)\}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $int->cmp() );
+
+$bsq = $b*$b;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+We can set this up in any of the three coordinate systems, but
+it is easiest in cylindrical.  In cylindrical, we have
+\[
+V = \int_0^{\pi/2}\int_0^{$b}\int_{$z0}^{\sqrt{$a - r^2}} r\,dz\,dr\,d\theta.
+\]
+
+$PAR
+In cartesian, we get
+\[
+V = \int_0^{$b}\int_0^{\sqrt{$bsq - x^2}}\int_{$z0}^{\sqrt{$a-x^2-y^2}}1\,dz\,dy\,dx,
+\]
+and in spherical,
+\[
+V = \int_0^{\pi/2}\int_0^{\arccos($z0/\sqrt{$a})}\int_{$z0/\cos\phi}^{\sqrt{$a}} \rho^2\,\sin\phi\,d\rho\,d\phi\,d\theta.
+\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

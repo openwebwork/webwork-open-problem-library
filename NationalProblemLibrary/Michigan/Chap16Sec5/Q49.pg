@@ -1,0 +1,181 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('coordinates', 'cylindrical', 'spherical', 'integrals', 'calculus')
+## Tagged by glr 05/05/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Triple Integrals in Cylindrical and Spherical Coordinates')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.5')
+## Problem1('49')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Integrals in Cylindrical and Spherical Coordinates')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->are( rho=>'Real', phi=>'Real', theta=>'Real' );
+
+$showPartialCorrectAnswers = 1;
+
+$r0 = random(2,6,1);
+$dr = list_random(1,2,3);
+$r1 = $r0 + $dr;
+$d0 = random(8,12,1);
+$d0++ if ( $d0 <= $r1 );
+$m = list_random(2,3);
+$d1 = $d0 + $m*$dr;
+
+$delta = Compute( "$d0 + $m*(rho-$r0)" );
+
+## this doesn't address the possibility 0 <= theta <= pi and
+##    0 <= phi <= 2pi
+$sph = MultiAnswer( Compute("0"), Compute("2*pi"),
+		    Formula("0"), Formula("pi"),
+		    Formula("$r0"), Formula("$r1"),
+		    Compute("($delta)*rho^2*sin(phi)"),
+		    Compute("rho"), Compute("phi"), Compute("theta") )->with(
+    singleAnswer=>0,
+    checker=>sub {
+	my ( $c, $s, $self ) = @_;
+	@res = ( 0,0, 0,0, 0,0, 0, 0,0,0 );
+	$res[6] = ( $c->[6] == $s->[6] ) ? 1 : 0;
+	my $doner = 0;
+	my $donet = 0;
+	my $donep = 0;
+	foreach my $i ( (0,2,4) ) {
+	    my $dind = 9 - $i/2;
+	    if ( $c->[7] == $s->[$dind] && ! $doner ) {
+		$res[$dind] = 1;
+		$res[$i] = ( $c->[4] == $s->[$i] ) ? 1 : 0;
+		$res[$i+1] = ( $c->[5] == $s->[$i+1] ) ? 1 : 0;
+	    } elsif ( $c->[8] == $s->[$dind] && ! $donep ) {
+		$res[$dind] = 1;
+		$res[$i] = ( $c->[2] == $s->[$i] ) ? 1 : 0;
+		$res[$i+1] = ( $c->[3] == $s->[$i+1] ) ? 1 : 0;
+	    } elsif ( $c->[9] == $s->[$dind] && ! $donet ) {
+		$res[$dind] = 1;
+		$res[$i] = ( $c->[0] == $s->[$i] ) ? 1 : 0;
+		$res[$i+1] = ( $c->[1] == $s->[$i+1] ) ? 1 : 0;
+	    }
+	}
+	return [ @res ];
+    } );
+
+$mass = NumberWithUnits( "(4*$d0*($r1^3 - $r0^3) + $m*(3*$r1^4 - " .
+		         "4*$r0*$r1^3 + $r0^4))*pi/3", "g" );
+
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+A spherical shell centered at the origin has an inner radius of $r0 cm
+and an outer radius of $r1 cm.  The density, \( \delta \), of the material
+increases linearly with the distance from the center.  At the inner
+surface, \( \delta=$d0 \) g/cm\({}^3\); at the outer surface,
+\( \delta=$d1 \) g/cm\( ^3 \).
+$PAR
+${BBOLD}(a)$EBOLD
+Using spherical coordinates, write the density, \( \delta \), as a
+function of radius, \( \rho \).  (Type rho for \(\rho\).)
+$BR
+\(\delta = \) \{ ans_rule(25) \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Write an integral in spherical coordinates giving the mass of the shell
+(for this representation, do ${BBOLD}not$EBOLD reduce the domain of the
+integral by using symmetry; type phi and theta for \(\phi\) and \(\theta\)).
+$BR
+With
+\( a = \)\{$sph->ans_rule(10)\},
+\( b = \)\{$sph->ans_rule(10)\}, $BR
+\( c = \)\{$sph->ans_rule(10)\},
+\( d = \)\{$sph->ans_rule(10)\}, $BR
+\( e = \)\{$sph->ans_rule(10)\}, and
+\( f = \)\{$sph->ans_rule(10)\}, $BR
+Mass = \(\int_a^b\int_c^d\int_e^f\)\{$sph->ans_rule(25)\}
+\(d\)\{$sph->ans_rule(5)\}
+\(d\)\{$sph->ans_rule(5)\}
+\(d\)\{$sph->ans_rule(5)\}
+
+$PAR
+${BBOLD}(c)$EBOLD
+Find the mass of the shell.
+$BR
+Mass = \{ ans_rule(35) \}
+$BR
+${BITALIC}(Include \{helpLink('units')\}.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $delta->cmp() );
+ANS( $sph->cmp() );
+ANS( $mass->cmp() );
+
+$d0mmr = $d0 - $m*$r0;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+We use spherical coordinates.  Since \(\delta=$d0\) where \(\rho=$r0\) and
+\(\delta=$d1\) where \(\rho =$r1\), the density increases at a rate of
+$m g/cm\(^3\) for each cm increase in radius.  Thus, since density is a
+linear function of radius, the slope of the linear function is $m.
+Its equation is
+\[
+\delta =$d0 + $m(\rho - $r0).
+\]
+
+$PAR
+${BBOLD}(b)$EBOLD
+Thus,
+\[
+\mbox{Mass } =
+\int_0^{2\pi}\int_0^{\pi}\int_{$r0}^{$r1}($d0mmr + $m\rho)\rho^2\sin\phi
+  \,d\rho\,d\phi\,d\theta.
+\]
+
+$PAR
+${BBOLD}(c)$EBOLD
+Evaluating the integral, we have
+\[
+\mbox{Mass }
+  =  2\pi\left(-\cos\phi\bigg|_0^{\pi}\right)
+    \left(\left.\frac{$m\rho^4}4-\frac{3\rho^3}3\right|_{$r0}^{$r1}\right)
+  \approx $mass.
+\]
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
