@@ -29,7 +29,8 @@ loadMacros(
 "PGnumericalmacros.pl",
 "PGauxiliaryFunctions.pl",
 "PGmorematrixmacros.pl", 
-"PGcomplexmacros.pl"
+"PGcomplexmacros.pl",
+"parserMultiAnswer.pl"
 );
 
 
@@ -75,9 +76,12 @@ $det = $a11*$a22*$a33;
 # define eigenvalues
     $e = new Matrix(3,3);
     $e->one();
-    $e->assign(1,1, random(-5,-2,1));
-    $e->assign(2,2, random(-1,1,1));
-    $e->assign(3,3, random(2,5,1));
+    $e1=random(-5,-2,1);
+    $e2=random(-1,1,1);
+    $e3=random(2,5,1);
+    $e->assign(1,1,$e1 );
+    $e->assign(2,2,$e2 );
+    $e->assign(3,3,$e3 );
 
 # define eigenvectors
 	$v1 = new Matrix(3,1);
@@ -94,6 +98,7 @@ $det = $a11*$a22*$a33;
         $v3->assign(3,1, $a33);
 
 # define final matrix
+        $matrix = new Matrix(3, 3);
 	$matrix = $a * $e *$b;
 	$matrix_lr = $matrix->decompose_LR();
 	$matrix_det = $matrix_lr->det_LR();
@@ -106,104 +111,180 @@ foreach $i (1..3) {
   	}
 }
 
+
+
+$ev = MultiAnswer($e1, $a11, $a21, $a31, $e2, $a12, $a22, $a32, $e3, $a13, $a23, $a33)->with(
+    singleResult => 1,
+    allowBlankAnswers => 1,
+    format =>  "(Eigenvalue, Eigenvector) pairs = $BR (%s, (%s, %s, %s)),$BR (%s, (%s, %s, %s)), $BR (%s, (%s, %s, %s))",
+    tex_format =>  "\text{(Eigenvalue, Eigenvector) pairs }= (%s, (%s, %s, %s)), (%s, (%s, %s, %s)), (%s, (%s, %s, %s))",
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+        my ($stue1, $stuv11, $stuv12, $stuv13, $stue2, $stuv21, $stuv22, $stuv23, $stue3, $stuv31, $stuv32, $stuv33) = @{$student};
+        my ($f1, $b11, $b21, $b31, $f2, $b12, $b22, $b32, $f3, $b13, $b23, $b33) = @{$correct}; 
+        my $flag = -1;
+        my $flag1 = 0;
+        my $flag2 = 0;
+        my $flag3 = 0;
+        my $flag4 = 0;
+        my $flag5 = 0;
+        
+        if($stue1 && $stue2 && $stue1 == $stue2){
+           $flag=0;   
+           Value::Error("The eigenvalues of A are distinct1");
+        }
+        if($stue1 &&  $stue3 && $stue1 == $stue3){
+            $flag=0; 
+            Value::Error("The eigenvalues of A are distinct2");
+        }
+        if($stue3  && $stue2 && $stue3 == $stue2){
+           $flag=0; 
+           Value::Error("The eigenvalues of A are distinct3");
+        }
+
+       
+        if(ref($stue1) eq ref($f1) && ref($stuv11) eq ref($b11) && ref($stuv12) eq ref($b12) && ref($stuv13) eq ref($b13)){          
+           
+           if($stuv11 != 0 || $stuv12 != 0 || $stuv13!=0 ){
+            
+             my $stuv1 = new Matrix(3, 1);
+             $stuv1 -> zero;
+             $stuv1 -> assign(1,1, $stuv11->value);
+             $stuv1 -> assign(2,1, $stuv12->value);
+             $stuv1 -> assign(3,1, $stuv13->value);
+             my $stub = new Matrix(3, 3);
+             $stub-> zero;
+             $stub->assign(1,1, $stue1->value);
+             $stub->assign(2,2, $stue1->value);
+             $stub->assign(3,3, $stue1->value);
+ #            if( $matrix * $stuv1 == $stub * $stuv1){
+ #              $flag1 = 1;
+ #            }
+              if( $matrix * $stuv1 == $stue1->value * $stuv1){
+                $flag1 = 1;
+             }
+
+          }
+        }
+     
+        if(ref($stue3) eq ref($f3) && ref($stuv31) eq ref($b31) && ref($stuv32) eq ref($b32) && ref($stuv33) eq ref($b33)){          
+           
+           if($stuv31 != 0 || $stuv32 != 0 || $stuv33!=0 ){
+            
+             my $stuv3 = new Matrix(3, 1);
+             $stuv3 -> zero;
+             $stuv3 -> assign(1,1, $stuv31->value);
+             $stuv3 -> assign(2,1, $stuv32->value);
+             $stuv3 -> assign(3,1, $stuv33->value);
+#             my $stub = new Matrix(3, 3);            
+#             $stub-> zero;
+#             $stub->assign(1,1, $stue3->value);
+#             $stub->assign(2,2, $stue3->value);
+#             $stub->assign(3,3, $stue3->value);
+             if( $matrix * $stuv3 == $stue3->value * $stuv3){
+               $flag3 = 1;
+             }
+           }
+        }
+
+
+if(ref($stue2) eq ref($f2) && ref($stuv21) eq ref($b21) && ref($stuv22) eq ref($b22) && ref($stuv23) eq ref($b23)){          
+           
+           if($stuv21 != 0 || $stuv22 != 0 || $stuv23!=0 ){
+             
+             my $stuv2 = new Matrix(3, 1);
+             $stuv2 -> zero;
+             $stuv2 -> assign(1,1, $stuv21->value);
+             $stuv2 -> assign(2,1, $stuv22->value);
+             $stuv2 -> assign(3,1, $stuv23->value);
+#             my $stub = new Matrix(3, 3);
+#             $stub-> zero;
+#             $stub->assign(1,1, $stue2);
+#             $stub->assign(2,2, $stue2);
+#             $stub->assign(3,3, $stue2);
+             if( $matrix * $stuv2 == $stue2->value * $stuv2){
+               $flag2 = 1;
+             }
+           }
+        }
+
+   
+
+      
+        $flag4 = $flag1 + $flag2 + $flag3;
+        if($flag==-1){
+          if($flag4==3 && ($stue1 != $stue2) && ($stue1 != $stue3) && ($stue2 != $stue3)){
+             $flag=1;
+          }else{
+            if($flag4 == 3 ){
+               Value::Error("The eigenvalues of A are distinct.");
+            }
+            if($flag4 == 2 ){
+               Value::Error("Two of the eigenvalue/vector pairs are correct");
+            }
+            if($flag4 == 1 ){
+                  Value::Error("One of the eigenvalue/vector pairs is correct");
+            }
+            if($flag4 == 0 ){
+                  Value::Error("None of the eigenvalue/vector pairs are correct $flag6");
+            }
+         }
+        }
+        return $flag; 
+       
+    }
+);
+
+
+
+
 BEGIN_TEXT
 
-Find the eigenvalues of the following matrix. 
+Find the eigenvalues and corresponding eigenvectors of the matrix
 $BR
+\{ mbox( '\( A = \)', display_matrix($matrix), ' . ' ) \} 
+$BR
+$BR
+The eigenvalue
+\( \lambda_1 =\)\{$ev->ans_rule(5)\} corresponds to the eigenvector ( \{$ev->ans_rule(5)\}, \{$ev ->ans_rule(5)\}, \{ $ev->ans_rule(5)\}).
+$BR 
+$BR
+The eigenvalue
+\( \lambda_2 =\)\{$ev->ans_rule(5)\} corresponds to the eigenvector ( \{$ev->ans_rule(5)\}, \{$ev->ans_rule(5)\}, \{$ev->ans_rule(5)\}).
+$BR
+$BR
+The eigenvalue
+\( \lambda_3 =\)\{$ev->ans_rule(5)\} corresponds to the eigenvector ( \{$ev->ans_rule(5)\}, \{$ev->ans_rule(5)\}, \{$ev->ans_rule(5)\}).
 
-$BR
-\{ mbox( '\( A = \)', display_matrix($matrix), '.' ) \} 
-$BR
-The eigenvalues are \( \lambda_1 < \lambda_2 < \lambda_3 \), where 
-$BR
-\( \lambda_1 = \) \{ans_rule(10)\}, 
-$BR
-associated eigenvector \( =  \) 
-( \{ NAMED_ANS_RULE(vec1,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec1,10) \} , \{ NAMED_ANS_RULE_OPTION(vec1,10) \}),  
-$BR
-\( \lambda_2 = \) \{ ans_rule(10) \},
-$BR
-associated  eigenvector  \( = \)  
-( \{ NAMED_ANS_RULE(vec2,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec2,10) \} , \{ NAMED_ANS_RULE_OPTION(vec2,10) \}),  
-$BR
-\( \lambda_3 = \) \{ ans_rule(10) \},
-$BR
-associated  eigenvector  \( = \)  
-( \{ NAMED_ANS_RULE(vec3,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec3,10) \} , \{ NAMED_ANS_RULE_OPTION(vec3,10) \}).
 
 END_TEXT
-	
-ANS(num_cmp($e->element(1,1),tol=>.01));
-    
-NAMED_ANS vec1=> vec_cmp2($v1);
-	
-ANS(num_cmp($e->element(2,2),tol=>.01));
-	
-NAMED_ANS vec2=> vec_cmp2($v2); 
-
-ANS(num_cmp($e->element(3,3),tol=>.01));
- 
-NAMED_ANS vec3=> vec_cmp2($v3); 
-
-sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
-    my $correct_matrix = shift;
-    my %options = @_;
-    $ans_eval = new AnswerEvaluator;
-    $ans_eval->{debug} = $options{debug};
-    set_default_options( ~~%options,
-						 debug			=>	0,
-	);
-    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",
-                                         type             => 'vec_cmp2'
-    );
-    $ans_eval->install_pre_filter(~~&is_array);
-        $ans_eval->install_pre_filter(~~&std_num_array_filter);
-
-        $ans_eval->install_evaluator(sub { my $rh_ans = shift;
-                                                                           my %options  = @_;
-                                                                           my @in_vec=@{$rh_ans->input()};
-                                                                           unless (@in_vec ) {
-                                                        return($rh_ans); # return blank answers
-                                                        # make sure the vectors are the same dimension
-                                           }
-                                                                           my $input_vec = Matrix->new_column_matrix($rh_ans->input());
-                                                                           my ($param,$inv);
-                                                                                        $param = $correct_matrix->proj_coeff($input_vec);
-                                                                                        $param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
-                                                                            my $out_vec = $input_vec - $correct_matrix*$param;
-                                                                            my @diff = $out_vec->list();  # lists a column vector
-                                                                                $rh_ans->{score} = zero_check(~~@diff,tol=>.001);
-                                                                                $rh_ans;
-
-    
-        });
-    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('NOTARRAY') ) {
-                                                                                                  $rh_ans->{ans_message} = "This answer is supposed to be an array";
-                                                                                          }
-                                                                                          $rh_ans;
-        });
-        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('SYNTAX') ) {
-                                                                                                  $rh_ans->{ans_message} .= $rh_ans->{error_message};
-                                                                                                  $rh_ans->clear_error('SYNTAX');
-                                                                                          } 
-                                                                                          $rh_ans;
-        });
-    $ans_eval;
-}
-
-
-ENDDOCUMENT() ;        
+ANS( $ev->cmp() );
 
 
 
-[Note-- you may want to use a graphing calculator to estimate the roots of the polynomial which defines
-the eigenvalues. You can use the web version at
-\{htmlLink("/webwork_system_html/applets/phaseplaneplotters/launchXfunctions.html","xFunctions",q!TARGET="plotter"!)\}. 
-Also, You can use this \{htmlLink("/webwork_system_html/applets/matrix_row_tool.html",
-"row reduction tool", q!TARGET = "row_reduction"!) \} to help with the calculations.]
+
+ENDDOCUMENT() ;
 
 
+
+        
+        if(ref($stue1)==ref($f1) && ref($stuv11)==ref($b11) && ref($stuv12)==ref($b12) && ref($stuv13)==ref($b13)){          
+           $flag5 = 6;
+           if($stuv11 != 0 || $stuv12 != 0 || $stuv13!=0 ){
+             $flag5 = 7;
+             my $stuv1 = new Matrix(3, 1);
+             $stuv1 -> zero;
+             $stuv1 -> assign(1,1, $stuv11);
+             $stuv1 -> assign(2,1, $stuv12);
+             $stuv1 -> assign(3,1, $stuv13);
+             my $stub = new Matrix(3, 3);
+             $stub-> zero;
+             $stub->assign(1,1, $stue1);
+             $stub->assign(2,2, $stue1);
+             $stub->assign(3,3, $stue1);
+             if( $matrix * $stuv1 == $stub * $stuv1){
+               $flag1 = 1;
+             }
+           }
+        }
+        

@@ -26,7 +26,8 @@ loadMacros(
            "PGgraphmacros.pl",
            "PGmatrixmacros.pl",
            "PGnumericalmacros.pl",
-           "PGdiffeqmacros.pl"
+           "PGdiffeqmacros.pl", 
+           "parserMultiAnswer.pl"
 );
 
 
@@ -77,9 +78,13 @@ $det = - $a31 * $m * $n;
 # define eigenvalues
     $e = new Matrix(3,3);
     $e->one();
-    $e->assign(1,1, random(-5,-2,1));
-    $e->assign(2,2, random(-1,1,1));
-    $e->assign(3,3, random(2,5,1));
+    $e1 =  random(-5,-2,1);
+    $e2 = random(-1,1,1);
+    $e3 = random(2,5,1);
+
+    $e->assign(1,1,$e1);
+    $e->assign(2,2, $e2);
+    $e->assign(3,3, $e3 );
 
 # define eigenvectors
 	$v1 = new Matrix(3,1);
@@ -100,24 +105,67 @@ $det = - $a31 * $m * $n;
 	$matrix_lr = $matrix->decompose_LR();
 	$matrix_det = $matrix_lr->det_LR();
 
+## to check that we have a correct answer, just verify that
+##    the appropriate matrix multiplication works
+$ev = MultiAnswer( $e1, $e2, $e3 )->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  "Eigenvalues = (%s, %s, %s)",
+    tex_format =>  "\text{Eigenvalues }= (%s, %s, %s)" ,
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+	my ($stuE1, $stuE2, $stuE3) = @{$student}[0..2];
+        my $flag = 0;
+        my $counter =0;
+        if($stuE1){
+          if( $stuE1 == $e1 || $stuE1 == $e2 || $stuE1 == $e3){
+               $counter ++;
+          }
+        }
+        if($stuE2){
+          if( $stuE2 == $e1 || $stuE2 == $e2 || $stuE2 == $e3){
+               $counter ++;
+          }
+        }
+        if($stuE3){
+          if( $stuE3 == $e1 || $stuE3 == $e2 || $stuE3 == $e3){
+               $counter ++;
+          }
+        }
+        if($counter ==3 ){
+          if( $stuE1 != $stuE3 && $stuE1 != $stuE2 && $stuE2 != $stuE3){
+              $flag=1;
+          }else{
+              Value::Error("The eigenvalues of \(A\) are distinct.");
+          }
+        }else{
+          Value::Error("You have $counter correct eigenvalues.");
+        }  
+        return $flag;
+       
+    }
+);
+
+
+
 BEGIN_TEXT
 
 \{ mbox( 'Find the eigenvalues of \(A\), given that \( A = \)', display_matrix($matrix) ) \} 
 $BR
 \{ mbox( 'and its eigenvectors are', display_matrix($v1), ',', display_matrix($v2), 'and', display_matrix($v3), '.' ) \}
 $BR
-The eigenvalues are \( \lambda_1 < \lambda_2 < \lambda_3 \), where 
-$BR
-\( \lambda_1 = \) \{ans_rule(10)\},
-$BR
-\( \lambda_2 = \) \{ ans_rule(10) \},
-$BR
-\( \lambda_3 = \) \{ ans_rule(10) \}.
+The eigenvalues are \{$ev-> ans_rule(10)\},
+\{$ev-> ans_rule(10) \}, and
+ \{$ev-> ans_rule(10) \}.
 
 END_TEXT
-	
-ANS(num_cmp($e->element(1,1),tol=>.01));
-ANS(num_cmp($e->element(2,2),tol=>.01));	
-ANS(num_cmp($e->element(3,3),tol=>.01));
+
+ANS( $ev->cmp() );	
+#ANS(num_cmp($e->element(1,1),tol=>.01));
+#ANS(num_cmp($e->element(2,2),tol=>.01));	
+#ANS(num_cmp($e->element(3,3),tol=>.01));
 
 ENDDOCUMENT() ;
+
+

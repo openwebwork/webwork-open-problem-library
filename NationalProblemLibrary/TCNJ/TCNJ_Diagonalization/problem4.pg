@@ -29,6 +29,7 @@ loadMacros(
 "PGnumericalmacros.pl",
 "PGauxiliaryFunctions.pl",
 "PGmorematrixmacros.pl",
+"parserMultiAnswer.pl"
 );
 
 TEXT(beginproblem());
@@ -48,23 +49,114 @@ $a_lr = $a->decompose_LR();
 $a_det = $a11 * $b1;
 $b = $a_lr->invert_LR();
 $e = new Matrix(2,2);
+$eig1 = non_zero_random(-8,8,1);
+$eig2 = non_zero_random(-8,8,1);
+while ($eig1 == $eig2) { 
+   $eig2= non_zero_random(-8,8,1); }
 $e->one();
-$e->assign(1,1, non_zero_random(-8,8,1));
-$e->assign(2,2, non_zero_random(-8,8,1));
-while ($e->element(1,1) >= $e->element(2,2)) { 
-   $e->assign(2,2, non_zero_random(-8,8,1)); }
+$e->assign(1,1, $eig1);
+$e->assign(2,2, $eig2);
+$eig = new Matrix(2,1);
+$eig->one();
+$eig->assign(1,1, $eig1);
+$eig->assign(2,1, $eig2);
+
+
 $matrix = $a * $e *$b;
 $matrix_lr = $matrix->decompose_LR();
 $matrix_det = $matrix_lr->det_LR();
 
+
+
+## to check that we have a correct answer, just verify that
+##    the appropriate matrix multiplication works
+
+$ev = MultiAnswer( @{ra_flatten_matrix($a)}, @{ra_flatten_matrix($eig)},
+@{ra_flatten_matrix($a)}, )->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers =>0,
+    format => "S=(%s, %s; %s, %s),$BR D=(%s, 0; 0, %s),$BR S^{-1}=(%s, %s; %s, %s).",
+    tex_format => "S=(%s, %s; %s, %s), D=(%s, 0; 0, %s), S^{-1}=(%s, %s; %s, %s).",
+    checker => sub {
+	my ( $correct, $student, $self ) = @_;
+	my @corD  = @{$correct}[4..5];
+	my @stuD  = @{$student}[4..5];
+	my @stuS  = @{$student}[0..3];
+        my @stuSI = @{$student}[6..9];
+        my $flag = 0; 
+        my $flagD =0;
+        my $flagI =0;
+
+        my $S = new Matrix(2,2);
+        my $SI = new Matrix(2,2);
+        my $D = new Matrix (2,2);
+        $S->zero();
+        $S->assign(1,1, $stuS[0]);
+        $S->assign(1,2, $stuS[1]);
+        $S->assign(2,1, $stuS[2]);
+        $S->assign(2,2, $stuS[3]);
+ 
+        $SI->zero();
+        $SI->assign(1,1, $stuSI[0]);
+        $SI->assign(1,2, $stuSI[1]);
+        $SI->assign(2,1, $stuSI[2]);
+        $SI->assign(2,2, $stuSI[3]);
+
+        $D->zero();
+        $D->assign(1,1, $stuD[0]);
+        $D->assign(2,2, $stuD[1]);
+
+        $I = new Matrix(2,2);
+        $I->zero();
+        $I->assign(1,1,1);
+        $I->assign(2,2,1);
+        
+        if($S * $SI == $I){
+             $flagI=1;
+        }
+
+        if( ($stuD[0]== $eig1 && $stuD[1] == $eig2) || ($stuD[1]== $eig1 && $stuD[0] == $eig2)){
+             $flagD=1;  
+        }           
+        if ($S * $D * $SI == $matrix){
+               $flag=1;
+        }else{
+               if($flagD ==1 && $flagI == 1){
+                   Value::Error("The matrix D is correct, and S* S^{-1}=I, but S is not correct");
+               }
+               if($flagD ==1 && $flagI == 0){
+                   Value::Error("The matrix D is correct, but S^{-1} is not the inverse to S");
+               }
+               if($flagD ==0 && $flagI == 1){
+                   Value::Error("S* S^{-1}=I but the matrix D is incorrect."); 
+               }
+               if($flagD ==0 && $flagI == 0){
+                   Value::Error("D is incorrect and S, S^{-1} are not inverses."); 
+               }
+        
+        } 
+  	return $flag;
+    }
+);
+
 BEGIN_TEXT
 \{mbox( 'Let: ', '\(A = \)' , display_matrix($matrix) )\}$BR
-Find \(S\), \(D\) and \(S^{-1}\) such that \(A=SDS^{-1}\). Put the $BBOLD smaller $EBOLD  eigenvalue in the first row. $BR
-\{mbox('\(S=\)',answer_matrix(2,2,5),'\(D=\)',answer_matrix(2,2,5),'\(S^{-1}=\)',answer_matrix(2,2,5))\}
+
+Find \(S\), \(D\) and \(S^{-1}\) such that \(A=SDS^{-1}\).  
+$BR
+$BR
+\{
+mbox('\(S=\)', display_matrix([[$ev-> ans_rule(5), $ev-> ans_rule(5)],
+[$ev-> ans_rule(5), $ev-> ans_rule(5)]]),
+', \(D=\)',display_matrix([[$ev-> ans_rule(5), 0],
+[0, $ev-> ans_rule(5)]]),
+', \(S^{-1}=\)',display_matrix([[$ev-> ans_rule(5), $ev-> ans_rule(5)],
+[$ev-> ans_rule(5), $ev-> ans_rule(5)]]), '.' )
+\}
 END_TEXT
 
-ANS num_cmp(ra_flatten_matrix($a));
-ANS num_cmp(ra_flatten_matrix($e));
-ANS num_cmp(ra_flatten_matrix($b));
+ANS( $ev->cmp() );
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.
+

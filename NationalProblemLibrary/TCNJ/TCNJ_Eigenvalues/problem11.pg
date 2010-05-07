@@ -26,7 +26,8 @@ loadMacros(
            "PGgraphmacros.pl",
            "PGmatrixmacros.pl",
            "PGnumericalmacros.pl",
-           "PGdiffeqmacros.pl"
+           "PGdiffeqmacros.pl",
+           "parserMultiAnswer.pl"
 );
 
 
@@ -103,80 +104,103 @@ $det = - $a31 * $m * $n;
 	$matrix_lr = $matrix->decompose_LR();
 	$matrix_det = $matrix_lr->det_LR();
 
-BEGIN_TEXT
 
-\{ mbox( 'Find the eigenvectors of \(A\), given that \( A = \)', display_matrix($matrix) ) \} 
+
+$ev = MultiAnswer($a11, $a21, $a31, $a12, $a22, $a32, $a13, $a23, $a33)->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  "Eigenvectors = (%s, %s, %s), (%s, %s, %s), (%s, %s, %s)",
+    tex_format =>  "\text{Eigenvectors }= (%s, %s, %s), (%s, %s, %s), (%s, %s, %s)" ,
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+	my ($stuv11, $stuv12, $stuv13)= @{$student}[0..2];
+        my ($stuv21, $stuv22, $stuv23)= @{$student}[3..5];
+        my ($stuv31, $stuv32, $stuv33)= @{$student}[6..8];
+        my $flag = 0;
+        my $flag1=0;
+        my $flag2=0;
+        my $flag3=0;
+        my $flag4 =0;
+        my $counter =0;
+        if($stuv11 && $stuv12 && $stuv13){
+           my $v1 = new Matrix(3, 1);
+           if($stuv11 != 0 || $stuv12 !=0 || $stuv13){
+             $v1-> assign(1,1, $stuv11);
+             $v1-> assign(2,1, $stuv12);
+             $v1-> assign(3,1, $stuv13);
+             if( $matrix * $v1 == $e1 * $v1){
+                $flag1=1;
+             }
+           }
+        }
+
+        if($stuv21 && $stuv22 && $stuv23){
+           my $v2 = new Matrix(3, 1);
+           if($stuv21 != 0 || $stuv22 !=0 || $stuv23){
+             $v2-> assign(1,1, $stuv21);
+             $v2-> assign(2,1, $stuv22);
+             $v2-> assign(3,1, $stuv23);
+             if( $matrix * $v2 == $e2 * $v2){
+                $flag2=1;
+             }
+           }
+        }
+
+        if($stuv31 && $stuv32 && $stuv33){
+           my $v3 = new Matrix(3, 1);
+           if($stuv31 != 0 || $stuv32 !=0 || $stuv33){
+             $v3-> assign(1,1, $stuv31);
+             $v3-> assign(2,1, $stuv32);
+             $v3-> assign(3,1, $stuv33);
+             if( $matrix * $v3 == $e3 * $v3){
+                $flag3=1;
+             }
+           }
+        }
+        
+        if($flag1==1 && $flag2 ==1 && $flag3==1){
+           $flag=1;
+        }else{
+           $flag4 = $flag1+ $flag2 + $flag3;
+           if($flag4 == 1 ){
+              Value::Error("One of the eigenvectors is correct");
+           }else{
+              if($flag4 == 2 ){
+                 Value::Error("Two of the eigenvectors are correct");
+              }else{
+                 Value::Error("None of the eigenvectors is correct");
+              }
+           }
+        }
+        return $flag; 
+       
+    }
+);
+
+
+
+BEGIN_TEXT
+\{ mbox( 'The matrix \(A=\)', display_matrix($matrix), ' has eigenvalues \( $e1 \), \( $e2 \), and \( $e3 \). ' ) \} 
+$BR 
+Find its eigenvectors.
 $BR
-and its eigenvalues are \( \lambda_1 = $e1 \), \( \lambda_2 = $e2 \), and \( \lambda_3 = $e3 \) .
+$BR
+The eigenvalue \( $e1 \) is associated with eigenvector ( \{ $ev-> ans_rule(5)\}, \{$ev-> ans_rule(5)\}, \{$ev-> ans_rule(5)\}).
 $BR
 $BR
-\( \lambda_1 \) associated eigenvector \( =  \) 
-( \{ NAMED_ANS_RULE(vec1,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec1,10) \} , \{ NAMED_ANS_RULE_OPTION(vec1,10) \}),  
+The eigenvalue \( $e2 \) is associated with eigenvector  ( \{ $ev-> ans_rule(5)\}, \{$ev-> ans_rule(5)\}, \{$ev-> ans_rule(5)\}).
 $BR
-\( \lambda_2 \) associated  eigenvector  \( = \)  
-( \{ NAMED_ANS_RULE(vec2,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec2,10) \} , \{ NAMED_ANS_RULE_OPTION(vec2,10) \}),  
 $BR
-\( \lambda_3 \) associated  eigenvector  \( = \)  
-( \{ NAMED_ANS_RULE(vec3,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec3,10) \} , \{ NAMED_ANS_RULE_OPTION(vec3,10) \}).
+The eigenvalue \( $e3 \) is associated with eigenvector  ( \{ $ev-> ans_rule(5)\}, \{$ev-> ans_rule(5)\}, \{$ev-> ans_rule(5)\}).
+
 
 END_TEXT
-	    
-NAMED_ANS vec1=> vec_cmp2($v1);	
-NAMED_ANS vec2=> vec_cmp2($v2);  
-NAMED_ANS vec3=> vec_cmp2($v3); 
-
-sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
-    my $correct_matrix = shift;
-    my %options = @_;
-    $ans_eval = new AnswerEvaluator;
-    $ans_eval->{debug} = $options{debug};
-    set_default_options( ~~%options,
-						 debug			=>	0,
-	);
-    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",
-                                         type             => 'vec_cmp2'
-    );
-    $ans_eval->install_pre_filter(~~&is_array);
-        $ans_eval->install_pre_filter(~~&std_num_array_filter);
-
-        $ans_eval->install_evaluator(sub { my $rh_ans = shift;
-                                                                           my %options  = @_;
-                                                                           my @in_vec=@{$rh_ans->input()};
-                                                                           unless (@in_vec ) {
-                                                        return($rh_ans); # return blank answers
-                                                        # make sure the vectors are the same dimension
-                                           }
-                                                                           my $input_vec = Matrix->new_column_matrix($rh_ans->input());
-                                                                           my ($param,$inv);
-                                                                                        $param = $correct_matrix->proj_coeff($input_vec);
-                                                                                        $param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
-                                                                            my $out_vec = $input_vec - $correct_matrix*$param;
-                                                                            my @diff = $out_vec->list();  # lists a column vector
-                                                                                $rh_ans->{score} = zero_check(~~@diff,tol=>.001);
-                                                                                $rh_ans;
-
-    
-        });
-    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('NOTARRAY') ) {
-                                                                                                  $rh_ans->{ans_message} = "This answer is supposed to be an array";
-                                                                                          }
-                                                                                          $rh_ans;
-        });
-        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('SYNTAX') ) {
-                                                                                                  $rh_ans->{ans_message} .= $rh_ans->{error_message};
-                                                                                                  $rh_ans->clear_error('SYNTAX');
-                                                                                          } 
-                                                                                          $rh_ans;
-        });
-    $ans_eval;
-}
+ANS( $ev->cmp() );
 
 
-ENDDOCUMENT() ;        
+ENDDOCUMENT() ;
+
 
 
 

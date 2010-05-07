@@ -29,7 +29,8 @@ loadMacros(
 "PGnumericalmacros.pl",
 "PGauxiliaryFunctions.pl",
 "PGmorematrixmacros.pl",
-"PGdiffeqmacros.pl"
+"PGdiffeqmacros.pl",
+"parserMultiAnswer.pl"
 );
 
 TEXT(beginproblem());
@@ -50,10 +51,17 @@ $a_det = $a11 * $b1;
 $b = $a_lr->invert_LR();
 $e = new Matrix(2,2);
 $e->one();
-$eig1 = non_zero_random(-8,7);
-$eig2 = non_zero_random($eig1+1,8);
-while ($eig1 >= $eig2) { 
-   $eig2 = non_zero_random($eig1+1,8); }
+$eig1 = non_zero_random(-8,8,1);
+$eig2 = non_zero_random(-8,8,1);
+
+if ( $eig1 >= $eig2 ) {
+    if ( $eig1 == 8 ) {
+        $eig1 = 7;
+        $eig2 = 8;
+    } else {
+        $eig2 = $eig1 + 1;
+    }
+} 
 $e->assign(1,1, $eig1);
 $e->assign(2,2, $eig2);
 	$v1 = new Matrix(2,1);
@@ -63,6 +71,13 @@ $e->assign(2,2, $eig2);
       	$v2->assign(1,1, $a12);
        	$v2->assign(2,1, $a22);
 $matrix = $a * $e *$b;
+
+$m11 = $matrix->element(1,1);
+$m12 = $matrix->element(1,2);
+$m21 = $matrix->element(2,1);
+$m22 = $matrix->element(2,2);
+
+
 $matrix_lr = $matrix->decompose_LR();
 $matrix_det = $matrix_lr->det_LR();
 
@@ -76,83 +91,127 @@ $e2->one();
 $e2->assign(1,1, $eig2);
 $e2->assign(2,2, $eig1);
 
-BEGIN_TEXT
-\{mbox( 'Let: ', '\(A = \)' , display_matrix($matrix) )\}
-$BR
-Find two possibilities each for \(S\) and \(D\) such that \(A=SDS^{-1}\). Put the smaller eigenvalue in the first row of \(D_{1}\). 
-$BR
-$BR
-\{mbox( '\( S_{1} = \)', 
-display_matrix(
-[[ NAMED_ANS_RULE(vec1,5) , NAMED_ANS_RULE(vec2,5) ],
-[ NAMED_ANS_RULE_OPTION(vec1,5) ,  NAMED_ANS_RULE_OPTION(vec2,5) ]] ), 
-', \(D_{1} = \)', answer_matrix(2,2,5)
-)\}
-$BR
-$BR
-\{mbox('\(S_{2}=\)',
-display_matrix(
-[[ NAMED_ANS_RULE(vec3,5) , NAMED_ANS_RULE(vec4,5) ],
-[ NAMED_ANS_RULE_OPTION(vec3,5) ,  NAMED_ANS_RULE_OPTION(vec4,5) ]] ),
-', \(D_{2}=\)',answer_matrix(2,2,5))\}
 
+## to check that we have a correct answer, just verify that
+##    the appropriate matrix multiplication works
+
+$ev = MultiAnswer($eig1, $eig2, @{ra_flatten_matrix($a)}, $eig1, $eig2, @{ra_flatten_matrix($a)}, )->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers =>1,
+    format => "D1=(%s, 0; 0, %s), S1=(%s, %s; %s, %s),$BR D2=(%s, 0; 0, %s), S2=(%s, %s; %s, %s).",
+    tex_format => "D1=(%s, 0; 0, %s), S1=(%s, %s; %s, %s), D2=(%s, 0; 0, %s), S2=(%s, %s; %s, %s).",
+    checker => sub {
+	my ( $correct, $student, $self ) = @_;
+	my @corD1  = @{$correct}[0..1];
+        my @corS1  = @{$correct}[2..5];
+	my @stuD1  = @{$student}[0..1];
+	my @stuS1  = @{$student}[2..5];
+        my @stuD2  = @{$student}[6..7];
+	my @stuS2  = @{$student}[8..11];
+        my $flagD1 = 0;
+        my $flagD2 = 0;
+        my $flag=0; 
+
+        if (ref($stuD1[0]) eq ref($corD1[0]) && ref($stuD1[1]) eq ref($corD1[1])){
+            if(($stuD1[0] == $eig1 && $stuD1[1] == $eig2 ) ||  ($stuD1[0] == $eig2 && $stuD1[1] == $eig1 )){
+              $flagD1 =1;
+            }
+        }
+
+        if ((ref($stuD2[0]) eq ref($corD1[0]) && ref($stuD2[1]) eq ref($corD1[1])) && (($stuD2[0] == $eig1 && $stuD2[1] == $eig2 ) ||  ($stuD2[0] == $eig2 && $stuD2[1] == $eig1 ))){
+            $flagD2 =1;
+        }
+
+## Now need to check eigenvectors
+        if($flagD1 ==1 && ref($stuS1[0]) eq ref ($corS1[0]) && ref($stuS1[1]) eq ref ($corS1[1]) && ref($stuS1[2]) eq ref($corS1[2]) && ref($stuS1[3]) eq ref($corS1[3]) && ($stuS1[0]!=0 || $stuS1[1]!=0  || $stuS1[2]!=0  || $stuS1[3]!=0)){
+
+## The eigenvalue is ok and the eigenvector matrix has been filled out
+
+            if(($m11 * $stuS1[0] + $m12* $stuS1[2] == $stuD1[0] * $stuS1[0] )&& ($m21* $stuS1[0] + $m22* $stuS1[2] == $stuD1[0] * $stuS1[2] )){
+               $flagD1 ++;
+            }
+            if(($m11 * $stuS1[0] + $m12* $stuS1[2] == $stuD1[0] * $stuS1[0] )&& ($m21* $stuS1[0] + $m22* $stuS1[2] == $stuD1[0] * $stuS1[2] )){
+               $flagD1 ++;
+            }
+        }
+## Now for the second matrix  D2
+        if($flagD2 ==1 && ref($stuS2[0]) eq ref ($corS1[0]) && ref($stuS2[1]) eq ref ($corS1[1]) && ref($stuS2[2]) eq ref ($corS1[2]) && ref($stuS2[3]) eq ref($corS1[3])  && ($stuS2[0]!=0 || $stuS2[1]!=0  || $stuS2[2]!=0  || $stuS2[3]!=0)){
+
+## The eigenvalue is ok and the eigenvector matrix has been filled out
+
+            if(($m11 * $stuS2[0] + $m12* $stuS2[2] == $stuD2[0] * $stuS2[0] )&& ($m21* $stuS2[0] + $m22* $stuS2[2] == $stuD2[0] * $stuS2[2] )){
+               $flagD2 ++;
+            }
+            if(($m11 * $stuS2[0] + $m12* $stuS2[2] == $stuD2[0] * $stuS2[0] )&& ($m21* $stuS2[0] + $m22* $stuS2[2] == $stuD2[0] * $stuS2[2] )){
+               $flagD2 ++;
+            }
+        }
+        if($flagD2==3 || $flagD1==3){
+## Then at least one matrix is correct
+           if($flagD2==3 && $flagD1==3){
+## Both matrices are correct.  Need to make sure not duplicates.
+               if($stuD1[0]==$stuD2[0] && $stuD1[1]==$stuD2[1]){
+                     Value::Error("You need to have two different D's.");
+               }else{
+                     $flag=1;
+               }
+           }else{
+               Value::Error("One of the (D, S) pairs is correct.");
+           }
+        }else{
+           if($flagD1>=1 || $flagD2>=1){
+               if($flagD1>=1 && $flagD2>=1){
+                     if($stuD1[0] == $stuD2[0] && $stuD1[1]== $stuD2[1]){
+                          Value::Error("The D matrices are supposed to be different.");
+                     }else{
+                         Value::Error("The two D matrices are correct, but not the S matrices.");
+                     } 
+               }else{
+                     Value::Error("One of the D matrices is correct, but not the S matrices.");  
+               } 
+           }else{
+                Value::Error("None of the D matrices is correct.");
+           }
+        }	
+
+
+  	return $flag;
+    }
+);
+
+BEGIN_TEXT
+\{
+mbox( 'Let \(A = \)' , display_matrix($matrix), '.' ) 
+\}
+$BR
+Find two different diagonal matrices \(D\) and the corresponding matrix \(S\)such that \(A=SDS^{-1}\). 
+$BR
+$BR
+
+
+\{
+mbox( ' \( D_1 = \)', 
+display_matrix( [[ $ev-> ans_rule(5), 0],
+[0, $ev-> ans_rule(5)]]),
+'\(\quad  S_1 = \)', 
+display_matrix( [[ $ev-> ans_rule(5), $ev-> ans_rule(5)],
+[$ev-> ans_rule(5), $ev-> ans_rule(5)]]), '.' )
+\}
+
+\{
+mbox( '\( D_2 = \)', 
+display_matrix( [[ $ev-> ans_rule(5), 0],
+[0, $ev-> ans_rule(5)]]),
+'\(\quad  S_2 = \)', 
+display_matrix( [[ $ev-> ans_rule(5), $ev-> ans_rule(5)],
+[$ev-> ans_rule(5), $ev-> ans_rule(5)]]), '.' )
+\}
+
+$BR
+$BR
 END_TEXT
 
-NAMED_ANS vec1=> vec_cmp2($v1);	
-NAMED_ANS vec2=> vec_cmp2($v2);
-ANS num_cmp(ra_flatten_matrix($e));
-NAMED_ANS vec3=> vec_cmp2($v2);	
-NAMED_ANS vec4=> vec_cmp2($v1);
-ANS num_cmp(ra_flatten_matrix($e2));
+ANS( $ev->cmp() );
 
-sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
-    my $correct_matrix = shift;
-    my %options = @_;
-    $ans_eval = new AnswerEvaluator;
-    $ans_eval->{debug} = $options{debug};
-    set_default_options( ~~%options,
-						 debug			=>	0,
-	);
-    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",
-                                         type             => 'vec_cmp2'
-    );
-    $ans_eval->install_pre_filter(~~&is_array);
-        $ans_eval->install_pre_filter(~~&std_num_array_filter);
-
-        $ans_eval->install_evaluator(sub { my $rh_ans = shift;
-                                                                           my %options  = @_;
-                                                                           my @in_vec=@{$rh_ans->input()};
-                                                                           unless (@in_vec ) {
-                                                        return($rh_ans); # return blank answers
-                                                        # make sure the vectors are the same dimension
-                                           }
-                                                                           my $input_vec = Matrix->new_column_matrix($rh_ans->input());
-                                                                           my ($param,$inv);
-                                                                                        $param = $correct_matrix->proj_coeff($input_vec);
-                                                                                        $param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
-                                                                            my $out_vec = $input_vec - $correct_matrix*$param;
-                                                                            my @diff = $out_vec->list();  # lists a column vector
-                                                                                $rh_ans->{score} = zero_check(~~@diff,tol=>.001);
-                                                                                $rh_ans;
-
-    
-        });
-    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('NOTARRAY') ) {
-                                                                                                  $rh_ans->{ans_message} = "This answer is supposed to be an array";
-                                                                                          }
-                                                                                          $rh_ans;
-        });
-        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('SYNTAX') ) {
-                                                                                                  $rh_ans->{ans_message} .= $rh_ans->{error_message};
-                                                                                                  $rh_ans->clear_error('SYNTAX');
-                                                                                          } 
-                                                                                          $rh_ans;
-        });
-    $ans_eval;
-}
-
-ENDDOCUMENT();       # This should be the last executable line in the problem.
+ENDDOCUMENT();

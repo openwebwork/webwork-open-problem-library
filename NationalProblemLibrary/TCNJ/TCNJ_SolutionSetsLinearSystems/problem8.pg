@@ -1,3 +1,4 @@
+
 ## DESCRIPTION
 ## Linear Algebra
 ## ENDDESCRIPTION
@@ -25,219 +26,102 @@ loadMacros(
 "PGchoicemacros.pl",
 "PGanswermacros.pl",
 "PGgraphmacros.pl",
-"PGmatrixmacros.pl",
-"PGnumericalmacros.pl",
 "PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl",
-"PGdiffeqmacros.pl",
-"Parser.pl",
-"Generic.pl"
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
 );
 
 
 TEXT(beginproblem());
+Context('Numeric');
 
 $showPartialCorrectAnswers = 1;
 
-$p1 = random(-6,6,1);
-$p2 = random(-6,6,1);
-$p3 = random(-6,6,1);
+$p1 = Compute( random(-6,6,1) );
+$p2 = Compute( random(-6,6,1) );
+$p3 = Compute( random(-6,6,1) );
+$p4 = Compute( 0 );
 
-$q1 = non_zero_random(-6,6,1);
-$q2 = non_zero_random(-6,6,1);
-$q3 = non_zero_random(-6,6,1);
+$q1 = Compute( non_zero_random(-6,6,1) );
+$q2 = Compute( non_zero_random(-6,6,1) );
+$q3 = Compute( non_zero_random(-6,6,1) );
+$q4 = Compute( 1 );
 
-$v1 = new Matrix(4,1);
-$v1->assign(1,1, $q1);
-$v1->assign(2,1, $q2);
-$v1->assign(3,1, $q3);
-$v1->assign(4,1, 1);
+$xone = FEQ( "$p1 + $q1 t" );
+$xtwo = FEQ( "$p2 + $q2 t" );
+$xthr = FEQ( "$p3 + $q3 t" );
 
+$vecChk = MultiAnswer($p1,$p2,$p3,$p4,$q1,$q2,$q3,$q4)->with(
+    singleResult => 0,
+    checker => sub {
+        my ( $correct, $student, $self ) = @_;
+	my @stu = @$student;
+	my @cor = @$correct;
 
-$v2 = new Matrix(4,1);
-$v2->assign(1,1, $p1);
-$v2->assign(2,1, $p2);
-$v2->assign(3,1, $p3);
-$v2->assign(4,1, 0);
+	## by default, everything is wrong
+	@res = ( 0, 0, 0, 0, 0, 0, 0, 0 );
 
+	## calculate the constant vector less the expected
+	##    input; this should be a constant multiple of
+	##    the x_4 coefficient vector
+	my @v = ( $stu[0] - $cor[0], $stu[1] - $cor[1], $stu[2] - $cor[2],
+		  $stu[3] - $cor[3] );
 
+	## if all of these are zero, we're ok
+	if ( $v[0] == 0 && $v[1] == 0 && $v[2] == 0 && $v[3] == 0 ) {
+	    $res[0] = 1;  $res[1] = 1;  $res[2] = 1;  $res[3] = 1;
+	} else {
+	    ## otherwise, find the constant multiple and verify that it
+	    ##   is the same
+	    $testind = $v[0] ? 0 : ($v[1] ? 1 : ($v[2] ? 2 : 3));
+	    $k = $v[$testind] / $cor[$testind + 4];
 
-if($p1==0){
-   if($q1==-1){
-         $str1 = $str1 . "- x_{4}";}
-   if($q1==1){
-         $str1 = $str1 . " x_{4}";}
-   else{
-      $str1 = $str1 . " $q1 \, x_{4}";}
-}
-else{
-   $str1 = $str1 . " $p1";
-   if($q1>0){
-      if($q1==1){
-         $str1 = $str1 . "+ x_{4}";}
-      else{
-         $str1 = $str1 . "+ $q1 \, x_{4}";}
-   }
-   else{
-         if($q1==-1){
-            $str1 = $str1 . "- \, x_{4}";}
-         else{
-            $othq = -$q1;
-            $str1 = $str1 . "- $othq \, x_{4}";}
-   }
-} 
+	    foreach my $i ( 0, 1, 2, 3 ) {
+		if ( $k*$cor[$i+4] == $v[$i] ) {
+		    $res[$i] = 1;
+		}
+	    }
+	}
 
-if($p2==0){
-   if($q2==-1){
-         $str2 = $str2 . "- x_{4}";}
-   if($q2==1){
-         $str2 = $str2 . " x_{4}";}
-   else{
-      $str2 = $str2 . " $q2 \, x_{4}";}
-}
-else{
-   $str2 = $str2 . " $p2";
-   if($q2>0){
-      if($q2==1){
-         $str2 = $str2 . "+ x_{4}";}
-      else{
-         $str2 = $str2 . "+ $q2 \, x_{4}";}
-   }
-   else{
-         if($q2==-1){
-            $str2 = $str2 . "- , x_{4}";}
-         else{
-            $othq = -$q2;
-            $str2 = $str2 . "- $othq \, x_{4}";}
-   }
-} 
+	## then make sure that the remaining values are a nonzero
+	##    multiple of the second input vector.  any values that
+	##    are zero are wrong, of course.
+	@ok = ( 0, 0, 0, 0 );
+	my $j = 0;
+	foreach my $i ( 4, 5, 6, 7 ) {
+	    if ( $stu[$i] != 0 ) {
+		$ok[$i-3] = 1;
+		$j = $i if (! $j);
+	    }
+	}
+	if ( $j ) {
+	    $k = $stu[$j]/$cor[$j];
+	    foreach my $i ( 4, 5, 6, 7 ) {
+		$res[$i] = 1 if ( $ok[$i-3] && $k*$cor[$i] == $stu[$i] );
+	    }
+	}
+	return [ @res ];
+    }
+);
 
-if($p3==0){
-   if($q3==-1){
-         $str3 = $str3 . "- x_{4}";}
-   if($q3==1){
-         $str3 = $str3 . " x_{4}";}
-   else{
-      $str3 = $str3 . " $q3 \, x_{4}";}
-}
-else{
-   $str3 = $str3 . " $p3";
-   if($q3>0){
-      if($q3==1){
-         $str3 = $str3 . "+ x_{4}";}
-      else{
-         $str3 = $str3 . "+ $q3 \, x_{4}";}
-   }
-   else{
-         if($q3==-1){
-            $str3 = $str3 . "- \, x_{4}";}
-         else{
-            $othq = -$q3;
-            $str3 = $str3 . "- $othq \, x_{4}";}
-   }
-} 
 
 BEGIN_TEXT
-
-Suppose the solution set of a certain system of equations can be described as \(x_{1}= $str1\), \(x_{2}= $str2\), \(x_{3}= $str3\), with \(x_{4}\) free. Use vectors to describe this set as a "line" in \( {\mathbb R}^4\). 
-$BR
-$BR
-\{ mbox( '\(x=\)', answer_matrix(4,1,5), '\(+x_{4}\)', display_matrix(
-[[ NAMED_ANS_RULE(vec1,5)], [ NAMED_ANS_RULE_OPTION(vec1,5)], 
-[NAMED_ANS_RULE_OPTION(vec1,5)],
-[NAMED_ANS_RULE_OPTION(vec1,5)] ]) ) \}
+Suppose the solution set of a certain system of equations can be described as
+\(x_{1}= $xone\), \(x_{2}= $xtwo\), \(x_{3}= $xthr\), where \(t\) is a free variable.
+Use vectors to describe this set as a "line" in \( {\mathbb R}^4\).
+$PAR
+\{ mbox( '\(x=\)',
+	 display_matrix([ [ $vecChk->ans_rule(5) ], [ $vecChk->ans_rule(5) ],
+			  [ $vecChk->ans_rule(5) ], [ $vecChk->ans_rule(5) ] ]),
+	 '\(+ t \)',
+	 display_matrix([ [ $vecChk->ans_rule(5) ], [ $vecChk->ans_rule(5) ],
+			  [ $vecChk->ans_rule(5) ], [ $vecChk->ans_rule(5) ] ])
+	 ) \}
 
 END_TEXT
 
-$spot=0;
-ANS(generic_cmp("1", type => 'Number', length=>1, checker=> ~~&check));
-ANS(generic_cmp("1", type => 'Number', length=>1, checker=> ~~&check));
-ANS(generic_cmp("1", type => 'Number', length=>1, checker=> ~~&check));
-ANS(generic_cmp("1", type => 'Number', length=>1, checker=> ~~&check));
-
-
-NAMED_ANS vec1=> vec_cmp2($v1);
-
-
-
-sub check{
-  my $stu=shift();
- $ans[$spot]=$stu->extract(1); 
-if($spot<3){
-  $spot=$spot+1;
-  1; 
-}else{
- $ans2[0]=$ans[0]-$p1;
- $ans2[1]=$ans[1]-$p2;
- $ans2[2]=$ans[2]-$p3;
- $ans2[3]=$ans[3];
- $flag=0;
- $i=0;
-$vec1=$v1->element(1,1);
-$vec2=$v1->element(2,1);
-$vec3=$v1->element(3,1);
-$vec4=$v1->element(4,1);
-if( $vec1*$ans2[1] == $ans2[0]*$vec2 && $vec1*$ans2[2]==$ans2[0]*$vec3 && $vec2* $ans2[2] == $vec3 * $ans2[1] &&
-$vec1*$ans2[3] == $ans2[0]*$vec4 && $vec2*$ans2[3]==$ans2[1]*$vec4 && $vec3* $ans2[3] == $vec4 * $ans2[2]
-){
-$flag=1;
-}else{
-$flag=0;
-}
-}
-}
-
-
-
-
-sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
-    my $correct_matrix = shift;
-    my %options = @_;
-    $ans_eval = new AnswerEvaluator;
-    $ans_eval->{debug} = $options{debug};
-    set_default_options( ~~%options,
-						 debug			=>	0,
-	);
-    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",
-                                         type             => 'vec_cmp2'
-    );
-    $ans_eval->install_pre_filter(~~&is_array);
-        $ans_eval->install_pre_filter(~~&std_num_array_filter);
-
-        $ans_eval->install_evaluator(sub { my $rh_ans = shift;
-                                                                           my %options  = @_;
-                                                                           my @in_vec=@{$rh_ans->input()};
-                                                                           unless (@in_vec ) {
-                                                        return($rh_ans); # return blank answers
-                                                        # make sure the vectors are the same dimension
-                                           }
-                                                                           my $input_vec = Matrix->new_column_matrix($rh_ans->input());
-                                                                           my ($param,$inv);
-                                                                                        $param = $correct_matrix->proj_coeff($input_vec);
-                                                                                        $param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
-                                                                            my $out_vec = $input_vec - $correct_matrix*$param;
-                                                                            my @diff = $out_vec->list();  # lists a column vector
-                                                                                $rh_ans->{score} = zero_check(~~@diff,tol=>.001);
-                                                                                $rh_ans;
-
-    
-        });
-    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('NOTARRAY') ) {
-                                                                                                  $rh_ans->{ans_message} = "This answer is supposed to be an array";
-                                                                                          }
-                                                                                          $rh_ans;
-        });
-        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('SYNTAX') ) {
-                                                                                                  $rh_ans->{ans_message} .= $rh_ans->{error_message};
-                                                                                                  $rh_ans->clear_error('SYNTAX');
-                                                                                          } 
-                                                                                          $rh_ans;
-        });
-    $ans_eval;
-}
+ANS( $vecChk->cmp() );
 
 ENDDOCUMENT() ;
+

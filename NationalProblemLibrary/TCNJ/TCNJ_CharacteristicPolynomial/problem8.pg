@@ -24,7 +24,8 @@ loadMacros(
         "PGchoicemacros.pl",
         "PGanswermacros.pl",
         "PGgraphmacros.pl",
-        "PGmatrixmacros.pl"
+        "PGmatrixmacros.pl",  
+        "parserMultiAnswer.pl"
         );
  
 TEXT(beginproblem());    
@@ -33,25 +34,221 @@ $showPartialCorrectAnswers = 0;
 
 $eig1 = non_zero_random(-9,9,1);
 $eig2 = non_zero_random(-9,9,1);
-while($eig2 <= $eig1) {
-$eig2 = non_zero_random(-9,9,1);
-}
-$trace = - $eig1 - $eig2;
+if ($eig2 <= $eig1) {
+    if ( $eig1 == 9 ) {
+    $eig1 = 8;
+    $eig2 = 9;
+    } else {
+    $eig2 = $eig1 + 1;
+    }
+} 
+
+$trace = $eig1 + $eig2;
 $det = $eig1*$eig2;
 
-BEGIN_TEXT
+## check the eigenvectors regardless of the order
+##    
+$ev = MultiAnswer( $eig1, $eig2)->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  "Eigenvalues = (%s,%s)" ,
+    tex_format =>  "\text{Eigenvalues }= (%s,%s)" ,
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+	my ($stu1, $stu2) = @{$student}[0..1];
+        my $flag=0;
+        if(($stu1 && $stu2) ){
+#            Then both eigenvalues given.
+             if(($stu1 == $eig1 && $stu2 == $eig2) || ($stu1 == $eig2 && $stu2 == $eig1)){
+                 $flag = 1;
+             }else{
+                if( ($stu1 == $eig1) || ($stu1 == $eig2) || ($stu2 == $eig1) || ($stu2 == $eig2)){
+                  Value::Error("One of the eigenvalues is correct");
+                }else{
+                  Value::Error("Neither of the eigenvalues is correct");
 
-Given that the matrix \(A\) has a trace $trace and a determinant $det, find its eigenvalues \( \lambda_1 < \lambda_2 \).
+                }
+             }
+        }else{
+# This is the case where one of the eigenvalues is not defined
+              if(( $stu1 && ($stu1 == $eig1 || $stu1 == $eig2)) ||
+                  ( $stu2 && ($stu2 == $eig1 || $stu2 == $eig2))){
+                  Value::Error("The entered eigenvalue is correct.");
+              }else{
+                  if(!$stu1 && !$stu2){
+                     Value::Error("Enter an eigenvector.");
+                  }else{
+                     Value::Error("The entered eigenvalue is incorrect.");
+                  }
+              }
+        } 
+        return $flag;
+    }         
+);
+
+BEGIN_TEXT
+Let \(A\) be a \(2\times2\) matrix with trace $trace and
+  determinant $det. 
 $BR
 $BR
-\( \lambda_1 = \) \{ans_rule(10)\}
+Find the eigenvalues \(\lambda_1\), \(\lambda_2\) of \(A\). 
 $BR
-\( \lambda_2 = \) \{ans_rule(10)\}
+$BR
+\( \lambda_1 = \) \{$ev->ans_rule(7)\},\(\quad\) 
+\( \lambda_2 = \) \{$ev->ans_rule(7)\}
 
 END_TEXT
 
 # Enter the correct answers to be checked against the answers to the students.
-ANS(num_cmp($eig1));
-ANS(num_cmp($eig2));
 
-ENDDOCUMENT();
+ANS( $ev->cmp() );
+
+ENDDOCUMENT() ;
+
+
+
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+## KEYWORDS('determinant' 'characteristic polynomial' 'eigenvalues')
+## Tagged by tda2d
+
+## DBsubject('Linear Algebra')
+## DBchapter('Matrices')
+## DBsection('Eigenvalues')
+## Date('')
+## Author('')
+## Institution('TCNJ')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGgraphmacros.pl",
+"PGmatrixmacros.pl", 
+"PGnumericalmacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGmorematrixmacros.pl",
+"PGdiffeqmacros.pl",
+"parserMultiAnswer.pl"
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+$eig = random(-9,9,1);
+
+$a= new Matrix(2,2);
+# define invertible matrix
+        $a11 = random(-1,1,2);
+        $a12 = non_zero_random(-3,3,1);
+        $mult = non_zero_random(-2,2,1);
+        $a21 = $mult * $a11;
+        $b1 = random(-1,1,2);
+        $a22 = $mult * $a12 + $b1;
+
+        $a->assign(1,1, $a11);
+        $a->assign(1,2, $a12);
+        $a->assign(2,1, $a21);
+        $a->assign(2,2, $a22);
+        $a_lr = $a->decompose_LR();
+        $a_det = $a11 * $b1;
+
+# define inverse matrix
+        $b = $a_lr->invert_LR();
+
+    $e = new Matrix(2,2);
+    $e->assign(1,1, $eig);
+    $e->assign(2,2, $eig);
+    $e->assign(1,2, non_zero_random(-2,2,1));
+    $e->assign(2,1, 0);	
+
+# define final matrix
+        $matrix = $a * $e *$b;
+        $matrix_lr = $matrix->decompose_LR();
+        $matrix_det = $matrix_lr->det_LR();
+
+# matrix entries are integers, but sometimes are printed as *e-16 or something like that.
+# to avoid this, we will round each entry
+
+foreach $i (1..2) {
+        foreach $j (1..2) {
+                $m[$i][$j] = $matrix->element($i,$j);
+                $m[$i][$j] = round($m[$i][$j]);
+                $matrix -> assign($i,$j,$m[$i][$j]);
+        }
+}
+
+## to check that we have a correct answer, just verify that
+##    the appropriate matrix multiplication works
+$ev = MultiAnswer( $eig, $a11, $a12 )->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  "Eigenvalue = %s, Eigenvector=(%s, %s)" ,
+    tex_format =>  "\text{Eigenvalue }= %s, \text{Eigenvector }=(%s, %s)" ,
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+	my $stuE = @{$student}[0];
+	my ($v1, $v2) = @{$student}[1..2];
+        my $flag = -1;
+        my $flag2 = 0;
+        if( $stuE ){
+          if($stuE != $eig) {
+                 Value::Error("Your eigenvalue is incorrect.");
+                 $flag=0; 
+          }else{
+             if(!( ($v1) && ($v2) )){
+                 $flag=0;
+                 Value::Error("Your eigenvalue is correct. Please enter an eigenvector.");
+             } 
+          }
+        }else{
+          Value::Error("You need to enter an eigenvalue.");
+          $flag=0;
+        }
+
+        if ($flag == -1){
+          if ($v1 == 0 && $v2==0)  {
+             Value::Error("Eigenvectors must be nonzero.");
+             $flag=0;
+          }else{
+	     $flag2 = (( $m[1][1]*$v1 + $m[1][2]*$v2 == $eig * $v1) &&
+                      ( $m[2][1]*$v1 + $m[2][2]*$v2 == $eig * $v2));
+             if(!$flag2){
+                 Value::Error("The eigenvalue is correct, but not the eigenvector.");
+             }
+	  }
+        }
+        return $flag2;
+    }
+);
+
+BEGIN_TEXT
+
+\{ mbox( 'The matrix \(A=\)', display_matrix($matrix) ) \} 
+$BR
+has an eigenvalue \(\lambda\) of multiplicity 2 with 
+corresponding eigenvector \(v\). 
+$BR
+$BR
+Then
+\( \lambda =\) \{$ev->ans_rule(5)\}, and 
+\(v  = \)  ( \{$ev->ans_rule(5)\},  \{$ev-> ans_rule(5)\} )
+END_TEXT
+
+ANS( $ev->cmp() );
+
+ENDDOCUMENT() ;
+
+
