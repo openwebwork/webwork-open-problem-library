@@ -67,6 +67,7 @@ sub LiveGraphics3D {
     size => [250,250],
     jar => "live.jar", # "${htmlURL}live.jar",
     codebase => findAppletCodebase("live.jar"),
+    # codebase => "http://hosted2.webwork.rochester.edu/webwork2_files/applets/",  # used for testing
     background => "#FFFFFF",
     scale => 1.,
     tex_size => 500,

@@ -9,7 +9,7 @@
 #
 #  DOCUMENT();
 #  loadMacros("PGstandard.pl","AnswerFormatHelp.pl",);
-#  TEXT(beginproblem);
+#  TEXT(beginproblem());
 #  BEGIN_TEXT
 #  \{ AnswerFormatHelp("formulas") \} $PAR
 #  \{ AnswerFormatHelp("equations","help entering equations") \} $PAR
