@@ -1,0 +1,215 @@
+##DESCRIPTION
+##KEYWORDS()
+##  This is a questionaire regarding TA's directed to students
+##  who have taken a class using WeBWorK
+
+##ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGtextevaluators.pl",
+);
+
+## the following are useful short cuts which are used a lot in the TEXT section below
+$BL2H = MODES( Latex2HTML =>"\begin{rawhtml}", HTML => '', TeX => '');
+$EL2H = MODES( Latex2HTML =>"\end{rawhtml}", HTML => '', TeX => '');
+@button_string = ('%0' =>0,1=>1,2=>2,3=>3,4=>4,5=>5);
+
+$recordSubmittedAnswers =0; ## do not record answers - this is an anonymous survey
+
+TEXT($BL2H,$EL2H);
+
+TEXT($BEGIN_ONE_COLUMN);
+
+TEXT(&beginproblem);
+
+$questionnaire_text = EV3(<<'END_TEXT');
+$BR
+Dear Students,
+$BR $BR
+We would like to know how this course is going for you and what we can do to improve it.  
+The survey results are emailed to us from the address webwork~~@math.rochester.edu, so the results are completely anonymous.
+$PAR
+Thank you.  Scott Bailey and Paul Pearson.  
+$PAR
+
+\{ $qn = 1; ''\}
+
+
+$BL2H
+<h2>A.	Who is your professor?</h2>
+$EL2H
+\{ANS( anstext('A') ) ;
+  OL(
+  ans_radio_buttons(
+	1 =>    'Professor Pearson (MW 3:25-4:50pm)',
+	2 =>    'Professor Bailey (MWF 10-11am)',
+	) );
+\}
+
+
+$HR
+$BL2H
+<h2>B.	Who is your teaching assistant?</h2>
+$EL2H
+\{ANS( anstext('B') ) ;
+  OL(
+  ans_radio_buttons(
+	1 =>    'Alisa Thavikulwat (MW 3:25-4:50pm)',
+	2 =>    'Diana Ladkany (MWF 10-11am)',
+	) );
+\}
+
+
+
+$HR
+$BL2H <h2> Please evaluate your TA each of the following: </h2> $EL2H
+$PAR
+$BL2H
+<TABLE BORDER CELLSPACING=1 CELLPADDING=4 WIDTH=600>
+<TR><TD   COLSPAN="2" VALIGN="TOP" >Scale: 0 no answer, 1 very poor, 2 poor, 3 OK, 4 good, 5 excellent</TD>
+</TR>
+
+
+<TR><TD  WIDTH= "55%" VALIGN="TOP" >
+$EL2H \{ ANS( anstext(1) ); ans_radio_buttons(@button_string) \}
+  $BL2H </TD>
+<TD WIDTH= "45%" VALIGN="TOP">
+1. Teaching ability
+</TD></TR>
+
+<TR><TD WIDTH= "55%" VALIGN="TOP" >
+$EL2H \{ ANS(anstext(2) ); ans_radio_buttons( @button_string) \} $BL2H </TD>
+<TD WIDTH="45%" VALIGN="TOP" >
+2. Speaking ability
+</TD>
+</TR>
+<TR><TD WIDTH= "55%" VALIGN="TOP" >
+$EL2H \{ ANS(anstext(3) ); ans_radio_buttons( @button_string) \} $BL2H </TD>
+<TD WIDTH= "45%" VALIGN="TOP">
+3. Accessibility during class
+</TD>
+</TR>
+
+<TR><TD WIDTH= "55%" VALIGN="TOP" >
+$EL2H \{ ANS(anstext(4) ); ans_radio_buttons( @button_string) \} $BL2H </TD>
+<TD WIDTH= "45%" VALIGN="TOP">
+4. Availability outside of class
+</TD>
+</TR>
+
+<TR><TD WIDTH= "55%" VALIGN="TOP" >
+$EL2H \{ ANS(anstext(5) ); ans_radio_buttons( @button_string) \} $BL2H </TD>
+<TD WIDTH= "45%" VALIGN="TOP">
+5. Overall evaluation
+</TD>
+</TR>
+
+
+
+
+</TABLE>
+$EL2H
+$PAR
+$PAR
+
+$BL2H
+<h2> 6. Please comment on your TA's teaching ability or any other subject you think appropiate.</h2>
+$EL2H
+\{ANS(anstext(6)); ans_box( 10,80) \}
+
+
+$PAR
+
+Thank you very much.
+
+
+
+END_TEXT
+
+TEXT(MODES( HTML => $questionnaire_text,
+            Latex2HTML => $questionnaire_text,
+             TeX => "Please answer the questionnaire on-line. Thank you."
+));
+TEXT($END_ONE_COLUMN);
+sub mailing_problem_grader{
+	my $rh_evaluated_answers = shift;
+	my $rh_problem_state = shift;
+	my %form_options = @_;
+	my %evaluated_answers = %{$rh_evaluated_answers};
+	my %problem_state = %$rh_problem_state;
+
+
+ 	# %form_options might include
+ 	# The user login name
+ 	# The permission level of the user
+ 	# The studentLogin name for this psvn.
+ 	# Whether the form is asking for a refresh or is submitting a new answer.
+
+ 	# initial setup of the answer
+ 	my %problem_result = ( score 				=> 0,
+ 						   errors 				=> '',
+ 						   type   				=> 'mailing_problem_grader',
+ 						   msg					=> '',
+ 						 );
+ 	# Checks
+
+ 	my $ansCount = keys %evaluated_answers;  # get the number of answers
+ 	unless ($ansCount > 0 ) {
+ 		$problem_result{msg} = "This problem did not ask any questions.";
+ 		return(~~%problem_result,~~%problem_state);
+ 	}
+
+
+	my	$allAnswersCorrectQ=1;
+	my $number_of_answers =0;
+	foreach my $ans_name (keys %evaluated_answers) {
+	# I'm not sure if this check is really useful.
+	    if (ref($evaluated_answers{$ans_name} ) eq 'AnswerHash' ) {	# changed HASH to AnswerHash	dme 10/31/2000
+	   		$allAnswersCorrectQ = 0 unless( 1 == $evaluated_answers{$ans_name}->{score} );
+	   		$number_of_answers++ if $evaluated_answers{$ans_name}->{student_ans};
+	   	} else {
+	   		die "Error: Answer |$ans_name| is not a hash reference\n".
+	   		     $evaluated_answers{$ans_name} .
+	   		     "This probably means that the answer evaluator for this answer\n" .
+	   		     "is not working correctly.";
+	   		$problem_result{error} = "Error: Answer $ans_name is not a hash: $evaluated_answers{$ans_name}";
+	   	}
+	}
+	# report the results
+	$problem_result{msg} ='';
+	$problem_result{score} = 1;
+
+	# I don't like to put in this bit of code.
+	# It makes it hard to construct error free problem graders
+	# I would prefer to know that the problem score was numeric.
+    unless ($problem_state{recorded_score} =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/ ) {
+    	$problem_state{recorded_score} = 0;  # This gets rid of non-numeric scores
+    }
+    #
+	if ($allAnswersCorrectQ == 1 or $problem_state{recorded_score} == 1) {
+		$problem_state{recorded_score} = 1;
+	} else {
+		$problem_state{recorded_score} = 0;
+	}
+	if ($number_of_answers > 0) {
+ 		mail_answers_to2('pearson@math.rochester.edu',
+'Fall 2008 Student Survey');
+ 	}
+# !!!!!!!! You also have to modify the webworkCourse.ph file adding a line sililar to
+# $PG_environment{'ALLOW_MAIL_TO'} = ['pearson@math.rochester.edu'];
+# to enable email
+
+	$problem_state{num_of_correct_ans}++ if $allAnswersCorrectQ == 1;
+	$problem_state{num_of_incorrect_ans}++ if $allAnswersCorrectQ == 0;
+	(~~%problem_result, ~~%problem_state);
+}
+
+install_problem_grader(~~&mailing_problem_grader);
+
+ENDDOCUMENT();

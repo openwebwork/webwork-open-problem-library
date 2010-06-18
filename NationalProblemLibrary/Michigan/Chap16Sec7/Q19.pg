@@ -1,0 +1,265 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('coordinates', 'integration', 'multivariable')
+## Tagged by glr 05/28/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Multiple Integrals')
+## DBsection('Change of Variables in Multiple Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('16.7')
+## Problem1('19')
+
+## Textbook tags
+## HHChapter1('Integrating Functions of Several Variables')
+## HHSection1('Change of Variables in a Multiple Integral')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( s=>'Real', t=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+## pick the top edge of the parallelogram to be y = (1/a) x, so
+##    that the first corner is at (0,0)
+$a = list_random(2,3,4,5);
+## then we go up one or two
+$xmult = list_random(1,2);
+## so that the corner is at
+$x0 = $xmult*$a;
+$y0 = $xmult;
+
+## the bottom edge will be y = -b x
+$b = list_random(1,2,3);
+## and we go out some multiple of this
+$mult2 = list_random(1,2,3);
+## so that the next corner is
+$x1 = $mult2;
+$y1 = -1*$mult2*$b;
+
+## finally, the last corner is at
+$x2 = $x1 + $x0;
+$y2 = $y1 + $y0;
+
+## the bounds on R are y = x/a, y = (x - x1)/a + y1, which are
+$t0 = Compute("0");
+$t1 = Compute("($x1 - $a*$y1)/($a*$b + 1)");
+
+## and the bounds on S are y = -b x and y = -b (x - x0) + y0, which are
+$s0 = Compute("0");
+$s1 = Compute("($b*$x0 + $y0)/(1 + $a*$b)");
+
+## the jacobian is
+$jac = Compute( "$a*$b + 1" );
+
+## the limits on the integral are
+$lim = MultiAnswer( $s0, $s1, $t0, $t1 )->with(
+    singleResult => 0,
+    checker => sub {
+	my ( $c, $s, $ans ) = @_;
+	if ( ( $c->[0] == $s->[0] && $c->[1] == $s->[1] &&
+	       $c->[2] == $s->[2] && $c->[3] == $s->[3] ) ||
+	     ( $c->[0] == $s->[1] && $c->[1] == $s->[0] &&
+	       $c->[2] == $s->[3] && $c->[3] == $s->[2] ) ) {
+	    return [ 1,1,1,1 ];
+	} else {
+	    ## if the aren't all right, we have to work harder to figure
+	    ##    out which are correct.  go from out to in, using the
+	    ##    first correct answer to determine what the rest must
+	    ##    be
+	    my @ret = (0, 0, 0, 0);
+	    if ( $c->[0] == $s->[0] ) {
+		@ret = ( 1, 0, 0, 0 );
+		$ret[1] = 1 if ( $c->[1] == $s->[1] );
+		$ret[2] = 1 if ( $c->[2] == $s->[2] );
+		$ret[3] = 1 if ( $c->[3] == $s->[3] );
+	    } elsif ( $c->[1] == $s->[0] ) {
+		@ret = ( 1, 0, 0, 0 );
+		$ret[1] = 1 if ( $c->[0] == $s->[1] );
+		$ret[2] = 1 if ( $c->[3] == $s->[2] );
+		$ret[3] = 1 if ( $c->[2] == $s->[3] );
+	    } elsif ( $c->[0] == $s->[1] ) {
+		@ret = ( 0, 1, 0, 0 );
+		$ret[2] = 1 if ( $c->[3] == $s->[2] );
+		$ret[3] = 1 if ( $c->[2] == $s->[3] );
+	    } elsif ( $c->[1] == $s->[1] ) {
+		@ret = ( 0, 1, 0, 0 );
+		$ret[2] = 1 if ( $c->[2] == $s->[2] );
+		$ret[3] = 1 if ( $c->[3] == $s->[3] );
+	    } elsif ( $c->[2] == $s->[2] ) {
+		@ret = ( 0, 0, 1, 0 );
+		$ret[3] = 1 if ( $c->[3] == $s->[3] );
+	    } elsif ( $c->[3] == $s->[2] ) {
+		@ret = ( 0, 0, 1, 0 );
+		$ret[3] = 1 if ( $c->[2] == $s->[3] );
+	    } else {
+		@ret = ( 0, 0, 0, 0 );
+		$ret[3] = 1 if ( $c->[2] == $s->[3] || $c->[3] == $s->[3] );
+	    }
+	    return [ @ret ];
+	}
+    }
+);
+
+## the integrand is (p s + q t + u), where
+$p = Compute( "$jac*($a + 1)" );
+$q = Compute( "$jac*(1 - $b)" );
+$u = Compute( "0" );
+
+## and the integral is
+$int = Compute( "($b*$x0 + $y0)*($x1 - $a*$y1)*($x1 + $y0 + $a*$y0 - " .
+		"$a*$y1 + $b*($x0 + $a*$x0 - $x1 + $a*$y1))/" .
+		"(2*(1 + $a*$b)^2)" );
+
+$ad = ( $a == 1 ) ? '' : $a;
+$bd = ( $b == 1 ) ? '' : $b;
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+In this problem we
+use the change of variables \( x=$ad s + t \),
+\( y = s - $bd t \) to compute the integral
+\( \int_R (x+y)\,dA \), where \( R \) is the parallelogram formed by
+\( (0,0) \), \( ($x0,$y0) \), \( ($x2,$y2) \), and \( ($x1,$y1) \).
+
+$PAR
+First find the magnitude of the Jacobian,
+\( \left|\frac{\partial(x,y)}{\partial(s,t)}\right| = \)
+\{ ans_rule(15) \}.
+$PAR
+Then, with
+\( a = \) \{ $lim->ans_rule(15) \},
+\( b = \) \{ $lim->ans_rule(15) \}, $BR
+\( c = \) \{ $lim->ans_rule(15) \}, and
+\( d = \) \{ $lim->ans_rule(15) \}, $BR
+
+\( \int_R (x+y)\,dA =
+   \int_a^b\,\int_c^d\, (\)
+\{ ans_rule(5) \} \( s + \)
+\{ ans_rule(5) \} \( t + \)
+\{ ans_rule(5) \} \( dt\, ds \)
+= \{ ans_rule(25) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $jac->cmp() );
+ANS( $lim->cmp() );
+ANS( $p->cmp() );
+ANS( $q->cmp() );
+ANS( $u->cmp() );
+ANS( $int->cmp() );
+
+$nabm1 = -1*$a*$b - 1;
+$integrand = Compute( "($a + 1)*s + (1 - $b)*t" )->reduce();
+$integrand1 = Compute( "($integrand)*$jac" )->reduce();
+
+($xn,$xd) = reduce( $b, $a*$b + 1 );
+$xc = ( $xd == 1 ) ? $xn : "\frac{$xn}{$xd}";
+
+($yn,$yd) = reduce( $a, $a*$b + 1 );
+$yc = ( $yd == 1 ) ? $yn : "\frac{$yn}{$yd}";
+
+$y1p = -1*$y1;
+$line1 = ( $a == 1 ) ? "x" : "\frac1{$a}\,x";
+$line2 = ( $b == 1 ) ? "-x" : "-$b\,x";
+$line3 = ( $a == 1 ) ? "(x - $x1) - $y1p" : "\frac{1}{$a}\,(x-$x1) - $y1p";
+$line4 = ( $b == 1 ) ? "-(x - $x0) + $y0" : "-$b(x - $x0) + $y0";
+
+($n,$d) = reduce( ($x1-$a*$y1), ($a*$b + 1) );
+$t1d = ($d == 1) ? $n : "$n/$d";
+($n,$d) = reduce( ($b*$x0+$y0), ($a*$b + 1) );
+$s1d = ($d == 1) ? $n : "$n/$d";
+
+($vn,$vd) = reduce( ($b*$x0 + $y0)*($x1 - $a*$y1)*
+		    ($x1 + $y0 + $a*$y0 - $a*$y1 + $b*($x0 + $a*$x0 - $x1 + $a*$y1)),
+		    (2*(1 + $a*$b)**2) );
+$value = ( $vd == 1 ) ? $vn : "\frac{$vn}{$vd}";
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Given
+\[
+  \begin{array}{ccc}
+    x & = & $ad s + t\\
+    y & = & s - $bd t,
+\end{array}
+\]
+we have
+\[
+  \left|\frac{\partial(x,y)}{\partial(s,t)}\right| =
+  \left|\begin{array}{cc}
+    \frac{\partial x}{\partial s} & \frac{\partial x}{\partial t}\\
+    \frac{\partial y}{\partial s} & \frac{\partial y}{\partial t}
+  \end{array}\right|
+  =\left|\begin{array}{cc}
+    $a & 1 \\
+    1 & -$b
+  \end{array}\right| = |$nabm1|,
+\]
+hence
+\[ \left|\frac{\partial(x,y)}{\partial(s,t)}\right| = $jac.\]
+We therefore get
+\[
+\int_R (x+y) \,dA =
+    \int_{T} (($ad s + t) + (s - $bd t))
+        \left|\frac{\partial(x,y)}{\partial(s,t)}\right|dsdt =
+\]
+\[
+    \int_{T}($integrand)($jac)\,ds\,dt=\int_{T} ($integrand1)\,ds\,dt,
+\]
+where \(T\) is the region in the \(st\)-plane corresponding
+to \(R\).
+
+$PAR
+Now, we need to find  \(T\).
+
+Because
+\[
+  \begin{array}{ccc}
+    x & = & $ad s+ t \\
+    y & = & s - $bd t
+\end{array}
+\]
+we can use the boundaries of the region \(R\) to find the boundaries
+of \(T\).  Using the four vertices of the parallelogram \(R\), we the
+edges \( y = $line1 \), \( y = $line2 \), \( y = $line3 \) and
+\( y = $line4 \).  So, from the above transformation, the boundaries
+are \(t = 0\), \(s = 0\), \(t = $t1d\) and \(s = $s1d\).
+Therefore
+\[
+\int_R(x+y)\,dA = \int_{0}^{$t1d} \int_{0}^{$s1d}\, $integrand1 \,ds\,dt
+  = $value.
+\]
+(Alternately, we could of course also write the integral as
+\( \int_{$t1d}^{0} \int_{$s1d}^{0}\, $integrand1 \,ds\,dt\).)
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

@@ -1,0 +1,243 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('acceleration', 'velocity', 'vector function', 'arc length ')
+## Tagged by glr 06/07/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Functions')
+## DBsection('Motion in Space: Velocity and Acceleration')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('17.2')
+## Problem1('21')
+
+## Textbook tags
+## HHChapter1('Parameterization and Vector Fields')
+## HHSection1('Motion, Velocity and Acceleration')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Vector2D");
+Context()->flags->set( ijk=>1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"}
+);
+Context()->variables->are( t=>'Real' );
+Context()->strings->add( none=>{} );
+
+$showPartialCorrectAnswers = 1;
+
+$x0 = random(2,5,1);
+$y0 = random(2,5,1);
+
+$i0 = list_random(2,6,1);
+$t0 = $i0/2;
+
+$dx0 = list_random(-1,3);
+if ( $dx0 == -1 ) {
+    @delx = ( -1, 1, 2, 3, 2, 1, -1, -1 );
+    @dely = ( 3, 2, 1, -1, -3, -1, 1, 2 );
+    @xpzero = ( 0.5 );
+    @spzero = ( 3 );
+} else {
+    @delx = ( 3, 2, 1, -1, -3, -1, 1, 2 );
+    @dely = ( -1, 1, 2, 3, 2, 1, -1, -1 );
+    @xpzero = ( 2 );
+    @spzero = ( 3 );
+}
+
+@t = ( 0 );
+@x = ( $x0 );
+@y = ( $y0 );
+for ( my $i=0; $i<@delx; $i++ ) {
+    push( @t, $t[-1]+0.5 );
+    push( @x, $x[-1]+$delx[$i] );
+    push( @y, $y[-1]+$dely[$i] );
+}
+
+$xplist = List( @xpzero );
+$splist = List( @spzero );
+
+$vt0 = Vector( Compute( "$x[$i0+1]-$x[$i0-1]" ),
+	       Compute( "$y[$i0+1]-$y[$i0-1]" ) );
+$st0 = Compute( "sqrt(($x[$i0+1]-$x[$i0-1])^2 + ($y[$i0+1]-$y[$i0-1])^2)" );
+
+$vschk = MultiAnswer( $vt0, $st0 )->with(
+    singleResult=>0,
+    allowBlankAnswers=>1,
+    checker=>sub {
+	my ( $c, $s, $ans ) = @_;
+	my ( $cv, $cs ) = @{$c};
+	my ( $sv, $ss ) = @{$s};
+
+	my @ret = (0, 0);
+
+	my $whichV = 0;
+
+	if ( ref( $cv ) eq ref( $sv ) ) {
+	    ## then we have velocities to check
+	    my @sval = $sv->value;
+	    if ( $cv == $sv ) {
+		$ret[0] = 1;
+	    } elsif ( Compute( "2*($x[$i0+1]-$x[$i0])" ) == $sval[0] &&
+		      Compute( "2*($y[$i0+1]-$y[$i0])" ) == $sval[1] ) {
+		$ret[0] = 1;
+		$whichV = 1;
+	    } elsif ( Compute( "2*($x[$i0]-$x[$i0-1])" ) == $sval[0] &&
+		      Compute( "2*($y[$i0]-$y[$i0-1])" ) == $sval[1] ) {
+		$ret[0] = 1;
+		$whichV = 2;
+	    }
+	    if ( ref( $cs ) eq ref( $ss ) ) {
+		if ( $whichV == 0 && $cs == $ss ) {
+		    $ret[1] = 1;
+		} elsif ( $whichV == 1 &&
+			  Compute( "sqrt(4*($x[$i0+1]-$x[$i0])^2 + " .
+				   "4*($y[$i0+1]-$y[$i0])^2)" ) == $ss ) {
+		    $ret[1] = 1;
+		} elsif ( $whichV == 2 &&
+			  Compute( "sqrt(4*($x[$i0]-$x[$i0-1])^2 + " .
+				   "4*($y[$i0]-$y[$i0-1])^2)" ) == $ss ) {
+		    $ret[1] = 1;
+		} elsif ( $cs == $ss ||
+			  Compute( "sqrt(4*($x[$i0+1]-$x[$i0])^2 + " .
+				   "4*($y[$i0+1]-$y[$i0])^2)" ) == $ss ||
+			  Compute( "sqrt(4*($x[$i0]-$x[$i0-1])^2 + " .
+				   "4*($y[$i0]-$y[$i0-1])^2)" ) == $ss ) {
+		    $ans->setMessage( 2, "Your value for the speed of " .
+				      "the particle is a valid estimate, " .
+				      "but doesn't agree with your " .
+				      "velocity calculation." );
+		}
+	    }
+	} else {
+	    if ( ref( $cs ) eq ref( $ss ) ) {
+		$ans->setMessage(2, "To evaluate the speed, you must have " .
+				 "a value for the velocity.");
+	    }
+	}
+	return [ @ret ];
+    }
+);
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+The table below gives \( x \) and \( y \) coordinates of a particle in the
+plane at time \( t \).
+$BR
+$BCENTER
+\{ begintable(10) \}
+\{ row( "\(t\)", @t ) \}
+\{ row( "\(x\)", @x ) \}
+\{ row( "\(y\)", @y ) \}
+\{ endtable() \}
+
+$ECENTER
+$BR
+Assuming that the particle moves smoothly and
+that the points given show all the major features of the motion,
+estimate the following quantities:
+$PAR
+${BBOLD}(a)$EBOLD
+The velocity vector and speed at time \( t = $t0 \).
+$BR
+\( \vec v(t) = \) \{ $vschk->ans_rule( 35 ) \}
+$BR
+speed = \{ $vschk->ans_rule( 35 ) \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Any times when the particle is moving parallel to the \( y \)-axis.
+$BR
+times = \{ ans_rule(35) \}
+$BR
+$BITALIC(Enter the times as a comma separated list, or enter
+${BBOLD}none$EBOLD if there are none.)$EITALIC
+
+$PAR
+Any times when the particle has come to a stop.
+$BR
+times = \{ ans_rule(35) \}
+$BR
+$BITALIC(Enter the times as a comma separated list, or enter
+${BBOLD}none$EBOLD if there are none.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $vschk->cmp() );
+ANS( $xplist->cmp() );
+ANS( $splist->cmp() );
+
+$xp0 = $x[$i0+1] - $x[$i0-1];
+$yp0 = $y[$i0+1] - $y[$i0-1];
+$ssq = $xp0*$xp0 + $yp0*$yp0;
+$spd = ( sqrt($ssq) == int($ssq) ) ? sqrt($ssq) : "\sqrt{$ssq}";
+
+if ( @spzero ) {
+    $xpexpl = <<eoe;
+Note that the particle is momentarily stopped at about \(t=$splist\);
+however it is not moving parallel to the \(y\)-axis at this instant.
+eoe
+    $spexpl = "The particle stops at about time \(t = $splist\).";
+} else {
+    $xpexpl = '';
+    $spexpl = "There are no times when both \(x'(t)\) and \(y'(t)\) " .
+       "are simultaneously zero, so the particle never stops.";
+}
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+We approximate \(dx/dt\) by \(\Delta x /\Delta t\) calculated
+between \(t=$t[$i0-1]\) and \(t=$t[$i0+1]\):
+\[ \frac{dx}{dt}\approx \frac{\Delta x}{\Delta t} =
+    \frac{$x[$i0+1]-$x[$i0-1]}{$t[$i0+1]-$t[$i0-1]} = $xp0 \]
+Similarly,
+\[
+\frac{dy}{dt}\approx\frac{\Delta y}{\Delta t} =
+    \frac{$y[$i0+1]-$y[$i0-1]}{$t[$i0+1]-$t[$i0-1]} = $yp0.
+\]
+So,
+\[ \vec{v}($t0)\approx $xp0\vec i  + $yp0 \vec j \quad\mbox{and}\quad
+   \hbox{Speed}=|\vec v| = $spd.
+\]
+
+$PAR
+${BBOLD}(b)$EBOLD
+The particle is moving vertically at about time \( t = $xplist \).
+$xpexpl
+
+$PAR
+${BBOLD}(c)$EBOLD
+$spexpl
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
