@@ -1,0 +1,198 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('parametric surfaces', 'parametric equations', 'multivariable', 'functions')
+## Tagged by glr 06/17/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Parameterized Surfaces and Their Areas')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('17.5')
+## Problem1('25')
+
+## Textbook tags
+## HHChapter1('Parameterization and Vector Fields')
+## HHSection1('Parameterized Surfaces')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->are( s=>'Real', t=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+$r0 = list_random(1,2,3,4);
+$rb = $r0 + 1;
+$r1 = $r0 + 2;
+$p0 = random(4,12,2);
+$po2 = $p0/2;
+$n0 = list_random(3,4,5,6);
+
+$len = $n0*$p0;
+
+$xst = Compute( "($rb + cos(pi*s/$po2))*cos(t)" );
+$yst = Compute( "($rb + cos(pi*s/$po2))*sin(t)" );
+$zst = Compute( "s" );
+$s0  = Compute( "0" );
+$s1  = Compute( "$len" );
+$t0  = Compute( "0" );
+$t1  = Compute( "2*pi" );
+
+$param = MultiAnswer( $xst, $yst, $zst, $s0, $s1, $t0, $t1 )->with(
+    singleResult=>0,
+    checker=>sub {
+	my ( $c, $s, $ans ) = @_;
+	my ( $sx, $sy, $sz, $ss0, $ss1, $st0, $st1 ) = @{$s};
+	## to be correct, the z coordinate must vary from 0 to len,
+	##    the sum x^2 + y^2 = r^2 = (rb + cos(pi z/po2))^2,
+	##    and the entire circle must be described
+	my @ret = ( 0, 0, 0, 0, 0, 0, 0 );
+
+	my $r = Compute( "($rb + cos(pi*$sz/$po2))" );
+
+	if ( ( Compute(0) == $sz->eval(s=>$ss0, t=>$st0) &&
+	       Compute($len) == $sz->eval(s=>$ss1, t=>$st1) ) ||
+	     ( Compute(0) == $sz->eval(s=>$ss1, t=>$st1) &&
+	       Compute($len) == $sz->eval(s=>$ss0, t=>$st0) ) ) {
+	    $ret[2] = 1;
+	}
+	if ( ( $r*$r == $sx*$sx + $sy*$sy ) &&
+	     ( $ss0 != $ss1 ) && ( $st0 != $st1 ) &&
+	     ( $sx->eval(s=>$ss0, t=>$st0) == $sx->eval(s=>$ss1, t=>$st1) ) &&
+	     ( $sy->eval(s=>$ss0, t=>$st0) == $sy->eval(s=>$ss1, t=>$st1) ) ) {
+	    $ret[0] = 1;
+	    $ret[1] = 1;
+	}
+	if ( $ret[0] == 1 && $ret[1] == 1 && $ret[2] == 1 ) {
+	    ## then the parameter bounds must also be correct
+	    $ret[3] = 1;
+	    $ret[4] = 1;
+	    $ret[5] = 1;
+	    $ret[6] = 1;
+	}
+	return [@ret];
+    } );
+
+$vol = NumberWithUnits( "$n0*$po2*pi*(1 + 2*$rb*$rb)", "in^3" );
+$volc = $n0*$po2*(1 + 2*$rb*$rb);
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+A decorative oak post is $len inches long and is turned on a lathe so
+that its profile is sinusoidal as shown in the figure below.
+$BR
+$BCENTER
+\{ image( 'q15f1.png', tex_size=>200, height=>432, width=>173,
+	  extra_html_tags=>'alt="figure of a column with a ' .
+	  'vertically varying outside radius.  the maximum radius ' .
+	  'is r0 inches, the vertical distance between maximum ' .
+	  'radii is a0 inches, and the difference between the ' .
+	  'minimum and maximum radii is 2 inches."' ) \}
+$ECENTER
+$BR
+In this figure, \(r_0 = $r1\) inches and \(a_0 = $p0\) inches.
+$PAR
+${BBOLD}(a)$EBOLD
+Describe the surface of the post parametrically using
+cylindrical coordinates and the parameters \(s\) and \(t\).
+$BR
+\( x(s,t) = \) \{ $param->ans_rule(45) \}, $BR
+\( y(s,t) = \) \{ $param->ans_rule(45) \}, and $BR
+\( z(s,t) = \) \{ $param->ans_rule(45) \}, where $BR
+\{ $param->ans_rule(10) \} \(\le s\le \) \{ $param->ans_rule(10) \} and $BR
+\{ $param->ans_rule(10) \} \(\le t\le \) \{ $param->ans_rule(10) \}.
+
+$PAR
+${BBOLD}(b)$EBOLD
+Find the volume of the post.
+$BR
+volume = \{ ans_rule(45) \}
+$BR
+${BITALIC}(Include \{helpLink('units')\}.)$EITALIC
+
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $param->cmp() );
+ANS( $vol->cmp() );
+
+$tworb = 2*$rb;
+$rbsq = $rb*$rb;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+Let \(z\) be measured from the bottom of the post, and the center
+of the post be at \(x = 0\), \(y = 0\).  The surface is the revolution
+surface obtained by revolving a curve extending vertically along one
+edge of the surface around the \(z\) axis, as suggested by the figure
+below.
+$BR
+$BCENTER
+\{ image( 'q15f1soln.png', tex_size=>200, height=>432, width=>173,
+	  extra_html_tags=>'alt="figure of the column shown above, with ' .
+	  'the indicated axes and a curve on the surface marked where ' .
+	  'the plane above the positive z axis intersects the surface."' ) \}
+$ECENTER
+$BR
+From the measurements given, we obtain the equation of the curve
+\[ x = \cos \left( \frac{\pi}{$po2} z \right) + $rb,
+\qquad 0 \leq z \leq $len. \]
+$BR
+Rotating this around the \(z\)-axis, taking \(z=s\) and \(\theta = t\)
+as the parameters, we get the parametric equations
+\[
+x = (\cos \left( \frac{\pi}{$po2} s \right)+$rb)\cos t,
+\]
+\[
+y = (\cos \left( \frac{\pi}{$po2} s \right)+$rb)\sin t,
+\]
+and
+\[ z = s, \]
+with
+\[ 0 \leq s \leq $len, \qquad 0 \leq t \leq 2\pi. \]
+
+$PAR
+${BBOLD}(b)$EBOLD
+We know that the points in the curve consists of cross-sections of circles
+parallel to the \(xy\) plane and of radius \(\cos((\pi/{$po2})z+$rb)\).  Thus,
+\[ \mbox{Area of cross-section} 
+= \pi\left(\cos\left(\frac{\pi}{$po2}z+$rb\right)\right)^2\]
+Integrating over \(z\), we get
+\[
+\hbox{Volume } =
+\pi \int_0^{$len} \left(\cos\frac{\pi}{$po2} z+$rb\right)^2 dz
+ = \pi \int_0^{$len} \left(\cos^2\frac{\pi}{$po2}z+$tworb\cos\frac{\pi}{$po2}z
+		+$rbsq \right) dz
+ = $volc \pi \mbox{ in}^3.
+\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

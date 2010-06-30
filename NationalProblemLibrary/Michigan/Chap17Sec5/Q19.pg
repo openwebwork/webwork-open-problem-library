@@ -1,0 +1,168 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('parametric surfaces', 'parametric equations', 'multivariable', 'functions')
+## Tagged by glr 06/17/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Parameterized Surfaces and Their Areas')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('17.5')
+## Problem1('19')
+
+## Textbook tags
+## HHChapter1('Parameterization and Vector Fields')
+## HHSection1('Parameterized Surfaces')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Vector");
+Context()->flags->set( ijk=>1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+  k => {TeX => "\,\mathit{\vec k}"},
+);
+Context()->variables->are( t=>'Real', s=>'Real' );
+$showPartialCorrectAnswers = 0;
+
+@p = ( non_zero_random(-5,5,1), random(-5,5,1), random(-5,5,1) );
+$p[list_random(0,1,2)] = 0 if ( $p[0]*$p[1]*$p[2] != 0 );
+
+@sc = ( non_zero_random(-5,5,1), non_zero_random(-5,5,1), random(-5,5,1) );
+$sc[list_random(0,1,2)] = 0 if ( $sc[0]*$sc[1]*$sc[2] != 0 );
+
+@tc = ( non_zero_random(-5,5,1), random(-5,5,1), random(-5,5,1) );
+$tc[list_random(0,1,2)] = 0 if ( $tc[0]*$tc[1]*$tc[2] != 0 );
+
+$ppos = Vector( Compute( $p[0] ), Compute( $p[1] ), Compute( $p[2] ) );
+$dv1 = Vector( Compute( $sc[0] ), Compute( $sc[1] ), Compute( $sc[2] ) );
+@v1 = $dv1->value;
+$dv2 = Vector( Compute( $tc[0] ), Compute( $tc[1] ), Compute( $tc[2] ) );
+@v2 = $dv2->value;
+
+$rparam = Vector( "($p[0] + $v1[0]*s + $v2[0]*t)*i + " .
+		  "($p[1] + $v1[1]*s + $v2[1]*t)*j + " .
+		  "($p[2] + $v1[2]*s + $v2[2]*t)*k" )->reduce();
+$xeq = Compute( "$p[0] + $v1[0]*s + $v2[0]*t" )->reduce();
+$yeq = Compute( "$p[1] + $v1[1]*s + $v2[1]*t" )->reduce();
+$zeq = Compute( "$p[2] + $v1[2]*s + $v2[2]*t" )->reduce();
+
+## pick a point that may or may not be on the plane
+$ison = list_random(0,1);
+$s0 = random(-3,3,1);
+$t0 = random(-3,3,1);
+$t0 = non_zero_random(-3,3,1) if ( $s0*$t0 == 0 );
+
+if ( $ison ) {
+    $onPlane = PopUp( [ "?", "yes", "no" ], "yes" );
+    $p0 = Point($rparam->eval( s=>$s0, t=>$t0 ));
+
+    $onplexpl = "Since \(s=$s0\) and \(t=$t0\) satisfy these " .
+        "equations, the point lies on this plane.";
+} else {
+    $onPlane = PopUp( [ "?", "yes", "no" ], "no" );
+
+    $p0 = Point($rparam->eval( s=>$s0, t=>$t0 ));
+    if ( $sc[2] != 0 ) {
+        $p0 = $p0 + Point( Compute(0), Compute(0), Compute($sc[2]) );
+    } else {
+        $p0 = $p0 + Point( Compute(0), Compute($sc[1]), Compute(0) );
+    }
+
+    $onplexpl = "Since \(s=$s0\) and \(t=$t0\) result in the first " .
+        "two of these equations, but not the third, being satisfied, " .
+	"the point does not lie on this plane.";
+
+}
+@p0val = $p0->value;
+
+$s1 = ( $s0 == -1 ) ? $s0 + 2: $s0 + 1;
+$t1 = non_zero_random(-3,3,1);
+
+$q = $rparam->eval( s=>$s1, t=>$t1 );
+@q0 = $q->value;
+$z1 = Compute( $q0[2] );
+
+$s1 = Compute( $s1 );
+$t1 = Compute( $t1 );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+${BBOLD}(a)$EBOLD
+Does the plane \( \vec r(s,t) = $rparam \) contain the point
+\( $p0 \)?
+\{ $onPlane->menu() \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Find the \(z\)-component of the point \(($q0[0], $q0[1], z_0)\)
+so that it lies on the plane.
+$BR
+\( z_0 = \) \{ ans_rule(35) \}
+$BR
+For what values of \(s\) and \(t\) is this the case?
+$BR
+\( s = \) \{ ans_rule(35) \}
+$BR
+\( t = \) \{ ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $onPlane->cmp() );
+ANS( $z1->cmp() );
+ANS( $s1->cmp() );
+ANS( $t1->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+We want to find \(s\) and \(t\) so that
+\[ $xeq = $p0val[0], \]
+\[ $yeq = $p0val[1], \]
+and
+\[ $zeq = $p0val[2]. \]
+$onplexpl
+
+$PAR
+${BBOLD}(b)$EBOLD
+To find \(z_0\) so that the point lies on the plane, we want to find
+a value of \(s\) and \(t\) so that the equations
+\[ $xeq = $q0[0] \]
+and
+\[ $yeq = $q0[1] \]
+are satisfied, and then determine what the corresponding value of \(z\)
+is.  These two equations are satisfied by \(s = $s1\) and \(t = $t1\),
+so, plugging into the \(z\)-component of the plane, we have
+\[ z_0 = $z1. \]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

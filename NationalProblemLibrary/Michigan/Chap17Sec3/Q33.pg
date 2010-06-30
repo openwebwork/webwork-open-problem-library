@@ -1,0 +1,186 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('vector field', 'multivariable', 'calculus')
+## Tagged by glr 06/11/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Vector Fields')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('17.3')
+## Problem1('33')
+
+## Textbook tags
+## HHChapter1('Parameterization and Vector Fields')
+## HHSection1('Vector Fields')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserImplicitEquation.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context("Vector");
+Context()->flags->set( ijk=>1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+  k => {TeX => "\,\mathit{\vec k}"},
+);
+
+$showPartialCorrectAnswers = 1;
+
+
+$fvec = Vector( Compute("x"),
+		Compute("x + y"),
+		Compute("x - y + z") );
+
+$mx = non_zero_random(-5,5,1);
+$my = non_zero_random(-5,5,1);
+$mz = non_zero_random(-5,5,1);
+
+$linevec = Vector( Compute($mx), Compute($my), Compute($mz) );
+
+$vecContext = Context()->copy();
+
+Context('Numeric');
+Context()->variables->are( t=>'Real' );
+
+$x0 = non_zero_random(-5,5,1);
+$y0 = non_zero_random(-5,5,1);
+$z0 = non_zero_random(-5,5,1);
+
+$mx = non_zero_random(-5,5,1);
+$my = non_zero_random(-5,5,1);
+$mz = non_zero_random(-5,5,1);
+
+$linex = Compute( "$x0 + $mx*t" )->reduce();
+$liney = Compute( "$y0 + $my*t" )->reduce();
+$linez = Compute( "$z0 + $mz*t" )->reduce();
+
+$lineContext = Context()->copy();
+
+Context('Point');
+
+$parpoint = Point(Compute($mx), Compute($my - $mx),
+		  Compute($mz - $mx + $my));
+$perpoint = Point(Compute(-1*$mz), Compute(0), Compute($mx+$my+$mz));
+
+$ptContext = Context()->copy();
+
+Context('ImplicitEquation');
+Context()->variables->add( z=>'Real' );
+$plane = ImplicitEquation( "$mx*x + $my*(x+y) + $mz*(x-y+z) = 0" );
+
+$eqnContext = Context()->copy();
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Let \( \vec F= $fvec \).  Let the line \(l\) be
+\( x = $linex \),
+\( y = $liney \),
+\( z = $linez \).
+$PAR
+${BBOLD}(a)$EBOLD
+Find a point \(P = (x_0, y_0, z_0)\) where
+\( \vec F \) is parallel to \( l \).
+$BR
+\( P = \) \{ ans_rule(35) \}
+
+$PAR
+Find a point \(Q = (x_1,y_1,z_1)\) at which \( \vec F \) and \( l \)
+are perpendicular.
+$BR
+\( Q = \) \{ ans_rule(35) \}
+
+$PAR
+Give an equation for the set of all points at
+which \( \vec F \) and \( l \) are perpendicular.
+$BR
+equation: \{ ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+Context($ptContext);
+ANS( $parpoint->cmp( checker=>sub {
+			 my ( $c, $s, $ans ) = @_;
+			 my $context = Context()->copy();
+			 $context->flags->set( no_parameters=>0 );
+			 $context->variables->add( C0=>'Parameter' );
+			 my $c0 = Formula( $context, 'C0' );
+			 my @cv = $c->value;
+			 my @sv = $s->value;
+			 my @cnew = ( Formula( $context, $c0*$cv[0] ),
+				      Formula( $context, $c0*$cv[1] ),
+				      Formula( $context, $c0*$cv[2] ) );
+			 my @snew = ( Formula( $context, $sv[0] ),
+				      Formula( $context, $sv[1] ),
+				      Formula( $context, $sv[2] ) );
+			 return $cnew[0] == $snew[0] &&
+			     $cnew[1] == $snew[1] &&
+			     $cnew[2] == $snew[2] &&
+			     Compute(0) != $sv[0];
+		     } ) );
+ANS( $perpoint->cmp( checker=>sub {
+			 my ( $c, $s, $ans ) = @_;
+			 my @sv = $s->value;
+			 return Compute($mx)*$sv[0] +
+			     Compute($my)*($sv[0] + $sv[1]) +
+			     Compute($mz)*($sv[0] - $sv[1] + $sv[2]) == 0;
+		     }, showCoordinateHints=>0 ) );
+
+Context( $eqnContext );
+ANS( $plane->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+The line \(l\) is parallel to the vector
+\(\vec v = $linevec \).
+The vector field \(\vec F\) is parallel to the line when \(\vec F\)
+is a multiple of \(\vec v\).  Taking the multiple to be 1 and solving
+for \(x,y,z\), we find the point \(P = $parpoint\).  Other answers
+are possible.
+
+$PAR
+${BBOLD}(b)$EBOLD
+The line and vector field are perpendicular if \(\vec F\cdot\vec v=0\),
+that is
+\[ (x)($mx) + (x + y)($my) + (x - y + z)($mz) = 0. \]
+Solving, we can find any number of possibilities.  One of these is
+\( Q = $perpoint\).
+
+$PAR
+$PAR
+${BBOLD}(c)$EBOLD
+The set of all points that is perpendicular to the line is the equation
+shown in (b), \($plane\).  This is a plane through  the origin.
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

@@ -1,0 +1,163 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('parametric surfaces', 'parametric equations', 'multivariable', 'functions')
+## Tagged by glr 06/17/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Parameterized Surfaces and Their Areas')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('17.5')
+## Problem1('15')
+
+## Textbook tags
+## HHChapter1('Parameterization and Vector Fields')
+## HHSection1('Parameterized Surfaces')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Vector");
+Context()->flags->set( ijk=>1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+  k => {TeX => "\,\mathit{\vec k}"},
+);
+Context()->variables->are( t=>'Real', s=>'Real' );
+
+$showPartialCorrectAnswers = 1;
+
+@p = ( non_zero_random(-5,5,1), non_zero_random(-5,5,1),
+       non_zero_random(-5,5,1) );
+@q = ( non_zero_random(-12,12,2), non_zero_random(-12,12,2),
+       non_zero_random(-12,12,2) );
+@r = ( random(0,50,5), random(0,50,5), random(0,50,5) );
+
+$ppos = Vector( Compute( $p[0] ), Compute( $p[1] ), Compute( $p[2] ) );
+$dv1 = Vector( Compute( $q[0]-$p[0] ), Compute( $q[1]-$p[1] ),
+	       Compute( $q[2]-$p[2] ) );
+$dv2 = Vector( Compute( $r[0]-$p[0] ), Compute( $r[1]-$p[1] ),
+	       Compute( $r[2]-$p[2] ) );
+
+$rparam = Vector( "$ppos + $dv1*s + $dv2*t" );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Parameterize the plane that contains the three points
+\( ($p[0], $p[1], $p[2]) \),
+\( ($q[0], $q[1], $q[2]) \), and
+\( ($r[0], $r[1], $r[2]) \).
+
+$PAR
+\( \vec r(s,t) = \) \{ ans_rule(55) \}
+$BR
+${BITALIC}(Use \(s\) and \(t\) for the parameters in your
+parameterization, and enter your vector with angle brackets
+(not with \(ijk\) notation).)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+## FIXME: THIS FAILS WITH ijk FORMAT ENTERED ANSWERS
+
+ANS( $rparam->cmp( checker=>sub {
+    my ( $c, $s, $ans ) = @_;
+    ## the answer must be linear in s and t and contain
+    ##    the three points.
+    my @stucoord = $s->value;
+    my $dxds = $stucoord[0]->D('s');
+    my $dyds = $stucoord[1]->D('s');
+    my $dzds = $stucoord[2]->D('s');
+    my $dxdt = $stucoord[0]->D('t');
+    my $dydt = $stucoord[1]->D('t');
+    my $dzdt = $stucoord[2]->D('t');
+    my $dxds2 = $dxds->D('s');
+    my $dyds2 = $dyds->D('s');
+    my $dzds2 = $dzds->D('s');
+    my $dxdt2 = $dxdt->D('t');
+    my $dydt2 = $dydt->D('t');
+    my $dzdt2 = $dzdt->D('t');
+
+    if ( $dxds2 != 0 || $dyds2 != 0 || $dzds2 != 0 ||
+         $dxdt2 != 0 || $dydt2 != 0 || $dzdt2 != 0 ) {
+	Value->Error("Your answer doesn't look like a plane.");
+	return 0;
+    } else {
+        ## the points lie on the plane only if
+	if ( $dxdt*$dyds - $dxds*$dydt != 0 ) {
+	    my $sx0 = $stucoord[0]->eval( s=>0, t=>0 );
+	    my $sy0 = $stucoord[1]->eval( s=>0, t=>0 );
+	    my $sz0 = $stucoord[2]->eval( s=>0, t=>0 );
+
+	    ## p[0] and p[1] lie on the plane with s and t equal to
+	    my $jac = $dxdt*$dyds - $dxds*$dydt;
+	    my $s0 = ($dydt*($sx0-$p[0]) + $dxdt*($p[1]-$sy0))/$jac;
+	    my $t0 = ($dyds*($p[0]-$sx0) + $dxds*($sy0-$p[1]))/$jac;
+
+	    ## q[0] and q[1] lie on the plane with s and t equal to
+	    my $s1 = ($dydt*($sx0-$q[0]) + $dxdt*($q[1]-$sy0))/$jac;
+	    my $t1 = ($dyds*($q[0]-$sx0) + $dxds*($sy0-$q[1]))/$jac;
+
+	    ## r[0] and r[1] lie on the plane with s and t equal to
+	    my $s2 = ($dydt*($sx0-$r[0]) + $dxdt*($r[1]-$sy0))/$jac;
+	    my $t2 = ($dyds*($r[0]-$sx0) + $dxds*($sy0-$r[1]))/$jac;
+
+	    if ( $stucoord[2]->substitute( s=>$s0, t=>$t0 ) == $p[2] &&
+		 $stucoord[2]->substitute( s=>$s1, t=>$t1 ) == $q[2] &&
+		 $stucoord[2]->substitute( s=>$s2, t=>$t2 ) == $r[2] ) {
+		return 1;
+	    } else {
+		return 0;
+	    }
+	} else {
+	    return 0;
+	}
+    }
+} ) );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Two vectors in the plane containing
+\(P=($p[0], $p[1], $p[2])\),
+\(Q=($q[0], $q[1], $q[2])\), and
+\(R=($r[0], $r[1], $r[2])\) are the displacement vectors
+\[ \vec v_1 =\vec{PQ} = $dv1\]
+and
+\[ \vec v_2 = \vec{PR} = $dv2.\]
+$PAR
+
+Letting \(\vec r_0 = $ppos\),
+we have  the parameterization
+\[
+\vec r(s, t) = \vec r_0 + s\vec v_1+t\vec v_2 =
+$rparam.
+\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

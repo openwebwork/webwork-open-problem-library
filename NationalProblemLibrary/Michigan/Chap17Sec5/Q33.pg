@@ -1,0 +1,197 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('parametric surfaces', 'parametric equations', 'multivariable', 'functions')
+## Tagged by glr 06/17/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Parameterized Surfaces and Their Areas')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('17.5')
+## Problem1('33')
+
+## Textbook tags
+## HHChapter1('Parameterization and Vector Fields')
+## HHSection1('Parameterized Surfaces')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->are( s=>'Real', t=>'Real' );
+$showPartialCorrectAnswers = 1;
+
+$x0 = list_random(1,2,3);
+$x1 = random(($x0+1), ($x0+5), 1);
+$a  = random(2,10,2);
+
+$xp = Compute( "s*cos(t)" );
+$yp = Compute( "s*sin(t)" );
+$zp = Compute( "$a*sqrt(s - $x0)" );
+$s0 = Compute( "$x0" );
+$s1 = Compute( "$x1" );
+$t0 = Compute( "0" );
+$t1 = Compute( "2*pi" );
+
+$param = MultiAnswer( $xp, $yp, $zp, $s0, $s1, $t0, $t1 )->with(
+    singleResult=>0,
+    checker=>sub {
+	my ( $c, $s, $ans ) = @_;
+	my ( $sx, $sy, $sz, $ss0, $ss1, $st0, $st1 ) = @{$s};
+
+	my @res = ( 0,0,0, 0,0, 0,0 );
+	my $rad = Compute( "$x0 + $sz^2/$a^2" );
+
+	my $ctxt = Context()->copy();
+	## make sure we only check the equality on an appropriate
+	##    domain
+	Context()->flags->set( limits=>[$x0, $x1] );
+
+	## the surface is described by
+	if ( $sx*$sx + $sy*$sy == $rad*$rad ) {
+	    $res[0] = 1;
+	    $res[1] = 1;
+	    $res[2] = 1;
+	}
+
+	Context($ctxt);
+
+	my $sx0 = $sx->eval(s=>$ss0,t=>$st0);
+	my $sx1 = $sx->eval(s=>$ss1,t=>$st1);
+	my $sy0 = $sy->eval(s=>$ss0,t=>$st0);
+	my $sy1 = $sy->eval(s=>$ss1,t=>$st1);
+	my $sz0 = $sz->eval(s=>$ss0,t=>$st0);
+	my $sz1 = $sz->eval(s=>$ss1,t=>$st1);
+
+	## and we require that the endpoint result in the full range
+	##    of z values, and that we get all of the circle only once
+	if ( ( ( Compute("0") == $sz0 &&
+	         Compute("$a*sqrt($x1 - $x0)") == $sz1 ) ||
+	       ( Compute("0") == $sz1 &&
+	         Compute("$a*sqrt($x1 - $x0)") == $sz0 ) )
+	     &&
+	     ( atan2( $sy0, $sx0 ) == atan2( $sy1, $sx1 ) ) ) {
+
+	    my $ds = ($ss1 - $ss0)/20;
+	    my $dt = ($st1 - $st0)/20;
+
+	    my $theta0 = atan2( $sy0, $sx0 );
+	    my $dtheta = abs( $theta0 -
+			      atan2($sy->eval(s=>$ss0+$ds,t=>$st0+$dt),
+				    $sx->eval(s=>$ss0+$ds,t=>$st0+$dt)) );
+
+	    my $isErr = 0;
+	    for ( my $i=2; $i<18; $i++ ) {
+		## make sure that we're not past the starting point
+		##    again
+		my $xtmp = $sx->eval(s=>$ss0+$i*$ds,t=>$st0+$i*$dt);
+		my $ytmp = $sy->eval(s=>$ss0+$i*$ds,t=>$st0+$i*$dt);
+		my $theta1 = atan2( $ytmp, $xtmp );
+
+		if ( abs( $theta0 - $theta1 ) <= $dtheta ) {
+		    $ans->setMessage(4, 'Make sure that your ' .
+			'parameterization covers the surface only once.' );
+		    $isErr = 1;
+		    break;
+		}
+	    }
+	    if ( ! $isErr ) {
+		$res[3] = 1;
+		$res[4] = 1;
+		$res[5] = 1;
+		$res[6] = 1;
+	    }
+	} else {
+	    $ans->setMessage( 4, 'Make sure that your parameterization ' .
+			      'covers the entire surface, and covers ' .
+			      'it only once.' );
+	}
+	return [ @res ];
+    } ) ;
+
+
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Parameterize a vase formed by rotating the curve
+\( z= $a \sqrt{x-$x0},\,$x0\leq x\leq $x1 \), around the \( z \)-axis.
+Use \(s\) and \(t\) for your parameters.
+$PAR
+\( x(s,t) = \) \{ $param->ans_rule(45) \}, $BR
+\( y(s,t) = \) \{ $param->ans_rule(45) \}, and $BR
+\( z(s,t) = \) \{ $param->ans_rule(45) \}, with $BR
+\{ $param->ans_rule(10) \} \( \le s\le \) \{ $param->ans_rule(10) \} and$BR
+\{ $param->ans_rule(10) \} \( \le t\le \) \{ $param->ans_rule(10) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $param->cmp() );
+
+$z1 = ( sqrt($x1-$x0) == int(sqrt($x1-x0)) ) ? $a*sqrt($x1-$x0) :
+    "$a\sqrt{" . ($x1-$x0) . '}';
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The vase obtained by rotating the curve \(z=$a\sqrt{x-$x0}\),
+\($x0\le x\le $x1\), around the \(z\)-axis is shown in the figure
+below.
+$BR
+$BCENTER
+\{ image( "q33fig.png", tex_size=>200, height=>145, width=>345,
+	  extra_html_tags=>'alt="graph of the indicated figure."' ) \}
+$ECENTER
+$BR
+At height \(z\), the cross-section is a horizontal circle of radius
+\(a\).  Thus, letting the angle \(\theta\) around the \(z\)-axis be \(t\),
+a point on this horizontal circle is given by
+\[ \vec r=a \cos t \vec i + a \sin t \vec j + z\vec k.\]
+However, the radius \(a\) and height \(z\) are not independent.  We
+can parameterize easily in two ways: first, suppose that we take the
+radius \(a\) to be our second parameter, \(a = s\).  Then, the height
+\(z = $a\sqrt{s - $x0}\), and our parameterization is
+\[ x(s,t) = s\cos t, \]
+\[ y(s,t) = s\sin t, \]
+and
+\[ z(s,t) = $a\sqrt{s - $x0}, \]
+with
+\[ $x0\le s\le $x1 \quad\mbox{and}\quad 0\le t\le 2\pi. \]
+Alternately, we could take the height \(z\) to be the second parameter,
+\(z = s\).  Then, solving for the radius \(r\) in the expression for
+the curve, we get \(a = \left(\frac{s}{$a}\right)^2 + $x0\).  Thus
+in this case the parameterization is
+\[ x(s,t) = \left((\frac{s}{$a})^2 + $x0\right)\,\cos(t), \]
+\[ y(s,t) = \left((\frac{s}{$a})^2 + $x0\right)\,\sin(t), \]
+and
+\[ z(s,t) = s, \]
+with
+\[ 0\le s\le $z1\quad\mbox{and}\quad 0\le t\le 2\pi.\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

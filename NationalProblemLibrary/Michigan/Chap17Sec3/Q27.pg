@@ -1,0 +1,200 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('vector field', 'multivariable', 'calculus')
+## Tagged by glr 06/11/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Vector Fields')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('17.3')
+## Problem1('27')
+
+## Textbook tags
+## HHChapter1('Parameterization and Vector Fields')
+## HHSection1('Vector Fields')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context('Vector2D');
+Context()->flags->set( ijk=>1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+);
+
+$showPartialCorrectAnswers = 1;
+
+# $refreshCachedImages=1;
+
+@f = ( Vector( Compute('x'), Compute('y') ),
+       Vector( Compute('y'), Compute('x') ),
+       Vector( Compute('-x'), Compute('y') ),
+       Vector( Compute('-y'), Compute('x') ),
+       Vector( Compute('x'), Compute('-y') ),
+       Vector( Compute('y'), Compute('-x') ),
+       Vector( Compute('-x'), Compute('-y') ),
+       Vector( Compute('-y'), Compute('-x') ),
+ );
+
+@fexp = ( [ 'y\,\vec j', 'up if \(y>0\)', 'down if \(y<0\)',
+	    'x\,\vec i', 'right if \(x>0\)', 'left if \(x<0\)' ],
+	  [ 'y\,\vec i', 'right if \(y>0\)', 'left if \(y<0\)',
+	    'x\,\vec j', 'up if \(x>0\)', 'down if \(x<0\)' ],
+	  [ 'y\,\vec j', 'up if \(y>0\)', 'down if \(y<0\)',
+	    '-x\,\vec i', 'left if \(x>0\)', 'right if \(x<0\)' ],
+	  [ '-y\,\vec i', 'left if \(y>0\)', 'down if \(y<0\)',
+	    'x\,\vec j', 'up if \(x>0\)', 'down if \(x<0\)' ],
+	  [ '-y\,\vec j', 'down if \(y>0\)', 'up if \(y<0\)',
+	    'x\,\vec i', 'right if \(x>0\)', 'left if \(x<0\)' ],
+	  [ 'y\,\vec i', 'right if \(y>0\)', 'left if \(y<0\)',
+	    '-x\,\vec j', 'down if \(x>0\)', 'up if \(x<0\)' ],
+	  [ '-y\,\vec j', 'down if \(y>0\)', 'up if \(y<0\)',
+	    '-x\,\vec i', 'left if \(x>0\)', 'right if \(x<0\)' ],
+	  [ '-y\,\vec i', 'left if \(y>0\)', 'right if \(y<0\)',
+	    '-x\,\vec j', 'down if \(x>0\)', 'up if \(x<0\)' ],
+);
+
+@img = ();
+@fn  = ();
+for ( my $i=0; $i<8; $i++ ) {
+    $img[$i] = init_graph(-3,-3,3,3, axes=>[0,0], size=>[200,200]);
+    my @fcomp = $f[$i]->value;
+    $fn[$i] = new VectorField( sub { my ( $x, $y ) = @_;
+				     return $fcomp[0]->eval( x=>$x, y=>$y ); },
+			       sub { my ( $x, $y ) = @_;
+				     return $fcomp[1]->eval( x=>$x, y=>$y ); },
+			       $img[$i] );
+    $fn[$i]->dot_radius(2);
+    $fn[$i]->dot_color(blue);
+    $fn[$i]->rf_arrow_length( sub{
+        my($dx,$dy)=@_;
+        return(0) if sqrt($dx*$dx + $dy*$dy)==0;
+        4*sqrt($dx*$dx + $dy*$dy);
+    } );
+}
+
+@imgOrder = NchooseK(8,4);
+@whichfxn = PGsort sub { $_[0] < $_[1] }, @imgOrder;
+
+%orderRev = map { $imgOrder[$_]=>$_ } ( 0, 1, 2, 3 );
+@shuffledImages = @img[ @imgOrder ];
+
+@pops = ();
+for ( my $i=0; $i<4; $i++ ) {
+    $pops[$i] = PopUp( [ '?', '1', '2', '3', '4' ],
+		       $orderRev{$whichfxn[$i]}+1 );
+}
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Match the vector fields with the graphs below.
+$BR
+${BBOLD}(a)$EBOLD
+\( \vec F_1 = $f[$whichfxn[0]] \) matches graph \{ $pops[0]->menu() \}
+$BR
+${BBOLD}(b)$EBOLD
+\( \vec F_2 = $f[$whichfxn[1]] \) matches graph \{ $pops[1]->menu() \}
+$BR
+${BBOLD}(c)$EBOLD
+\( \vec F_3 = $f[$whichfxn[2]] \) matches graph \{ $pops[2]->menu() \}
+$BR
+${BBOLD}(d)$EBOLD
+\( \vec F_4 = $f[$whichfxn[3]] \) matches graph \{ $pops[3]->menu() \}
+$PAR
+$BCENTER
+${BITALIC}For all graphs, vectors are shown as line segments,
+with a dot at the ${BBOLD}tail$EBOLD of the vector.${EITALIC}
+\{ begintable(4) \}
+\{ row( "$BBOLD(1)$EBOLD",
+	image( insertGraph($shuffledImages[0]), tex_size=>200, height=>200,
+	       width=>200 ),
+	"$BBOLD(2)$EBOLD",
+	image( insertGraph($shuffledImages[1]), tex_size=>200, height=>200,
+	       width=>200 )
+      ) \}
+\{ row( "$BBOLD(3)$EBOLD",
+	image( insertGraph($shuffledImages[2]), tex_size=>200, height=>200,
+	       width=>200 ),
+	"$BBOLD(4)$EBOLD",
+	image( insertGraph($shuffledImages[3]), tex_size=>200, height=>200,
+	       width=>200 ) ) \}
+\{ endtable() \}
+$ECENTER
+
+END_TEXT
+Context()->normalStrings;
+
+foreach my $p ( @pops ) { ANS( $p->cmp() ); }
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+To see which graph is which, consider points on the \(x\)- and \(y\)-axes.
+On the \(x\)-axis, \(y=0\), and on the \(y\)-axis, \(x=0\)
+$PAR
+${BBOLD}(a)$EBOLD
+\(\vec F_1(0,y) = $fexp[$whichfxn[0]]->[0]\), a vector pointing
+$fexp[$whichfxn[0]]->[1] and
+$fexp[$whichfxn[0]]->[2], while
+\(\vec F_1(x,0) = $fexp[$whichfxn[0]]->[3]\), a vector pointing
+$fexp[$whichfxn[0]]->[4] and
+$fexp[$whichfxn[0]]->[5].  Thus \(\vec F_1(x,y)\) is given by
+\{ $pops[0]->correct_ans() \}.
+$PAR
+${BBOLD}(b)$EBOLD
+\(\vec F_2(0,y) = $fexp[$whichfxn[1]]->[0]\), a vector pointing
+$fexp[$whichfxn[1]]->[1] and
+$fexp[$whichfxn[1]]->[2], while
+\(\vec F_2(x,0) = $fexp[$whichfxn[1]]->[3]\), a vector pointing
+$fexp[$whichfxn[1]]->[4] and
+$fexp[$whichfxn[1]]->[5].  Thus \(\vec F_2(x,y)\) is given by
+\{ $pops[1]->correct_ans() \}.
+$PAR
+${BBOLD}(c)$EBOLD
+\(\vec F_3(0,y) = $fexp[$whichfxn[2]]->[0]\), a vector pointing
+$fexp[$whichfxn[2]]->[1] and
+$fexp[$whichfxn[2]]->[2], while
+\(\vec F_3(x,0) = $fexp[$whichfxn[2]]->[3]\), a vector pointing
+$fexp[$whichfxn[2]]->[4] and
+$fexp[$whichfxn[2]]->[5].  Thus \(\vec F_3(x,y)\) is given by
+\{ $pops[2]->correct_ans() \}.
+$PAR
+${BBOLD}(d)$EBOLD
+\(\vec F_4(0,y) = $fexp[$whichfxn[3]]->[0]\), a vector pointing
+$fexp[$whichfxn[3]]->[1] and
+$fexp[$whichfxn[3]]->[2], while
+\(\vec F_4(x,0) = $fexp[$whichfxn[3]]->[3]\), a vector pointing
+$fexp[$whichfxn[3]]->[4] and
+$fexp[$whichfxn[3]]->[5].  Thus \(\vec F_4(x,y)\) is given by
+\{ $pops[3]->correct_ans() \}.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
