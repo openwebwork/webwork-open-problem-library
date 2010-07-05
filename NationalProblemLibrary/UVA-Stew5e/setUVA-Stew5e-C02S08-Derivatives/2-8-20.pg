@@ -1,6 +1,10 @@
 ##DESCRIPTION
 ##Calculus: Limits and Derivatives
 ##ENDDESCRIPTION
+## Original:
+## /UVA-Stew5e/setUVA-Stew5e-C02S08-Derivatives/2-8-20.pg
+## Modified September 27, 2007 by Paul Pearson
+## Replaced deprecated 'MultiPart' by newer 'MultiAnswer'
 
 ##KEYWORDS('calculus', 'limits', 'derivatives')
 ##Tagged by YJ
@@ -25,33 +29,50 @@
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
-loadMacros("PG.pl",
-           "PGbasicmacros.pl",
-           "parserMultiAnswer.pl",
+loadMacros("PGstandard.pl",
+           "MathObjects.pl",
+           "parserMultiAnswer.pl"
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
+Context('Numeric');
+Context()->variables->add(h=>'Real');
+
 $a = non_zero_random(2,3,1);
 $b = random(2,8);
-$b2= $b**$a;
+$b2= Compute("$b^$a");
+$Funct = Formula("x^$a");
 
-Context('Numeric');
+$mp = MultiAnswer($Funct, Compute("$b"))->with(
+  singleResult => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $f1stu, $f2stu ) = @{$student};
+      my ( $f1, $f2 ) = @{$correct};
 
-$mp = MultiAnswer("x^$a", $b)->with(
- singleResult => 1,
- separator => " at a = ",
- tex_separator => " \hbox{ at } a = ",
- checker => sub {
-   my ($correct,$student) = @_;
-   my $stuformula = Formula($student->[0]);
-   my $tmp = $stuformula->substitute(x=>"x-$correct->[1]+$student->[1]");
-   my $tmp2 = $correct->[0]->eval(x=>$correct->[1]);
-   my $tmp3 = $stuformula->eval(x=>$student->[1]);
-   return 1 if ($tmp==$correct->[0] && $tmp2==$tmp3);
-   return 0;
-  }
+      #Correct given limit.
+      $CorrDeriv = Formula("(($b + h)^$a - ($b)^($a))/ h");
+
+      $f_b_h_stu = $f1stu->substitute(x=>Formula("$f2stu + h"));
+      $f_b_stu = $f1stu->eval(x=>$f2stu);
+
+      #Construct limit the student is claiming.
+      $DerivStu = Formula("(($f_b_h_stu) - ($f_b_stu))/ h");
+      
+      #Check if the given function evaluated at the given point fits the
+      #  desired limit. There technically could be many correct answers:
+      #e.g. Limit ((4 + h)^3 - 64) / h.
+      #
+      # f(x) = x^3, a = 4 is correct.
+      # f(x) = (x + 2)^3, a = 2 is also correct.
+      # f(x) = x^3 + constant, a = 4 should also be correct.
+      if ($CorrDeriv == $DerivStu) {
+          return 1; } 
+      else {
+          return 0; }
+      }
 );
 
 BEGIN_TEXT
