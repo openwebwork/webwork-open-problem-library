@@ -1,0 +1,165 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('line integral', 'integral', 'multivariable', 'calculus')
+## Tagged by glr 07/05/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Line Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('18.1')
+## Problem1('44')
+
+## Textbook tags
+## HHChapter1('Line Integrals')
+## HHSection1('The Idea of a Line Integral')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+$side = random(400,1600,200);
+$so2 = $side/2;
+$dir  = list_random('east', 'west');
+$dir = 'west';
+$type = list_random('in', 'de');
+$type = 'de';
+$rate = random(2,10,2);
+$twor = 2*$rate;
+
+$cval = $side*$twor*1000;
+if ( ( $dir eq 'east' && $type eq 'de' ) ||
+     ( $dir eq 'west' && $type eq 'in' ) ) {
+    $circ = NumberWithUnits( "$side*2*$rate*1000", "m^2/s" );
+    $smult = 1;
+} else {
+    $circ = NumberWithUnits( "-$side*2*$rate*1000", "m^2/s" );
+    $smult = -1;
+}
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+A horizontal square has sides of $side km running north-south and
+east-west. A wind blows from the $dir and ${type}creases in
+magnitude toward the north at a rate of $rate m/s for every
+$so2 km. Compute the circulation of the wind counterclockwise
+around the square.
+
+$PAR
+circulation = \{ ans_rule(35) \}
+$BR
+${BITALIC}(Include \{ helpLink('units')\}.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $circ->cmp() );
+
+if ( $side >= 1000 ) {
+    $sc = ($side == 1000) ? '' : $side/1000;
+    $ex = 6;
+} else {
+    $sc = $side/100;
+    $ex = 5;
+}
+
+$vsgn = ( $type eq 'in' ) ? '+' : '-';
+$dsgn = ( $dir eq 'east' ) ? '' : '-';
+$ndsgn = ( $dir eq 'east' ) ? '-' : '';
+$ndsgns = ( $dir eq 'east' ) ? '-' : '+';
+
+$ex2 = int(log($cval)/log(10));
+$tot = $smult*$cval/(10**$ex2);
+
+$gr = init_graph(-.5,-.5,6.5,6.5, size=>[250,250]);
+$gr->moveTo(1,1);
+$gr->lineTo(5,1,'blue',1);
+$gr->lineTo(5,5,'blue',1);
+$gr->lineTo(1,5,'blue',1);
+$gr->lineTo(1,1,'blue',1);
+
+sub xfunc {
+    my $y = shift();
+    my $inc;
+    if ( $type eq 'in' ) {
+	$inc = ".25";
+    } else {
+	$inc = "-.25";
+    }
+    my $v0 = ($inc > 0) ? .25 : 1.25;
+    if ( $dir eq 'east' ) {
+	return $v0 + $inc*($y - 1);
+    } else {
+	return -1*($v0 + $inc*($y - 1));
+    }
+}
+
+for ( my $i=1; $i<=5; $i+=0.5 ) {
+    $gr->moveTo( $i, 1 );
+    $gr->arrowTo( $i+xfunc(1), 1, 'blue' );
+    $gr->moveTo( 5, $i );
+    $gr->arrowTo( 5+xfunc($i), $i, 'blue' );
+    $gr->moveTo( $i, 5 );
+    $gr->arrowTo( $i+xfunc(5), 5, 'blue' );
+    $gr->moveTo( 1, $i );
+    $gr->arrowTo( 1+xfunc($i), $i, 'blue' );
+}
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+The figure below shows the wind velocity vectors on each
+side of the square, where the speed is \(v\) meter/sec on the
+south side and \((v $vsgn $twor)\) meter/sec on the north side.
+$BR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>250, height=>250, width=>250,
+	  extra_html_tags=>'alt="graph showing a square with vectors ' .
+	  'on the edges pointing as indicated in the problem description."' )
+\}
+$ECENTER
+$BR
+The circulation is the sum of the line integrals along the four sides
+of the square.  The line integrals along the eastern and western edges
+are both zero, since the wind velocity is perpendicular to these
+edges.  The integral to the right along the south side equals
+\( ($side\mbox{ km})($dsgn v \mbox{ m/s})= $dsgn $sc v \times 10^{$ex}
+\mbox{ m}^2/\mbox{s}\), and the integral to the left along the north
+side equals \((-$side\mbox{ km})($dsgn(v $vsgn $twor) \mbox{ m/s}) =
+$ndsgn$sc(v $vsgn $twor) \times 10^{$ex} \mbox{ m}^2/\mbox{s}\).
+The total circulation is then the sum of these,
+\[
+\mbox{circulation} =
+$dsgn$sc v \times 10^{$ex} $ndsgns $sc(v $vsgn $twor) \times 10^{$ex} =
+$tot \times 10^{$ex2} \mbox{ m}^2/\mbox{s}.
+\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

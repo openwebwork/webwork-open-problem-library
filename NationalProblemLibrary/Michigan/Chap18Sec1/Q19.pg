@@ -1,0 +1,197 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('line integral', 'integral', 'multivariable', 'calculus')
+## Tagged by glr 07/05/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Line Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('18.1')
+## Problem1('19')
+
+## Textbook tags
+## HHChapter1('Line Integrals')
+## HHSection1('The Idea of a Line Integral')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Vector2D");
+Context()->flags->set( ijk=>1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+);
+$showPartialCorrectAnswers = 1;
+
+$a = non_zero_random(-5,5,1);
+$b = non_zero_random(-2,2,1);
+$ad = $a;
+$ad =~ s/1//;
+$s = ( $b < 0 ) ? '-' : '+';
+$bd = (abs($b) == 1) ? '' : abs($b);
+$vfield = "$ad y\, \vec i $s $bd x^2\,\vec j";
+
+## pick an extent for the curve
+$x1 = list_random(2,3,4,5);
+$y0 = list_random(-1,-2,-3);
+$y1 = list_random(1,2,3);
+
+$numx = $x1;
+$numy = ($y1-$y0);
+$maxnum = ( $numx > $numy ) ? $numx : $numy;
+
+$gr = init_graph( 0, ($y0-.5), ($x1+.5), ($y1+.5), axes=>[0,0],
+		  size=>[200,200] );
+$gr->stamps( closed_circle( 0, $y0, 'blue' ) );
+$gr->stamps( closed_circle( $x1, $y0, 'blue' ) );
+$gr->stamps( closed_circle( $x1, $y1, 'blue' ) );
+$gr->moveTo( 0, $y0 );
+$gr->lineTo( $x1, $y0, 'blue', 2 );
+$gr->lineTo( $x1, $y1, 'blue', 2 );
+$gr->lb( new Label( 0.1,$y0+.1, "(0,$y0)", "black", "left", "bottom" ) );
+$gr->lb( new Label( $x1-.1,$y0+.1, "($x1,$y0)", "black", "right", "bottom" ) );
+$gr->lb( new Label( $x1-.1,$y1-.1, "($x1,$y1)", "black", "right", "top" ) );
+$desc = "Graph of a piecewise linear curve starting at ($x1,$y0), " .
+    "extending to ($x1,$y0) and from there to ($x1,$y1).";
+
+## the vectors we need when evaluating the vector field
+@vecF1  = ();
+@pts1   = ();
+@ansBl1 = ();
+for ( my $i=0; $i<=$x1; $i++ ) {
+    push( @pts1, "\(($i, $y0)\)" );
+    push( @vecF1, Vector( Compute("$a*$y0"), Compute("$b*$i*$i") ) );
+    push( @ansBl1, ans_rule(10) );
+}
+@vecF2  = ();
+@pts2   = ();
+@ansBl2 = ();
+for ( my $j=$y0+1; $j<=$y1; $j++ ) {
+    push( @pts2, "\(($x1, $j)\)" );
+    push( @vecF2, Vector( Compute("$a*$j"), Compute("$b*$x1*$x1") ) );
+    push( @ansBl2, ans_rule(10) );
+}
+
+## then the work is
+$work = Compute( "$a*$y0*$x1 + $b*$x1*$x1*($y1-$y0)" );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+An object moves along the curve \( C \) in the figure below.
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>200, height=>200, width=>200,
+	  extra_html_tags=>'alt="' . $desc . '"' ) \}
+$ECENTER
+$BR
+As it moves it is acted on by the force field
+\( \vec F(x,y) = $vfield \).
+
+$PAR
+${BBOLD}(a)$EBOLD
+Evaluate \( \vec F \) at each of the points indicated:
+$BR
+$BCENTER
+\{ begintable($maxnum+1) \}
+\{ row( "point:", @pts1 ) \}
+\{ row( "\(\vec F = \)", @ansBl1 ) \}
+\{ row( "point:", @pts2 ) \}
+\{ row( "\(\vec F = \)", @ansBl2 ) \}
+\{ endtable() \}
+$ECENTER
+Use your values to make a sketch, on a separate sheet of paper, showing
+the force field along \( C \).
+
+$PAR
+${BBOLD}(b)$EBOLD
+Find the work done by \( \vec F \) on the object.
+$BR
+work = \{ ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+foreach my $f ( @vecF1, @vecF2 ) {
+    ANS( $f->cmp() );
+}
+ANS( $work->cmp() );
+
+@vecF1d = ();
+foreach my $f ( @vecF1 ) { push( @vecF1d, "\($f\)" ); }
+@vecF2d = ();
+foreach my $f ( @vecF2 ) { push( @vecF2d, "\($f\)" ); }
+
+$fx1 = $a*$y0;
+$fx1a = abs($fx1);
+$whichd1 = ( $fx1 > 0 ) ? 'forward' : 'backward';
+$w1 = $fx1*$x1;
+$fy1 = $b*$x1*$x1;
+$fy1a = abs($fy1);
+$whichd2 = ( $fy1 > 0 ) ? 'forward' : 'backward';
+$w2 = $fy1*($y1-$y0);
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+The values of the vector field \(\vec F\) are:
+$BR
+$BCENTER
+\{ begintable($maxnum+1) \}
+\{ row( "point:", @pts1 ) \}
+\{ row( "\(\vec F = \)", @vecF1d ) \}
+\{ row( "point:", @pts2 ) \}
+\{ row( "\(\vec F = \)", @vecF2d ) \}
+\{ endtable() \}
+$ECENTER
+
+$PAR
+${BBOLD}(b)$EBOLD
+From the point \((0,$y0)\) to the point \(($x1,$y0)\),
+the \(x\)-component of the force field is
+always \($fx1\), i.e., it is pushing the object $whichd1 with a constant
+force of \($fx1a\). Thus, the work done on that part of the path is
+\( $fx1\cdot $x1 = $w1\), because only the horizontal component of the force
+field contributes to work.
+
+$PAR
+Then, from the point \(($x1,$y0)\) to the point \(($x1,$y1)\), the
+\(y\)-component of the force field is
+always \($fy1\), so it is pushing the object $whichd2 with a constant
+force \($fy1a\).
+Thus, the work done on that part of the path is \($fy1 \cdot $numy = $w2\),
+because only the vertical component of the force field contributes to
+work.
+
+$PAR
+So the total work done is \(($w1) + ($w2) = $work\).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

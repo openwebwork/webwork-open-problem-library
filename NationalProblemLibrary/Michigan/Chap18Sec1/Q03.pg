@@ -1,0 +1,225 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('line integral', 'integral', 'multivariable', 'calculus')
+## Tagged by glr 07/05/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Line Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('18.1')
+## Problem1('3')
+
+## Textbook tags
+## HHChapter1('Line Integrals')
+## HHSection1('The Idea of a Line Integral')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( y=>'Real' );
+$showPartialCorrectAnswers = 0;
+
+## the pop-ups indicating the value of the integral
+@intSign = ();
+
+## pick increasing or decreasing vectors going left or right
+$inc = list_random(0,1);
+$dir = list_random(-1,1);
+if ( $inc ) {
+    $dx = sub { return 2*$dir*$_[1]; };
+} else {
+    $dx = sub { return 1.75*$dir*(2.5 - $_[1]); };
+}
+$dy = sub { return 0; };
+
+@gr = ();
+$gr[0] = init_graph( -1.25,0, 1.25, 2.5, axes=>[0,0], size=>[250,250] );
+$fn1 = new VectorField( $dx, $dy, $gr[0] );
+$fn1->dot_radius(2);
+$fn1->dot_color('blue');
+$fn1->rf_arrow_length( sub{
+  my($dx,$dy)=@_;
+  return sqrt($dx*$dx + $dy*$dy);
+} );
+$gr[1] = init_graph( -1.25, 0, 1.25, 2.5, axes=>[0,0], size=>[250,250] );
+$fn2 = new VectorField( $dx, $dy, $gr[1] );
+$fn2->dot_radius(2);
+$fn2->dot_color('blue');
+$fn2->rf_arrow_length( sub{
+  my($dx,$dy)=@_;
+  return sqrt($dx*$dx + $dy*$dy);
+} );
+
+
+@desc = ();
+$desc[0] = 'Graph of a vector field with vectors that at all points ' .
+    'above the x-axis point to the right, with magnitudes that are ' .
+    ( $inc == 0 ? 'zero' : 'positive' ) . ' at the x-axis and ' .
+    ( $inc == 0 ? 'increasing' : 'decreasing' ) . ' as y increases.  ';
+$desc[1] = $desc[0];
+
+## and pick a couple of curves to ask about
+@which = ();
+$which[0] = list_random(1,2,3,4);
+$which[1] = ( $which[0] > 2 ) ? list_random(1,2) : list_random(3,4);
+@xf = ();
+@yf = ();
+@pf = ();
+for ( my $i=0; $i<2; $i++ ) {
+    if ( $which[$i] == 1 || $which[$i] == 2 ) {
+	## top half circle
+	$xf[$i] = sub { cos( shift() ); };
+	$yf[$i] = sub { sin( shift() ); };
+	$pf[$i] = new Fun( $xf[$i], $yf[$i], $gr[$i] );
+	$pf[$i]->domain(0,3.143);
+
+	$desc[$i] .= 'The indicated curve is the top half of a circle ' .
+	    'centered on the origin, traversed ';
+
+	## going left or right
+	if ( $which[$i] == 1 ) {
+	    $gr[$i]->moveTo( -0.2, 1 );
+	    $gr[$i]->arrowTo( 0.2, 1, 'blue', 2 );
+	    $desc[$i] .= 'from left to right (clockwise).';
+
+	    $intSign[$i] = PopUp( ['?', 'positive', 'negative', 'zero',
+				   'possibly positive, negative or zero'],
+				  ($dir == 1 ? 'positive' : 'negative') );
+	} else {
+	    $gr[$i]->moveTo( 0.2, 1 );
+	    $gr[$i]->arrowTo( -0.2, 1, 'blue', 2 );
+	    $desc[$i] .= 'from right to left (counter-clockwise).';
+
+	    $intSign[$i] = PopUp( ['?', 'positive', 'negative', 'zero',
+				   'possibly positive, negative or zero'],
+				  ($dir == -1 ? 'positive' : 'negative') );
+	}
+
+    } else {
+	## left half circle
+	$xf[$i] = sub { -1*sin( shift() ); };
+	$yf[$i] = sub { 1 + cos( shift() ); };
+	$pf[$i] = new Fun( $xf[$i], $yf[$i], $gr[$i] );
+	$pf[$i]->domain(0,3.143);
+
+	$desc[$i] .= 'The indicated curve is the left half of a circle ' .
+	    'centered on a point on the positive y-axis, with one end ' .
+	    'at the the origin and the other on the y-axis.  The curve ' .
+	    'is traversed ';
+
+	## going up or down
+	if ( $which[$i] == 3 ) {
+	    $gr[$i]->moveTo( -1, 0.8 );
+	    $gr[$i]->arrowTo( -1, 1.2, 'blue', 2 );
+	    $desc[$i] .= 'from bottom to top (clockwise).';
+
+	    $intSign[$i] = PopUp( ['?', 'positive', 'negative', 'zero',
+				   'possibly positive, negative or zero'],
+				   ( ( ($dir == 1 && $inc == 1) ||
+				       ($dir == -1 && $inc == 0) ) ?
+				     'positive' : 'negative' ) );
+	} else {
+	    $gr[$i]->moveTo( -1, 1.2 );
+	    $gr[$i]->arrowTo( -1, 0.8, 'blue', 2 );
+	    $desc[$i] .= 'from top to bottom (counter-clockwise).';
+
+	    $intSign[$i] = PopUp( ['?', 'positive', 'negative', 'zero',
+				   'possibly positive, negative or zero'],
+				   ( ( ($dir == 1 && $inc == 1) ||
+				       ($dir == -1 && $inc == 0) ) ?
+				     'negative' : 'positive' ) );
+	}
+    }
+}
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+For each of the following, say whether you expect
+the line integral of the pictured vector field over the given curve to be
+positive, negative, zero, or that the value cannot be determined.
+
+$PAR
+$BCENTER
+\{ begintable(2) \}
+\{ row( "${BBOLD}Graph 1$EBOLD", "${BBOLD}Graph 2$EBOLD" ) \}
+\{ row( image( insertGraph( $gr[0] ), tex_size=>200, height=>250, width=>250,
+	       extra_html_tags=>'alt="' . $desc[0] . '"' ), 
+	image( insertGraph( $gr[1] ), tex_size=>200, height=>250, width=>250,
+	       extra_html_tags=>'alt="' . $desc[0] . '"' ) ) \}
+\{ endtable() \}
+$BR
+${BITALIC}(${BBOLD}Note:$EBOLD For each graph, vectors are shown with a
+dot at the ${BBOLD}tail$EBOLD of the vector.)$EITALIC
+$ECENTER
+$BR
+For Graph 1, the line integral of the vector field over the curve shown is
+\{ $intSign[0]->menu() \}
+$BR
+For Graph 2, the line integral of the vector field over the curve shown is
+\{ $intSign[1]->menu() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $intSign[0]->cmp() );
+ANS( $intSign[1]->cmp() );
+
+$ansDir1 = ( $intSign[0]->correct_ans() eq 'positive' ) ? 'same' : 'opposite';
+$ansDir2 = ( $intSign[1]->correct_ans() eq 'positive' ) ? 'same' : 'opposite';
+
+if ( $intSign[0]->correct_ans() eq 'zero' ) {
+    $reason1 = "for half of the curve the vector field points in the same " .
+        "direction as the curve, while for the other half it points in the " .
+	"opposite direction.";
+} else {
+    $reason1 = "(either entirely or for the most part) the vector field " .
+        "points in the $ansDir1 direction as the path.";
+}
+if ( $intSign[1]->correct_ans() eq 'zero' ) {
+    $reason2 = "for half of the curve the vector field points in the same " .
+        "direction as the curve, while for the other half it points in the " .
+	"opposite direction.";
+} else {
+    $reason2 = "(either entirely or for the most part) the vector field " .
+        "points in the $ansDir2 direction as the path.";
+}
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+For graph 1, the line integral is \{ $intSign[0]->correct_ans() \},
+because $reason1
+$PAR
+Similarly, for graph 2, the line integral is \{ $intSign[1]->correct_ans() \},
+because $reason2.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
