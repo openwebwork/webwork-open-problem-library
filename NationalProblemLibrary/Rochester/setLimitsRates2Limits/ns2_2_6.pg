@@ -24,135 +24,113 @@
 
 DOCUMENT();
 
-loadMacros("PG.pl",
-           "PGbasicmacros.pl",
-           "PGchoicemacros.pl",
-           "PGanswermacros.pl",
-           'PGgraphmacros.pl',
-           "PGnumericalmacros.pl",
-           ); 
+loadMacros("PGstandard.pl",
+           "MathObjects.pl",
+           "PGgraphmacros.pl"); 
 
+Context("Numeric");
+Context()->strings->add(Yes=>{},Y=>{alias=>'Yes'},No=>{},N=>{alias=>'No'});
 
-# define function1 to be evaluated
+$left_Pt = random(-3,3,1);
+$Pt = random(-3,3,1);
+$right_Pt = random(-3,3,1);
 
-@x_arr = (-5,-3,0,3,5);
-@y_arr = (1,-2,0,3,0,);
-@yp_arr = (-1,0,-1,1,-1,);
+$left_Pt = Real("$left_Pt");
+$Pt = Real("$Pt");
+$right_Pt = Real("$right_Pt");
 
-$herm = new Hermite(~~@x_arr, ~~@y_arr, ~~@yp_arr);
-$f1 = $herm -> rf_f;
+#Makes polynomial passing through (1, left_Pt)
+$l_a3 = random(-1,1,2);
+$l_a2 = random(-1,1,0.1);
+$l_a1 = random(-1,1,0.1);
+$l_a0 = Compute("-$l_a3 - $l_a2 - $l_a1 + $left_Pt");
 
-@x_arr = (-5,-3,0,3,5);
-@y_arr = (1,-2,0,-3, -2,);
-@yp_arr = (-1,0,-1,1,-1,);
+#Makes polynomial passing through (1, right_Pt)
+$r_a4 = random(-1,1,2);
+$r_a3 = random(-1,1,0.1);
+$r_a2 = random(-1,1,0.1);
+$r_a1 = random(-1,1,0.1);
+$r_a0 = Compute("-$r_a4 - $r_a3 - $r_a2 - $r_a1 + $right_Pt");
 
-$herm = new Hermite(~~@x_arr, ~~@y_arr, ~~@yp_arr);
-$f2 = $herm -> rf_f;
+$f_Left = Formula("$l_a3*x^3 + $l_a2*x^2 + $l_a1*x + $l_a0");
+$f_Right = Formula("$r_a4*x^4 + $r_a3*x^3 + $r_a2*x^2 + $r_a1*x + $r_a0");
 
-# define function3 to be evaluated
-@x_arr = (-5,-3,0,3,5);
-@y_arr = (1,-2,0,0,-1,);
-@yp_arr = (-1,0,-1,1,-1,);
+if(($left_Pt == $Pt) && ($Pt == $right_Pt)) {
+       $continuousQ = String("yes"); }
+else {
+       $continuousQ = String("no"); }
 
-$herm = new Hermite(~~@x_arr, ~~@y_arr, ~~@yp_arr);
-$f3 = $herm -> rf_f;
+if($left_Pt == $right_Pt) {
+       $madeContinuousQ = String("Yes"); }
+else {
+       $madeContinuousQ = String("No"); }
 
-$llimit = -5; $rlimit = 5;
-$del = .25;
-$x0=random($llimit+$del,$rlimit-$del , .2);
+# a graph object
+$gr = init_graph(-4,-4,4,4,
+axes=>[0,0],
+size=>[400,400]);
 
-#  Calculate the cubic spline approximation
+# plot a function
+add_functions($gr, "$f_Left for x in <-4,1> " .
+    "using color:blue and weight:2");
+add_functions($gr, "$f_Right for x in <1,4> " .
+    "using color:green and weight:2");
 
-$graph = init_graph($llimit, $llimit, $rlimit, $rlimit,axes => [0,0],grid =>[10,10]);
-my ($left_rule, $value_rule, $right_rule) = ($f1, $f2,$f3)[NchooseK(3,3)];
+# x-axis ticks entered as y-value, color, list of x-values
+$gr->h_ticks(0,"black",-4,-3,-2,-1,0,1,2,3,4);
+# y-axis ticks entered as x-value, color, list of y-values
+$gr->v_ticks(0,"black",-4,-3,-2,-1,0,1,2,3,4);
 
-## Randomize what type of problem we will have, and make the graph
-## clear.
-
-$value       = &$value_rule($x0)  ; 
-
-$type = random(1,4);
-$cancontin = 0;
-$iscontin = 0;
-if(abs(&$left_rule($x0)- &$right_rule($x0))< 0.3) {
-  $left_rule = $right_rule;
-  $cancontin = 1;
-  if($type < 2 || abs(&$left_rule($x0)- $value)< 0.2) {
-      $value = &$left_rule($x0);
-      $iscontin = 1;
-      $cancontin = 0;
-  }
-}
-
-if($type == 1) { # all different if clear
-  $value = &$left_rule($x0);
-} elsif($type == 2) {
-  $value= &$right_rule($x0);
-}
-
-
-my ($left_fun) = new Fun($left_rule, $graph);
-$left_fun ->domain($llimit, $x0);
-$left_fun ->color('red');
-
-
-my ($right_fun) = new Fun($right_rule, $graph);
-$right_fun ->domain($rlimit, $x0);
-$right_fun ->color('red');
-
-$graph->stamps(open_circle($x0, $left_fun->rule->($x0), 'red') );
-$graph->stamps(open_circle($x0, $right_fun->rule->($x0), 'red') );
-# the closed circle needs to printed last.
-$graph->stamps( closed_circle($x0 , $value, 'red' )  ) ;
-$left_limit  = $left_fun->rule->($x0);
-$right_limit = $right_fun->rule->($x0);
-
+# Plots open/closed circles appropriately based on whether piecewise function is (left,right,both) continuous at x = 1 or not.
+if(($left_Pt == $Pt) && ($right_Pt == $Pt)) {
+    $gr->stamps( closed_circle(1,$Pt,'blue')); }
+elsif ($left_Pt == $Pt) {
+    $gr->stamps( closed_circle(1,$Pt,'blue'));
+    $gr->stamps( open_circle(1,$right_Pt,'green')); }
+elsif ($right_Pt == $Pt) {
+    $gr->stamps( open_circle(1,$left_Pt,'blue'));
+    $gr->stamps( closed_circle(1,$Pt,'green')); }
+else {
+    $gr->stamps( closed_circle(1,$Pt,'red'));
+    $gr->stamps( open_circle(1,$left_Pt,'blue'));
+    $gr->stamps( open_circle(1,$right_Pt,'green')); }
 
 TEXT(beginproblem());
-
 
 BEGIN_TEXT
 Let \(f\) be the function below.
 $BR$BR
-\{ image(insertGraph($graph) ) \}
+\{ image(insertGraph($gr) ) \}
 $BR
 $BBOLD Note: $EBOLD you can click on the graph to get a larger image.
 
 $BR$BR
-Determine the limits for the function \( f\) at  $x0.
+Determine the limits for the function \( f\) at  \(x = 1\).
+$BR
+$BBOLD Note: $EBOLD limits are all integers (e.g. \(\cdots,-2,-1,0,1,2,\cdots\)).
 $BR$BR
-\( \displaystyle \lim_{x\to $x0^{-} } f(x) \) = \{ans_rule(10)\}
+\( \displaystyle \lim_{x\to 1^{-} } f(x) \) = \{ans_rule(10)\}
 $BR
 $BR
-\( f($x0) \)   = \{ ans_rule(10) \}
+\( f(1) \)   = \{ ans_rule(10) \}
 $BR
 $BR
-\( \displaystyle \lim_{x\to $x0^{+}  } f(x) \) = \{ ans_rule(10) \}
+\( \displaystyle \lim_{x\to 1^{+}  } f(x) \) = \{ ans_rule(10) \}
 $BR
 $BR
-Is this function continuous at $x0?: \{ pop_up_list(['?', 'Yes', 'No']) \}
+Is this function continuous at \(x = 1\)?: \{ ans_rule(10) \}
 $BR
 $BR
-Can one change the value of this function at $x0 to some value other
-than its current value at $x0, and have the function be continuous
-at $x0?: \{ pop_up_list(['?', 'Yes', 'No']) \}
+Can one change the value of this function at \(x = 1\) to some value other
+than its current value at \(x = 1\), and have the function be continuous
+at \(x = 1\)?: \{ ans_rule(10) \}
 END_TEXT
 
-$continuousQ = 'No';
-$continuousQ = 'Yes' if $iscontin;
-$madeContinuousQ = 'No';
-$madeContinuousQ = 'Yes' if $cancontin;
+ANS($left_Pt->cmp());
+ANS($Pt->cmp());
+ANS($right_Pt->cmp());
 
-$answer_tol = 0.15;
-ANS(num_cmp($left_limit, tolType=>'absolute', tol => $answer_tol ));
-ANS(num_cmp($value, tolType=>'absolute', tol => $answer_tol ));
-ANS(num_cmp($right_limit, tolType=>'absolute', tol => $answer_tol ));
-
-ANS(str_cmp($continuousQ, filters=>['trim_whitespace', 'compress_whitespace']));
-ANS(str_cmp($madeContinuousQ, filters=>['trim_whitespace', 'compress_whitespace']));
-
-
-
+ANS($continuousQ ->cmp());
+ANS($madeContinuousQ ->cmp());
 			
 ENDDOCUMENT();
-
