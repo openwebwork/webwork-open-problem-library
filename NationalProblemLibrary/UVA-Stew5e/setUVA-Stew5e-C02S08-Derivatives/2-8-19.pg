@@ -25,41 +25,56 @@
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
-loadMacros("PG.pl",
-           "PGbasicmacros.pl",
-           "PGanswermacros.pl",
-           "Parser.pl",
-           "parserMultiAnswer.pl",
+loadMacros("PGstandard.pl",
+           "MathObjects.pl",
+           "parserMultiAnswer.pl"
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
 Context('Numeric');
+Context()->variables->add(h=>'Real');
 
-$a = non_zero_random(1,9);
-$a2 = $a**2;
+$b = random(2,9);
+$bsqu = Compute("($b)^2");
 
-$mp = MultiAnswer("sqrt(x)", $a2)->with(
- singleResult => 1,
- separator => " at a = ",
- tex_separator => " \hbox{ at } a = ",
- checker => sub {
-   my ($correct,$student) = @_;
-   my $st0 = Formula($student->[0]);
-   my $tmp = $st0->substitute(x=>"x-$a2+$student->[1]");
-   my $tmp2 = $correct->[0]->eval(x=>$a2);
-   my $tmp3 = $st0->eval(x=>$student->[1]);
-   $tmp->{limits} = [[0,2*$a2]];
-   return 1 if ($tmp==$correct->[0] && $tmp2==$tmp3);
-   return 0;
-  }
+$Funct = Formula("sqrt(x)");
+
+$mp = MultiAnswer($Funct, Compute("$bsqu"))->with(
+  singleResult => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $f1stu, $f2stu ) = @{$student};
+      my ( $f1, $f2 ) = @{$correct};
+
+      #Correct given limit.
+      $CorrDeriv = Formula("(sqrt($bsqu + h) - ($b))/ h");
+
+      $f_b_h_stu = $f1stu->substitute(x=>Formula("$f2stu + h"));
+      $f_b_stu = $f1stu->eval(x=>$f2stu);
+
+      #Construct limit the student is claiming.
+      $DerivStu = Formula("(($f_b_h_stu) - ($f_b_stu))/ h");
+      
+      #Check if the given function evaluated at the given point fits the
+      #  desired limit. There technically could be many correct answers:
+      #e.g. Limit ((4 + h)^3 - 64) / h.
+      #
+      # f(x) = x^3, a = 4 is correct.
+      # f(x) = (x + 2)^3, a = 2 is also correct.
+      # f(x) = x^3 + constant, a = 4 should also be correct.
+      if ($CorrDeriv == $DerivStu) {
+          return 1; } 
+      else {
+          return 0; }
+      }
 );
 
 BEGIN_TEXT
 The limit
 \[
-    \lim_{h\rightarrow 0}\frac{\sqrt{$a2 + h} - $a}{h}
+    \lim_{h\rightarrow 0}\frac{\sqrt{$bsqu+h} - $b}{h}
 \]
 represents the derivative of some function \(f(x)\) at some number \(a\).
 Find \(f\) and \(a\).
