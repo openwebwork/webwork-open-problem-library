@@ -106,7 +106,7 @@ sub new_aligned_list {
 
 package AlignedList;
 
-@AlignedList::ISA = qw( List );
+@AlignedList::ISA = qw( ChoiceList );
 
 sub new {
     my $type = shift;
