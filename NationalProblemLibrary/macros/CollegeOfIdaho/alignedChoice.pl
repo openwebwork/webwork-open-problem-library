@@ -111,7 +111,7 @@ package AlignedList;
 sub new {
     my $type = shift;
     my ($rnd,$pq,$pa,@params) = @_;
-    my $self = List->new($rnd,$pq,$pa);
+    my $self = ChoiceList->new($rnd,$pq,$pa);
     $self = bless $self, $type;
     my ($var,$val);
     @params = (
