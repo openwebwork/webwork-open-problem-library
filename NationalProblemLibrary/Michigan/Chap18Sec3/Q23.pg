@@ -1,0 +1,205 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('line integral', 'fundamental theorem of calculus', 'gradient', 'vector field')
+## Tagged by glr 07/14/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('The Fundamental Theorem for Line Integrals')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('18.3')
+## Problem1('23')
+
+## Textbook tags
+## HHChapter1('Line Integrals')
+## HHSection1('Gradient Fields and Path-Independent Fields')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric");
+Context()->variables->add( y=>'Real', z=>'Real' );
+$showPartialCorrectAnswers = 0;
+
+@a = ();
+for ( my $i=0; $i<10; $i++ ) { $a[$i] = random(1,5,1); }
+$a[2]++ if ( $a[2] == 1 );
+$a5o2 = $a[5] == 1 ? '' : $a[5];
+$a[5]*=2;
+for ( my $i=0; $i<10; $i++ ) { $a[$i] = '' if ( $a[$i] == 1 ); }
+
+# each array ref in @choices is:
+#    for gradient vector field, [ \vec F, ans, f(x,y,z) ]
+#    else, [ \vec F, ans, df/dx = Fx, d^2f/dxdy = Fxy,
+#            df/dy = Fy, d^2f/dydx = d^2f/dxdy = Fyx ] (where Fyx ne Fxy)
+@choices =
+    ( [ "\frac{$a[0] z}{\sqrt{x^2 + z^2}}\,\vec i + " .
+	    "\frac{$a[0] y}{\sqrt{x^2 + z^2}}\,\vec j + " .
+	    "\frac{$a[0] x}{\sqrt{x^2 + z^2}}\,\vec k",
+	"not a gradient vector field",
+	"\frac{\partial f}{\partial x} = \frac{$a[0] z}{\sqrt{x^2 + z^2}}",
+	"\frac{\partial^2 f}{\partial x\partial y} = 0",
+	"\frac{\partial f}{\partial y} = \frac{$a[0] y}{\sqrt{x^2 + z^2}}",
+	"\frac{\partial^2 f}{\partial y\partial x} = " .
+	    "\frac{\partial^2 f}{\partial x\partial y} = " .
+	    "\frac{-$a[0] x y}{(x^2 + z^2)^{3/2}}" ],
+      [ "\frac{$a[1] x}{\sqrt{x^2 + y^2 + z^2}}\,\vec i + " .
+	    "\frac{$a[1] y}{\sqrt{x^2 + y^2 + z^2}}\,\vec j + " .
+	    "\frac{$a[1] z}{\sqrt{x^2 + y^2 + z^2}}\,\vec k + ",
+	"a gradient vector field",
+	"$a[1]\sqrt{x^2 + y^2 + z^2}" ],
+      [ "x\sqrt{$a[2] x^2 + y^2 + z^2}\,\vec i + " .
+	    "y\sqrt{$a[2] x^2 + y^2 + z^2}\,\vec j + " .
+	    "z\sqrt{$a[2] x^2 + y^2 + z^2}\,\vec k",
+	"not a gradient vector field",
+	"\frac{\partial f}{\partial x} = x\sqrt{$a[2] x^2 + y^2 + z^2}",
+	"\frac{\partial^2 f}{\partial x\partial y} = " .
+	    "x y($a[2] x^2 + y^2 + z^2)^{-1/2}",
+	"\frac{\partial f}{\partial y} = y\sqrt{$a[2] x^2 + y^2 + z^2}",
+	"\frac{\partial^2 f}{\partial y\partial x} = " .
+	    "\frac{\partial^2 f}{\partial x\partial y} = " .
+	    "$a[2] x y($a[2] x^2 + y^2 + z^2)^{-1/2}" ],
+      [ "\langle $a[3] y z, $a[3] x z, $a[3] x y\rangle",
+	"a gradient vector field",
+	"$a[3] x y z" ],
+      [ "$a[4] x y\,\vec i + $a[4]\,y z\vec j + $a[4]\,x z\,\vec k",
+	"not a gradient vector field",
+	"\frac{\partial f}{\partial x} = $a[4] x y",
+	"\frac{\partial^2 f}{\partial x\partial y} = $a[4] x",
+	"\frac{\partial f}{\partial y} = $a[4] y z",
+	"\frac{\partial^2 f}{\partial y\partial x} = " .
+	    "\frac{\partial^2 f}{\partial x\partial y} = $a[4] z" ],
+      [ "$a[5] x\,\vec i + $a[5] y\,\vec j + $a[5] z\,\vec k",
+	"a gradient vector field",
+	"$a5o2 x^2 + $a5o2 y^2 + $a5o2 z^2" ],
+      [ "\langle $a[6]y, $a[6]z, $a[6]x\rangle",
+	"not a gradient vector field",
+	"\frac{\partial f}{\partial x} = $a[6]y",
+	"\frac{\partial^2 f}{\partial x\partial y} = $a[6]",
+	"\frac{\partial f}{\partial y} = $a[6]z",
+	"\frac{\partial^2 f}{\partial y\partial x} = " .
+	    "\frac{\partial^2 f}{\partial x\partial y} = 0" ],
+      [ "\langle $a[7]z, 0, $a[7]x\rangle",
+	"a gradient vector field",
+	"$a[7] x z" ],
+      [ "$a[8] y\,\vec i + $a[8] x\,\vec j",
+	"a gradient vector field",
+	"$a[8] x y" ],
+      [ "$a[9] x\,\vec i + $a[9] z\,\vec j",
+	"not a gradient vector field",
+	"\frac{\partial f}{\partial y} = $a[9]z",
+	"\frac{\partial^2 f}{\partial y\partial z} = $a[9]",
+	"\frac{\partial f}{\partial z} = 0",
+	"\frac{\partial^2 f}{\partial z\partial y} = " .
+	    "\frac{\partial^2 f}{\partial y\partial z} = 0" ] );
+
+## pick 4 of them
+@which = NchooseK( scalar(@choices), 4 );
+
+## then the answers are
+@ans = ( '?', 'a gradient vector field', 'not a gradient vector field' );
+$pop1 = PopUp( [ @ans ], $choices[$which[0]]->[1] );
+$pop2 = PopUp( [ @ans ], $choices[$which[1]]->[1] );
+$pop3 = PopUp( [ @ans ], $choices[$which[2]]->[1] );
+$pop4 = PopUp( [ @ans ], $choices[$which[3]]->[1] );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+For each of the following decide whether the vector field could be a
+gradient vector field.  Be sure that you can justify your answer.
+
+$PAR
+${BBOLD}(a)$EBOLD
+\( \vec  F(x,y,z) = $choices[$which[0]]->[0] \)
+$BR
+\(\vec F(x,y,z)\) is \{ $pop1->menu() \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+\( \vec  F(x,y,z) = $choices[$which[1]]->[0] \)
+$BR
+\(\vec F(x,y,z)\) is \{ $pop2->menu() \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+\( \vec  F(x,y,z) = $choices[$which[2]]->[0] \)
+$BR
+\(\vec F(x,y,z)\) is \{ $pop3->menu() \}
+
+$PAR
+${BBOLD}(d)$EBOLD
+\( \vec  F(x,y,z) = $choices[$which[3]]->[0] \)
+$BR
+\(\vec F(x,y,z)\) is \{ $pop4->menu() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $pop1->cmp() );
+ANS( $pop2->cmp() );
+ANS( $pop3->cmp() );
+ANS( $pop4->cmp() );
+
+@expl = ();
+@parts = ( 'a', 'b', 'c', 'd' );
+for (my $i=0; $i<@which; $i++ ) {
+    $expl[$i] = "${BBOLD}($parts[$i])${EBOLD}";
+    if ( $choices[$which[$i]]->[1] eq 'a gradient vector field' ) {
+	$expl[$i] .=<<eoe;
+\(\vec F\) is a gradient vector field.
+By integrating the components of the vector field \(\vec F\), we
+can see that \(f(x,y,z) = $choices[$which[$i]]->[2]\) is a potential
+function for \(\vec F\).
+eoe
+    } else {
+	$expl[$i] .=<<eoe;
+\(\vec F\) is not a gradient vector field.
+If \(\vec F\) were a gradient vector field, then we would have
+\($choices[$which[$i]]->[2]\), so that
+\($choices[$which[$i]]->[3]\).  But we also have that
+\($choices[$which[$i]]->[4]\), so that
+\($choices[$which[$i]]->[5]\).
+These two are not equal, which is a contradiction.  Therefore
+\(\vec F\) cannot be a gradient vector field.
+eoe
+    }
+}
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+$expl[0]
+$PAR
+$expl[1]
+$PAR
+$expl[2]
+$PAR
+$expl[3]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
