@@ -20,70 +20,91 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-	"PG.pl",
-	"PGbasicmacros.pl",
-	"PGchoicemacros.pl",
-	"PGanswermacros.pl",
-	"PGauxiliaryFunctions.pl"
+	"PGstandard.pl",
+	"MathObjects.pl",
+        "parserMultiAnswer.pl"
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
+Context("Numeric")->variables->add(t=>'Real');
+
 $a = random(2,9,1);
 $b = random(2,7,1);
-$ans1 = "($b/(t- $a)-$b/(x- $a))/(t-x)";
-$num = "$b*(x-t)";
-$denom = "(t- $a)*(x- $a)*(t- x)";
-$cancel = "t-x";
-$cancel_alt = "x-t";
-$num2 = "- $b";
-$num2_alt = "$b";
-$denom2 = "(t- $a)*(x- $a)";
-$denom2_alt = "($a - t)*(x- $a)";
-$ans2 = "- $b/(x- $a)**2";
 
+$ans1 = Formula("[($b /(t - $a))- ($b /(x - $a))] /(t - x)")->reduce;
+
+$Num = Formula("$b *(t - x)");
+$Denom = Formula("(x - t)(x - $a)(t - $a)");
+
+#Checks against canceling -1 in both num and denom:
+$multians2 = MultiAnswer($Num, $Denom)->with(
+  singleResult => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $NumStu, $DenomStu ) = @{$student};
+      if ((($Num == $NumStu) && ($Denom == $DenomStu)) ||
+           (($Num == -($NumStu)) && ($Denom == -($DenomStu)))) {
+          return 1; } 
+      else {
+          return 0; }          
+  } );
+
+
+$comFactor = Formula("x - t");
+
+$NumC = Formula("$b");
+$DenomC = Formula("($a - x)(t - $a)");
+
+#Checks against canceling -1 in both num and denom:
+$multians4 = MultiAnswer($NumC, $DenomC)->with(
+  singleResult => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $NumCStu, $DenomCStu ) = @{$student};
+      if ((($NumC == $NumCStu) && ($DenomC == $DenomCStu)) ||
+           (($NumC == -($NumCStu)) && ($DenomC == -($DenomCStu)))) {
+          return 1; } 
+      else {
+          return 0; }          
+  } );
+
+$Deriv = Formula("-$b / (x - $a)^2");
+
+Context()->texStrings;
 BEGIN_TEXT
 Let \( \displaystyle f(x)=\frac{$b}{x- $a}\). $BR 
 Then according to the definition of derivative $BR
 \( \displaystyle f'(x) = \lim_{t\to x}\) \{ans_rule(45)\}$BR
 (Your answer above and the next few answers below will involve the variables
-\(t\) and \(x\).)$BR
+\(t\) and \(x\).)$BR $BR
+
+$BBOLD Note: $EBOLD In the following parts, each pair of numerators and denominators count as $BBOLD one $EBOLD answer, thus you must fill in $BBOLD both $EBOLD to receive credit. $BR $BR
 The expression inside the limit simplifies to a simple fraction with $BR
-numerator \(=\) \{ans_rule(30)\} $BR
-and denominator \(=\) \{ans_rule(40)\} $BR
-We can cancel the factor \{NAMED_ANS_RULE(first_answer,25)\} appearing in the denominator against
+numerator \(=\) \{$multians2->ans_rule(30)\} $BR
+and denominator \(=\) \{$multians2->ans_rule(30)\}. $BR $BR
+We can cancel the factor \{ans_rule(30)\} appearing in the denominator against
 a similar factor appearing in the numerator leaving a simpler fraction with $BR
-numerator \(=\) \{NAMED_ANS_RULE(second_answer,30)\} $BR
-and denominator \(=\) \{NAMED_ANS_RULE(third_answer,40)\} $BR
+numerator \(=\) \{$multians4->ans_rule(30)\} $BR
+and denominator \(=\) \{$multians4->ans_rule(30)\} $BR $BR
 Taking the limit of this fractional expression gives us $BR
 \(f'(x) = \) \{ans_rule(30)\}
-
 END_TEXT
-ANS(fun_cmp($ans1,	vars=>["x","t"]));
-ANS(fun_cmp($num,	vars=>["x","t"]));
-ANS(fun_cmp($denom,	vars=>["x","t"]));
+Context()->normalStrings;
 
-$ans_eval1 = num_cmp(1);
-$firstAnswer = $inputs_ref->{first_answer};
-$firstAnswer = '' unless defined($firstAnswer);
-$firstAnswer =~ s/t/(2)/g;
-$firstAnswer =~ s/x/(1)/g;
-$rh_ans_hash = $ans_eval1->evaluate($firstAnswer);
-if (1 == $rh_ans_hash->{score}) {
-    NAMED_ANS(first_answer,fun_cmp($cancel, vars=>["x","t"]));
-    NAMED_ANS(second_answer,fun_cmp($num2, vars=>["x","t"]));
-    NAMED_ANS(third_answer,fun_cmp($denom2, vars=>["x","t"]));
- }
-else {
-    NAMED_ANS(first_answer,fun_cmp($cancel_alt, vars=>["x","t"]));
-    NAMED_ANS(second_answer,fun_cmp($num2_alt, vars=>["x","t"]));
-    NAMED_ANS(third_answer,fun_cmp($denom2_alt, vars=>["x","t"]));
- }
+ANS($ans1->cmp);
+ANS($multians2->cmp());
 
-
-
-ANS(fun_cmp($ans2));
+#Accepts +- correct common factor.
+ANS($comFactor->cmp( checker=>sub {
+my ( $correct, $student, $ansHash ) = @_;
+if(($correct == $student)||($correct == -($student))) {
+      return 1; } 
+else { return 0; }
+      } ) );
+ANS($multians4->cmp());
+ANS($Deriv->cmp());
 
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.
