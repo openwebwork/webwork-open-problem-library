@@ -38,14 +38,25 @@ $ans1 = Formula("[($b /(t - $a))- ($b /(x - $a))] /(t - x)")->reduce;
 $Num = Formula("$b *(t - x)");
 $Denom = Formula("(x - t)(x - $a)(t - $a)");
 
-#Checks against canceling -1 in both num and denom:
+#Checks against common factors in both num and denom (including negatives):
 $multians2 = MultiAnswer($Num, $Denom)->with(
   singleResult => 1,
   checker => sub {
       my ( $correct, $student, $self ) = @_;
-      my ( $NumStu, $DenomStu ) = @{$student};
-      if ((($Num == $NumStu) && ($Denom == $DenomStu)) ||
-           (($Num == -($NumStu)) && ($Denom == -($DenomStu)))) {
+      my ( $NumStu, $DenomStu ) = @{$student};      
+      my $context = Context()->copy;
+      
+      $context->flags->set(no_parameters=>0);
+      $context->variables->add('C0'=>'Parameter');
+      my $c0 = Formula($context,'C0');
+      $NumStu2 = Formula($context,$NumStu);
+      $Num2 = Formula($context,"$c0 ($b *(t - x))");
+            
+      $DenomStu2 = Formula($context,$DenomStu);
+      $Denom2 = Formula($context,"$c0 ((x - t)(x - $a)(t - $a))");
+
+      if ((($Num2 == $NumStu2) && ($Denom2 == $DenomStu2)) &&
+          ((($Num) / ($Denom)) == (($NumStu)/($DenomStu)))) {
           return 1; } 
       else {
           return 0; }          
@@ -57,14 +68,26 @@ $comFactor = Formula("x - t");
 $NumC = Formula("$b");
 $DenomC = Formula("($a - x)(t - $a)");
 
-#Checks against canceling -1 in both num and denom:
+#Checks against common factors in both num and denom (including negatives):
 $multians4 = MultiAnswer($NumC, $DenomC)->with(
   singleResult => 1,
   checker => sub {
       my ( $correct, $student, $self ) = @_;
       my ( $NumCStu, $DenomCStu ) = @{$student};
-      if ((($NumC == $NumCStu) && ($DenomC == $DenomCStu)) ||
-           (($NumC == -($NumCStu)) && ($DenomC == -($DenomCStu)))) {
+
+      my $context = Context()->copy;
+      
+      $context->flags->set(no_parameters=>0);
+      $context->variables->add('C0'=>'Parameter');
+      my $c0 = Formula($context,'C0');
+      $NumCStu2 = Formula($context,$NumCStu);
+      $NumC2 = Formula($context,"$c0 ($b)");
+            
+      $DenomCStu2 = Formula($context,$DenomCStu);
+      $DenomC2 = Formula($context,"$c0 (($a - x)(t - $a))");
+
+      if ((($NumC2 == $NumCStu2) && ($DenomC2 == $DenomCStu2)) &&
+          ((($NumC) / ($DenomC)) == (($NumCStu)/($DenomCStu)))) {
           return 1; } 
       else {
           return 0; }          
@@ -98,11 +121,10 @@ ANS($multians2->cmp());
 
 #Accepts +- correct common factor.
 ANS($comFactor->cmp( checker=>sub {
-my ( $correct, $student, $ansHash ) = @_;
-if(($correct == $student)||($correct == -($student))) {
-      return 1; } 
-else { return 0; }
-      } ) );
+      my ( $correct, $student, $ansHash ) = @_;
+      return (($correct == $student) || ($correct == -($student)));
+          
+   } ) );
 ANS($multians4->cmp());
 ANS($Deriv->cmp());
 
