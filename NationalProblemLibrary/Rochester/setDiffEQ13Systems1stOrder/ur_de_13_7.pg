@@ -22,19 +22,20 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-           "PGbasicmacros.pl",
+           "PGstandard.pl",
            "PGchoicemacros.pl",
            "PGanswermacros.pl",
            "PGgraphmacros.pl",
            "PGmatrixmacros.pl",
-           "PGdiffeqmacros.pl",
+           "MathObjects.pl",
+           "parserMultiAnswer.pl",
 );
 
 
 TEXT(beginproblem());
 
 $showPartialCorrectAnswers = 1;
-
+Context("Numeric");
 
 $a_det=0;
 $max_iterations = 10;
@@ -48,7 +49,7 @@ while (abs($a_det)<.1 && $max_iterations--) {
         $a_lr = $a->decompose_LR();
         $a_det = $a_lr->det_LR()
 }
-warn "Can't calculate an invertable matrix" unless $max_iterations;
+warn "Can't calculate an invertible matrix" unless $max_iterations;
 #define inverse matrix
         $b = $a_lr->invert_LR();
 #define eigenvalues
@@ -60,8 +61,102 @@ warn "Can't calculate an invertable matrix" unless $max_iterations;
         $matrix = $a * $e *$b;
         $matrix_lr = $matrix->decompose_LR();
         $matrix_det = $matrix_lr->det_LR();
+
+Context("Matrix"); 
+
+$e1 = $e->element(1,1); $e1 = Real("$e1");
+$e2 = $e->element(2,2); $e2 = Real("$e2");
+
+$a11 = $matrix->element(1,1); $a11 = Real("$a11");
+$a12 = $matrix->element(1,2); $a12 = Real("$a12");
+$a21 = $matrix->element(2,1); $a21 = Real("$a21");
+$a22 = $matrix->element(2,2); $a22 = Real("$a22");
+
+$multians1 = MultiAnswer(Compute("$e1"),1,Compute("($e1 - $a11)/($a12)"),$e2,1,Compute("($e2 - $a11)/($a12)"))->with(
+  singleResult => 0,
+  checker => sub {
+      my ($correct, $student, $self ) = @_;
+      my ($e1stu,$Vec1astu,$Vec1bstu,$e2stu,$Vec2astu,$Vec2bstu)= @{$student};
+      my ($e1cor,$Vec1acor,$Vec1bcor,$e2cor,$Vec2acor,$Vec2bcor)= @{$correct};
+
+
+      #Create student's implied matrix, test whether the vector they entered 
+      #  with the eigenvalue is actually an eigenvector:      
+      #  That is to test:
+      # [ a11  a12 ][v1] = e1 * [v1]      
+      # [ a21  a22 ][v2]        [v2]
+      $EVector1Stu = Matrix("[[$Vec1astu],[$Vec1bstu]]");
+      $EVector2Stu = Matrix("[[$Vec2astu],[$Vec2bstu]]");
+
+      $e1stu = Real("$e1stu");
+      $e2stu = Real("$e2stu");
+
+      #Logic for the if block:
+      # Checks if either eigenvalue match either correct eigenvalue, then check 
+      # eigenvectors. The downfall here is, by the way I check the 
+      # eigenvectors, the student must have declared the corresponding 
+      # eigenvalue FIRST.
+
+if(($e1stu == $e1cor)&&($e2stu == $e2cor)){       
+     return[($e1stu == $e1cor),
+            ((($AB*$EVector1Stu) == ($e1stu*$EVector1Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]"))),
+            ((($AB*$EVector1Stu) == ($e1stu*$EVector1Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]"))),
+            ($e2stu == $e2cor),
+            ((($AB*$EVector2Stu == $e2stu*$EVector2Stu))&&
+                ($EVector2Stu != Compute("[[0],[0]]"))),
+            ((($AB*$EVector2Stu == $e2stu*$EVector2Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]")))]; }
+
+elsif(($e1stu == $e2cor)&&($e2stu == $e1cor)){       
+     return[($e1stu == $e2cor),
+            ((($AB*$EVector1Stu) == ($e1stu*$EVector1Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]"))),
+            ((($AB*$EVector1Stu) == ($e1stu*$EVector1Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]"))),
+            ($e2stu == $e1cor),
+            ((($AB*$EVector2Stu == $e2stu*$EVector2Stu))&&
+                ($EVector2Stu != Compute("[[0],[0]]"))),
+            ((($AB*$EVector2Stu == $e2stu*$EVector2Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]")))]; }
+
+elsif(($e1stu == $e1cor)||($e2stu == $e2cor)){       
+     return[($e1stu == $e1cor),
+            ((($AB*$EVector1Stu) == ($e1stu*$EVector1Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]"))),
+            ((($AB*$EVector1Stu) == ($e1stu*$EVector1Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]"))),
+            ($e2stu == $e2cor),
+            ((($AB*$EVector2Stu == $e2stu*$EVector2Stu))&&
+                ($EVector2Stu != Compute("[[0],[0]]"))),
+            ((($AB*$EVector2Stu == $e2stu*$EVector2Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]")))]; }
+
+elsif(($e1stu == $e2cor)||($e2stu == $e1cor)){       
+     return[($e1stu == $e2cor),
+            ((($AB*$EVector1Stu) == ($e1stu*$EVector1Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]"))),
+            ((($AB*$EVector1Stu) == ($e1stu*$EVector1Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]"))),
+            ($e2stu == $e1cor),
+            ((($AB*$EVector2Stu == $e2stu*$EVector2Stu))&&
+                ($EVector2Stu != Compute("[[0],[0]]"))),
+            ((($AB*$EVector2Stu == $e2stu*$EVector2Stu))&&
+                ($EVector1Stu != Compute("[[0],[0]]")))]; }
+
+
+  }
+);
+
+
 ##########################
 
+#Convert matrices to math objects matrices (this does not happen automatically).
+
+$AB = Matrix("[[$a11,$a12],[$a21,$a22]]");
+
+Context()->texStrings;
 BEGIN_TEXT
 Calculate the eigenvalues of this matrix:
 $PAR
@@ -71,30 +166,22 @@ the eigenvalues. You can use the web version at
 "xFunctions", q!TARGET="plotter"!)\}.
 $PAR
 If you select the "integral curves utility" from the main menu, will also be able to plot the integral curves of the
-associated diffential equations. ]
+associated differential equations. ]
 $PAR
-\{ mbox( "\( A = \) ", display_matrix($matrix) ) \}
+\[ A = $AB \]
 $BR 
-smaller eigenvalue \( = \) \{NAMED_ANS_RULE(vec1,10)\} $BR
-associated eigenvector \( =  \) ( \{ NAMED_ANS_RULE_OPTION(vec1,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec1,10) \} ) 
-$BR
-larger eigenvalue \( = \) \{ NAMED_ANS_RULE(vec2,10) \}
-$BR
-associated, eigenvector  \( = \)  ( \{ NAMED_ANS_RULE_OPTION(vec2,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec2,10) \} ) 
+Eigenvalue \( \lambda_1 = \) \{$multians1->ans_rule(10)\} $BR
+associated eigenvector \( E_{\lambda_{1}}=  \) ( \{$multians1->ans_rule(5) \}  , \{ $multians1->ans_rule(5) \} ) 
+$BR $BR
+Eigenvalue \( \lambda_2 = \) \{$multians1->ans_rule(10) \} $BR
+associated eigenvector \( E_{\lambda_{2}}= \)  ( \{$multians1->ans_rule(5) \}  , \{ $multians1->ans_rule(5) \} ) $BR $BR
+
+$BBOLD NOTE: An eigenvector will not be checked until the corresponding eigenvalue is entered. $EBOLD 
 
 END_TEXT
+Context()->normalStrings;
 
-TEXT();
-   $answer_string = "  The eigenvalues and eigenvectors are {". $e->element(1,1) . "," . $e->element(2,2)
-   . "} and the eigenvectors are ( " . join(" ,", $a->column(1)->list()) . " ) and ( " . join(" ,", $a->column(2)->list()) .
-   " )";
-   ($ans_eval1) = check_eigenvalue_and_eigenvector($matrix,);
-   ($ans_eval2) = check_eigenvalue_and_eigenvector( $matrix, );
-   $ans_eval1->{rh_ans}->{correct_ans} = $answer_string;
-   $ans_eval2->{rh_ans}->{correct_ans} = $answer_string;
-   NAMED_ANS(vec1 => $ans_eval1);
-   NAMED_ANS(vec2 => $ans_eval2 );
-
+ANS($multians1->cmp);
 
 #  behavior of differential equations defined by A
 $mc = new_multiple_choice();  # the parens are important -- otherwise the name of the object is new_multiple_choice.
@@ -112,22 +199,13 @@ $matrix_det <0                     && do {$ind=2 };  #saddle
 $matrix_det>0 and $matrix_trace>0  && do {$ind=1 };  #unstable node
 $matrix_det>0 and $matrix_trace<0  && do {$ind=0 };  # stable node
 $matrix_det==0                      && do {$ind=3 };
-
-
-
-
-
-       
+  
 $mc->qa(
         q!If \(y' = Ay\) is a differential equation, how would the solution curves behave?!,
         splice(@answers,$ind,1)   # enter the correct answer
         );
        
 $mc->extra(@answers);
-
-
-
-
 
 BEGIN_TEXT
 $HR
@@ -140,72 +218,4 @@ END_TEXT
 
 ANS(radio_cmp($mc->correct_ans));
 
-sub check_eigenvalue_and_eigenvector {
-        my $matrix = shift;
-        my %options = @_;
-        my @correct_vector = ();
-        @correct_vector = @{$options{'correct_ans'}} if defined ($options{'correct_ans'});
-        my($row,$col) = $matrix->dim();
-        my $ans_eval = new AnswerEvaluator;
-        $ans_eval->ans_hash( correct_ans  => "( " . join(", ", @correct_vector ) . " )"  );
-        $ans_eval->install_pre_filter(~~&is_array);
-        $ans_eval->install_pre_filter(~~&std_num_array_filter);
-
-        $ans_eval->install_evaluator(sub { my $rh_ans = shift;
-                                                                           my %options  = @_;
-                                                                           my @vector = @{$rh_ans->input()};
-                                                                           my $eigenvalue = shift(@vector);
-                                                                           return($rh_ans) if @vector == 0;  # empty vectors are ignored
-                                                                           unless ($col == @vector ) {
-                                                                                $rh_ans->throw_error("BADANS", "The input vector ( @vector ) has the wrong size");
-                                                        return($rh_ans)
-                                                        # make sure the vectors are the same dimension
-                                           }
-                                                                                my $vec = Matrix->new_column_matrix(~~@vector);
-                                                                                my $zero_vec = new Matrix(2,1);
-                                                                                $zero_vec->zero();
-                                                                                if ($zero_vec == $vec) {
-                                                                                        $rh_ans->{score} = 0;
-                                                                                         return($rh_ans);
-                                                                                }
-                                                                                my $vec1 = $matrix * $vec;
-                                                                                my $out_vec = $vec1 - $eigenvalue*$vec;
-                                                                                my @diff = $out_vec->list();  # lists a column vector
-                                                                                $rh_ans->{score} = zero_check(~~@diff);
-                                                                                unless ( $rh_ans->{score} ) {
-                                                                                        my @out_vec1 = $vec1->list();
-                                                                                        $rh_ans->{ans_message} = "The the result of multiplying your vector" .
-                                                                                                " by the matrix is  ( " .
-                                                                                                join(" , ", @out_vec1 ) .
-                                                                                                " ) which is not $eigenvalue times the original vector ( " .
-                                                                                                join(" , ", @vector) . " ).";
-                                                                                }
-                                                                                $rh_ans->{type} = "check_eigenvector";
-                                                                                $rh_ans;
-        });
-        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('SYNTAX') ) {
-                                                                                                  $rh_ans->{ans_message} = $rh_ans->{error_message};
-                                                                                                  $rh_ans->clear_error('SYNTAX');
-                                                                                          }
-                                                                                          $rh_ans;
-        });
-        $ans_eval->install_post_filter( sub {     my $rh_ans= shift;
-                                                                                          my %options = @_;
-                                                                                          if ($rh_ans->catch_error('NOTARRAY') ) {
-                                                                                                  $rh_ans->{ans_message} = "This answer is supposed to be an array"; 
-                                                                                          }
-                                                                                          $rh_ans;
-        });
-        $ans_eval;
-}
-
-
-ENDDOCUMENT() ;       
-
-
-
-
-
-my
+ENDDOCUMENT() ;
