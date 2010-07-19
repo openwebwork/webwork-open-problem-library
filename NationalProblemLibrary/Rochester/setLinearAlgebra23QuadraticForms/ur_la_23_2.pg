@@ -20,113 +20,88 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
+"PGstandard.pl",
 "PGchoicemacros.pl",
 "PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGnumericalmacros.pl",
-"PGstatisticsmacros.pl", 
-"PGmatrixmacros.pl"
+"MathObjects.pl"
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
-
-$gen = random(0,4,1);
 
 # gen = 0 positive definite
 # gen = 1 positive semidefinite
 # gen = 2 indefinite 
 # gen = 3 negative semidefinite
 # gen = 4 negative definite 
+Context("Matrix");
+$E1 = random(-100,100,10);
+do {
+     $E2 = random(-100,100,10); } while($E1 == $E2);
+#With the way M is constructed, a repeated root would make M a scalar multiple of the Identity matrix, so this is not allowed.
 
-if ($gen == 0) { 
-        $one = random(1,7,1);
-	$two = random($one+1, 10); 
-}
+# Since M is a symmetric matrix, we classify the matrix depending on the signs of its eigenvalues: 
+if(($E1>0)&&($E2>0)) {
+     $gen = 0; }
+elsif((($E1==0)&&($E2>0)) ||(($E1>0)&&($E2==0))) {
+     $gen = 1; }
+elsif((($E1>0)&&($E2<0))||(($E1<0)&&($E2>0))) {
+     $gen = 2; }
+elsif((($E1==0)&&($E2<0))||(($E1<0)&&($E2==0))) {
+     $gen = 3; }
+elsif(($E1<0)&&($E2<0)) {
+     $gen = 4; }
 
-if ($gen == 1) { 
-	$one = 0;
-	$two = random(1,10,1);
-}
+$D = Matrix("[[$E1,0],[0,$E2]]");
 
-if ($gen == 2) {
-	$one = random(-10,-1,1);
-	$two = random(1,10,1);
-}
+#Create random skew (invertible) symmetric matrix:
+# this would only fail to be invertible if all p11 = p12 = 0.
+# we use only -2 to 2 to keep the determinant simple (1, 2, 5) and so M will be all whole numbers (the diagonal matrix D has a factor of 10 in it).
 
-if ($gen == 3) {
-	$one = random(-10,-1,1);
-	$two = 0;
-}
+$p11 = non_zero_random(-2,2,1);
+$p22 = $p11; 
 
-if ($gen == 4) { 
-	$one = random(-10,-4,1);
-	$two = random($one+1,-1,1);
-} 
+if(($p11 == -2)||($p11 == 2)) 
+     { $p12 = non_zero_random(-1,1,2); }
+else 
+     { $p12 = non_zero_random(-2,2,1); }
 
-$gen2 = random(0,3,1);
+$p21 = -($p12);
+     
+$P = Matrix("[[$p11,$p12],[$p21,$p22]]");
+$Pinv = Matrix("[[$p22,-($p12)],[-($p21),$p11]]")*Real("1/(($p11*$p22) - ($p12*$p21))");
 
-# use different orthogonal matrices for different values of gen2
+# M = PDP^-1
 
-if ($gen2 == 0 ){
-	$a11 = $one/2 + $two/2;
-	$a12 = $one/2 - $two/2;
-	$a21 = $a12;
-	$a22 = $a11;
-}
-
-if ($gen2 == 1) { 
-        $a11 = $one/5 + 4*$two/5;
-        $a12 = $one/5 - 4*$two/5;
-        $a21 = $a12;
-        $a22 = $a11;
-}
-
-if ($gen2 == 2) { 
-	$a11 = $one/5 + 4*$two/5;
-	$a12 = 2*$one/5 - 2*$two/5;
-	$a21 = $a12;
-	$a22 = 4*$one/5 + $two/5;
-}
-
-if ($gen2 == 3) { 
-
-	$a11 = 9*$one/10 + $two/10;
-	$a12 = 3*$two/10 - 3*$one/10;
-	$a21 = $a12;
-	$a22 = $one/10 + 9*$two/10;
-}
+$M = Compute("$P*$D*$Pinv");
 
 $mc = new_multiple_choice();
 
 @ans = ("\(Q(x)\) is positive definite", "\(Q(x)\) is positive semidefinite", "\(Q(x)\) is indefinite", 
         "\(Q(x)\) is negative semidefinite",  "\(Q(x)\) is negative definite", "\(Q(x)\) is positive definite", 
         "\(Q(x)\) is positive semidefinite", "\(Q(x)\) is indefinite", "\(Q(x)\) is negative semidefinite"); 
-
 $mc -> qa ("Classify the quadratic form \(Q(x) = x^TAx: \)", $ans[$gen]); 
 
 $mc -> extra ($ans[$gen+1], $ans[$gen+2], $ans[$gen+3], $ans[$gen+4]); 
 
+Context()->texStrings;
 BEGIN_TEXT
 
 Find the eigenvalues of the matrix 
-$BR
-\{ mbox( '\(A = \)', display_matrix([[$a11, $a12], [$a21, $a22]]), '.' ) \} 
-$BR
-The smaller eigenvalue is \( \lambda_1 = \) \{ans_rule(5)\}, 
-$BR
-and the bigger eigenvalue is \( \lambda_2 = \) \{ans_rule(5)\}. 
-$BR
+$BR  $BR
+\(M = $M\)$SPACE.
+$BR $BR
+Enter the two eigenvalues, separated by a comma: $BR $BR
+\{ans_rule(30)\} $BR $BR
+
 \{$mc -> print_q \}
 $BR
 \{$mc -> print_a \}
 
 END_TEXT
+Context()->normalStrings;
 
-ANS(num_cmp($one));
-ANS(num_cmp($two));
+ANS(List("$E1, $E2")->cmp);
 ANS(radio_cmp($mc->correct_ans));
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.
