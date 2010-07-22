@@ -117,7 +117,7 @@ if ($helptype =~ m/angle/i) {
 my $helpurl = "";
   
 #  Globally recognized directory for default help files
-$helpurl = "https://hosted2.webwork.rochester.edu/webwork2_files/helpFiles/" . $helpfile;
+$helpurl = "https://courses.webwork.maa.org/webwork2_files/helpFiles/" . $helpfile;
 
 #  Example of a fixed local directory for help files 
 #  $helpurl = "https://hosted2.webwork.rochester.edu/webwork2_course_files/fortlewis_math121/" . $helpfile;
