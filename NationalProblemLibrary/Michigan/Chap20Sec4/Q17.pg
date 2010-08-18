@@ -1,0 +1,202 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('stokes theorem', 'circulation integral', 'curl', 'multivariable', 'calculus')
+## Tagged by glr 08/18/10
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Stokes Theorem')
+## Date('08/18/10')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('20.4')
+## Problem1('17')
+
+## Textbook tags
+## HHChapter1('Calculus of Vector Fields')
+## HHSection1('Stokes' Theorem')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Vector");
+Context()->variables->add( t=>'Real' );
+Context()->flags->set( ijk => 1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+  k => {TeX => "\,\mathit{\vec k}"},
+);
+$showPartialCorrectAnswers = 1;
+
+$r = random(1,4,1);
+$rsq = $r*$r;
+$h0 = random(2,5,1);
+
+$rt = Vector( Compute("$r*cos(t)"), Compute("-$r*sin(t)"), Formula("$h0") );
+$r0 = Compute("0");
+$r1 = Compute("2*pi");
+
+$rparam = MultiAnswer( $rt, $r0, $r1 )->with(
+    singleResult=>0,
+    checker=>sub {
+        my ( $c, $s, $ans ) = @_;
+
+        ## the parameterization is correct if its magnitude is one,
+        ##    the functions aren't constant, and we start and end at
+        ##    the same place.  we really only want to go around once,
+        ##    too.
+        my ( $svec, $t0, $t1 ) = @{$s};
+
+	my ( $sx, $sy, $sz ) = $svec->value;
+	my ( $cx, $cy, $cz ) = $c->[0]->value;
+
+	my @res = ( 0, 0, 0 );
+
+	## the z component must be fixed
+	return [ @res ] if ( $cz != $sz );
+
+        my $sx0 = $sx->eval( t=>$t0 );
+        my $sx1 = $sx->eval( t=>$t1 );
+        my $sy0 = $sy->eval( t=>$t0 );
+        my $sy1 = $sy->eval( t=>$t1 );
+
+        if ( Formula("$rsq") == $sx*$sx + $sy*$sy && $t0 != $t1 &&
+             atan2( $sy0, $sx0 ) == atan2( $sy1, $sx1 ) ) {
+
+            $res[0] = 1;
+
+            my $dt = ($t1 - $t0)/20;
+            my $theta0 = atan2( $sy0, $sx0 );
+            my $dtheta = atan2( $sy->eval( t=>($t0+$dt) ),
+				$sx->eval( t=>($t0+$dt) ) ) - $theta0;
+
+	    ## we have to go clockwise
+	    if ( $dtheta > 0 ) {
+		$res[0] = 0;
+		$ans->setMessage(1, 'Make sure that your parameterization ' .
+				 'traverses the curve in the correct ' .
+				 "direction." );
+	    } else {
+		my $isErr = 0;
+		for ( my $i=2; $i<18; $i++ ) {
+		    ## make sure that we're not past the starting point
+		    my $xtmp = $sx->eval( t=>($t0 + $i*$dt) );
+		    my $ytmp = $sy->eval( t=>($t0 + $i*$dt) );
+		    my $theta1 = atan2( $ytmp, $xtmp );
+		    if ( abs( $theta0 - $theta1 ) < $dtheta ) {
+			$ans->setMessage(2, 'Make sure that your ' .
+					 'parameteriation traverses the ' .
+					 'curve only once.');
+			$isErr = 1;
+			break;
+		    }
+		}
+		if ( ! $isErr ) {
+		    $res[1] = 1;
+		    $res[2] = 1;
+		}
+	    }
+	}
+	return [ @res ];
+    } );
+
+$a = random(1,7,1);  $ad = ( $a == 1 ) ? '' : $a;
+$b = random(1,7,1);  $bd = ( $b == 1 ) ? '' : $b;
+
+$intval = Compute( "-2*pi*$a*$r^2" );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+The figure below open cylindrical can, \( S \),
+standing on the \( xy \)-plane. (\( S \) has a bottom and sides, but no top.)
+$BR
+$BCENTER
+\{ image( "q17fig.png", tex_size=>250, height=>250, width=>250,
+	  extra_html_tags=>'alt="figure showing a circular cylinder,' .
+	  'with its base on the xy-plane and a prescribed height.  ' .
+	  'the curve C is the top edge of the cylinder, traversed ' .
+	  'clockwise."' ) \}
+$ECENTER
+$BR
+The side of \(S\) is given by \( x^2 + y^2 = $rsq\), and its height
+is $h0.
+
+$PAR
+${BBOLD}(a)$EBOLD
+Give a parametric equation, \(\vec r(t)\) for the rim, \( C \).
+$BR
+\(\vec r(t) = \) \{ $rparam->ans_rule(35) \}, with
+\{ $rparam->ans_rule(5) \} \(\le t\le\) \{ $rparam->ans_rule(5) \}.
+
+$PAR
+${BBOLD}(b)$EBOLD
+If \( S \) is oriented outward and downward, find
+\( \int_S\mbox{curl }(-$ad y\vec i+ $ad x\vec j+ $bd z\vec k)\cdot d\vec A \).
+$BR
+\( \int_S\mbox{curl }(-$ad y\vec i+ $ad x\vec j+ $bd z\vec k)\cdot d\vec A =  \)
+\{ ans_rule(35) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $rparam->cmp() );
+ANS( $intval->cmp() );
+
+$ar = $a*$r;
+$twoarsq = $ar*2*$r;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+The equation of the rim, \(C\), is \(x^2+y^2=$rsq\), \(z=$r0\).
+This is a circle of radius $r centered on the \(z\)-axis, and
+lying in the plane \(z=2\).  We can parameterize this as
+\[ \vec r(t) = $rt,\quad 0\le t\le 2\pi. \]
+
+$PAR
+${BBOLD}(b)$EBOLD
+Use Stokes' Theorem, with \(C\) oriented clockwise when viewed from
+above:
+\[
+\int_S\mbox{curl }(-$ad y\vec i+$ad x\vec j+ $bd z\vec k)\cdot d\vec A =
+\int_C(-$ad y\vec i+ $ad x\vec j+ $bd z\vec k)\cdot d\vec r.
+\]
+Since \(C\) is horizontal, the \(\vec k\) component does not contribute to
+the integral.  The remaining vector field, \(-$ad y\vec i+ $ad x\vec j\), is
+tangent to \(C\), of constant magnitude \(||-$ad y\vec i+$ad x\vec j||= $ar\)
+on \(C\), and points in the opposite direction to the orientation.  Thus
+\[
+\int_S\mbox{curl }(-$ad y\vec i+$ad x\vec j+$bd z\vec k)\cdot d\vec A =
+\int_C(-$ad y\vec i+ $ad x\vec j)\cdot d\vec r \]
+\[
+= -$ar\cdot \hbox{ Length of curve } = -$ar\cdot 2\pi $r = -$twoarsq\pi.
+\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT('Uses MathObjects');
+
+ENDDOCUMENT();

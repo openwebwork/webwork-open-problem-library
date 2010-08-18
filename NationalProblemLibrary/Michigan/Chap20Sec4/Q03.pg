@@ -1,0 +1,243 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('stokes theorem', 'circulation integral', 'curl', 'multivariable', 'calculus')
+## Tagged by glr 08/18/10
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('Stokes Theorem')
+## Date('08/18/10')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('20.4')
+## Problem1('3')
+
+## Textbook tags
+## HHChapter1('Calculus of Vector Fields')
+## HHSection1('Stokes' Theorem')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Vector");
+Context()->variables->add( t=>'Real' );
+Context()->flags->set( ijk => 1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+  k => {TeX => "\,\mathit{\vec k}"},
+);
+$showPartialCorrectAnswers = 1;
+
+$a = random(2,8,1);
+$r = list_random(2,3,4);
+$rsq = $r*$r;
+
+$rt = Vector( Compute("$r*cos(t)"), Compute("$r*sin(t)"), Formula("0") );
+$r0 = Compute("0");
+$r1 = Compute("2*pi");
+$integ = Compute( "-$rsq*$a" );
+
+$rparam = MultiAnswer( $rt, $r0, $r1, $integ )->with(
+    singleResult=>0,
+    checker=>sub {
+        my ( $c, $s, $ans ) = @_;
+
+        ## the parameterization is correct if its magnitude is one,
+        ##    the functions aren't constant, and we start and end at
+        ##    the same place.  we really only want to go around once,
+        ##    too.
+        my ( $svec, $t0, $t1, $sint ) = @{$s};
+
+	my ( $sx, $sy, $sz ) = $svec->value;
+
+	my @res = ( 0, 0, 0, 0 );
+
+	## the z component must be zero
+	return [ @res ] if ( Compute("0") != $sz );
+
+        my $sx0 = $sx->eval( t=>$t0 );
+        my $sx1 = $sx->eval( t=>$t1 );
+        my $sy0 = $sy->eval( t=>$t0 );
+        my $sy1 = $sy->eval( t=>$t1 );
+
+        if ( Formula("$rsq") == $sx*$sx + $sy*$sy && $t0 != $t1 &&
+             atan2( $sy0, $sx0 ) == atan2( $sy1, $sx1 ) ) {
+
+            $res[0] = 1;
+
+            my $dt = ($t1 - $t0)/20;
+            my $theta0 = atan2( $sy0, $sx0 );
+	    ## we can run into trouble if theta0 is pi
+	    $theta0 = -1*$theta0 if ( $sx0 < 0 && $sy0 == 0 );
+            my $dtheta = atan2( $sy->eval( t=>($t0+$dt) ),
+				$sx->eval( t=>($t0+$dt) ) ) - $theta0;
+
+	    ## we have to go counterclockwise
+	    if ( $dtheta < 0 ) {
+		$res[0] = 0;
+		$ans->setMessage(1, 'Make sure that your parameterization ' .
+				 'traverses the curve in the correct ' .
+				 "direction." );
+	    } else {
+		my $isErr = 0;
+		for ( my $i=2; $i<18; $i++ ) {
+		    ## make sure that we're not past the starting point
+		    my $xtmp = $sx->eval( t=>($t0 + $i*$dt) );
+		    my $ytmp = $sy->eval( t=>($t0 + $i*$dt) );
+		    my $theta1 = atan2( $ytmp, $xtmp );
+		    if ( abs( $theta0 - $theta1 ) < $dtheta ) {
+			$ans->setMessage(2, 'Make sure that your ' .
+					 'parameteriation traverses the ' .
+					 'curve only once.');
+			$isErr = 1;
+			break;
+		    }
+		}
+		if ( ! $isErr ) {
+		    $res[1] = 1;
+		    $res[2] = 1;
+		}
+	    }
+
+	## finally check the integrand
+	    $sxd = $sx->D('t');
+	    $syd = $sy->D('t');
+	    $sintc = $a*($sy*$sxd - $sx*$syd);
+	    $res[3] = ( $sintc == $sint ) ? 1 : 0;
+	}
+	return [ @res ];
+    } );
+
+$circ = Compute( "-$a*$rsq*2*pi" );
+$curl = Vector( Formula("0"), Formula("0"), Formula("-2*$a") );
+$da = Vector( Compute( "2*x" ), Compute( "2*y" ), Compute( "1" ) );
+$sint = Compute( "-2*$a" );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Calculate the circulation, \( \int_C\vec F\cdot d\vec r \), in two ways,
+directly and using Stokes' Theorem.  The vector field
+\( \vec F = $a y\vec i - $a x\vec j \) and \( C \) is the boundary of
+\( S \), the part of the surface \( z = $rsq -x^2-y^2 \) above the
+\( xy \)-plane, oriented upward.
+
+$PAR
+Note that \(C\) is a circle in the \(xy\)-plane.  Find a \(\vec r(t)\) that
+parameterizes this curve.
+$BR
+\(\vec r(t) = \) \{ $rparam->ans_rule(25) \}, $BR
+with \{ $rparam->ans_rule(5) \} \(\le t\le\) \{ $rparam->ans_rule(5) \}
+
+$BR
+With this parameterization, the circulation integral is
+$BR
+\(\int_C\vec F\cdot d\vec r = \int_a^b \) \{ $rparam->ans_rule(35) \} \( dt \),
+where \(a\) and \(b\) are the endpoints you gave above.
+$BR
+Evaluate your integral to find the circulation:
+\(\int_C\vec F\cdot d\vec r = \) \{ ans_rule(35) \}
+
+$PAR
+Using Stokes' Theorem, we equate
+\(\int_C\vec F\cdot d\vec r = \int_S\mbox{curl }\vec F\cdot d\vec A\).
+Find
+\(\mbox{curl }\vec F = \) \{ ans_rule(35) \}.
+$BR
+Noting that the surface is given by \(z = $rsq - x^2 - y^2\), find
+$BR
+\(d\vec A = \) \{ ans_rule(35) \} \( dy\,dx\).
+$BR
+With \(R\) giving the region in the \(xy\)-plane enclosed by the surface,
+this gives
+$BR
+\(\int_S \mbox{curl }\vec F\cdot d\vec A =
+  \int_{R} \) \{ ans_rule(25) \} \(dy\,dx\).
+$BR
+Evaluate this integral to find the circulation:
+$BR
+\( \int_C \vec F\cdot d\vec r =
+   \int_{S} \mbox{curl }\vec F\cdot d\vec A = \) \{ ans_rule(35) \}.
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $rparam->cmp() );
+ANS( $circ->cmp() );
+ANS( $curl->cmp() );
+ANS( $da->cmp() );
+ANS( $sint->cmp() );
+ANS( $circ->cmp() );
+
+$ar = $a*$r;
+$arsq = $ar*$r;
+$twoarsq = 2*$arsq;
+$twoa = 2*$a;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Since \(C\) is the curve \(x^2+y^2=$rsq\), oriented counterclockwise, we
+calculate \(\int_C\vec F\cdot d\vec r\) directly using the
+parameterization
+\[
+x(t) = $r\cos t,\quad y(t)=$r\sin t,\quad z(t)=0,\quad 0\le t\le
+2\pi,\quad \hbox{ so } \vec r'(t)=-$r\sin t\vec i+$r\cos t\vec j.
+\]
+Thus,
+\[
+\int_C\vec F\cdot d\vec r = \int_0^{2\pi}($ar\sin t\vec i-$ar\cos t\vec
+j)\cdot (-$r\sin t\vec i+$r\cos t\vec j)\, dt
+\]
+\[
+= -$arsq\int_0^{2\pi}(\sin^2t+\cos^2t)\, dt = -$arsq\cdot 2\pi = -$twoarsq\pi.
+\]
+
+$PAR
+Then, finding \(\mbox{curl }\vec F\), we have
+\[
+\mbox{curl }\vec F=\left|\begin{array}{ccc}
+\vec i & \vec j & \vec k \\
+\frac{\partial}{\partial x} & \frac{\partial}{\partial y} &
+\frac{\partial}{\partial z} \\
+$a y \ \ & -$a x \ \ & 0
+\end{array}\right| =-$twoa\vec k,
+\]
+Then if \(z = f(x,y)\), we know \(d\vec A = -f_x\vec i - f_y\vec j + \vec k\),
+so
+\[
+  d\vec A = 2x\vec i + 2y\vec j + \vec k,
+\]
+and
+\[
+\int_C\vec F\cdot d\vec r = \int_S\mbox{curl }\vec F\cdot d\vec A =
+\int_{R} -$twoa\vec k\cdot(2x\vec i+2y\vec j+\vec k)\, dx\, dy
+= -$twoa\int dx\,dy = -$twoarsq\pi.
+\]
+
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT('Uses MathObjects');
+
+ENDDOCUMENT();
