@@ -1,0 +1,129 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('divergence theorem', 'stokes theorem', 'divergence', 'curl', 'gradient vector field')
+## Tagged by glr 08/20/10
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('The Divergence Theorem')
+## Date('08/20/10')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('20.5')
+## Problem1('4')
+
+## Textbook tags
+## HHChapter1('Calculus of Vector Fields')
+## HHSection1('The Three Fundamental Theorems')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Vector");
+Context()->flags->set( ijk=>1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+  k => {TeX => "\,\mathit{\vec k}"},
+);
+$showPartialCorrectAnswers = 1;
+
+$a = random(2,8,1);
+$b = random(2,8,1);
+$c = random(2,8,1);
+$d = random(2,8,1);
+$fvec = Vector( Compute("$a*x + $b*y"), Compute("$c*x + $d*y"), Compute(0) );
+$divf = Vector( Compute("$b*y"), Compute("$c*x"), Compute(0) );
+$crlf = Vector( Compute("$a*x"), Compute("$d*y"), Compute(0) );
+
+$svf = MultiAnswer( $divf, $crlf )->with(
+    singleResult => 0,
+    checker => sub {
+	my ( $c, $s, $ans ) = @_;
+	@stu = @{$s};
+	@scurl = Vector($stu[0])->value;
+	$curlVal = Vector( $scurl[2]->D('y') - $scurl[1]->D('z'),
+			   $scurl[0]->D('z') - $scurl[2]->D('x'),
+			   $scurl[1]->D('x') - $scurl[0]->D('y') );
+	$zeroVec = Vector( Formula(0), Formula(0), Formula(0) );
+	@sciv  = $stu[1]->value;
+	$divVal = $sciv[0]->D('x') + $sciv[1]->D('y') + $sciv[2]->D('z');
+	if ( $fvec == $s->[0] + $s->[1] && $zeroVec == $curlVal &&
+	     Compute(0) == $divVal ) {
+	    return( [1,1] );
+	} elsif ( $fvec == $s->[0] + $s->[1] && $zeroVec == $curlVal ) {
+	    return( [1,0] );
+	} elsif ( $fvec == $s->[0] + $s->[1] && Compute(0) == $divVal ) {
+	    return( [0,1] );
+	} else {
+	    return( [0,0] );
+	}
+    } );
+
+# in case anyone cares: we require angle bracket notation, because
+#    the answer evaluator has trouble rendering the student answers
+#    as vectors (and therefore finding their components) otherwise.
+#    I think we've run into this somewhere before, but didn't bother
+#    to spend the time to try and track it down here.
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Express \( $fvec \) as the sum of a curl free vector
+field and a divergence free vector field.
+
+$PAR
+\($fvec = \) \{ $svf->ans_rule(25) \} + \{ $svf->ans_rule(25) \},
+$BR
+where the first vector in the sum is curl free and the second
+is divergence free.
+$BR
+${BITALIC}(For this problem, enter your vectors with angle-bracket
+notation: \(<a, b, c>\), not in \(ijk\)-notation.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $svf->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+Note that
+\[\mbox{div }$divf = \frac{\partial}{\partial x}($b y) +
+  \frac{\partial}{\partial y}($c x) = 0, \]
+and
+\[\mbox{curl }($a x\vec i+ $d y\vec j) =
+\left|\begin{array}{ccc}\vec i&\vec j&\vec k\\
+\frac{\partial}{\partial x}&\frac{\partial}{\partial y}&
+\frac{\partial}{\partial z} \\
+$a x & $d y & 0 \end{array}\right |=\vec 0,\]
+so
+\[($divf) + ($crlf)\]
+is the required decomposition.
+
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT('Uses MathObjects');
+
+ENDDOCUMENT();

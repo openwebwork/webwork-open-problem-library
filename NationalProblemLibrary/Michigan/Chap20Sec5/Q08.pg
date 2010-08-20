@@ -1,0 +1,191 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('divergence theorem', 'stokes theorem', 'divergence', 'curl', 'gradient vector field')
+## Tagged by glr 08/20/10
+
+## DBsubject('Calculus')
+## DBchapter('Vector Calculus')
+## DBsection('The Divergence Theorem')
+## Date('08/20/10')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('20.5')
+## Problem1('8')
+
+## Textbook tags
+## HHChapter1('Calculus of Vector Fields')
+## HHSection1('The Three Fundamental Theorems')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Vector");
+Context()->flags->set( ijk=>1 );
+Context()->constants->set(
+  i => {TeX => "\,\mathit{\vec i}"},
+  j => {TeX => "\,\mathit{\vec j}"},
+  k => {TeX => "\,\mathit{\vec k}"},
+);
+Context()->strings->add( none => {} );
+$showPartialCorrectAnswers = 1;
+
+$a = random(1,8,1);
+$b = random(1,8,1);
+$c = random(1,8,1);
+@vf = ( [ Vector( Compute( "$a*x" )->reduce(),
+		  Compute( "$b*y - z^2" )->reduce(),
+		  Compute( "$c*x - ($a+$b)*z" )->reduce() ),
+	  "has a vector potential",
+	  Vector( Compute( "-$c*x*y+($a+$b)*y*z" ),
+		  Formula( "0" ),
+		  Compute( "$a*x*y + x*z^2" ) ),
+	  "0" ],
+
+	[ Vector( Compute( "$a*x" )->reduce(),
+		  Compute( "$b*y - z^2" )->reduce(),
+		  Compute( "$c*x + ($a+$b)*z" )->reduce() ),
+	  "does not have a vector potential",
+	  String("none"),
+	  2*($a + $b) ] );
+# shuffle these
+@vf = @vf[NchooseK(2,2)];
+
+@pop = ( PopUp( [ "?", "has a vector potential",
+		  "does not have a vector potential" ], $vf[0]->[1] ),
+	 PopUp( [ "?", "has a vector potential",
+		  "does not have a vector potential" ], $vf[1]->[1] ) );
+@pot = ( $vf[0]->[2], $vf[1]->[2] );
+
+# in case anyone cares: we require angle bracket notation, because
+#    the answer evaluator has trouble rendering the student answers
+#    as vectors (and therefore finding their components) otherwise.
+#    I think we've run into this somewhere before, but didn't bother
+#    to spend the time to try and track it down here.
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+For each of the following vector fields,
+determine whether a vector potential exists. If so, find one.
+$BR
+${BITALIC}For this problem, enter your vectors with angle-bracket
+notation: \(<a, b, c>\), not in \(ijk\)-notation.$EITALIC
+
+$PAR
+${BOLD}(a)$EBOLD
+\( \vec F = $vf[0]->[0] \)
+$BR
+\(\vec F\) \{ $pop[0]->menu() \} \(\vec H\),
+\(\vec H = \)
+\{ ans_rule(35) \}
+$BR
+${BITALIC}(If there is no potential function, enter ${BBOLD}none$EBOLD
+for the function.)$EITALIC
+
+$PAR
+${BOLD}(b)$EBOLD
+\( \vec F = $vf[1]->[0] \)
+$BR
+\(\vec F\) \{ $pop[1]->menu() \} \(\vec H\),
+\(\vec H = \)\{ ans_rule(35) \}
+$BR
+${BITALIC}(If there is no potential function, enter ${BBOLD}none$EBOLD
+for the function.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $pop[0]->cmp() );
+ANS( $pot[0]->cmp( checker=>sub {
+	my ( $c, $s, $a ) = @_;
+	# this takes care of the string 'none' and obvious match
+	return 1 if ( $c == $s );
+	# if that failed, return 0 if the answer is a string
+	return 0 if ( ref($s) eq ref(String("none")) );
+	# the remaining case is that this is a vector, in which case
+	#    we can check that the curl gives us the correct vector
+	#    function
+	my @sval = $s->value;
+	my @scurl = ( $sval[2]->D('y') - $sval[1]->D('z'),
+		      $sval[0]->D('z') - $sval[2]->D('x'),
+		      $sval[1]->D('x') - $sval[0]->D('y') );
+	my @cor = $vf[0]->[0]->value;
+	if ( $cor[0] == $scurl[0] && $cor[1] == $scurl[1] &&
+	     $cor[2] == $scurl[2] ) {
+	    return 1;
+	} else {
+	    return 0;
+	}
+} ) );
+ANS( $pop[1]->cmp() );
+ANS( $pot[1]->cmp( checker=>sub {
+	my ( $c, $s, $a ) = @_;
+	# this takes care of the string 'none' and obvious match
+	return 1 if ( $c == $s );
+	# if that failed, return 0 if the answer is a string
+	return 0 if ( ref($s) eq ref(String("none")) );
+	# the remaining case is that this is a vector, in which case
+	#    we can check that the curl gives us the correct vector
+	#    function
+	my @sval = $s->value;
+	my @scurl = ( $sval[2]->D('y') - $sval[1]->D('z'),
+		      $sval[0]->D('z') - $sval[2]->D('x'),
+		      $sval[1]->D('x') - $sval[0]->D('y') );
+	my @cor = $vf[1]->[0]->value;
+	if ( $cor[0] == $scurl[0] && $cor[1] == $scurl[1] &&
+	     $cor[2] == $scurl[2] ) {
+	    return 1;
+	} else {
+	    return 0;
+	}
+}) );
+
+Context()->texStrings;
+
+@expl = ( ( $pop[0]->correct_ans() eq 'has a vector potential' ) ?
+	  "One such is the vector field \(\vec H = $vf[0]->[2]\), " .
+	  "but there are many others." : '',
+	  ( $pop[1]->correct_ans() eq 'has a vector potential' ) ?
+	  "One such is the vector field \(\vec H = $vf[1]->[2]\), " .
+	  "but there are many others." : '' );
+
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(a)$EBOLD
+Since
+\(\mbox{div }\vec F = $vf[0]->[3]\), we know that
+\(\vec F\) \{ $pop[0]->correct_ans() \}.  $expl[0]
+
+$PAR
+${BBOLD}(b)$EBOLD
+Since
+\(\mbox{div }\vec F = $vf[1]->[3]\), we know that
+\(\vec F\) \{ $pop[1]->correct_ans() \}.  $expl[1]
+
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT('Uses MathObjects');
+
+ENDDOCUMENT();
