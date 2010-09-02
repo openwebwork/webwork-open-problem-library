@@ -38,8 +38,9 @@ sub UNORDERED_ANS {
   #  The best thing would be to use the size of @PG_ANSWERS in place of
   #  $main::ans_rule_count, but we don't have access to that
   #
+  my $num_of_answers = (keys %{$PG->{PG_ANSWERS_HASH}} );
   foreach $i (1..$n)
-    {push(@params,ANS_NUM_TO_NAME($i+$main::ans_rule_count-$n),$cmp[$i-1])}
+    {push(@params,ANS_NUM_TO_NAME($i+$num_of_answers -$n),$cmp[$i-1])}
   my @results = unordered_answer_list(@params);
   while (scalar(@results) > 0) {shift(@results), ANS(shift(@results))}
 }
