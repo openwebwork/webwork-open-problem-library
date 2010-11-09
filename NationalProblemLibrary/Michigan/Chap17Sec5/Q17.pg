@@ -38,7 +38,7 @@ loadMacros(
 );
 
 Context("Vector");
-Context()->flags->set( ijk=>1 );
+# Context()->flags->set( ijk=>1 );
 Context()->constants->set(
   i => {TeX => "\,\mathit{\vec i}"},
   j => {TeX => "\,\mathit{\vec j}"},
@@ -72,30 +72,21 @@ $PAR
 \( \vec r(s,t) = \) \{ ans_rule(55) \}
 $BR
 ${BITALIC}(Use \(s\) and \(t\) for the parameters in your
-parameterization, and enter your vector with angle brackets,
-(not with \(ijk\) notation).)$EITALIC
+parameterization, and enter your vector as a single vector, 
+with angle brackets: e.g., as $BBOLD${LTS}${SPACE}1 + s + t, s - t, 3 - t$SPACE$GTS$EBOLD.)$EITALIC
 
 END_TEXT
 Context()->normalStrings;
 
 ## FIXME: THIS FAILS WITH ijk FORMAT ENTERED ANSWERS
 
-ANS($rparam->cmp( checker=>sub {
-    my ( $c, $s, $ans ) = @_;
-    ## the answer must be linear in s and t and contain
-    ##    the three points.
-    # warn( "s = " . $s );
-    # my $xcoord = ($s . Vector(1,0,0));
-    # my $ycoord = ($s . Vector(0,1,0));
-    # my $zcoord = ($s . Vector(0,0,1));
-    # my @stucoord = ( $xcoord, $ycoord, $zcoord );
+$chk = sub {
+    my ( $c, $s, $an ) = @_;
+    ## the answer must be linear in s and t, contain the indicated point,
+    ##    and be perpendicular to the indicated normal vector.
     my @stucoord = $s->value;
-    # warn( "0 = " . $stucoord[0]);
-    # warn( "1 = " . $stucoord[1]);
     my $dxds = $stucoord[0]->D('s');
     my $dyds = $stucoord[1]->D('s');
-    # warn( "dxds = " . $dxds );
-    # warn( "dxdt = " . $dxdt );
     my $dzds = $stucoord[2]->D('s');
     my $dxdt = $stucoord[0]->D('t');
     my $dydt = $stucoord[1]->D('t');
@@ -107,52 +98,46 @@ ANS($rparam->cmp( checker=>sub {
     my $dydt2 = $dydt->D('t');
     my $dzdt2 = $dzdt->D('t');
 
-    my @q = ( Compute($p[0]-$ncomp[1]), Compute($p[1]+$ncomp[0]),
-	      Compute($p[2]) );
-    my @r = ( Compute($p[0]-$ncomp[2]), Compute($p[1]),
-	      Compute($p[2]+$ncomp[0]) );
-
-    # if ( $dxds2 != 0 || $dyds2 != 0 || $dzds2 != 0 ||
-    #      $dxdt2 != 0 || $dydt2 != 0 || $dzdt2 != 0 ) {
-    if ( $studs2 != Vector(0,0,0) || $studt2 != Vector(0,0,0) ) {
+    if ( $dxds2 != 0 || $dyds2 != 0 || $dzds2 != 0 ||
+         $dxdt2 != 0 || $dydt2 != 0 || $dzdt2 != 0 ) {
 	Value->Error("Your answer doesn't look like a plane.");
 	return 0;
     } else {
-        ## the points lie on the plane only if
-        my $dxds = $studs . i;
-        my $dxdt = $studt . i;
-        my $dyds = $studs . j;
-        my $dydt = $studt . j;
+	# we're in trouble if this isn't true
 	if ( $dxdt*$dyds - $dxds*$dydt != 0 ) {
 	    my $sx0 = $stucoord[0]->eval( s=>0, t=>0 );
 	    my $sy0 = $stucoord[1]->eval( s=>0, t=>0 );
 	    my $sz0 = $stucoord[2]->eval( s=>0, t=>0 );
 
-	    ## p[0] and p[1] lie on the plane with s and t equal to
+	    # check the point is on the plane.  for the first two coord,
+	    #    this requires
 	    my $jac = $dxdt*$dyds - $dxds*$dydt;
 	    my $s0 = ($dydt*($sx0-$p[0]) + $dxdt*($p[1]-$sy0))/$jac;
 	    my $t0 = ($dyds*($p[0]-$sx0) + $dxds*($sy0-$p[1]))/$jac;
 
-	    ## q[0] and q[1] lie on the plane with s and t equal to
-	    my $s1 = ($dydt*($sx0-$q[0]) + $dxdt*($q[1]-$sy0))/$jac;
-	    my $t1 = ($dyds*($q[0]-$sx0) + $dxds*($sy0-$q[1]))/$jac;
-
-	    ## r[0] and r[1] lie on the plane with s and t equal to
-	    my $s2 = ($dydt*($sx0-$r[0]) + $dxdt*($r[1]-$sy0))/$jac;
-	    my $t2 = ($dyds*($r[0]-$sx0) + $dxds*($sy0-$r[1]))/$jac;
-
-	    if ( $stucoord[2]->substitute( s=>$s0, t=>$t0 ) == $p[2] &&
-		 $stucoord[2]->substitute( s=>$s1, t=>$t1 ) == $q[2] &&
-		 $stucoord[2]->substitute( s=>$s2, t=>$t2 ) == $r[2]  ) {
-		return 1;
-	    } else {
+	    if ( $stucoord[2]->substitute( s=>$s0, t=>$t0 ) == $p[2] ) {
+		# then check for the correct normal.  three points on the
+		#    student's plane is
+		my $p0 = $s->eval(s=>0,t=>0);
+		my $p1 = $s->eval(s=>1,t=>0);
+		my $p2 = $s->eval(s=>0,t=>1);
+		# so two vectors in the plane are
+		my $v0 = Vector( $p1 - $p0 );
+		my $v1 = Vector( $p2 - $p0 );
+		# a normal is
+		my $stuNorm = $v1 x $v0;
+		return $n->isParallel( $stuNorm );
+            } else {
+		Value->Error("The given point isn't on your plane's equation");
 		return 0;
 	    }
 	} else {
 	    return 0;
 	}
     }
-} ) );
+};
+
+ANS( $rparam->cmp( checker=>$chk ) );
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
@@ -181,5 +166,7 @@ $rparam.
 
 END_SOLUTION
 Context()->normalStrings;
+
+COMMENT('Uses MathObjects');
 
 ENDDOCUMENT();
