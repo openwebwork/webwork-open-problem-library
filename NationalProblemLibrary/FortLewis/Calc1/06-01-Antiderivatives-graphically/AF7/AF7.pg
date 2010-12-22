@@ -1,0 +1,245 @@
+##DESCRIPTION
+##  Using a GeoGebra applet to provide an interactive accumulation function
+##ENDDESCRIPTION
+
+##KEYWORDS('GeoGebra applet example','Accumulation function','Fundamental Theorem of Calculus')
+
+## DBsubject('Calculus')
+## DBchapter('Integrals')
+## DBsection('The Fundamental Theorem of Calculus')
+## Date('11/04/2010')
+## Author('Paul Pearson')
+## Institution('Fort Lewis College')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+
+##########################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"unionTables.pl",
+"AppletObjects.pl",
+"parserNumberWithUnits.pl",
+"PGcourse.pl",
+);
+ 
+$showPartialCorrectAnswers = 1;
+
+TEXT(beginproblem());
+
+
+##########################################
+#  Setup
+
+Context("Numeric")->variables->are(t=>"Real");
+
+$a = random(2,4,1);
+$b = random(5,8,1);
+$c = random(1,3,1);
+$d = random(1,3,1);
+while ($c == $d) { $d = random(1,3,1); }
+
+# $f = Formula("$c / (1+(t-2)^2) + $d / (1+(t-4)^2)");
+$F = Formula("$c * arctan(t-2) + $d * arctan(t-4) - $c * arctan(-2) - $d * arctan(-4)");
+
+$Fa = $F->eval(t=>$a);
+$Fb = $F->eval(t=>$b);
+$disp = $Fb-$Fa;
+
+
+
+##########################
+#
+#  GeoGebra Applet Setup
+
+$appletName = "ggbApplet";
+
+$applet =  JavaApplet(
+code                  => "geogebra.GeoGebraApplet",
+archive               => "geogebra.jar",
+codebase              => "/webwork2_course_files/fortlewis_math221/applets", 
+#codebase              => findAppletCodebase("geogebra.jar"),                           
+#codebase              => "/webwork2_files/applets/geogebra_stable",
+#codebase              => "https://test.webwork.maa.org/webwork2_files/applets/geogebra_stable",
+appletName            => $appletName,
+appletId              => $appletName,
+submitActionAlias     => 'getXML',  # default getXML
+initializeActionAlias => 'setXML',  # default setXML
+setStateAlias         => 'setXML',
+getStateAlias         => 'getXML',
+setConfigAlias        => '',
+getConfigAlias        => '',
+returnFieldName       => '',
+width                 => 486,
+height                => 306,
+mayscript             => "true",
+debugMode             => 0, # 0 = no debug, 1 = xml visible, 2 = add alerts thru applet
+onInit                => 'ggbOnInit',
+type                  => 'geogebra',
+parameter_string      => GEOGEBRA_PARAMS(), # paste parameters in section at the bottom
+);
+
+
+###############################################
+#
+#  PNG picture of GeoGebra applet for hardcopy
+
+$im = image( "AF7-c".$c."-d".$d.".png", width=>486, height=>335, tex_size=>900 );
+
+
+
+###############################################
+#
+#  For persistence of GeoGebra applet state 
+#  when answers are submitted or page is refreshed.
+#  Uses JavaScript interface to GeoGebra.
+
+HEADER_TEXT(
+qq! 
+<script language="javascript">
+   function ggbOnInit(param) {
+       if (param == "$appletName") {
+           applet_loaded(param,1);  // report that applet is ready. 
+           ww_applet_list[param].safe_applet_initialize(2);
+       }
+   } 
+</script>
+<noscript>For this question to work properly, 
+you must enable JavaScript, or use another browser 
+(or computer) on which JavaScript works.</noscript>
+!);
+
+
+#######################################################
+#
+#  For setting initial values in GeoGebra from WeBWorK
+#  Uses JavaScript interface to GeoGebra.
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+<script language="javascript">
+function setAppletCoefficients() {
+   var applet=getApplet("$appletName");   // alert("Updating coefficients");
+   if (typeof(applet)!="undefined") {
+     if (typeof(applet.setValue)!="undefined") {
+     
+     ////////////////////////////////////////////////////////////////
+     //  List the values of the parameters to be set in the applet here
+     
+          // Set variables "c" and "d" in GeoGebra to values $c and $d from WebWork
+          applet.setValue("c", $c); 
+          applet.setValue("d", $d);    
+
+     } else {
+          setTimeout("setAppletCoefficients()", 1000);
+     }
+   } else {
+      setTimeout("setAppletCoefficients()",1000);
+   }
+}
+ww_applet_list["$appletName"].setConfig = function() {setAppletCoefficients()};
+</script>
+END_SCRIPT
+
+
+
+##########################################
+#
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+\{
+ColumnTable(
+"The figure shows an interactive graph of velocity \( v(t) \), in 
+meters per second, where time \( t \) is measured in seconds.  You can 
+change the value of \( t \) in the graph by clicking and dragging
+the red dot along the horizontal \( t \)-axis.
+$BR
+$BR
+(a) What is the displacement between \( t = 0 \) seconds
+and \( t = $a \) seconds?
+$BR".
+ans_rule(20).
+" (include ".helpLink('units').")
+$BR
+$BR
+(b) What is the displacement between \( t = 0 \) seconds
+and \( t = $b \) seconds?
+$BR".
+ans_rule(20).
+" (include ".helpLink('units').")
+$BR
+$BR
+(c) What is the displacement between \( t = $a \) seconds
+and \( t = $b \) seconds?
+$BR".
+ans_rule(20).
+" (include ".helpLink('units').")"
+,
+$BCENTER.
+MODES(HTML=>$applet->insertAll(debug=>0, reinitialize_button=>0, includeAnswerBox=>0,), TeX=>$im).
+$PAR.
+"Graph of velocity \( y = v(t) \)".
+$ECENTER
+,
+indent => 0, separation => 30, valign => "TOP"
+);
+\}
+END_TEXT
+Context()->normalStrings;
+
+
+
+#####################################
+#  Answer Evaluation
+
+ANS( NumberWithUnits("$Fa","m")  ->cmp(tolerance=>0.11, tolType=>'absolute') );
+ANS( NumberWithUnits("$Fb","m")  ->cmp(tolerance=>0.11, tolType=>'absolute') );
+ANS( NumberWithUnits("$disp","m")->cmp(tolerance=>0.21, tolType=>'absolute') );
+
+
+
+##################################################################
+#
+#  GeoGebra applet parameters
+
+sub GEOGEBRA_PARAMS {
+$result = qq{
+
+# For persistence of applet state when answers are submitted
+        <param name="ggbOnInitParam" value="$appletName"/>
+
+# The GeoGebra "source code" from GeoGebra -> File -> Export -> Dynamic worksheet as Webpage (html)
+	<param name="ggbBase64" value="UEsDBBQACAAIAGKtZj0AAAAAAAAAAAAAAAAMAAAAZ2VvZ2VicmEueG1s3Vdtb9s2EP68/gqCAwobQ2xKll1ntVJk2QYE6NYA2YpgHwbQ0tnmIokeSTlyfv2OpCTLypIm64C9+INlHk/Hu+c5PqQX76o8IztQWsgipsGIUQJFIlNRrGNamtXJnL47e7VYg1zDUnGykirnJqaTUUitvRRnr75Y6I28IzxzLh8F3MV0xTMNlOitAp7qDYA5svOyEpngav9h+RskRh8mfJDLYlviKkaVaEvy9L3QzXDsFtxmwnwrdiIFRTKZxHQ2xdTx10dQRiQ8i2nEvCWMadibRNPEzm6kEveyMNb9EDzjS8gQgGuzz4CQnZ0N/dQKnQnR4h4QLGdbjB0GCyiTTKSCF7ZOlyI6EXInUrPBXOYzXA3EemOxY5GPlkip0uu9NpCT6hdQEoPOLAV7PwhDR4jGjHG9KXNT3ZGLArtrMAbz1YRXoBvU1kqk3d+X+huZpS3QWykKc8G3plSOa1abXNFuqGy258U6g9oWIBUbSG6Xsrr2CEx86J/2W/eKS2e5vpCZVERZ2KfoUD+X/ul8bJ6tF3M+zHnUMWzQdj44DZ2Hey790/MkCp9aXXfQFB2wZhmhiTVYELFFGzgcwTGlpCyEed8MsDNuD5Va/x/LfIlbo9sbbcjgbwq5GPc6Z3ELqoDM90eBvJay1L4JPXUujxQSkePQTwR1cpasnzEBb01hraDJ2+8rD5ebZd0e7JkX4yYJm4PGXBODAoH1GFvLeZKUeZlxZ/u+LPzk4LuK51uM82ZoN7jBzRXTK15m5Aq40rKgJOUGX7fCARnkgHvJuNYpyhyUSFoYE2pTw3zKOquwaXanNNKJRtvK9UsddNDhkfZCgdluOP4aBc1m36OEdBFx4X6QKfSwRbxdnbhdtz4AyhtAWsumqTcB2WJIt6XahJBjX+4nC0/7hU/+N4UnMs95kZKC5+jedI2rV1i1J5wh8WRMBhiVfEUGFTkhyPvw14H9HqIp7c1Gh1msL4jpSeA0kodWAxrkZGma8CufVJ3KAzZWTVItsvRYZ8wGN3QBWtsDoS38IT9HmvBCetgz6WF9EXw0ucdZuLKK36OgOkeJe4DczdPIuaOjrfiGPo3IQU67gDSnxUsh+bBaaTCksvS/wQPSnvx/ilj4+Q1d66W2q6Fv6JZzPXfvX3Y+/iC1579bd/o0CZeFQaHmWY+H1aCqu7rt6WpwM3zADH+amb7C8L7CsNEpY2waTcJoPg/nUzb7rIYOppP2rD8wOHmZ5rywqaHCa6a2V9i2w6AyyCpOxPT176U0by8Px5j++vWXAXt7kWFoYnlIFV/jSkAU4EAirpksvOVwQyTmxB7+Ix/OpXCMtF2THifwTwrDSlRYze74auvurxobYnW4orurHIKrm4uKp99wZZw+kLrZp6fdz9zvtBGbse5n2t0Jn+YoPOLoWqwLzJnjfwYSE29DreeUPAPt8D+EdtSizR5DOzyC1QvNSTCKor79JXBHR3DvEeTdwAyf39HRXxL2fyXE0xHzLRyMZtFjKI67t1/3X6/+H3z2B1BLBwh3r/gKdQQAADkPAABQSwECFAAUAAgACABirWY9d6/4CnUEAAA5DwAADAAAAAAAAAAAAAAAAAAAAAAAZ2VvZ2VicmEueG1sUEsFBgAAAAABAAEAOgAAAK8EAAAAAA=="/>
+	<param name="image" value="http://www.geogebra.org/webstart/loading.gif"  />
+	<param name="boxborder" value="false"  />
+	<param name="centerimage" value="true"  />
+	<param name="java_arguments" value="-Xmx512m" />
+	<param name="cache_archive" value="geogebra.jar, geogebra_main.jar, geogebra_gui.jar, geogebra_cas.jar, geogebra_export.jar, geogebra_properties.jar" />
+	<param name="cache_version" value="3.2.41.0, 3.2.41.0, 3.2.41.0, 3.2.41.0, 3.2.41.0, 3.2.41.0" />
+	<param name="framePossible" value="false" />
+	<param name="showResetIcon" value="false" />
+	<param name="showAnimationButton" value="true" />
+	<param name="enableRightClick" value="false" />
+	<param name="errorDialogsActive" value="true" />
+	<param name="enableLabelDrags" value="false" />
+	<param name="showMenuBar" value="false" />
+	<param name="showToolBar" value="false" />
+	<param name="showToolBarHelp" value="false" />
+	<param name="showAlgebraInput" value="false" />
+	<param name="allowRescaling" value="true" />
+
+};
+}
+
+
+COMMENT('MathObject version.  Uses GeoGebra applet.');
+
+ENDDOCUMENT();
