@@ -21,7 +21,6 @@ Usage:
      BEGIN_TEXT
      \{ans_rule(20)\} \{ AnswerFormatHelp("formulas") \} $PAR
      \{ AnswerFormatHelp("equations","help entering equations") \} $PAR
-     \{ AnswerFormatHelp("bogus","help (formulas)","http://webwork.someschool.edu/dir/subdir/") \} $PAR
      \{ AnswerFormatHelp("bogus","custom help on formulas (internal source)","bogus",
      "<h3>&nbsp;&nbsp;Help With Something</h3>
      <ul>
@@ -39,7 +38,10 @@ the link text displayed to the student, but the actual help document
 is unaffected.  The third example (which we do not recommend) points to 
 a particular URL where html help files are located (the fields marked 
 bogus are unused, but necessary placeholders).  The last field in the 
-fourth example is html source code for the help document.
+fourth example is html source code for the help document.  We recommend
+the fourth method for custom help files that are not used often (if 
+you have a request for additional help documents, please contact us
+with your suggestions).
 
 =head1 AUTHOR
 
@@ -98,7 +100,22 @@ function popup(windowname) { blanket_size(windowname); window_pos(windowname); t
 <style type="text/css">
 <!--
 #blanket { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpan { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan00 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan01 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan02 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan03 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan04 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan05 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan06 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan07 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan08 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan09 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan10 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan11 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan12 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan13 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan14 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan15 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
 -->
 </style>
 <!--[if gte IE 5]> <style type="text/css"> #blanket {filter:alpha(opacity=65);}</style><![endif]-->
@@ -121,18 +138,8 @@ htmlheader();
 
 if ($customsource) { 
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketCustom { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanCustom { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketCustom {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-$popuphelp = qq!<span id="blanketCustom" style="display:none;"></span>
-<span id="popUpSpanCustom" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanCustom')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$customsource</span><a href="#" onclick="popup('popUpSpanCustom')">$customstring</a>!;
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan00" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan00')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$customsource</span><a href="#" onclick="popup('popUpSpan00')">$customstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
 
@@ -147,11 +154,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 if ($helptype =~ m/angle/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (angles)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (angles)"; } else { $helpstring = $customstring; }
   
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Angles</h3>
@@ -192,20 +195,8 @@ Sometimes &nbsp; <code>0.866025403784</code> &nbsp; is allowed, but &nbsp; <code
 </ul>
 !;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketAngles { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanAngles { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketAngles {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketAngles" style="display:none;"></span>
-<span id="popUpSpanAngles" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanAngles')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanAngles')">$helpstring</a>!;
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan01" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan01')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan01')">$helpstring</a>!;
 
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
@@ -218,11 +209,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/decimal/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (decimals)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (decimals)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Decimals</h3>
@@ -250,22 +237,8 @@ For example, if your answers are <nobr><code>-3/2, 4/3, 2pi, e^3, 5</code></nobr
 </ul>
 !;
 
-
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketDecimals { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanDecimals { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketDecimals {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketDecimals" style="display:none;"></span>
-<span id="popUpSpanDecimals" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanDecimals')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanDecimals')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan02" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan02')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan02')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
 
@@ -277,11 +250,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/equation/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (equations)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (equations)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Equations</h3>
@@ -323,22 +292,8 @@ Enter &nbsp; <code>NONE</code> &nbsp; or &nbsp; <code>DNE</code> &nbsp; (this ma
 </ul>
 !;
 
-
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketEquations { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanEquations { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketEquations {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketEquations" style="display:none;"></span>
-<span id="popUpSpanEquations" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanEquations')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanEquations')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan03" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan03')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan03')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
 
@@ -350,11 +305,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/exponent/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (exponents)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (exponents)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Exponents</h3>
@@ -382,23 +333,11 @@ For example, the square root of 2 can be entered as <code>sqrt(2)</code>, <code>
 </ul>
 !;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketExponents { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanExponents { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketExponents {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketExponents" style="display:none;"></span>
-<span id="popUpSpanExponents" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanExponents')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanExponents')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan04" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan04')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan04')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
+
 
 
 
@@ -407,11 +346,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/formula/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (formulas)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (formulas)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq~
 <h3>&nbsp;&nbsp;Help Entering Formulas</h3>
@@ -473,21 +408,8 @@ For example, &nbsp; <code>6x + 5 - 2x</code> &nbsp; should be simplified to &nbs
 </ul>
 ~;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketFormulas { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanFormulas { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketFormulas {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketFormulas" style="display:none;"></span>
-<span id="popUpSpanFormulas" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanFormulas')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanFormulas')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan05" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan05')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan05')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
 
@@ -499,11 +421,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/fraction/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (fractions)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (fractions)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Fractions</h3>
@@ -560,21 +478,8 @@ Enter &nbsp; <code>NONE</code> &nbsp; or &nbsp; <code>DNE</code> &nbsp; (this ma
 </ul>
 !;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketFractions { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanFractions { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketFractions {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketFractions" style="display:none;"></span>
-<span id="popUpSpanFractions" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanFractions')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanFractions')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan06" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan06')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan06')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
 
@@ -586,11 +491,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/inequalit/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (inequalities)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (inequalities)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq~
 <h3>&nbsp;&nbsp;Help Entering Inequalities</h3>
@@ -658,21 +559,8 @@ If you are asked to find the range of a function <code>y = f(x)</code>, your ine
 </ul>
 ~;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketInequalities { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanInequalities { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketInequalities {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketInequalities" style="display:none;"></span>
-<span id="popUpSpanInequalities" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanInequalities')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanInequalities')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan07" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan07')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan07')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
 
@@ -685,11 +573,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/interval/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (intervals)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (intervals)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Intervals</h3>
@@ -734,23 +618,11 @@ overlapping intervals. <br /> <br /></li>
 </ul>
 !;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketIntervals { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanIntervals { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketIntervals {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketIntervals" style="display:none;"></span>
-<span id="popUpSpanIntervals" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanIntervals')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanIntervals')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan08" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan08')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan08')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
+
 
 
 
@@ -760,11 +632,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/limit/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (limits)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (limits)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Limits</h3>
@@ -818,21 +686,8 @@ For example, &nbsp; <code>6x+5-2x+7</code> &nbsp; should be simplified to &nbsp;
 </ul>
 !;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketLimits { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanLimits { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketLimits {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketLimits" style="display:none;"></span>
-<span id="popUpSpanLimits" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanLimits')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanLimits')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan09" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan09')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan09')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
 
@@ -848,15 +703,13 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/log/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (logarithms)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (logarithms)"; } else { $helpstring = $customstring; }
 
-  my $useBaseTenLogHelp = main::Context()->flags->get("useBaseTenLog");
+  my $local1UseBaseTenLogHelp = Context()->flags->get("useBaseTenLog");
+  my $local2UseBaseTenLogHelp = main::Context()->flags->get("useBaseTenLog");
+  my $globalUseBaseTenLogHelp = $useBaseTenLog;
 
-  if ($useBaseTenLogHelp == 1) { # log = logten
+  if ($local1UseBaseTenLogHelp == 1 || $local2UseBaseTenLogHelp == 1 || $globalUseBaseTenLogHelp == 1) { # log = logten
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Logarithms</h3>
@@ -945,21 +798,8 @@ For example, the required answer may be &nbsp; <code>ln(6) + ln(x)</code> &nbsp;
 
   } # end if for useBaseTenLog
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketLogarithms { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanLogarithms { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketLogarithms {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketLogarithms" style="display:none;"></span>
-<span id="popUpSpanLogarithms" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanLogarithms')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanLogarithms')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan10" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan10')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan10')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
 
@@ -974,11 +814,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/number/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (numbers)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (numbers)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Numbers</h3>
@@ -1016,23 +852,11 @@ Enter &nbsp; <code>NONE</code> &nbsp; or &nbsp; <code>DNE</code> &nbsp; (this ma
 </ul>
 !;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketNumbers { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanNumbers { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketNumbers {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketNumbers" style="display:none;"></span>
-<span id="popUpSpanNumbers" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanNumbers')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanNumbers')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan11" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan11')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan11')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
+
 
 
 
@@ -1042,11 +866,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/point/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (points)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (points)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Help Entering Points</h3>
@@ -1089,23 +909,11 @@ Enter &nbsp; <code>NONE</code> &nbsp; or &nbsp; <code>DNE</code> &nbsp; (this ma
 </ul>
 !;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketPoints { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanPoints { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketPoints {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketPoints" style="display:none;"></span>
-<span id="popUpSpanPoints" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanPoints')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanPoints')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan12" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan12')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan12')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
+
 
 
 
@@ -1114,11 +922,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/unit/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (units)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (units)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq!
 <h3>&nbsp;&nbsp;Abbreviations for Units</h3>
@@ -1204,23 +1008,11 @@ second).
 <br />
 !;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketUnits { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanUnits { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketUnits {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketUnits" style="display:none;"></span>
-<span id="popUpSpanUnits" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanUnits')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanUnits')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan13" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan13')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan13')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
+
 
 
 
@@ -1230,11 +1022,7 @@ if ($main::displayMode ne "TeX") { return $popuphelp; }
 
 } elsif ($helptype =~ m/vector/i) {
 
-  if (!$customstring) { 
-     $helpstring = "help (vectors)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (vectors)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq~
 <h3>&nbsp;&nbsp;Help Entering Vectors</h3>
@@ -1285,36 +1073,21 @@ Enter &nbsp; <code>NONE</code> &nbsp; or &nbsp; <code>DNE</code> &nbsp; (this ma
 </ul>
 ~;
 
-HEADER_TEXT(<<END_HEADER_TEXT);
-<style type="text/css">
-<!--
-#blanketVectors { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpanVectors { position:absolute;	background-color:#f8f8f8; width:50%; z-index: 9002; }
--->
-</style>
-<!--[if gte IE 5]> <style type="text/css"> #blanketVectors {filter:alpha(opacity=65);}</style><![endif]-->
-END_HEADER_TEXT
-
-
-
-$popuphelp = qq!<span id="blanketVectors" style="display:none;"></span>
-<span id="popUpSpanVectors" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpanVectors')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpanVectors')">$helpstring</a>!;
-
+$popuphelp = qq!<span id="blanket" style="display:none;"></span>
+<span id="popUpSpan14" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan14')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan14')">$helpstring</a>!;
 
 if ($main::displayMode ne "TeX") { return $popuphelp; }
+
 
 
 
 #########################################
 #  Syntax (the catch all)
 
-} elsif ($helptype =~ m/syntax/i) {
+#} elsif ($helptype =~ m/syntax/i) {
+} else {
 
-  if (!$customstring) { 
-     $helpstring = "help (syntax)"; 
-  } else { 
-     $helpstring = $customstring; 
-  }
+  if (!$customstring) { $helpstring = "help (syntax)"; } else { $helpstring = $customstring; }
 
   $helpsource = qq~ 
 <h3>&nbsp;&nbsp;Syntax for Entering Answers in WeBWorK</h3>
@@ -1453,35 +1226,15 @@ For more information:
 <br />
 ~;
 
-
-###########################################
-#  Custom source
-
-} else { }
-
-
-
-
-
-
-
-
-
-
-###############################################
-#  Render the help link and help source in html
-#
-
-
-
 $popuphelp = qq!<span id="blanket" style="display:none;"></span>
-<span id="popUpSpan" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan')">$helpstring</a>!;
+<span id="popUpSpan15" style="display:none;"><p align="right"><a href="#" onclick="popup('popUpSpan15')" style="text-decoration:none"><b><font color="#0000FF">Close</font></b></a>&nbsp;&nbsp;&nbsp;</p>$helpsource</span><a href="#" onclick="popup('popUpSpan15')">$helpstring</a>!;
 
+if ($main::displayMode ne "TeX") { return $popuphelp; }
 
-if ($main::displayMode ne "TeX") {
-  htmlheader();
-  return $popuphelp;
 }
+
+
+
 
 
 
