@@ -100,22 +100,7 @@ function popup(windowname) { blanket_size(windowname); window_pos(windowname); t
 <style type="text/css">
 <!--
 #blanket { background-color:#000000; opacity: 0.5; position:absolute; z-index: 9001; top:0px; left:0px; width:100%; }
-#popUpSpan00 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan01 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan02 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan03 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan04 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan05 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan06 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan07 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan08 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan09 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan10 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan11 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan12 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan13 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan14 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
-#popUpSpan15 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
+#popUpSpan00, #popUpSpan01, #popUpSpan02, #popUpSpan03, #popUpSpan04, #popUpSpan05, #popUpSpan06, #popUpSpan07, #popUpSpan08, #popUpSpan09, #popUpSpan10, #popUpSpan11, #popUpSpan12, #popUpSpan13, #popUpSpan14, #popUpSpan15 { position:absolute; background-color:#f8f8f8; width:50%; z-index: 9002; }
 -->
 </style>
 <!--[if gte IE 5]> <style type="text/css"> #blanket {filter:alpha(opacity=65);}</style><![endif]-->
