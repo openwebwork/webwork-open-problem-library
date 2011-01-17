@@ -125,6 +125,7 @@ Context()->strings->add( a=>{}, b=>{}, c=>{}, d=>{}, g=>{}, none=>{} );
 ##    less than and greater than pi/2, and set up the strings that
 ##    we'll use in the explanation.
 @par = ();     @per = ();     @les = ();     @mor = ();
+@parl = ();    @perl = ();    @lesl = ();    @morl = ();
 $parstr = '';  $perstr = '';  $lesstr = '';  $morstr = '';
 for ( my $i=0; $i<@showVec; $i++ ) {
     my $v1 = ( 'a', 'b', 'c', 'd', 'g' )[$i];
@@ -134,7 +135,9 @@ for ( my $i=0; $i<@showVec; $i++ ) {
 	my @v2v = $showVec[$j]->value;
 
 	if ( $showVec[$i].$showVec[$j] == 0 ) {
-	    push( @per, List( "($v1, $v2)" ) );
+    # we can't build the strings here because the "correct" constructor
+    #    notation depends on how many pairs there are
+	    push( @perl, [ $v1, $v2 ] );
 	    if ( $perstr ) {
 		$perstr .= ( $perstr =~ " and similarly " ) ? ", " :
 		    " and similarly ";
@@ -146,7 +149,7 @@ for ( my $i=0; $i<@showVec; $i++ ) {
 	    }
 
 	} elsif ( $showVec[$i]->isParallel( $showVec[$j] ) ) {
-	    push( @par, List( "($v1, $v2)" ) );
+	    push( @parl, [ $v1, $v2 ] );
 	    if ( $parstr ) {
 		$parstr .= ( $parstr =~ " and similarly " ) ? ", " :
 		    " and similarly for ";
@@ -157,7 +160,7 @@ for ( my $i=0; $i<@showVec; $i++ ) {
 	    }
 
 	} elsif ( $showVec[$i].$showVec[$j] > 0 ) {
-	    push( @les, List(String($v1), String($v2)) );
+	    push( @lesl, [ $v1, $v2 ] );
 	    if ( $lesstr ) {
 		$lesstr .= ( $lesstr =~ " and similarly " ) ? ", " :
 		    " and similarly ";
@@ -169,7 +172,7 @@ for ( my $i=0; $i<@showVec; $i++ ) {
 	    }
 
 	} elsif ( $showVec[$i].$showVec[$j] < 0 ) {
-	    push( @mor, List(String($v1), String($v2)) );
+	    push( @morl, [ $v1, $v2 ] );
 	    if ( $morstr ) {
 		$morstr .= ( $morstr =~ " and similarly " ) ? ", " :
 		    " and similarly ";
@@ -181,6 +184,45 @@ for ( my $i=0; $i<@showVec; $i++ ) {
 	    }
 	}
     }
+}
+
+# the following is required because, essentially, of parenthesis management
+#    for lists of lists.  the construction for a list of a singleton list
+#    has to be List( "(a,b)" ) to have the input (a,b) (but not a,b) be
+#    marked as correct.  however, if we have more entries, this notation
+#    demands an extra outer paren: "((a,b), (c,d))", when we want to allow
+#    "(a,b), (c,d)"
+if ( @parl == 1 ) {
+    $par = List( "($parl[0]->[0], $parl[0]->[1])" );
+} else {
+    foreach ( @parl ) {
+	push( @par, List( ( $_->[0], $_->[1] ) ) );
+    }
+    $par = List( @par );
+}
+if ( @perl == 1 ) {
+    $per = List( "($perl[0]->[0], $perl[0]->[1])" );
+} else {
+    foreach ( @perl ) {
+	push( @per, List( ( $_->[0], $_->[1] ) ) );
+    }
+    $per = List( @per );
+}
+if ( @lesl == 1 ) {
+    $les = List( "($lesl[0]->[0], $lesl[0]->[1])" );
+} else {
+    foreach ( @lesl ) {
+	push( @les, List( ( $_->[0], $_->[1] ) ) );
+    }
+    $les = List( @les );
+}
+if ( @morl == 1 ) {
+    $par = List( "($morl[0]->[0], $morl[0]->[1])" );
+} else {
+    foreach ( @morl ) {
+	push( @mor, List( ( $_->[0], $_->[1] ) ) );
+    }
+    $mor = List( @mor );
 }
 
 ## a string finishing routine
@@ -284,10 +326,10 @@ enter ${BBOLD}(a,b),(a,c)$EBOLD.)$EITALIC
 END_TEXT
 Context()->normalStrings;
 
-ANS(List( @per )->cmp() );
-ANS(List( @par )->cmp() );
-ANS(List( @les )->cmp() );
-ANS(List( @mor )->cmp() );
+ANS( $per->cmp() );
+ANS( $par->cmp() );
+ANS( $les->cmp() );
+ANS( $mor->cmp() );
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
@@ -313,6 +355,6 @@ negative dot product.  $morstr
 END_SOLUTION
 Context()->normalStrings;
 
+COMMENT( "Uses MathObjects" );
 
-COMMENT('MathObject version');
 ENDDOCUMENT();
