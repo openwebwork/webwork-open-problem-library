@@ -61,10 +61,28 @@ $e->assign(1,2, - $eig2);
 $e->assign(2,1, $eig2);
 $matrix = $a * $e *$b;
 
+## Make sure we have the right answer, and not its conjugate for the
+## first eigenvector.
+@mvals = ( [ $matrix->element(1,1), $matrix->element(1,2) ],
+		   [ $matrix->element(2,1), $matrix->element(2,2) ] );
+@ansc = ($a->element(1,1), $a->element(2,1));
+@ansd = ($a->element(1,2), $a->element(2,2));
+$ansflag=0;
+$ansflag = 1 if(( $mvals[0]->[0]*$ansc[0] + $mvals[0]->[1]*$ansc[1] ==
+	   $eig1*$ansc[0] - $eig2*$ansd[0] ) &&
+	 ( $mvals[1]->[0]*$ansc[0] + $mvals[1]->[1]*$ansc[1] ==
+	   $eig1*$ansc[1] - $eig2*$ansd[1] ) &&
+	 ( $mvals[0]->[0]*$ansd[0] + $mvals[0]->[1]*$ansd[1] ==
+	   $eig2*$ansc[0] + $eig1*$ansd[0] ) &&
+	 ( $mvals[1]->[0]*$ansd[0] + $mvals[1]->[1]*$ansd[1] ==
+	   $eig2*$ansc[1] + $eig1*$ansd[1] ) );
+
+@ansd = (-$ansd[0], -$ansd[1]) unless ($ansflag == 1);
+
 ## to check that we have a correct answer, just verify that
 ##    the appropriate matrix multiplication works
 $ev = MultiAnswer( $eig1, $eig2, $a->column(1)->list,
-		   $a->column(2)->list )->with(
+		   @ansd )->with(
     singleResult => 1,
     checkTypes => 0,
     allowBlankAnswers => 1,
@@ -88,11 +106,14 @@ $ev = MultiAnswer( $eig1, $eig2, $a->column(1)->list,
           $flag=0;
         }
         
-	if ( $flag==-1 && ( $stuE1 || $stuE2 ) && ( $stuC[0] || $stuC[1] ) &&
-	     ( $stuD[0] || $stuD[1] ) ) {
-	    @mvals = ( [ $matrix->element(1,1), $matrix->element(1,2) ],
-		       [ $matrix->element(2,1), $matrix->element(2,2) ] );
-	    $flag2 = (( $mvals[0]->[0]*$stuC[0] + $mvals[0]->[1]*$stuC[1] ==
+		#Value::Error("D1 not empty " . $stuD[1]) if ($stuD[1] =~ /[0-9]/)  ;
+	if ( $flag==-1 ) {
+		if( ($stuE1 =~ /[0-9]/) && ($stuE2 =~ /[0-9]/) && ($stuC[0] =~ /[0-9]/) 
+		  && ($stuC[1]  =~ /[0-9]/) && ($stuD[0] =~ /[0-9]/) && 
+          ($stuD[1] =~ /[0-9]/) ) {
+		  if ( ( $stuE1 || $stuE2 ) && ( $stuC[0] || $stuC[1] ) &&
+	       ( $stuD[0] || $stuD[1] ) ) {
+	        $flag2 = (( $mvals[0]->[0]*$stuC[0] + $mvals[0]->[1]*$stuC[1] ==
 		       $stuE1*$stuC[0] - $stuE2*$stuD[0] ) &&
 		     ( $mvals[1]->[0]*$stuC[0] + $mvals[1]->[1]*$stuC[1] ==
 		       $stuE1*$stuC[1] - $stuE2*$stuD[1] ) &&
@@ -100,25 +121,28 @@ $ev = MultiAnswer( $eig1, $eig2, $a->column(1)->list,
 		       $stuE2*$stuC[0] + $stuE1*$stuD[0] ) &&
 		     ( $mvals[1]->[0]*$stuD[0] + $mvals[1]->[1]*$stuD[1] ==
 		       $stuE2*$stuC[1] + $stuE1*$stuD[1] ) );
-        if($flag2==0) {
-	      $flag2 = (( $mvals[0]->[0]*$stuC[0] + $mvals[0]->[1]*$stuC[1] ==
-		       $stuE1*$stuC[0] + $stuE2*$stuD[0] ) &&
-		     ( $mvals[1]->[0]*$stuC[0] + $mvals[1]->[1]*$stuC[1] ==
-		       $stuE1*$stuC[1] + $stuE2*$stuD[1] ) &&
-		     ( $mvals[0]->[0]*$stuD[0] + $mvals[0]->[1]*$stuD[1] ==
-		       - $stuE2*$stuC[0] + $stuE1*$stuD[0] ) &&
-		     ( $mvals[1]->[0]*$stuD[0] + $mvals[1]->[1]*$stuD[1] ==
-		       - $stuE2*$stuC[1] + $stuE1*$stuD[1] ) );
-         }
+        #if($flag2==0) {
+	      #$flag2 = (( $mvals[0]->[0]*$stuC[0] + $mvals[0]->[1]*$stuC[1] ==
+		       #$stuE1*$stuC[0] + $stuE2*$stuD[0] ) &&
+		     #( $mvals[1]->[0]*$stuC[0] + $mvals[1]->[1]*$stuC[1] ==
+		       #$stuE1*$stuC[1] + $stuE2*$stuD[1] ) &&
+		     #( $mvals[0]->[0]*$stuD[0] + $mvals[0]->[1]*$stuD[1] ==
+		       #- $stuE2*$stuC[0] + $stuE1*$stuD[0] ) &&
+		     #( $mvals[1]->[0]*$stuD[0] + $mvals[1]->[1]*$stuD[1] ==
+		       #- $stuE2*$stuC[1] + $stuE1*$stuD[1] ) );
+         #}
 
-	}
-    Value::Error("Your eigenvalues are correct, but not the eigenvectors") if($flag2==0);
-    return $flag2
+	  }
+      Value::Error("Your eigenvalues are correct, but not the eigenvectors") if($flag2==0);
+      return $flag2
+    } else {
+      Value::Error("You need to enter the eigenvectors");
     }
+  }
+  }
 );
 
 BEGIN_TEXT
-
 The matrix 
 $BR 
 \{ mbox( '\( A = \)', display_matrix($matrix) ) \}
@@ -225,6 +249,7 @@ ANS(num_cmp($eig1));
 ANS(num_cmp($eig2));
 NAMED_ANS(vec1 => check_eigenvector($e->element(1,1), $matrix, correct_ans =>[$a->column(1)->list])   );
 NAMED_ANS(vec2 =>check_eigenvector($e->element(2,2), $matrix, correct_ans =>[$a->column(2)->list])   );;
+[$a->  $a->column(2)->list])   );;
 
 
 ######################################################### 
