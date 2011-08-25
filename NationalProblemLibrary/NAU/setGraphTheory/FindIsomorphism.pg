@@ -1,0 +1,166 @@
+##DESCRIPTION
+## DBsubject('Discrete Mathematics')
+## DBchapter('Graph Theory')
+## DBsection('')
+## KEYWORDS('graph', 'isomorphic')
+## Author('Edgar Fisher')
+## Institution('NAU')
+##ENDDESCRIPTION
+
+# File Created: 6/21/05
+# Location: Northern Arizona University
+
+DOCUMENT();
+
+loadMacros("PGstandard.pl",
+           "PGbasicmacros.pl",
+	   "PGnauGraphtheory.pl",
+	   "PGnauGraphCatalog.pl",
+          );
+
+COMMENT('Please limit the number of trials.');
+
+TEXT($BEGIN_ONE_COLUMN);
+TEXT(&beginproblem);
+
+# I don't know why but this function is not found in PGnauGraphtheory.pl, Nandor
+sub GRvertices_labels_labels{
+  my ($labels, $orig_labels) = @_;
+  my ($i, $label, @vertices);    
+  for ($i = 0; $i < length $labels; $i++){
+    $label = substr $labels, $i, 1;
+    push @vertices, GRvertex_label_labels($label, $orig_labels);
+  }		
+  @vertices;
+}
+		  
+
+$showPartialCorrectAnswers = 0;
+
+$letters = join '', 'A'..'Z';
+
+$size = random(6,7,1);
+$var = "graph$size";
+$length = scalar @$var;
+$low = int(.1 * $length);
+$num = random($low, 9 * $low, 1);
+push @graphs, GRshuffledgraph_graph(@$var[$num]);
+@deg = GRdegrees_graph($graphs[0]);
+@deg = num_sort(@deg);
+$deg_str = join ",", @deg;
+$orig_lab = substr $letters, 0, $size;
+$new_lab = substr $letters, 26 - $size, $size;
+@tmp = split '', $orig_lab;
+$lab_str = join ',', @tmp;
+
+$deg_num = 0;
+for ($i = $low; $i < $length; $i++){
+  $graph = @$var[$i];
+  @new_deg = num_sort (GRdegrees_graph($graph));
+  $new_str = join ",", @new_deg;
+  if ($i != $num && $new_str eq $deg_str){
+    push @graphs, GRshuffledgraph_graph($graph);
+    $deg_num = $i;
+    last;
+  }
+}
+
+if ($deg_num == 0){
+  $deg_num = $num + 2;
+  push @graphs, @$var[$deg_num];
+}
+
+if ($num + 2 == $deg_num){
+  push @graphs, GRshuffledgraph_graph(@$var[$num - 2]);
+} else {
+  push @graphs, GRshuffledgraph_graph(@$var[$num + 2]);
+}
+
+push @graphs, GRshuffledgraph_graph($graphs[0]);
+
+$orig_pic = GRpic_graph_labels($graphs[0],$orig_lab);
+for ($i = 1; $i < 4; $i++){
+  push @pics, GRpic_graph_labels($graphs[$i], $new_lab);
+}
+
+($table, $ans) = radio_table([@pics],[0,0,1], geometry=>[1,3]);
+
+#######################################################
+
+$Iso_Eval = sub {
+    my ($orig_in) = @_;
+
+    my ($tmp, $corr, $intex, $score, @iso_adj, @iso_deg, $message, @orig_adj, @orig_deg, @vertices, @vert_nums);
+    
+    if ($orig_in eq ''){
+      $score = 0;
+      $message = 'mes1';
+    } else {
+      $score = 1;
+      $message = 'mes2';
+
+      @vertices = GRvertexlist_edgesstr_labels($orig_in, $new_lab);
+      $intex = join ',', @vertices;    
+      $tmp = join '', @vertices;
+      @vert_nums = GRvertices_labels_labels($tmp, $new_lab);
+      @orig_deg = GRdegrees_graph(@graphs[0]);
+      @iso_deg = GRdegrees_graph(@graphs[3]);
+      @orig_adj = GRmatrix_graph(@graphs[0]);
+      @iso_adj = GRmatrix_graph(@graphs[3]);
+      
+      if (scalar @vertices != $size){
+        $score = 0;
+	$message = 'Incorrect number of vertices.';
+      }
+      for ($i = 0; $i < $size && $score != 0; $i++){
+        if (@orig_deg[$i] != @iso_deg[@vert_nums[$i]]){
+	  $score = 0;
+  	  $message = 'Incorrect degrees.';
+        }
+      }
+      for ($i = 0; $i < $size && $score != 0; $i++){
+        for ($j = 0; $j < $size; $j++){
+	  if ($orig_adj[$i][$j] != $iso_adj[@vert_nums[$i]][@vert_nums[$j]]){
+	    $score = 0;
+	    $message = 'Incorrect correspondence.';
+	    last;
+	  }
+	}
+      }
+
+    }
+    if ($score == 1){$corr = $intex;} 
+    else {$corr = '';}
+    
+    my $ans_hash = { score => $score,
+                 correct_ans => $corr,
+                 student_ans => $orig_in,
+		 preview_latex_string => $intex,
+                 ans_message => ($score) ? '' : $message
+                };
+   $ans_hash;
+};
+
+#######################################################
+
+BEGIN_TEXT
+Consider the graph \( \Gamma \) :
+$PAR
+\{ Plot($orig_pic, tex_size => 300) \}
+
+$PAR
+Which of the graphs below is isomorphic to \(\Gamma\)?
+$PAR
+$table
+$BR 
+Indicate the isomorphism by listing the vertices seperated by commas in 
+the order they correspond to $lab_str, respectively.$BR
+\{ ans_rule(15)\}
+$BR
+END_TEXT
+
+ANS($Iso_Eval);
+$ans;
+
+TEXT($END_ONE_COLUMN);
+ENDDOCUMENT();

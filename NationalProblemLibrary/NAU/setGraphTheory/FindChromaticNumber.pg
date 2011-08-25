@@ -1,0 +1,131 @@
+##DESCRIPTION
+## DBsubject('Discrete Mathematics')
+## DBchapter('Graph Theory')
+## DBsection('')
+## KEYWORDS('graph', 'chromatic number')
+## Author('Edgar Fisher')
+## Institution('NAU')
+##ENDDESCRIPTION
+
+# File Created: 7/3/05
+# Location: Northern Arizona University
+
+# Requires:
+# Chromatic.pm loaded in global.conf
+# /opt/webwork/pg/lib/Chromatic.pm        with correct path names
+# /opt/webwork/pg/lib/chromatic/color.c   compiled
+
+DOCUMENT();
+
+loadMacros("PGstandard.pl",
+           "PGbasicmacros.pl",
+	   "PGnauGraphtheory.pl",
+          );      
+
+COMMENT('Please limit the number of trials.');
+
+TEXT(&beginproblem);
+$showPartialCorrectAnswers = 1;
+
+$size = random(7,10,1);  # number of vertices
+$letters = join '', 'A'..'Z';
+$offset = random(7, 26-$size, 1);
+$labels = substr $letters, $offset, $size ;
+
+do{
+  $graph = GRgraph_size_random($size,0.5);
+  $chn = Chromatic::ChromNum($graph);
+} while ($chn < 2 || $chn > 5);
+$pic = GRpic_graph_labels($graph, $labels);
+
+###########################################
+
+$Chromgroup = sub {
+  my ($orig_in) = @_;
+
+  my ($i, $j, $v1, $v2, @adj, $tmp, @list, @vert, @group, $score, $g_size, $message, $understood_in);
+
+  @adj = GRmatrix_graph($graph);
+  $understood_in = '';
+    
+  if ($orig_in eq ''){
+    $score = 0;
+    $message = '';
+  }else {
+    @group = split ';', $orig_in;
+
+    if (scalar @group != $chn){
+      $score = 0;
+      $message = 'Incorrect number of groups.';
+    } else {
+      $score = 1;
+      @all_vert = ();
+      
+      foreach $val (@group){
+        @vert = ();
+        @list = GRvertexlist_edgesstr_labels($val, $labels);
+	$tmp = join '', @list;
+	$understood_in .= "$tmp;";
+	@vert = GRvertices_labels_labels($tmp, $labels);
+	push @all_vert, @vert;
+
+	for ($i = 0; $i < $g_size; $i++){
+	  $v1 = $vert[$i];
+	  for ($j = $i + 1; $j < $g_size; $j++){
+	    $v2 = $vert[$j];
+	    if ($adj[$v1][$v2] != 0){
+	      $score = 0;
+	      $message = 'Incorrect grouping.';
+	      last;
+	    }
+	  }
+	}
+      }
+      @all_vert = num_sort (@all_vert);
+      $total = scalar @all_vert;
+      if ($total < $size){
+        $score = 0;
+	$message = 'Not all vertices used.';
+      } elsif ($total > $size){
+        $score = 0;
+	$message = 'Too many vertices used.';
+      } else {
+        for ($i = 0; $i < $total - 1; $i++){
+	  if (@all_vert[$i] == @all_vert[$i+1]){
+	    $score = 0;
+	    $message = 'Repeated vertex.';
+	  }
+	}
+      }
+    }
+  }
+  
+  chop $understood_in;
+  
+  my $ans_hash = { score => $score,
+                 correct_ans => '',
+                 student_ans => $orig_in,
+		 preview_latex_string => $understood_in, 
+# 		 original_student_ans => $orig_in,
+                ans_message => ($score) ? '' : $message
+                };
+};
+
+###########################################
+
+BEGIN_TEXT
+$BR
+\{ Plot($pic)\}
+$PAR
+What is the chromatic number of the above graph?
+\{ ans_rule(5) \}
+$BR
+List the vertices in groups with the same color, with the groups 
+seperated by semicolons (i.e. A F C; B; G D; E).
+$BR \{ ans_rule(30)\}
+$BR
+END_TEXT
+
+ANS(num_cmp($chn));
+ANS($Chromgroup);
+ENDDOCUMENT();

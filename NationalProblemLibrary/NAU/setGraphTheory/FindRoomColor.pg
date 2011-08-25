@@ -1,0 +1,155 @@
+##DESCRIPTION
+## DBsubject('Discrete Mathematics')
+## DBchapter('Graph Theory')
+## DBsection('')
+## KEYWORDS('graph', 'chromatic number')
+## Author('Edgar Fisher')
+## Institution('NAU')
+##ENDDESCRIPTION
+
+# Location: Northern Arizona University
+
+# Requires:
+# Chromatic.pm loaded in global.conf
+# /opt/webwork/pg/lib/Chromatic.pm        with correct path names
+# /opt/webwork/pg/lib/chromatic/color.c   compiled
+
+
+DOCUMENT();
+
+loadMacros("PGstandard.pl",      
+	   "PGnauGraphtheory.pl",
+          );      
+
+TEXT(&beginproblem);
+$showPartialCorrectAnswers = 1;
+
+$size = random(8,15);
+$letters = join '', 'A'..'Z';
+$offset = random (8, 26 - $size, 1);
+$labels = substr $letters, $offset, $size;
+
+do{
+  $graph = GRgraph_size_random($size, .5);
+  $chn = Chromatic::ChromNum($graph);
+} while($chn < 2 || chn > 7);
+
+@adj = GRmatrix_graph($graph);
+
+$table = begintable($size+1);
+
+push @list, 'Rm';
+for ($i = 0; $i < $size; $i++){
+  push @list, substr $labels, $i, 1;
+}
+$table .= row(@list);
+
+for ($i = 0; $i < $size; $i++){
+  @list = ();
+  push @list, substr $labels, $i, 1;
+  for ($j = 0; $j < $size; $j++){
+    if ($adj[$i][$j] == 0){
+      push @list, '-';
+    } else{
+      push @list, '*';
+    }
+  }
+  $table .= row(@list);
+}
+$table .= endtable();
+
+
+###########################################
+
+$Chromgroup = sub {
+  my ($orig_in) = @_;
+
+  my ($i, $j, $v1, $v2, @adj, $tmp, @list, @vert, @group, $score, $g_size, $message, $understood_in);
+
+  @adj = GRmatrix_graph($graph);
+  $understood_in = '';
+    
+  if ($orig_in eq ''){
+    $score = 0;
+    $message = '';
+  }else {
+    @group = split ';', $orig_in;
+
+    if (scalar @group != $chn){
+      $score = 0;
+      $message = 'Incorrect number of groups.';
+    } else {
+      $score = 1;
+      @all_vert = ();
+      
+      foreach $val (@group){
+        @vert = ();
+        @list = GRvertexlist_edgesstr_labels($val, $labels);
+	$tmp = join '', @list;
+	$understood_in .= "$tmp;";
+	@vert = GRvertices_labels_labels($tmp, $labels);
+	push @all_vert, @vert;
+
+	for ($i = 0; $i < $g_size; $i++){
+	  $v1 = $vert[$i];
+	  for ($j = $i + 1; $j < $g_size; $j++){
+	    $v2 = $vert[$j];
+	    if ($adj[$v1][$v2] != 0){
+	      $score = 0;
+	      $message = 'Incorrect grouping.';
+	      last;
+	    }
+	  }
+	}
+      }
+      @all_vert = num_sort(@all_vert);
+      $total = scalar @all_vert;
+      if ($total < $size){
+        $score = 0;
+	$message = 'Not all vertices used.';
+      } elsif ($total > $size){
+        $score = 0;
+	$message = 'Too many vertices used.';
+      } else {
+        for ($i = 0; $i < $total - 1; $i++){
+	  if (@all_vert[$i] == @all_vert[$i+1]){
+	    $score = 0;
+	    $message = 'Repeated vertex.';
+	  }
+	}
+      }
+    }
+  }
+  
+  chop $understood_in;
+  
+  my $ans_hash = { score => $score,
+                 correct_ans => '',
+                 student_ans => $orig_in,
+		 preview_latex_string => $understood_in, 
+# 		 original_student_ans => $orig_in,
+                ans_message => ($score) ? '' : $message
+                };
+};
+
+###########################################
+
+BEGIN_TEXT
+$BR
+The rooms in a house are adjacent as indicated in the following table.  An '*' 
+means they are adjacent, and a '-'means they are not.
+$BR
+$table
+$BR
+How few colors can be used so that each room is painted a color so in which no
+two adjacent rooms are the same color?$BR
+\{ ans_rule(5)\}$BR
+List the rooms in groups with the same color, with the groups seperated by 
+semicolons (i.e. F E; A; G B D; C).
+$BR \{ ans_rule(30)\}$BR
+END_TEXT
+
+ANS(num_cmp($chn));
+ANS($Chromgroup);
+
+ENDDOCUMENT();

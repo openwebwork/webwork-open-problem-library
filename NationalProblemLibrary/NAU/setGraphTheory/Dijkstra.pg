@@ -1,0 +1,129 @@
+##DESCRIPTION
+## DBsubject('Discrete Mathematics')
+## DBchapter('Graph Theory')
+## DBsection('')
+## KEYWORDS('graph', 'path', 'Dijkstra')
+## Author('Edgar Fisher')
+## Institution('NAU')
+##ENDDESCRIPTION
+
+# File Created: 6/19/05
+# Location: Northern Arizona University
+
+DOCUMENT();
+
+loadMacros("PGstandard.pl",
+	   "PGnauGraphtheory.pl",
+	   "extraAnswerEvaluators.pl",
+          );      
+
+TEXT(&beginproblem);
+$showPartialCorrectAnswers = 1;
+
+$rows = random (3, 3, 1);
+$cols = random (4, 5, 1);
+
+@alpha = ('A'..'Z');
+$offset = random (0, 26 - $rows * $cols - 1, 1);
+for ($i = $offset; $i < 26; $i+= $rows){
+  for ($j = 0; $j < ($rows - 1)/2; $j++){
+    $val = $alpha[$i + $j];
+    $alpha[$i + $j] = $alpha[$i + $rows - $j - 1];
+    $alpha[$i + $rows - $j - 1] = $val;
+  }
+}
+$letters = join '', @alpha;
+
+$labels    = substr $letters, $offset, $rows * $cols;
+$weight    = random(2,11,1);
+@poss      = NchooseK($rows,2);
+$v1        = $poss[0];
+$v2        = ($cols - 1) * $rows + $poss[1];
+$label1    = GRlabel_vertex_labels($v1, $labels);
+$label2    = GRlabel_vertex_labels($v2, $labels);
+
+do {
+  $rnd = .7;
+  ($graph, $pic) = GRgraphpic_dim_random_labels_weight_dweight($rows, $cols, $rnd, $labels, $weight, 1);
+  $c = GRncomponents_graph($graph);
+} while ($c > 1);
+
+($distance, @path) = GRdijkstra_graph_vertex_vertex($graph, $v1, $v2);
+
+$ans = GRlabels_vertices_labels(@path, $labels);
+
+$evalpath = sub{
+  my $orig_in = shift;
+
+  my ($i, @in, @adj, $sum, $next, $poss, $prev, $size, $intex, $score, $verts, $message);
+
+  if ($orig_in eq ''){
+    $score = 0;
+  } else{
+    $score = 1;
+    $poss = GRlabels_vertices_labels(@path, $labels);
+    @in = GRvertexlist_edgesstr_labels($orig_in, $labels);
+    @adj = GRmatrix_graph($graph);
+    $size = scalar @in;
+    $intex = join ',', @in;
+
+    for ($i = 0; $i < $size; $i++){
+      push @verts, GRvertex_label_labels($in[$i], $labels);
+    }
+    
+    $sum = 0;
+    $prev = $verts[0];
+    for ($i = 1; $i < $size && $score == 1; $i++){
+      $next = $verts[$i];
+      if ($adj[$prev][$next] != 0){
+        $sum += $adj[$prev][$next];
+	$adj[$prev][$next] = 0;
+	$adj[$next][$prev] = 0;
+      } else {
+        $score = 0;
+	$message = 'Nonexistent or repeated edge included.';
+      }
+      $prev = $next;
+    }
+    if ($score != 0 && $sum > $distance){
+      $score = 0;
+      $message = 'Shorter path exists.';
+    }
+    if ($verts[0] != $v1 || $verts[$size - 1] != $v2){
+      $score = 0;
+      $message = 'Wrong start or end vertex';
+    }
+  }
+
+  my $ans_hash = { score => $score,
+                 correct_ans => "One possible solution is $poss.",
+                 student_ans => $orig_in,
+		 preview_latex_string => $intex, 
+# 		 original_student_ans => $orig_in,
+                ans_message => ($score) ? '' : $message
+                };
+
+};
+
+BEGIN_TEXT
+$PAR
+\{ Plot($pic) \}
+
+$PAR
+Consider the graph given above. Use Dijkstra's algorithm to find the shortest 
+path between $label1 and $label2.
+
+$PAR
+a. List the vertices in the order they are visited as specified by the algorithm. 
+$PAR
+\{ans_rule(20) \}
+$PAR
+b. What is the total weight along the path?
+$PAR
+\{ans_rule(5)\}
+END_TEXT
+
+ANS($evalpath);
+ANS(num_cmp($distance));
+
+ENDDOCUMENT();

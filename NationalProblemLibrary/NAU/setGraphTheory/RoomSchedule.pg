@@ -1,0 +1,157 @@
+##DESCRIPTION
+## DBsubject('Discrete Mathematics')
+## DBchapter('Graph Theory')
+## DBsection('')
+## KEYWORDS('graph', 'chromatic number')
+## Author('Edgar Fisher')
+## Institution('NAU')
+##ENDDESCRIPTION
+
+# File Created: 7/18/05
+# Location: Northern Arizona University
+
+# Requires:
+# Chromatic.pm loaded in global.conf
+# /opt/webwork/pg/lib/Chromatic.pm        with correct path names
+# /opt/webwork/pg/lib/chromatic/color.c   compiled
+
+
+
+DOCUMENT();
+
+loadMacros("PGstandard.pl",      
+	   "PGnauGraphtheory.pl",
+          );      
+
+TEXT(&beginproblem);
+$showPartialCorrectAnswers = 1;
+
+$letters = join '', 'A'..'Z';
+
+$num_stud = random(7,10,1);
+$num_cours= random(7,10,1);
+$offset = random (0, 26 - $num_cours, 1);
+$labels = substr $letters, $offset, $num_cours;
+$zeroGraph = GRgraph_size_random($num_cours, -1);
+
+@poss_names = ('Alfred', 'Batman', 'Cat Woman', 'Daredevil', 'Elektra', 'Mr. Fantastic', 'Gambit', 'Hulk', 
+	  'Iceman', 'Joker', 'Klingon', 'Logan', 'Magneto', 'Nemo', 'Octavius');
+
+@poss_classes = ('Physics', 'Astronomy', 'Astrology', 'Mathematics', 'Computers', 'History', 'PE', 
+	    'English', 'Spanish', 'Latin', 'Business', 'Skiing', 'Underwater Basket Weaving', 'Typing', 
+	    'Metalwork');
+	    
+@ord1 = NchooseK(15,$num_stud);
+@ord2 = NchooseK(15,$num_cours);
+@names = @poss_names[@ord1];
+@class = @poss_classes[@ord2];
+
+
+do {
+  $graph = $zeroGraph;
+  $done = 1;
+  $table = begintable(2);
+  for ($i = 0; $i < $num_stud; $i++){
+    $stud_cls = '';
+    $val = list_random(2,2,2,2,3,3,3,3,4);
+    @sel = NchooseK($num_cours, $val);
+    for ($j = 0; $j < $val; $j++){
+      $stud_cls .= "$class[$sel[$j]], ";
+      for ($k = $j + 1; $k < $val; $k++){
+        $graph = ChangeWeight($sel[$j], $sel[$k], 1, $graph);
+      }
+    }
+    chop $stud_cls;	#remove space
+    chop $stud_cls;	#remove comma
+    $table .= row($names[$i], $stud_cls);
+  }
+  $table .= endtable();
+  $cn = Chromatic::ChromNum($graph);
+  if ($cn < 3 || $cn > 7){$done = 0;}
+
+  @deg = GRdegrees_graph($graph);
+  for ($i = 0; $i < $num_cours && $done != 0; $i++){
+    if ($deg[$i] == 0){$done = 0;}
+  }
+}while ($done == 0);
+#@adj = GRmatrix_graph($graph);
+
+$pic = GRpic_graph_labels($graph, $labels);
+###########################################
+
+$ans_table = begintable(2);
+for ($i = 0; $i < $num_cours; $i++){
+  $val = "ans$i";
+  $ans_table .= row(NAMED_ANS_RULE($val, 3), $class[$i]);
+  push @ans_list, $inputs_ref->{$val};
+}
+$ans_table .= endtable();
+
+###########################################
+
+$eval = sub {
+  my ($orig_in) = @_;
+
+  my ($i, $j, $time1, $count, $score, $message, $understood_in);
+
+  $score = 0;
+  $count = 0;
+  for ($i = 0; $i < $num_cours; $i++){
+    if ($ans_list[$i] eq ''){
+      $count++;
+    }
+  }
+  if ($count == $num_cours){
+    $message = '';
+  } elsif ($count > 0){
+    $message = 'Not all blanks filled';
+  } elsif (max (@ans_list) < $cn) {
+    $message = "Incorrect number of exam times.";
+  } else {
+    $score = 1;
+    for ($i = 0; $i < $num_cours; $i++){
+      $time1 = $ans_list[$i];
+      for ($j = $i + 1; $j < $num_cours; $j++){
+        if ($time1 == $ans_list[$j] && $adj[$i][$j] != 0){
+	  $score = 0;
+	  $message = 'Classes grouped incorrectly.'
+	}
+      }
+    }
+  }
+
+  my $ans_hash = { score => $score,
+                 correct_ans => '',
+                 student_ans => $orig_in,
+		 preview_latex_string => $orig_in,
+# 		 original_student_ans => $orig_in,
+                ans_message => ($score) ? '' : $message
+                };
+};
+
+
+###########################################
+
+BEGIN_TEXT
+$BR
+\{Plot($pic)\}
+$BR
+There are $num_stud people enrolled in the Extended Learning classes.  They are taking the 
+classes as shown in the table.  What is the minimum number of final exam times needed so 
+that the people can take all of their final exams? Note that in the graph, the vertices are 
+classes and the edges represent classes that are shared by someone.$BR
+\{ ans_rule(5)\}$BR
+$BR
+$table
+$BR
+In the following table, indicate in which final exam time each class could be placed (i.e. 1,2, etc).
+$ans_table
+END_TEXT
+
+ANS(num_cmp($cn));
+for ($i = 0; $i < $num_cours; $i++){
+  $val = "ans$i";
+  NAMED_ANS($val=>$eval);
+}
+
+ENDDOCUMENT();

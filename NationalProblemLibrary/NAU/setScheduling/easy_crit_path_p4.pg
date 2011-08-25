@@ -1,0 +1,132 @@
+##DESCRIPTION
+## DBsubject('Discrete Mathematics')
+## DBchapter('Algorithms')
+## DBsection('scheduling')
+## KEYWORDS('bin packing')
+## Author('Ty Thompson')
+## Institution('Scheduling')
+##ENDDESCRIPTION
+
+# File Created: 7/1/05
+# Location: Northern Arizona University
+
+DOCUMENT(); 
+    
+loadMacros("PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGanswermacros.pl",
+           "PGgraphmacros.pl",
+           "PGnauScheduling.pl",
+           "PGnauGraphics.pl"
+);
+
+TEXT(&beginproblem);
+
+# there are three types of answers.  They need to be equally likely ...
+$answer_type = random (1,3,1);
+if ($answer_type == 1){$key = 1;}
+if ($answer_type == 2){$key = 2;}
+if ($answer_type == 3){$key = "SAME";}
+
+# pass until we find the desired answer type ...
+$list_answer = 0;
+do {
+
+  # get a graph ...
+  $info = "";
+  $info = PickSchedule('easy');
+  @graph_info = split ";", $info;
+  $vertex_data = $graph_info[0];
+  $connect_data = $graph_info[1];
+  
+  #randomize the number of machines
+  $rand_int = random(1,5,1);
+  if ($rand_int == 5){$machine_count = 4}
+  if ($rand_int >= 3 && $rand_int <= 4){$machine_count = 3}
+  if ($rand_int >= 1 && $rand_int <= 2){$machine_count = 2}
+
+  $task_count = scalar (split ",",$vertex_data) / 3;
+
+  # randomize a priority list ... 
+  $p_list = RandomIntList($task_count);
+  @list_proc_solution_1 = ListProc($vertex_data,$connect_data,$p_list,$machine_count);
+
+  # get the critical priority list ...
+  $crit_path_solution = CritList($vertex_data, $connect_data);
+  @list_proc_solution_2 = ListProc($vertex_data,$connect_data,$crit_path_solution,$machine_count);
+
+  # 'condition' the answers
+  $time_1 = pop @list_proc_solution_1;
+  $time_2 = pop @list_proc_solution_2;
+
+  if ($time_1 > $time_2){
+    $list_answer = 2;
+    $time_savings = $time_1 - $time_2;
+  }
+  if ($time_1 < $time_2){
+    $list_answer = 1;  
+    $time_savings = $time_2 - $time_1;
+  }
+  if ($time_1 == $time_2){
+    $list_answer = "SAME";  
+    $time_savings = 0;
+  }
+} while ($list_answer != $key);
+
+$p_list = join "", "T", $p_list;
+$p_list =~ s/,/,T/g;
+
+# load the picture ...
+$schedule = DrawSchedule($vertex_data, $connect_data);
+
+$ans_first = ans_rule(30);
+for($i=0; $i<$machine_count; $i++){
+   push @list_1, "Processor ", $i + 1, " : ", ans_rule(25), "$BR";
+}
+for($i=0; $i<$machine_count; $i++){
+   push @list_2, "Processor ", $i + 1, " : ", ans_rule(25), "$BR";
+}
+$ans_second = ans_rule(10);
+$ans_third = ans_rule(10);
+
+BEGIN_TEXT
+
+$PAR
+\{
+Plot($schedule);
+\}
+$PAR
+Consider the order-requirement digraph above,  where all indicated weights are in minutes.  Using critical-path scheduling, what should the priority list be?
+$PAR
+Enter the task list, ordered left-to-right, separating task labels by commas.  For example: T4,T1,T2,T5,T3 :  \{ $ans_first \}
+$PAR
+Suppose that Priority List 1 is : \{ $p_list \} and that Priority List 2 is obtained using critical-path scheduling.  Using List 1 and the list-processing algorithm, schedule the \{ $task_count \} tasks on \{ $machine_count \} processors.  Enter the task labels and idle times (if any) in order for each 
+processor, separated by commas.  
+For example: 3,T1,T2,4,T5,6 
+$PAR  
+\{join ' ',@list_1\}
+$PAR
+$PAR
+Using List 2 and the list-processing algorithm, schedule the \{ $task_count \} tasks on \{ $machine_count \} processors.
+$PAR  
+\{join ' ',@list_2\}
+$PAR
+Which of the two lists will  result in the smallest completion time?  How much time, if any, is saved?   
+$PAR  
+The best priority list is (Enter 'SAME' if the completion times are the same) : \{ $ans_second \}
+$PAR
+Time savings (Enter '0' if there is no time difference) : \{ $ans_third \}
+$PAR
+$BR
+END_TEXT
+ANS(str_cmp($crit_path_solution,filters=>['remove_whitespace','ignore_case']));
+for($i=0; $i<$machine_count; $i++){
+  ANS(ListProcEval($vertex_data, $list_proc_solution_1[$i]));
+}
+for($i=0; $i<$machine_count; $i++){
+  ANS(ListProcEval($vertex_data, $list_proc_solution_2[$i]));
+}
+ANS(std_num_str_cmp( $list_answer, ["SAME"]));
+ANS(num_cmp($time_savings));
+ENDDOCUMENT();
+ 
