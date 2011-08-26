@@ -1,4 +1,4 @@
-unionTables.txt is a version that eliminates some warnings in the
+unionTables.pl is a version that eliminates some warnings in the
 graph theory problems. It defines a few uninitialized variables.
 Here is an example:
 
