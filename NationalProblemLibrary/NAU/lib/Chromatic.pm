@@ -1,4 +1,3 @@
-use File::Temp qw/ tempfile tempdir /;
 BEGIN {
 	be_strict();
 }
@@ -9,8 +8,7 @@ package Chromatic;
   
 sub ChromNum {
   my ($graph) = @_;
-  my ($i, $j, @adj, $val, $size, $count, @edges, $fileout, $ctime);
-#  ($fh, $fname) = tempfile();
+  my ($i, $j, @adj, $val, $size, $count, @edges, $fileout, $ctime, $fh, $fname);
   $ctime = time;
   $fileout = "/opt/webwork/webwork2/tmp/graph.$ctime.txt";
 
