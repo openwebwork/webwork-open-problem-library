@@ -43,6 +43,10 @@ sub ChromNum {
     }
   }
 
+# This is not quite good enough to avoid race conditions but it'll do.
+  while (-e "$fileout") {
+    sleep 1;
+  }
   open OUT , ">$fileout";
   print OUT "$size $count\n";
 
@@ -51,9 +55,9 @@ sub ChromNum {
   }
   close (OUT);
 
-# this does not work, don't know why
+# This does not work, don't know why. It's probably unsecure anyway.
 #  unless (-e '/opt/webwork/pg/lib/chromatic/color') {
-#    `gcc /opt/webwork/pg/lib/chromatic/color.c -o /opt/webwork/pg/lib/chromatic/color`;
+#    `cd /opt/webwork/pg/lib/chromatic; gcc color.c -o color`;
 #  }
   $val = qx[/opt/webwork/pg/lib/chromatic/color $fileout];
   $val =~  /value (\d+)/g;
