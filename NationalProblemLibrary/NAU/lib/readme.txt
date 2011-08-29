@@ -7,6 +7,8 @@ Three steps are required for the installation :
 /opt/webwork/pg/lib/Chromatic.pm
 /opt/webwork/pg/lib/chromatic/color.c
 
+Apache restart is needed after editing Chromatic.pm
+
 2. color.c needs to be compiled with the command
 
 gcc -O3 color.c -o color

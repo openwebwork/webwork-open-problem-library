@@ -1,14 +1,18 @@
+use File::Temp qw/ tempfile tempdir /;
 BEGIN {
 	be_strict();
 }
 
 package Chromatic;
+
+
   
 sub ChromNum {
   my ($graph) = @_;
-  #$fileout = "Graph.txt";
-  my ($i, $j, @adj, $val, $size, $count, @edges, $fileout);
-  $fileout = "/opt/webwork/webwork2/tmp/Graph.txt";
+  my ($i, $j, @adj, $val, $size, $count, @edges, $fileout, $ctime);
+#  ($fh, $fname) = tempfile();
+  $ctime = time;
+  $fileout = "/opt/webwork/webwork2/tmp/graph.$ctime.txt";
 
   sub matrix_graph {
     my ($graph) = @_;
