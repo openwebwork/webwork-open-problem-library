@@ -1,6 +1,7 @@
 
 sub _PGnauGraphics_init {}; #don't reload this file
-loadMacros('PGunion.pl');
+# loadMacros('PGunion.pl');
+loadMacros('PGgraphmacros.pl','unionTables.pl','PGchoicemacros.pl');
 
 ######################################
 #Name: Plot
