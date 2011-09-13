@@ -1,0 +1,196 @@
+## DESCRIPTION
+## Eigenvalues and systems of differential equations
+## ENDDESCRIPTION
+
+## KEYWORDS ('linear algebra','matrix','eigenvalue','eigenvector','systems','systems of differential equations')
+
+## DBsubject('Calculus')
+## DBchapter('Differential Equations')
+## DBsection('Systems of Differential Equations')
+## Date('03/19/2011')
+## Author('Paul Pearson')
+## Institution('Fort Lewis College')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+
+
+##################################
+#  Initialization
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"MatrixUnimodular.pl",
+"unionLists.pl",
+"parserRadioButtons.pl",
+"weightedGrader.pl",
+);
+
+TEXT(beginproblem());
+
+install_weighted_grader();
+
+
+##################################
+#  Setup
+
+Context("Numeric");
+Context()->variables->are(t=>"Real");
+
+
+$lambda1 = random(-7,-1,1);
+$lambda2 = random(1,7,1);
+
+$radio = RadioButtons(
+  ["source / unstable node","sink / stable node","saddle","center point / ellipses","spiral source","spiral sink","none of these"],
+  "saddle", # correct answer
+  last => ["none of these"], # can be a list
+);
+
+
+
+@M = unimodular_diagonalization_GL2Z($lambda1,$lambda2);
+
+$A = new Matrix(2,2);
+$A->assign(1,1, $M[0]);
+$A->assign(2,1, $M[1]);
+$A->assign(1,2, $M[2]);
+$A->assign(2,2, $M[3]);
+
+
+$multians = MultiAnswer( Real($M[4]), Real($M[5]), Compute("e^($lambda1 t)"),
+                         Real($M[6]), Real($M[7]), Compute("e^($lambda2 t)") 
+                       )->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  "A &lt;%s, %s&gt; + B &lt;%s, %s&gt;",
+    tex_format =>  "\text{A} <%s, %s> %s + \text{B} <%s, %s> %s" ,
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+	my ($stuv11, $stuv12, $stuf1, $stuv21, $stuv22, $stuf2) = @{$student}[0..5];
+
+        if ($stuv11 && $stuv12 && $stuf1 && $stuv21 && $stuv22 && $stuf2) {
+           my $v1 = new Matrix(2, 1);
+           my $v2 = new Matrix(2, 1);
+           if ( ($stuv11 != 0 || $stuv12 !=0) && ($stuv21 != 0 || $stuv22 !=0) ) {
+             $v1-> assign(1,1, $stuv11);
+             $v1-> assign(2,1, $stuv12);
+             $v2-> assign(1,1, $stuv21);
+             $v2-> assign(2,1, $stuv22);
+
+             if (  
+                   ( 
+                     ( $A * $v1 == $lambda1 * $v1 && $stuf1 == Formula("e^($lambda1 t)") ) &&
+                     ( $A * $v2 == $lambda2 * $v2 && $stuf2 == Formula("e^($lambda2 t)") ) 
+                   ) || ( 
+                     ( $A * $v1 == $lambda2 * $v1 && $stuf1 == Formula("e^($lambda2 t)") ) &&
+                     ( $A * $v2 == $lambda1 * $v2 && $stuf2 == Formula("e^($lambda1 t)") ) 
+                   )
+                ) 
+             {
+                return 1;
+             } 
+
+             if (  
+                   ( 
+                     ( $A * $v1 == $lambda1 * $v1 && $stuf1 == Formula("e^($lambda1 t)") ) ||
+                     ( $A * $v1 == $lambda2 * $v1 && $stuf1 == Formula("e^($lambda2 t)") ) 
+                   ) || ( 
+                     ( $A * $v2 == $lambda2 * $v2 && $stuf2 == Formula("e^($lambda2 t)") ) ||
+                     ( $A * $v2 == $lambda1 * $v2 && $stuf2 == Formula("e^($lambda1 t)") ) 
+                   )
+                ) 
+             {
+                Value::Error("Your answer is partially correct");
+                return 0;
+             } else {
+                return 0;
+             }
+
+ 
+           }
+        }
+       
+    }
+);
+
+
+
+
+#######################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+\{ BeginList('OL',type=>'a') \}
+
+$ITEM
+Find the most general solution to the linear system 
+of differential equations
+\(
+\displaystyle
+\vec{x}^{\, \prime}
+=
+\left\lbrack
+\begin{array}{rr}
+$M[0] & $M[2] \\
+$M[1] & $M[3]
+\end{array} 
+\right\rbrack
+\vec{x}.
+\)
+$BR
+$BR
+\{ 
+mbox(
+[
+display_matrix([['\( x_1(t) \)'],['\( x_2(t) \)']]),
+' = A', 
+display_matrix([[$multians->ans_rule(5)],[$multians->ans_rule(5)]]),
+$multians->ans_rule(10),
+' + B ', 
+display_matrix([[$multians->ans_rule(5)],[$multians->ans_rule(5)]]),
+$multians->ans_rule(10)
+],
+allowbreaks=>'yes'
+) 
+\}
+
+END_TEXT
+
+TEXT(MODES(HTML=>"The entries in the vectors should be constants, 
+and you must ${BBOLD}enter an answer in every answer box${EBOLD} to get
+feedback on whether your answer is correct.",TeX=>""));
+
+BEGIN_TEXT
+
+$ITEMSEP
+$ITEM In the phase plane, this system is best described as a
+$BR
+\{ $radio->buttons() \}
+
+\{ EndList('OL') \}
+END_TEXT
+Context()->normalStrings;
+
+
+###################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+WEIGHTED_ANS( $multians->cmp(), 95 );
+WEIGHTED_ANS( $radio->cmp(), 5 );
+
+COMMENT('MathObject version.  Distinct positive integer eigenvalues, distinct integer eigenvectors.');
+
+ENDDOCUMENT();

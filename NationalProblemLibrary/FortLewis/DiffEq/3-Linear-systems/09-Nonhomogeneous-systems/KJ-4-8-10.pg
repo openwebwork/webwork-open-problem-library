@@ -1,0 +1,238 @@
+## DESCRIPTION
+## Linear systems: Nonhomogeneous linear systems
+## ENDDESCRIPTION
+
+## KEYWORDS('Nonhomogeneous linear systems')
+
+## DBsubject('Differential Equations')
+## DBchapter('Linear systems')
+## DBsection('Nonhomogeneous linear systems')
+## Date('')
+## Author('')
+## Institution('Fort Lewis College')
+## TitleText1('Elementary Differential Equations')
+## EditionText1('2006')
+## AuthorText1('Kohler and Johnson')
+## Section1('4.8')
+## Problem1('10')
+
+
+##################################
+#  Initialization
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+#"MatrixUnimodular.pl",
+"unionLists.pl"
+);
+
+TEXT(beginproblem());
+
+
+##################################
+#  Setup
+
+Context("Numeric");
+Context()->variables->are(
+t=>"Real"
+);
+
+# Define eigenvalues
+$lambda1 = 0;
+$c = non_zero_random(-3,3,1);
+$lambda2 = 2*$c;
+
+# Eigenvectors:  <1,-1>, <1,1>
+
+$a[0][0] = $c;
+$a[0][1] = $c;
+$a[1][0] = $c;
+$a[1][1] = $c;
+
+
+# Correct complementary solution
+$corv11 = Formula("1")->reduce;
+$corv21 = Formula("-1")->reduce;
+$corv12 = Formula("e^($lambda2*t) * 1")->reduce;
+$corv22 = Formula("e^($lambda2*t) * 1")->reduce;
+
+
+$multianshom = MultiAnswer( $corv11, $corv21, $corv12, $corv22 )->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  "C1 &lt;%s, %s&gt; + C2 &lt;%s, %s&gt;",
+    tex_format =>  "\text{\(C1\)} <%s, %s> + \text{\(C2\)} <%s, %s>" ,
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+	my ($stuv11, $stuv21, $stuv12, $stuv22) = @{$student}[0..3];
+
+
+        # if both vectors are nonempty and not multiples of each other (takes care of nonzero assumption)
+        if ( 
+             ($stuv11 && $stuv21 && $stuv12 && $stuv22) && 
+             ($stuv11 * $stuv22 != $stuv21 * $stuv12)
+            ) { 
+              my $deriv11 = $stuv11->D('t');
+              my $deriv21 = $stuv21->D('t');
+              my $deriv12 = $stuv12->D('t');
+              my $deriv22 = $stuv22->D('t');
+              if (
+                    ($a[0][0]*$stuv11 + $a[0][1]*$stuv21 == $deriv11) &&
+                    ($a[1][0]*$stuv11 + $a[1][1]*$stuv21 == $deriv21) &&
+                    ($a[0][0]*$stuv12 + $a[0][1]*$stuv22 == $deriv12) &&
+                    ($a[1][0]*$stuv12 + $a[1][1]*$stuv22 == $deriv22)
+              )
+               { return 1; }
+        }
+
+        # if the left vector is nonempty and nonzero
+        if ( ($stuv11 && $stuv21) && ($stuv11 != 0 || $stuv21 != 0) ) {
+              my $deriv11 = $stuv11->D('t');
+              my $deriv21 = $stuv21->D('t');
+              if (
+                    ($a[0][0]*$stuv11 + $a[0][1]*$stuv21 == $deriv11) &&
+                    ($a[1][0]*$stuv11 + $a[1][1]*$stuv21 == $deriv21)
+              )
+           { 
+              $self->setMessage(1,"The vector on the left is correct.");
+              return 0.67;
+           }
+        }
+
+        # if the right vector is nonempty and nonzero
+        if ( ($stuv12 && $stuv22) && ($stuv12 != 0 || $stuv22 != 0) ) {
+              my $deriv12 = $stuv12->D('t');
+              my $deriv22 = $stuv22->D('t');
+              if (
+                    ($a[0][0]*$stuv12 + $a[0][1]*$stuv22 == $deriv12) &&
+                    ($a[1][0]*$stuv12 + $a[1][1]*$stuv22 == $deriv22)
+              )
+           { 
+              $self->setMessage(2,"The vector on the right is correct.");
+              return 0.67;
+           }
+        }
+       
+        return 0;
+
+    }
+);
+
+
+# Particular solution
+
+$g1 = Formula("e^($lambda2*t)")->reduce;
+
+$partb1 = Formula("1");
+$partb2a = Formula("1");
+$partb2b = Formula("1/$c");
+
+$partc1 = Formula("1");
+$partc2 = Formula("1");
+$partc3 = Formula("0");
+
+
+#######################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+As an illustration of the difficulties that may arise in using the method of undetermined coefficients, consider
+\[
+\displaystyle
+\ \boldsymbol{\vec{y}^{\, \prime}}
+=
+\left\lbrack
+\begin{array}{rr}
+$a[0][0] & $a[0][1] \\
+$a[1][0] & $a[1][1]
+\end{array} 
+\right\rbrack
+\boldsymbol{\vec{y}}
++ \left\lbrack
+\begin{array}{c}
+$g1 \\
+0
+\end{array} 
+\right\rbrack.
+\]
+
+\{ BeginList('OL',type=>'a') \}
+
+$ITEMSEP
+$ITEM Form the complementary solution to the homogeneous equation.
+$BR
+$BR
+\{ 
+mbox(
+[
+' \( \boldsymbol{\vec{y}}_C(t) = C_1 \)', 
+display_matrix([[$multianshom->ans_rule(15)],[$multianshom->ans_rule(15)]]),
+' \( + \ C_2 \) ', 
+display_matrix([[$multianshom->ans_rule(15)],[$multianshom->ans_rule(15)]]),
+],
+allowbreaks=>'yes'
+) 
+\}
+
+$ITEMSEP
+$ITEM Show that seeking a particular solution of the form \( \boldsymbol{\vec{y}}_P(t) = $g1 \boldsymbol{\vec{a}} \), where \( \boldsymbol{\vec{a}} = \left\lbrack
+\begin{array}{c} a_1 \\ a_2 \end{array} \right\rbrack \) is a constant vector, does not work.  In fact, if \( \boldsymbol{\vec{y}}_P \) had this form, we would arrive at the following contradiction:
+$BR
+$BR
+\( a_2 = \) \{ ans_rule(5) \} \( \cdot a_1 \)
+$BR
+$BR
+and
+$BR
+$BR
+\( a_2 = \) \{ ans_rule(5) \} \( \cdot a_1 - \) \{ ans_rule(5) \}.
+
+$ITEMSEP
+$ITEM Show that seeking a particular solution of the form \( \boldsymbol{\vec{y}}_P(t) = t $g1 \boldsymbol{\vec{a}} \), where \( \boldsymbol{\vec{a}} = \left\lbrack
+\begin{array}{c} a_1 \\ a_2 \end{array} \right\rbrack \) is a constant vector, does not work either.  In fact, if \( \boldsymbol{\vec{y}}_P \) had this form, we would arrive at the following contradiction:
+$BR
+$BR
+\( a_2 = \) \{ ans_rule(5) \} \( \cdot a_1 \)
+$BR
+$BR
+and
+$BR
+$BR
+\( a_1 = \) \{ ans_rule(5) \}
+$BR
+$BR
+and
+$BR
+$BR
+\( a_2 = \) \{ ans_rule(5) \}.
+
+
+\{ EndList('OL',type=>'a') \}
+END_TEXT
+Context()->normalStrings;
+
+
+###################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $multianshom->cmp() );
+ANS( $partb1->cmp() );
+ANS( $partb2a->cmp() );
+ANS( $partb2b->cmp() );
+ANS( $partc1->cmp() );
+ANS( $partc2->cmp() );
+ANS( $partc3->cmp() );
+
+ENDDOCUMENT();
+

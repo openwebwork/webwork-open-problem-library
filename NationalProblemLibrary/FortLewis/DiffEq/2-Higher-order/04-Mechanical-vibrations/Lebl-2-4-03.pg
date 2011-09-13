@@ -1,0 +1,192 @@
+## DESCRIPTION
+## Higher order ODEs: constant coefficient higher order homogeneous linear ODEs
+## ENDDESCRIPTION
+
+## KEYWORDS('differential equations','second order linear ODE','constant coefficients')
+
+## DBsubject('Differential Equations')
+## DBchapter('Higher Order Differential Equations')
+## DBsection('Higher Order Linear')
+## Date('01/30/2011')
+## Author('Paul Pearson')
+## Institution('Fort Lewis College')
+## TitleText1('Notes on Diffy Qs')
+## EditionText1('December 9, 2010')
+## AuthorText1('Jiri Lebl')
+## Section1('2.4')
+## Problem1('3')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"AnswerFormatHelp.pl",
+"parserAssignment.pl",
+"parserImplicitEquation.pl",
+"unionLists.pl",
+"parserPopUp.pl",
+);
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 1;
+
+
+#############################
+#  Part 1
+
+Context("ImplicitEquation");
+Context()->variables->{namePattern} = qr/[a-z][a-z0-9_]*'*/i;
+Context()->variables->add(
+"x'"=>"Real","x''"=>"Real","t"=>"Real"
+);
+
+$a = random(1,2,1);
+$m = random(2,4,1); # c2
+$c = 2*$a*$m;       # c1
+$k = $m * $a**2;    # c0
+
+#  char poly $m (r - $a)^2 = $m r^2 + 2 $a $m r + $m $a^2
+
+
+$diffeq = ImplicitEquation("$m x'' + $c x' + $k x = 0");
+
+
+Context()->texStrings;
+BEGIN_TEXT
+Suppose a spring with spring constant \( $k \ \mathrm{N/m} \)
+is horizontal and has one end attached to a wall and the 
+other end attached to a \( $m \ \mathrm{kg} \) mass.  Suppose 
+that the friction of the mass with the floor (i.e., the 
+damping constant) is 
+\( $c \ \mathrm{N \cdot s / m} \).  
+
+\{ BeginList('OL',type=>'a') \}
+
+$ITEM Set up a differential equation that describes this 
+system.  Let \( x \) to denote the displacement, in meters,
+of the mass from its equilibrium position, and give your answer
+in terms of \( x, x', x'' \).  Assume that positive displacement 
+means the mass is farther from the wall than when the system
+is at equilibrium.
+$BR
+\{ ans_rule(30) \}
+\{ AnswerFormatHelp("equations") \}
+END_TEXT
+Context()->normalStrings;
+
+ANS( $diffeq->cmp() );
+
+
+
+##################################
+#  Parts 2 & 3
+
+Context("Numeric");
+Context()->variables->add(
+A=>"Real",B=>"Real",t=>"Real",
+);
+#Context()->variables->set(
+#A=>{limits=>[-5,5]},
+#B=>{limits=>[-5,5]},
+#t=>{limits=>[-1,1]},
+#x=>{limits=>[-1,1]},
+#);
+
+Context()->flags->set(
+    formatStudentAnswer=>'parsed',
+    reduceConstants=>0,
+    reduceConstantFunctions=>0,
+);
+parser::Assignment->Allow;
+
+$answer = Compute("x = (A + B t) e^(-$a t)");
+
+$pop = PopUp(["?","over damped","critically damped","under damped"],"critically damped");
+
+Context()->texStrings;
+BEGIN_TEXT
+$ITEMSEP
+$ITEM Find the general solution to your 
+differential equation from the previous part.  
+Use \( A \) and \( B \) to denote arbitrary
+constants.  Use \( t \) for independent variable 
+to represent the time elapsed in seconds.
+$BR
+\{ ans_rule(40) \}
+\{ AnswerFormatHelp("equations") \}
+
+$ITEMSEP
+$ITEM Is this system under damped, over damped, 
+or critically damped?  
+\{ $pop->menu() \}  Enter a value for the 
+damping constant that would make the system
+critically damped.
+$BR
+\{ ans_rule(10) \} \( \mathrm{N \cdot s / m} \)
+\{ AnswerFormatHelp("numbers") \}
+
+\{ EndList('OL') \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $answer->cmp( tolerance=>0.1, tolType=>'absolute',
+  checker => sub {
+
+    my ( $correct, $student, $self ) = @_;
+    my $stu   = Formula($student->{tree}{rop});
+
+    #################################
+    #  Check for arbitrary constants
+    #
+    Value->Error("Is your answer the most general solution?") 
+    if ( 
+      Formula($stu->D('A'))==Formula(0) || 
+      Formula($stu->D('B'))==Formula(0) 
+    );
+
+
+    ##################################
+    #  Linear independence (Wronskian)
+    #
+    my $t = Real(-2.31);
+
+    my $a11 = $stu->eval(A=>1,B=>0,t=>$t,x=>0);
+    my $a12 = $stu->eval(A=>0,B=>1,t=>$t,x=>0);
+
+    my $a21 = $stu->D('t')->eval(A=>1,B=>0,t=>$t,x=>0);
+    my $a22 = $stu->D('t')->eval(A=>0,B=>1,t=>$t,x=>0);
+
+    my $wronskian = $a11*$a22 - $a21*$a12; 
+
+    Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    if ($wronskian==Real(0));
+
+
+    #################################
+    #  Check that the student answer is a solution to the DE
+    #
+    my $stu1  = Formula($stu->D('t'));
+    my $stu2  = Formula($stu->D('t','t'));
+    my $stuDE = Formula($m*$stu2 + $c*$stu1 + $k*$stu)
+    ->with(test_points=>[[1,1,-1,-1],[-1,1,-2,1],[1,2,-1,-1],[-2,1,0,1]]);
+#    my $stuDE = Formula($m*$stu2 + $c*$stu1 + $k*$stu);
+
+
+    return ($stuDE==Formula(0));
+
+}));
+
+ANS( $pop->cmp() );
+
+ANS( Real("2*$a*$m")->cmp() );
+
+COMMENT("MathObject version.");
+
+ENDDOCUMENT();

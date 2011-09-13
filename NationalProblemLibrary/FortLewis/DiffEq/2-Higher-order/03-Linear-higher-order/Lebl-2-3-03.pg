@@ -1,0 +1,146 @@
+## DESCRIPTION
+## Higher order ODEs: constant coefficient higher order homogeneous linear ODEs
+## ENDDESCRIPTION
+
+## KEYWORDS('differential equations','second order linear ODE','constant coefficients')
+
+## DBsubject('Differential Equations')
+## DBchapter('Higher Order Differential Equations')
+## DBsection('Higher Order Linear')
+## Date('01/30/2011')
+## Author('Paul Pearson')
+## Institution('Fort Lewis College')
+## TitleText1('Notes on Diffy Qs')
+## EditionText1('December 9, 2010')
+## AuthorText1('Jiri Lebl')
+## Section1('2.3')
+## Problem1('3')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"AnswerFormatHelp.pl",
+"parserAssignment.pl",
+);
+
+TEXT(beginproblem());
+
+
+#############################
+#  Setup
+
+Context("Numeric");
+Context()->variables->add(
+'A'=>"Real",'B'=>"Real",'C'=>"Real",'y'=>"Real",
+);
+Context()->flags->set(
+    formatStudentAnswer=>'parsed',
+    reduceConstants=>0,
+    reduceConstantFunctions=>0,
+);
+Context()->flags->set(
+  tolerance=>0.01,
+  tolType=>"absolute"
+);
+parser::Assignment->Allow;
+
+$a = random(2,6,1);
+do { $b = random(2,6,1); } until ($b != $a);
+
+$c2 = 2 * $a;
+$c1 = $a*$a + $b*$b;
+
+# char poly r( (r+$a)^2 + $b^2 )
+
+$diffeq = "y''' + $c2 y'' + $c1 y' = 0"; # tex
+
+$answer = Compute("y = A + B e^(-$a x) cos($b x) + C e^(-$a x) sin($b x)");
+
+
+######################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+Find the general solution to \( $diffeq \).
+In your answer, use \( A, B \) and \( C \) to 
+denote arbitrary constants and \( x \) 
+the independent variable.
+$BR
+$BR
+\{ ans_rule(40) \}
+\{ AnswerFormatHelp("equations") \}
+END_TEXT
+Context()->normalStrings;
+
+
+######################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $answer->cmp( checker => sub {
+
+    my ( $correct, $student, $self ) = @_;
+    my $stu   = Formula($student->{tree}{rop});
+
+    #################################
+    #  Check for arbitrary constants
+    #
+    Value->Error("Is your answer the most general solution?") 
+    if ( 
+      Formula($stu->D('A'))==Formula(0) || 
+      Formula($stu->D('B'))==Formula(0) || 
+      Formula($stu->D('C'))==Formula(0) 
+    );
+
+
+    ##################################
+    #  Linear independence (Wronskian)
+    #
+    my $x = Real(1.43);
+
+    my $a11 = $stu->eval(A=>1,B=>0,C=>0,x=>$x,y=>0);
+    my $a12 = $stu->eval(A=>0,B=>1,C=>0,x=>$x,y=>0);
+    my $a13 = $stu->eval(A=>0,B=>0,C=>1,x=>$x,y=>0);
+
+    my $a21 = $stu->D('x')->eval(A=>1,B=>0,C=>0,x=>$x,y=>0);
+    my $a22 = $stu->D('x')->eval(A=>0,B=>1,C=>0,x=>$x,y=>0);
+    my $a23 = $stu->D('x')->eval(A=>0,B=>0,C=>1,x=>$x,y=>0);
+
+    my $a31 = $stu->D('x','x')->eval(A=>1,B=>0,C=>0,x=>$x,y=>0);
+    my $a32 = $stu->D('x','x')->eval(A=>0,B=>1,C=>0,x=>$x,y=>0);
+    my $a33 = $stu->D('x','x')->eval(A=>0,B=>0,C=>1,x=>$x,y=>0);
+
+    my $wronskian =  
+       $a11*($a22*$a33-$a32*$a23) -
+       $a12*($a21*$a33-$a31*$a23) +
+       $a13*($a21*$a32-$a31*$a22);
+
+#    Value->Error("Your functions are not linearly independent or your answer is not complete") 
+#    if ($wronskian==Real(0));
+
+
+    #################################
+    #  Check that the student answer is a solution to the DE
+    #
+    my $stu1  = Formula($stu->D('x'));
+    my $stu2  = Formula($stu->D('x','x'));
+    my $stu3  = Formula($stu->D('x','x','x'));
+    my $stuDE = Formula($stu3 + $c2*$stu2 + $c1*$stu1)
+    ->with(test_points=>[[1,1,2,0.1,0],[2,1,1,0,0],[1,2,-1,-0.1,0],[-2,1,1,0,1]]);
+
+    return ($stuDE==Formula(0));
+
+}));
+
+
+COMMENT("MathObject version.");
+
+ENDDOCUMENT();

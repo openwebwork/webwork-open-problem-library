@@ -1,0 +1,148 @@
+## DESCRIPTION
+## Eigenvalues and systems of differential equations
+## ENDDESCRIPTION
+
+## KEYWORDS ('linear algebra','matrix','eigenvalue','eigenvector','systems','systems of differential equations')
+
+## DBsubject('Calculus')
+## DBchapter('Differential Equations')
+## DBsection('Systems of Differential Equations')
+## Date('03/19/2011')
+## Author('Paul Pearson')
+## Institution('Fort Lewis College')
+## TitleText1('Differential Equations and Boundary Value Problems: Computing and Modeling')
+## EditionText1('3')
+## AuthorText1('Edwards and Penney')
+## Section1('5.4')
+## Problem1('2')
+
+
+##################################
+#  Initialization
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+
+
+##################################
+#  Setup
+
+Context("Numeric");
+Context()->variables->are(t=>"Real");
+
+# the matrix to be analyzed
+$a11 = 3;  $a12 = -1;
+$a21 = 1;  $a22 =  1;
+
+$v1top = Formula("e^(2 t)");
+$v1bot = Formula("e^(2 t)");
+
+$v2top = Formula("(1+t) e^(2 t)");
+$v2bot = Formula("t e^(2 t)");
+
+
+$multians = MultiAnswer($v1top, $v1bot, $v2top, $v2bot)->with(
+
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  format =>  "A &lt;%s, %s&gt; + B &lt;%s, %s&gt;",
+  tex_format =>  "\text{A} \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack + ".
+                 "\text{B} \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      # my ( $c1, $c2, $c3, $c4 ) = @{$correct};
+      my ( $s1, $s2, $s3, $s4 ) = @{$student};
+
+      Value::Error('Answers should be non-constant functions, '.
+      'and <b>every answer blank must be filled</b> to get feedback.') unless 
+      $s1->isFormula && $s2->isFormula && $s3->isFormula && $s4->isFormula;
+
+      my ( $s1p, $s2p, $s3p, $s4p ) = ( $s1->D('t'), $s2->D('t'), $s3->D('t'), $s4->D('t') ); 
+
+      my $left  = (($s1p == $a11*$s1 + $a12*$s2) && 
+                   ($s2p == $a21*$s1 + $a22*$s2));
+
+      my $right = (($s3p == $a11*$s3 + $a12*$s4) && 
+                   ($s4p == $a21*$s3 + $a22*$s4));
+      
+      my $notparallel = ($s1*$s4 != $s2*$s3);
+
+      if ($left && !$right) { 
+          $self->setMessage(1,"The vector on the left is correct.");
+          return 0.67;
+      }
+      if ($right && !$left) { 
+          $self->setMessage(1,"The vector on the right is correct.");
+          return 0.67;
+      }
+      if ($left && $right && !$notparallel) { 
+          $self->setMessage(1,"Your solutions are linearly dependent.");
+          return 0.67; 
+      }
+      if ($left && $right && $notparallel) { return 1; } else { return 0; }
+
+  }
+);
+
+
+#######################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+Find the most general real-valued solution to the linear system 
+of differential equations
+\(
+\displaystyle
+\boldsymbol{\vec{x}^{\, \prime}}
+=
+\left\lbrack
+\begin{array}{rr}
+$a11 & $a12 \\
+$a21 & $a22
+\end{array} 
+\right\rbrack
+\boldsymbol{\vec{x}}.
+\)
+$BR
+$BR
+\{ 
+mbox(
+[
+display_matrix([['\( x_1(t) \)'],['\( x_2(t) \)']]),
+' = A', 
+display_matrix([[$multians->ans_rule(10)],[$multians->ans_rule(10)]]),
+' + B ', 
+display_matrix([[$multians->ans_rule(10)],[$multians->ans_rule(10)]]),
+],
+allowbreaks=>'yes'
+) 
+\}
+
+END_TEXT
+Context()->normalStrings;
+
+
+###################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $multians->cmp() );
+
+COMMENT('MathObject version. Not randomized.');
+
+ENDDOCUMENT();
+

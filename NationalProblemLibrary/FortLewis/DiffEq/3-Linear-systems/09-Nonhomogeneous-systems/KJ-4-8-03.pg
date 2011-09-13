@@ -1,0 +1,400 @@
+## DESCRIPTION
+## Linear systems: Nonhomogeneous linear systems
+## ENDDESCRIPTION
+
+## KEYWORDS('Nonhomogeneous linear systems')
+
+## DBsubject('Differential Equations')
+## DBchapter('Linear systems')
+## DBsection('Nonhomogeneous linear systems')
+## Date('')
+## Author('')
+## Institution('Fort Lewis College')
+## TitleText1('Elementary Differential Equations')
+## EditionText1('2006')
+## AuthorText1('Kohler and Johnson')
+## Section1('4.8')
+## Problem1('3')
+
+
+##################################
+#  Initialization
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"unionLists.pl"
+);
+
+TEXT(beginproblem());
+
+
+##################################
+#  Setup
+
+Context("Numeric");
+Context()->variables->are(
+t=>"Real"
+);
+
+# Define real "pre-eigenvalues" for generating matrix A
+$lambda1 = non_zero_random(-3,3,1);
+do { $lambda2 = non_zero_random(-3,3,1); } until ($lambda2 != $lambda1);
+
+do { $c = non_zero_random(-3,3,1); } until ($c != -1);
+# Eigenvectors:  <c,-1>, <1,1>
+
+#  The matrix for the system
+$a[0][0] = $lambda2 + $lambda1*$c;
+$a[0][1] = $lambda2*$c - $lambda1*$c;
+$a[1][0] = $lambda2 - $lambda1;
+$a[1][1] = $lambda1 + $lambda2*$c; 
+
+$a11 = $a[0][0];   $a12 = $a[0][1];
+$a21 = $a[1][0];   $a22 = $a[1][1];
+
+
+# Redefine true eigenvalues of matrix A
+$lambda1 = $lambda1*($c+1);
+$lambda2 = $lambda2*($c+1);
+
+# Initial conditions
+$init1 = random(0,1,1);
+$init2 = random(0,1,1);
+ 
+
+# Correct complementary solution
+$yc1top = Formula("e^($lambda1*t) * $c")->reduce;
+$yc1bot = Formula("e^($lambda1*t) * (-1)")->reduce;
+
+$yc2top = Formula("e^($lambda2*t) * 1")->reduce;
+$yc2bot = Formula("e^($lambda2*t) * 1")->reduce;
+
+
+
+$multianshom = MultiAnswer($yc1top, $yc1bot, $yc2top, $yc2bot)->with(
+
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  format =>  "C<sub>1</sub> &lt;%s, %s&gt; + C<sub>2</sub> &lt;%s, %s&gt;",
+  tex_format =>  "C_1 \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack + ".
+                 "C_2 \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      # my ( $c1, $c2, $c3, $c4 ) = @{$correct};
+      my ( $s1, $s2, $s3, $s4 ) = @{$student};
+
+      Value::Error('Answers should be non-constant functions, '.
+      'and <b>every answer blank must be filled</b> to get feedback.') unless 
+      $s1->isFormula && $s2->isFormula && $s3->isFormula && $s4->isFormula;
+
+      my ( $s1p, $s2p, $s3p, $s4p ) = ( $s1->D('t'), $s2->D('t'), $s3->D('t'), $s4->D('t') ); 
+
+      my $left  = (($s1p == $a11*$s1 + $a12*$s2) && 
+                   ($s2p == $a21*$s1 + $a22*$s2));
+
+      my $right = (($s3p == $a11*$s3 + $a12*$s4) && 
+                   ($s4p == $a21*$s3 + $a22*$s4));
+      
+      my $notparallel = ($s1*$s4 != $s2*$s3);
+
+      if ($left && !$right) { 
+          $self->setMessage(1,"The vector on the left is correct.");
+          return 0.67;
+      }
+      if ($right && !$left) { 
+          $self->setMessage(1,"The vector on the right is correct.");
+          return 0.67;
+      }
+      if ($left && $right && !$notparallel) { 
+          $self->setMessage(1,"Your solutions are linearly dependent.");
+          return 0.67; 
+      }
+      if ($left && $right && $notparallel) { return 1; } else { return 0; }
+
+  }
+);
+
+
+
+
+
+
+# Particular solution
+
+do { $r = non_zero_random(-4,4,1) } until (
+       $r != $lambda1 && $r != $lambda2 && $r * ($a[1][1] + $a[0][0] - $r) - $a[0][0]*$a[1][1] + $a[0][1]*$a[1][0] != 0
+     );
+# Vector g(t) = <e^(rt), 0>
+# Guess solution of the form e^(rt)*<scalar1, scalar2>
+
+$g1 = Formula("e^($r*t)")->reduce;
+$scalar1 = Formula("($a[1][1] - $r)/($r * ($a[1][1] + $a[0][0] - $r) - $a[0][0]*$a[1][1] + $a[0][1]*$a[1][0])")->reduce;
+$scalar2 = Formula("(-$a[1][0])/($r * ($a[1][1] + $a[0][0] - $r) - $a[0][0]*$a[1][1] + $a[0][1]*$a[1][0])")->reduce;
+
+$yptop = $g1*$scalar1;
+$ypbot = $g1*$scalar2;
+
+$yptop = Compute("$scalar1 e^($r t)");
+$ypbot = Compute("$scalar2 e^($r t)");
+
+
+
+$multianspart = MultiAnswer( $yptop, $ypbot )->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  "&lt;%s, %s&gt;",
+    tex_format =>  "\left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack",
+
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+        my ( $c1, $c2 ) = @{$correct};
+	my ( $s1, $s2 ) = @{$student};
+
+        Value::Error('Answers should be non-constant functions, '.
+        'and <b>every answer blank must be filled</b> to get feedback.') unless 
+        $s1->isFormula && $s2->isFormula;
+
+        if ( ($c1 == $s1) && ($c2 != $s2) ) {
+           $self->setMessage(1,"The top entry is correct.");
+           return [1,0];
+        }
+
+        if ( ($c1 != $s1) && ($c2 == $s2) ) {
+           $self->setMessage(1,"The bottom entry is correct.");
+           return [0,1];
+        }
+
+        if ( ($c1 == $s1) && ($c2 == $s2) ) { return [1,1]; } else { return [0,0]; }
+
+   }
+);
+
+
+
+#IVP solution
+
+$ivpc2 = Real("($init1 + $c * $init2 - $scalar1 - $scalar2 * $c) / (1+$c)");
+$ivpc1 = Real("($init1 - $ivpc2 - $scalar1) / $c");
+
+$ivpy1 = $yptop + $ivpc1*$yc1top + $ivpc2*$yc2top;
+$ivpy2 = $ypbot + $ivpc1*$yc1bot + $ivpc2*$yc2bot;
+
+
+#######################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the initial value problem
+\[
+\displaystyle
+\ \boldsymbol{\vec{y}^{\, \prime}}
+=
+\left\lbrack
+\begin{array}{rr}
+$a[0][0] & $a[0][1] \\
+$a[1][0] & $a[1][1]
+\end{array} 
+\right\rbrack
+\boldsymbol{\vec{y}}
++ \left\lbrack
+\begin{array}{c}
+$g1 \\
+0
+\end{array} 
+\right\rbrack, 
+\quad \quad
+\boldsymbol{\vec{y}}(0)
+= \left\lbrack
+\begin{array}{c}
+$init1 \\
+$init2
+\end{array} 
+\right\rbrack.
+\]
+
+\{ BeginList('OL',type=>'a') \}
+
+$ITEMSEP
+$ITEM Form the complementary solution to the homogeneous equation.
+$BR
+$BR
+\{ 
+mbox(
+[
+' \( \boldsymbol{\vec{y}}_C(t) = C_1 \)', 
+display_matrix([[$multianshom->ans_rule(15)],[$multianshom->ans_rule(15)]]),
+' \( + \ C_2 \) ', 
+display_matrix([[$multianshom->ans_rule(15)],[$multianshom->ans_rule(15)]]),
+],
+allowbreaks=>'yes'
+) 
+\}
+
+$ITEMSEP
+$ITEM Construct a particular solution by assuming the form \( \boldsymbol{\vec{y}}_P(t) = $g1 \boldsymbol{\vec{a}} \) and solving for the undetermined constant vector \( \boldsymbol{\vec{a}} \).
+$BR
+$BR
+\{ 
+mbox(
+[
+'\( \boldsymbol{\vec{y}}_P(t) = \)',
+display_matrix([[$multianspart->ans_rule(15)],[$multianspart->ans_rule(15)]]),
+],
+allowbreaks=>'yes'
+) 
+\}
+
+$ITEMSEP
+$ITEM Form the general solution \( \boldsymbol{\vec{y}}(t) = \boldsymbol{\vec{y}}_C(t) + \boldsymbol{\vec{y}}_P(t) \), and impose the initial condition to obtain the solution of the initial value problem.
+$BR
+$BR
+\{
+mbox(
+[
+display_matrix([['\( y_1(t) \)'],['\( y_2(t) \)']]),
+'\( = \)',
+display_matrix([[ans_rule(50)],[ans_rule(50)]]),
+],
+allowbreaks=>'yes'
+)
+\}
+
+\{ EndList('OL',type=>'a') \}
+END_TEXT
+Context()->normalStrings;
+
+
+###################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $multianshom->cmp() );
+ANS( $multianspart->cmp() );
+ANS( $ivpy1->cmp() );
+ANS( $ivpy2->cmp() );
+
+COMMENT('MathObject version. Complex eigenvalues with negative real part -1 +/- b i.');
+
+ENDDOCUMENT();
+
+
+
+
+
+
+
+$multianshom = MultiAnswer( $corv11, $corv21, $corv12, $corv22 )->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  "C1 &lt;%s, %s&gt; + C2 &lt;%s, %s&gt;",
+    tex_format =>  "\text{\(C1\)} <%s, %s> + \text{\(C2\)} <%s, %s>" ,
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+	my ($stuv11, $stuv21, $stuv12, $stuv22) = @{$student}[0..3];
+
+     # if both vectors are nonempty but constants
+        if ($stuv11) { 
+             Value::Error('Your answers should be formulas, not constants')
+             unless $stuv11->isFormula;
+        }
+        if ($stuv21) { 
+             Value::Error('Your answers should be formulas, not constants')
+             unless $stuv21->isFormula;
+        }
+        if ($stuv12) { 
+             Value::Error('Your answers should be formulas, not constants')
+             unless $stuv12->isFormula;
+        }
+        if ($stuv22) { 
+             Value::Error('Your answers should be formulas, not constants')
+             unless $stuv22->isFormula;
+        }
+
+
+        # if both vectors are nonempty and nonzero
+        if ( 
+             ($stuv11 && $stuv21 && $stuv12 && $stuv22) && 
+             ($stuv11 != 0 || $stuv21 != 0) &&
+             ($stuv12 != 0 || $stuv22 != 0)
+           ) {
+           if ( 
+                (($corv11 * $stuv21 == $corv21 * $stuv11) && ($corv22 * $stuv12 == $corv12 * $stuv22)) ||  
+                (($corv11 * $stuv22 == $corv21 * $stuv12) && ($corv22 * $stuv11 == $corv12 * $stuv21))  
+              )
+           { return 1; }
+        }
+
+        # if the left vector is nonempty and nonzero
+        if ( ($stuv11 && $stuv21) && ($stuv11 != 0 || $stuv21 != 0) ) {
+           if ( 
+                ($corv11 * $stuv21 == $corv21 * $stuv11) ||
+                ($corv12 * $stuv21 == $corv22 * $stuv11) 
+              )
+           { 
+              $self->setMessage(1,"The vector on the left is correct.");
+              return 0.67;
+           }
+        }
+
+        # if the right vector is nonempty and nonzero
+        if ( ($stuv12 && $stuv22) && ($stuv12 != 0 || $stuv22 != 0) ) {
+           if (
+                ($corv12 * $stuv22 == $corv22 * $stuv12) ||
+                ($corv11 * $stuv22 == $corv21 * $stuv12) 
+              )
+           { 
+              $self->setMessage(2,"The vector on the right is correct.");
+              return 0.67;
+           }
+        }
+       
+        return 0;
+
+    }
+);
+
+
+$multianspart = MultiAnswer( $yptop, $ypbot )->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  "&lt;%s, %s&gt;",
+    tex_format =>  "\left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $s1, $s2 ) = @{$student};
+
+      Value::Error('Answers should be non-constant functions, '.
+      'and <b>every answer blank must be filled</b> to get feedback.') unless 
+      $s1->isFormula && $s2->isFormula;
+
+      my ( $s1p, $s2p ) = ( $s1->D('t'), $s2->D('t') ); 
+
+      my $top = ($s1p == $a11*$s1 + $a12*$s2);
+      my $bot = ($s2p == $a21*$s1 + $a22*$s2);
+
+      if ($top && !$bot) { 
+          $self->setMessage(1,"The top entry is correct.");
+          return 0.67;
+      }
+      if ($bot && !$top) { 
+          $self->setMessage(1,"The bottom entry is correct.");
+          return 0.67;
+      }
+      if ($top && $bot) { return 1; } else { return 0; }
+
+  }
+);

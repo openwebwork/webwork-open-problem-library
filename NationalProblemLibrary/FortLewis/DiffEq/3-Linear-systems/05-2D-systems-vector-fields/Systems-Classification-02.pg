@@ -1,0 +1,178 @@
+## DESCRIPTION
+## Eigenvalues and systems of differential equations
+## ENDDESCRIPTION
+
+## KEYWORDS ('linear algebra','matrix','eigenvalue','eigenvector','systems','systems of differential equations')
+
+## DBsubject('Calculus')
+## DBchapter('Differential Equations')
+## DBsection('Systems of Differential Equations')
+## Date('03/19/2011')
+## Author('Paul Pearson')
+## Institution('Fort Lewis College')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+
+
+##################################
+#  Initialization
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"MatrixUnimodular.pl",
+"unionLists.pl",
+"parserRadioButtons.pl",
+"weightedGrader.pl",
+#"problemRandomize.pl",
+);
+
+TEXT(beginproblem());
+
+#ProblemRandomize(when=>'always');
+
+install_weighted_grader();
+
+
+##################################
+#  Setup
+
+Context("Numeric");
+Context()->variables->are(t=>"Real");
+
+$lambda1 = random(1,3,1);
+$lambda2 = random(-3,-1,1);
+
+$radio = RadioButtons(
+  ["source / unstable node","sink / stable node","saddle","center point / ellipses","spiral source","spiral sink","none of these"],
+  "saddle", # correct answer
+  last => ["none of these"], # can be a list
+);
+
+
+@M = small_unimodular_diagonalization_GL2Z($lambda1,$lambda2);
+
+# the matrix to be analyzed
+$a11 = $M[0];  $a12 = $M[2];
+$a21 = $M[1];  $a22 = $M[3];
+
+$v1top = Formula("$M[4] e^($lambda1 t)");
+$v1bot = Formula("$M[5] e^($lambda1 t)");
+
+$v2top = Formula("$M[6] e^($lambda2 t)");
+$v2bot = Formula("$M[7] e^($lambda2 t)");
+
+
+
+$multians = MultiAnswer($v1top, $v1bot, $v2top, $v2bot)->with(
+
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  format =>  "A &lt;%s, %s&gt; + B &lt;%s, %s&gt;",
+  tex_format =>  "\text{A} \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack + ".
+                 "\text{B} \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      # my ( $c1, $c2, $c3, $c4 ) = @{$correct};
+      my ( $s1, $s2, $s3, $s4 ) = @{$student};
+
+      Value::Error('Answers should be non-constant functions, '.
+      'and <b>every answer blank must be filled</b> to get feedback.') unless 
+      $s1->isFormula && $s2->isFormula && $s3->isFormula && $s4->isFormula;
+
+      my ( $s1p, $s2p, $s3p, $s4p ) = ( $s1->D('t'), $s2->D('t'), $s3->D('t'), $s4->D('t') ); 
+
+      my $left  = (($s1p == $a11*$s1 + $a12*$s2) && 
+                   ($s2p == $a21*$s1 + $a22*$s2));
+
+      my $right = (($s3p == $a11*$s3 + $a12*$s4) && 
+                   ($s4p == $a21*$s3 + $a22*$s4));
+      
+      my $notparallel = ($s1*$s4 != $s2*$s3);
+
+      if ($left && !$right) { 
+          $self->setMessage(1,"The vector on the left is correct.");
+          return 0.67;
+      }
+      if ($right && !$left) { 
+          $self->setMessage(1,"The vector on the right is correct.");
+          return 0.67;
+      }
+      if ($left && $right && !$notparallel) { 
+          $self->setMessage(1,"Your solutions are linearly dependent.");
+          return 0.67; 
+      }
+      if ($left && $right && $notparallel) { return 1; } else { return 0; }
+
+  }
+);
+
+
+
+#######################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+\{ BeginList('OL',type=>'a') \}
+
+$ITEM
+Find the most general real-valued solution to the linear system 
+of differential equations
+\(
+\displaystyle
+\boldsymbol{\vec{x}^{\, \prime}}
+=
+\left\lbrack
+\begin{array}{rr}
+$M[0] & $M[2] \\
+$M[1] & $M[3]
+\end{array} 
+\right\rbrack
+\boldsymbol{\vec{x}}.
+\)
+$BR
+$BR
+\{ 
+mbox(
+[
+display_matrix([['\( x_1(t) \)'],['\( x_2(t) \)']]),
+' = A', 
+display_matrix([[$multians->ans_rule(10)],[$multians->ans_rule(10)]]),
+' + B ', 
+display_matrix([[$multians->ans_rule(10)],[$multians->ans_rule(10)]]),
+],
+allowbreaks=>'yes'
+) 
+\}
+
+$ITEMSEP
+$ITEM In the phase plane, this system is best described as a
+$BR
+\{ $radio->buttons() \}
+
+\{ EndList('OL') \}
+END_TEXT
+Context()->normalStrings;
+
+
+###################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+WEIGHTED_ANS( $multians->cmp(), 95 );
+WEIGHTED_ANS( $radio->cmp(), 5 );
+
+COMMENT('MathObject version.  Positive and negative integer eigenvalues.');
+
+ENDDOCUMENT();
