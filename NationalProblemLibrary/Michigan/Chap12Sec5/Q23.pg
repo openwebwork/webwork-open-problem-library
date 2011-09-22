@@ -10,6 +10,7 @@ loadMacros(
 "PGstandard.pl",
 "PGchoicemacros.pl",
 "MathObjects.pl",
+"parserMultiAnswer.pl",
 # "parserNumberWithUnits.pl",
 # "parserFormulaWithUnits.pl", 
 # "parserFormulaUpToConstant.pl",
@@ -38,6 +39,7 @@ loadMacros(
 
 Context("Numeric");
 Context()->variables->add( y=>'Real', z=>'Real' );
+install_problem_grader(~~&std_problem_grader);
 $showPartialCorrectAnswers = 1;
 
 $a = random(1,5,1);
@@ -48,6 +50,22 @@ $yx = ( $xy eq 'x' ) ? 'y' : 'x';
 $f = Compute( "sqrt($asq - $xy^2)" );
 $g1 = Compute( "$f - z" );
 $g2 = Compute( "z - ($f)" );
+
+$surf = MultiAnswer( $g1, Compute(0) )->with(
+    singleResult => 0,
+    checker => sub {
+	my ( $cor, $stu, $ansHash ) = @_;
+	my ( $corF, $corC ) = @$cor;
+	my ( $stuF, $stuC ) = @$stu;
+
+	if ( $corF == ( $stuF - $stuC ) ||
+	     $g2 == ( $stuF - $stuC ) ) {
+	    return [ 1, 1 ];
+	} else {
+	    return [ 0, 0 ];
+	}
+    }
+);
 
 Context()->texStrings;
 TEXT(beginproblem());
@@ -61,17 +79,20 @@ or four sentences on a sheet of paper that clearly demonstrate this.
 $PAR
 Find a level surface \( g(x,y,z)=c \) representing \( S \).
 $PAR
-\( g(x,y,z) = \) \{ ans_rule(45) \},
+\( g(x,y,z) = \) \{ $surf->ans_rule(45) \},
 $BR
-with \(c = \) \{ ans_rule(10) \}
-
+with \(c = \) \{ $surf->ans_rule(10) \}
+$BR
+${BITALIC}(Note that because your answers for \(g\) and \(c\) are
+interdependent, you cannot get partial credit for this problem.)$EITALIC
 
 END_TEXT
 Context()->normalStrings;
 
-ANS($g1->cmp( checker=>sub { my ( $cor, $stu, $self ) = @_;
-			      return $stu == $cor || $stu == $g2; } ) );
-ANS(Compute(0)->cmp() );
+ANS( $surf->cmp() );
+# ANS( $g1->cmp( checker=>sub { my ( $cor, $stu, $self ) = @_;
+# 			      return $stu == $cor || $stu == $g2; } ) );
+# ANS( Compute(0)->cmp() );
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
@@ -96,6 +117,5 @@ Clearly, we could also take \(g(x,y,z) = z - f(x,y) = z - $f\) as well.
 END_SOLUTION
 Context()->normalStrings;
 
-
-COMMENT('MathObject version');
+COMMENT('Uses MathObjects');
 ENDDOCUMENT();
