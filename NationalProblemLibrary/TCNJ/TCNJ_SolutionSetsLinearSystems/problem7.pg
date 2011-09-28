@@ -126,19 +126,56 @@ $isVec = MultiAnswer( @v1vals, @v2vals, @v3vals )->with(
 		     $zero == $stuV3[4] + $h*$stuV3[5] ) {
 		    # check independence: can we get each of the
 		    #    correct vectors as a linear combination of
-		    #    these?
-		    my $stuMat = new Matrix(3,3);
+		    #    these?  we have to be careful here, because
+		    #    we need to solve for the coefficients to match
+		    #    the non-zero terms in the answer vectors
+		    # for the first answer vector, @ansV[0..5], the
+		    #    first two rows are non-zero, so we solve to match
+		    #    the first three rows
+		    # for the second answer vector, @ansv[6..11], we
+		    #    want to check the 1st, 3rd and 4th rows
+		    # for the third answer vector, @ansv[12..17], we
+		    #    check rows 3, 5 and 6
+# this is ugly.  methinks there's a better way, but for now we'll go with
+# this
+		    my $stuMat1 = new Matrix(3,3);
+		    my $stuMat2 = new Matrix(3,3);
+		    my $stuMat3 = new Matrix(3,3);
 		    my $ansV1 = new Matrix(3,1);
 		    my $ansV2 = new Matrix(3,1);
  		    my $ansV3 = new Matrix(3,1);
 		    for ( my $i=0; $i<3; $i++ ) {
-			$stuMat->assign($i+1, 1, $stuV1[$i]->string());
-			$stuMat->assign($i+1, 2, $stuV2[$i]->string());
-			$stuMat->assign($i+1, 3, $stuV3[$i]->string());
+			$stuMat1->assign($i+1, 1, $stuV1[$i]->string());
+			$stuMat1->assign($i+1, 2, $stuV2[$i]->string());
+			$stuMat1->assign($i+1, 3, $stuV3[$i]->string());
 			$ansV1->assign($i+1, 1, $ansV[$i]->string());
-			$ansV2->assign($i+1, 1, $ansV[$i+6]->string());
-			$ansV3->assign($i+1, 1, $ansV[$i+12]->string());
 		    }
+		    $stuMat2->assign(1, 1, $stuV1[0]->string());
+		    $stuMat2->assign(1, 2, $stuV2[0]->string());
+		    $stuMat2->assign(1, 3, $stuV3[0]->string());
+		    $stuMat2->assign(2, 1, $stuV1[2]->string());
+		    $stuMat2->assign(2, 2, $stuV2[2]->string());
+		    $stuMat2->assign(2, 3, $stuV3[2]->string());
+		    $stuMat2->assign(3, 1, $stuV1[3]->string());
+		    $stuMat2->assign(3, 2, $stuV2[3]->string());
+		    $stuMat2->assign(3, 3, $stuV3[3]->string());
+		    $ansV2->assign(1, 1, $ansV[6]->string());
+		    $ansV2->assign(2, 1, $ansV[8]->string());
+		    $ansV2->assign(3, 1, $ansV[9]->string());
+
+		    $stuMat3->assign(1, 1, $stuV1[2]->string());
+		    $stuMat3->assign(1, 2, $stuV2[2]->string());
+		    $stuMat3->assign(1, 3, $stuV3[2]->string());
+		    $stuMat3->assign(2, 1, $stuV1[4]->string());
+		    $stuMat3->assign(2, 2, $stuV2[4]->string());
+		    $stuMat3->assign(2, 3, $stuV3[4]->string());
+		    $stuMat3->assign(3, 1, $stuV1[5]->string());
+		    $stuMat3->assign(3, 2, $stuV2[5]->string());
+		    $stuMat3->assign(3, 3, $stuV3[5]->string());
+		    $ansV3->assign(1, 1, $ansV[14]->string());
+		    $ansV3->assign(2, 1, $ansV[16]->string());
+		    $ansV3->assign(3, 1, $ansV[17]->string());
+
 #  [ s11  s12  s13 ] [x1]   [a1]
 #  [ s21  s22  s23 ] [x2] = [a2]
 #  [ s31  s32  s33 ] [x3]   [a3]
@@ -155,13 +192,16 @@ $isVec = MultiAnswer( @v1vals, @v2vals, @v3vals )->with(
 #  [ s3  s9   s15 ] [x1]   [a4]
 #  [ s4  s10  s16 ] [x2] = [a5]
 #  [ s5  s11  s17 ] [x3]   [a6]
-		    my $lr_stuMat = $stuMat->decompose_LR();
-		    my @sMat1 = $lr_stuMat->solve_LR($ansV1);
-		    my @sMat2 = $lr_stuMat->solve_LR($ansV2);
-		    my @sMat3 = $lr_stuMat->solve_LR($ansV3);
+		    my $lr_stuMat1 = $stuMat1->decompose_LR();
+		    my $lr_stuMat2 = $stuMat2->decompose_LR();
+		    my $lr_stuMat3 = $stuMat3->decompose_LR();
+		    my @sMat1 = $lr_stuMat1->solve_LR($ansV1);
+		    my @sMat2 = $lr_stuMat2->solve_LR($ansV2);
+		    my @sMat3 = $lr_stuMat3->solve_LR($ansV3);
 		    if ( @sMat1 && @sMat2 && @sMat3 ) {
 		        # check remaining rows
 			# ($dim1,$x1,$B1)
+			# for the first, check rows 4-6
 			my $check11 = $sMat1[1]->element(1,1)*$stuV[3] +
 			    $sMat1[1]->element(2,1)*$stuV[9] +
 			    $sMat1[1]->element(3,1)*$stuV[15];
@@ -171,31 +211,42 @@ $isVec = MultiAnswer( @v1vals, @v2vals, @v3vals )->with(
 			my $check13 = $sMat1[1]->element(1,1)*$stuV[5] +
 			    $sMat1[1]->element(2,1)*$stuV[11] +
 			    $sMat1[1]->element(3,1)*$stuV[17];
-			my $check21 = $sMat2[1]->element(1,1)*$stuV[3] +
-			    $sMat2[1]->element(2,1)*$stuV[9] +
-			    $sMat2[1]->element(3,1)*$stuV[15];
+			# for the second, check rows 2, 5, and 6
+			my $check21 = $sMat2[1]->element(1,1)*$stuV[1] +
+			    $sMat2[1]->element(2,1)*$stuV[7] +
+			    $sMat2[1]->element(3,1)*$stuV[13];
 			my $check22 = $sMat2[1]->element(1,1)*$stuV[4] +
 			    $sMat2[1]->element(2,1)*$stuV[10] +
 			    $sMat2[1]->element(3,1)*$stuV[16];
 			my $check23 = $sMat2[1]->element(1,1)*$stuV[5] +
 			    $sMat2[1]->element(2,1)*$stuV[11] +
 			    $sMat2[1]->element(3,1)*$stuV[17];
-			my $check31 = $sMat3[1]->element(1,1)*$stuV[3] +
+			# for the third, check rows 1, 2, and 4
+			my $check31 = $sMat3[1]->element(1,1)*$stuV[0] +
+			    $sMat3[1]->element(2,1)*$stuV[6] +
+			    $sMat3[1]->element(3,1)*$stuV[12];
+			my $check32 = $sMat3[1]->element(1,1)*$stuV[1] +
+			    $sMat3[1]->element(2,1)*$stuV[7] +
+			    $sMat3[1]->element(3,1)*$stuV[13];
+			my $check33 = $sMat3[1]->element(1,1)*$stuV[3] +
 			    $sMat3[1]->element(2,1)*$stuV[9] +
 			    $sMat3[1]->element(3,1)*$stuV[15];
-			my $check32 = $sMat3[1]->element(1,1)*$stuV[3] +
-			    $sMat3[1]->element(2,1)*$stuV[10] +
-			    $sMat3[1]->element(3,1)*$stuV[16];
-			my $check33 = $sMat3[1]->element(1,1)*$stuV[3] +
-			    $sMat3[1]->element(2,1)*$stuV[11] +
-			    $sMat3[1]->element(3,1)*$stuV[17];
 
+			# warn("smat2 = [" . $sMat2[1]->element(1,1) . ", " .
+			#      $sMat2[1]->element(2,1) . ", " .
+			#      $sMat2[1]->element(3,1) . "]");
+			# warn("v3 = $ansV[3],  v4 = $ansV[4],  v5 = $ansV[5]");
+			# warn("v7 = $ansV[7], v10 = $ansV[10], v11 = $ansV[11]");
+			# warn("v12 = $ansV[12], v13 = $ansV[13], v15 = $ansV[15]");
+			# warn("c11 = $check11, c12 = $check12, c13 = $check13");
+			# warn("c21 = $check21, c22 = $check22, c23 = $check23");
+			# warn("c31 = $check31, c32 = $check32, c33 = $check33");
 			if ( $ansV[3] == $check11 && $ansV[4] == $check12 &&
 			     $ansV[5] == $check13 &&
-			     $ansV[9] == $check21 && $ansV[10] == $check22 &&
+			     $ansV[7] == $check21 && $ansV[10] == $check22 &&
 			     $ansV[11] == $check23 &&
-			     $ansV[15] == $check31 && $ansV[16] == $check32 &&
-			     $ansV[17] == $check33 ) {
+			     $ansV[12] == $check31 && $ansV[13] == $check32 &&
+			     $ansV[15] == $check33 ) {
 			    # yay!
 			    return 1;
 			} else {
