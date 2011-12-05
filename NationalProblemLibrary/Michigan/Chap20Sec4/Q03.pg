@@ -67,6 +67,16 @@ $rparam = MultiAnswer( $rt, $r0, $r1, $integ )->with(
         my ( $svec, $t0, $t1, $sint ) = @{$s};
 
 	my ( $sx, $sy, $sz ) = $svec->value;
+	my $brutalHack = 0;
+	## if the student answer is given in ijk format, we get one
+	##    element for the value; if in angle bracket, three
+	if ( ! defined( $sy ) ) {
+	    ## drat.  we have to be more sneaky than we'd like
+	    $sx = $svec . i;
+	    $sy = $svec . j;
+	    $sz = $svec . k;
+	    $brutalHack = 1;
+	}
 
 	my @res = ( 0, 0, 0, 0 );
 
@@ -118,10 +128,30 @@ $rparam = MultiAnswer( $rt, $r0, $r1, $integ )->with(
 	    }
 
 	## finally check the integrand
-	    $sxd = $sx->D('t');
-	    $syd = $sy->D('t');
-	    $sintc = $a*($sy*$sxd - $sx*$syd);
-	    $res[3] = ( $sintc == $sint ) ? 1 : 0;
+	    if ( $brutalHack ) {
+		## then we have to work around the inability of a vector
+		##    defined in ijk format to resolve components and
+		##    therefore take derivatives
+
+		my $svecString = $svec->string;
+		my ($bnd, $sxval) = ($svecString =~ /.*(^|~~*j|~~*k)(.+)~~*i/);
+		my ($bnd, $syval) = ($svecString =~ /.*(^|~~*i|~~*k)(.+)~~*j/);
+		$sxval = Formula($sxval);
+		$syval = Formula($syval);
+
+		$sxd = $sxval->D('t');
+		$syd = $syval->D('t');
+
+		$sintc = $a*($sy*$sxd - $sx*$syd);
+		$res[3] = ( $sintc == $sint ) ? 1 : 0;
+
+	    } else {
+		$sxd = $sx->D('t');
+		$syd = $sy->D('t');
+
+		$sintc = $a*($sy*$sxd - $sx*$syd);
+		$res[3] = ( $sintc == $sint ) ? 1 : 0;
+	    }
 	}
 	return [ @res ];
     } );
@@ -181,12 +211,12 @@ $BR
 END_TEXT
 Context()->normalStrings;
 
-ANS($rparam->cmp() );
-ANS($circ->cmp() );
-ANS($curl->cmp() );
-ANS($da->cmp() );
-ANS($sint->cmp() );
-ANS($circ->cmp() );
+ANS( $rparam->cmp() );
+ANS( $circ->cmp() );
+ANS( $curl->cmp() );
+ANS( $da->cmp() );
+ANS( $sint->cmp() );
+ANS( $circ->cmp() );
 
 $ar = $a*$r;
 $arsq = $ar*$r;
