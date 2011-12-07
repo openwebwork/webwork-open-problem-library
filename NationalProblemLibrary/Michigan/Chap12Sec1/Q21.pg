@@ -10,6 +10,7 @@ loadMacros(
 "PGstandard.pl",
 "PGchoicemacros.pl",
 "MathObjects.pl",
+"parserMultiAnswer.pl",
 # "parserNumberWithUnits.pl",
 # "parserFormulaWithUnits.pl", 
 # "parserFormulaUpToConstant.pl",
@@ -48,10 +49,68 @@ $showPartialCorrectAnswers = 1;
 	[ 23, 16,  9,  3, -4, -11, -17, -24 ] );
 
 $wInd1 = random(0,2,1);
-$wInd2 = $wInd1 + random($wInd1+1,4-$wInd1,1);
+$wInd2 = $wInd1 + random(1,4-$wInd1,1);
 @windSp = ( 5, 10, 15, 20, 25 );
 $s1 = $windSp[$wInd1];
 $s2 = $windSp[$wInd2];
+
+my $matchChecker = sub {
+    my ($c, $s, $ans) = @_;
+
+    my $cor_iVar = $c->[0];
+    my $cor_dVar = $c->[9];
+    my $stu_iVar = $s->[0];
+    my $stu_dVar = $s->[9];
+
+    my @res = ( 0 )x 18;
+
+    if ( $cor_iVar == $stu_iVar && $cor_dVar == $stu_dVar ) {
+	$res[0] = 1;
+	$res[9] = 1;
+
+	## then we can check the values
+	my @stuT = @{$s}[1..8];
+	my @stuw = @{$s}[10..17];
+
+	my @corT = @{$c}[1..8];
+	my @corw = @{$c}[10..17];
+
+	## the indices of the student T values that match the
+	##    correct T values: $order[i] = the index of the student
+	##    answer that matches the ith correct answer
+	my @order = ( -1, -1, -1, -1, -1, -1, -1, -1 );
+	## which correct answers we've found
+	my %used  = ( );
+	for ( my $i=0; $i<@corT; $i++ ) {
+	    for ( my $j=0; $j<@stuT; $j++ ) {
+		if ( $corT[$i] == $stuT[$j] && ! $used{$i} ) {
+		    $order[$i] = $j;
+		    $used{$i}  = 1;
+		    $res[$j+1] = 1;
+		}
+	    }
+	}
+	for ( my $i=0; $i<@corw; $i++ ) {
+	    if ( $order[$i] != -1 && $corw[$i] == $stuw[$order[$i]] ) {
+		$res[$order[$i]+10] = 1;
+	    }
+	}
+    }
+    return @res;
+};
+
+@tvals = ( map {Compute($_)} (qw(35 30 25 20 15 10 5 0)) );
+@wvals1 = ( map {Compute($_)} @{$wt[$wInd1]} );
+@wvals2 = ( map {Compute($_)} @{$wt[$wInd2]} );
+
+$funcVals1 = MultiAnswer( Compute("T"), @tvals, Compute("w"), @wvals1 )->with(
+    singleResult => 0,
+    checker => $matchChecker,
+);
+$funcVals2 = MultiAnswer( Compute("T"), @tvals, Compute("w"), @wvals2 )->with(
+    singleResult => 0,
+    checker => $matchChecker,
+);
 
 Context()->texStrings;
 TEXT(beginproblem());
@@ -78,19 +137,24 @@ $BCENTER
 $ECENTER
 $PAR
 
-Use this table to make tables of the temperature adjusted for wind-chill
-(\(w\)) as a function of temperature for wind speeds $s1 and $s2 mph:
+Use this table to make tables of the temperature adjusted for
+wind-chill (\(w\)) as a function of temperature for wind speeds $s1 and
+$s2 mph:
 $PAR
 \(s = $s1\):
 $BR
 $BCENTER
 \{ begintable(9) \}
-\{ row( "independent variable = " . ans_rule(3) . " = ",
-	ans_rule(5), ans_rule(5), ans_rule(5), ans_rule(5),
-	ans_rule(5), ans_rule(5), ans_rule(5), ans_rule(5) ) \}
-\{ row( "dependent variable = " . ans_rule(3) . " = ",
-	ans_rule(5), ans_rule(5), ans_rule(5), ans_rule(5),
-	ans_rule(5), ans_rule(5), ans_rule(5), ans_rule(5) ) \}
+\{ row( "independent variable = " . $funcVals1->ans_rule(3) . " = ",
+	$funcVals1->ans_rule(5), $funcVals1->ans_rule(5),
+	$funcVals1->ans_rule(5), $funcVals1->ans_rule(5),
+	$funcVals1->ans_rule(5), $funcVals1->ans_rule(5),
+	$funcVals1->ans_rule(5), $funcVals1->ans_rule(5) ) \}
+\{ row( "dependent variable = " . $funcVals1->ans_rule(3) . " = ",
+	$funcVals1->ans_rule(5), $funcVals1->ans_rule(5),
+	$funcVals1->ans_rule(5), $funcVals1->ans_rule(5),
+	$funcVals1->ans_rule(5), $funcVals1->ans_rule(5),
+	$funcVals1->ans_rule(5), $funcVals1->ans_rule(5) ) \}
 \{ endtable() \}
 $ECENTER
 
@@ -99,34 +163,41 @@ $PAR
 $BR
 $BCENTER
 \{ begintable(9) \}
-\{ row( "independent variable = " . ans_rule(3) . " = ",
-	ans_rule(5), ans_rule(5), ans_rule(5), ans_rule(5),
-	ans_rule(5), ans_rule(5), ans_rule(5), ans_rule(5) ) \}
-\{ row( "dependent variable = " . ans_rule(3) . " = ",
-	ans_rule(5), ans_rule(5), ans_rule(5), ans_rule(5),
-	ans_rule(5), ans_rule(5), ans_rule(5), ans_rule(5) ) \}
+\{ row( "independent variable = " . $funcVals2->ans_rule(3) . " = ",
+	$funcVals2->ans_rule(5), $funcVals2->ans_rule(5),
+	$funcVals2->ans_rule(5), $funcVals2->ans_rule(5),
+	$funcVals2->ans_rule(5), $funcVals2->ans_rule(5),
+	$funcVals2->ans_rule(5), $funcVals2->ans_rule(5) ) \}
+\{ row( "dependent variable = " . $funcVals2->ans_rule(3) . " = ",
+	$funcVals2->ans_rule(5), $funcVals2->ans_rule(5),
+	$funcVals2->ans_rule(5), $funcVals2->ans_rule(5),
+	$funcVals2->ans_rule(5), $funcVals2->ans_rule(5),
+	$funcVals2->ans_rule(5), $funcVals2->ans_rule(5) ) \}
 \{ endtable() \}
 $ECENTER
 
 END_TEXT
 Context()->normalStrings;
 
-ANS(Compute("T")->cmp() );
-foreach my $t ( qw( 35 30 25 20 15 10 5 0 ) ) {
-    ANS(Compute($t)->cmp() );
-}
-ANS(Compute("w")->cmp() );
-foreach my $t ( @{$wt[$wInd1]} ) {
-    ANS(Compute($t)->cmp() );
-}
-ANS(Compute("T")->cmp() );
-foreach my $t ( qw( 35 30 25 20 15 10 5 0 ) ) {
-    ANS(Compute($t)->cmp() );
-}
-ANS(Compute("w")->cmp() );
-foreach my $t ( @{$wt[$wInd2]} ) {
-    ANS(Compute($t)->cmp() );
-}
+# ANS( Compute("T")->cmp() );
+# foreach my $t ( qw( 35 30 25 20 15 10 5 0 ) ) {
+#     ANS( Compute($t)->cmp() );
+# }
+# ANS( Compute("w")->cmp() );
+# foreach my $t ( @{$wt[$wInd1]} ) {
+#     ANS( Compute($t)->cmp() );
+# }
+# ANS( Compute("T")->cmp() );
+# foreach my $t ( qw( 35 30 25 20 15 10 5 0 ) ) {
+#     ANS( Compute($t)->cmp() );
+# }
+# ANS( Compute("w")->cmp() );
+# foreach my $t ( @{$wt[$wInd2]} ) {
+#     ANS( Compute($t)->cmp() );
+# }
+
+ANS( $funcVals1->cmp() );
+ANS( $funcVals2->cmp() );
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
@@ -157,6 +228,6 @@ $ECENTER
 END_SOLUTION
 Context()->normalStrings;
 
+COMMENT('Uses MathObjects');
 
-COMMENT('MathObject version');
 ENDDOCUMENT();
