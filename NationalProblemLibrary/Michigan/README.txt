@@ -6,6 +6,9 @@ The Xe directory(ies) is(are) added problems corresponding to the
 Xth edition of the text.  NOTE that the problems in the base
 directories also contain problems from subsequent editions.
 
+Directories under the precalc directory include problems for the
+Connally precalculus book.
+
 The gateways contain files from the University of Michigan skills
 gateway tests.  A README in that directory explains the organization
 of these file and set-up of the tests we use.
