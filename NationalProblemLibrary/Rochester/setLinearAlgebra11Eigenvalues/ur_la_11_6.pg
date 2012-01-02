@@ -21,19 +21,16 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros("PG.pl",
            "PGbasicmacros.pl",
-           "PGchoicemacros.pl",
            "PGanswermacros.pl",
-           "PGgraphmacros.pl",
-           "PGmatrixmacros.pl",
-           "PGnumericalmacros.pl",
-           "PGdiffeqmacros.pl"
+           "MathObjects.pl",
 );
 
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
-$a= new Matrix(2,2);
+Context("Matrix");
+#$a= new Matrix(2,2);
 # define matrix
         $a11 = random(-1,1,2);
         $a12 = non_zero_random(-3,3,1);
@@ -42,118 +39,65 @@ $a= new Matrix(2,2);
         $b1 = random(-1,1,2);
         $a22 = $mult * $a12 + $b1;
 
-        $a->assign(1,1, $a11 );
-        $a->assign(1,2, $a12 );
-        $a->assign(2,1, $a21 );
-        $a->assign(2,2, $a22 );
-        $a_lr = $a->decompose_LR();
-        $a_det = $a11 * $b1;
+        $a = Matrix("[[$a11, $a12], [$a21, $a22]]");
 
 # define inverse matrix
-	$b = $a_lr->invert_LR();
+	$b = $a->inverse();
 # define eigenvalues
-    $e = new Matrix(2,2);
-    $e->one();
-    $e->assign(1,1, non_zero_random(-8,8,1));
-    $e->assign(2,2, non_zero_random(-8,8,1));
+    $e1= non_zero_random(-8,8,1);
 # make sure that the eigenvalues are distinct
-	while ($e->element(1,1) == $e->element(2,2)) { $e->assign(2,2, non_zero_random(-8,8,1)); } 
+    do { $e2= non_zero_random(-8,8,1); } while ($e1==$e2);
+    $e = Matrix("[[$e1, 0],[0, $e2]]");
 # define final matrix
 	$matrix = $a * $e *$b;
 	$matrix_lr = $matrix->decompose_LR();
 	$matrix_det = $matrix_lr->det_LR();
 
+$min = 1;
+$min = 2 if ($e2 < $e1);
+$max = 3-$min;
+Context()->texStrings;
+
 BEGIN_TEXT
 
 Find the eigenvalues of the matrix
+\( $matrix \).
 $BR
-\{ mbox( '\( A= \)', display_matrix($matrix), '.' ) \} 
 $BR
-smaller eigenvalue \( = \) \{ans_rule(10)\},  
+Smaller eigenvalue \( = \) \{ans_rule(10)\}
 $BR
-associated eigenvector \( =  \) ( \{ NAMED_ANS_RULE(vec1,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec1,10) \} ),  
+Associated eigenvector \( =  \) 
+\{ ans_rule(30) \}
 $BR
-larger eigenvalue \( = \) \{ ans_rule(10) \},
 $BR
-associated  eigenvector  \( = \)  ( \{ NAMED_ANS_RULE(vec2,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec2,10) \} ).  
-
+Larger eigenvalue \( = \) \{ ans_rule(10) \}
+$BR
+Associated  eigenvector  \( = \)  
+\{ ans_rule(30) \}
+$BR$BR
+$BBOLD Note: $EBOLD vectors are entered with "angle brackets", such
+as <1,2> or <0, -4>.
 
 END_TEXT
-if ( $e->element(1,1) < $e->element(2,2) ) {
-	ANS(num_cmp($e->element(1,1),tol=>.1));
-    NAMED_ANS(vec1 => check_eigenvector($e->element(1,1), $matrix, 
-    					correct_ans =>[$a->column(1)->list])   );
-	ANS(num_cmp($e->element(2,2),tol=>.1));
-	NAMED_ANS(vec2 =>check_eigenvector($e->element(2,2), $matrix, 
-						correct_ans =>[$a->column(2)->list])   );;
-} else {
-	ANS(num_cmp($e->element(2,2),tol=>.1));
-    NAMED_ANS(vec1 => check_eigenvector($e->element(2,2), $matrix, 
-                       correct_ans =>[$a->column(2)->list])   );
-    ANS(num_cmp($e->element(1,1),tol=>.1));
-	NAMED_ANS(vec2 => check_eigenvector($e->element(1,1), $matrix, 
-	                   correct_ans =>[$a->column(1)->list])   );
+
+Context('Vector');
+
+sub ismult {
+  my ( $correct, $student, $ansHash) = @_;
+  if ($student->isZero) {
+    Value->Error("Eigenvectors cannot be zero");
+    return 0;
+  }
+  return 1 if($correct->isParallel($student)) ;
 }
 
+$v1 = Vector($a->element(1,$min), $a->element(2,$min));
+$v2 = Vector($a->element(1,$max), $a->element(2,$max));
 
-######################################################### 
-# sub  check_eigenvector {
-#     my $eigenvalue = shift;
-# 	my $matrix = shift;
-# 	my %options = @_;
-# 	my @correct_vector = ();
-# 	@correct_vector = @{$options{'correct_ans'}} if defined($options{'correct_ans'});
-# 	$ans_eval = sub {
-# 		my $in = shift @_;
-# 		my @in1 = split("~~0",$in);
-# 		my $ans_hash = new AnswerHash(
-# 			'score'					=>	0,
-# 			'correct_ans'			=>	"( " . join(", ", @correct_vector ) . " )",
-# 			'student_ans'			=>	"( " . join(", ", @in1 ) . " )",
-# 			'ans_message'			=>	'',
-# 			'type'					=>	"std_number",
-# 			'preview_text_string'	=>	'',
-# 			'preview_latex_string'	=>	'',
-# 			'original_student_ans'	=>	$in
-# 		);
-# 		my @in=();
-# 		foreach $i (0..$#in1) {
-# 		    if ($in1[$i] =~/~~S/ ) {
-# 				($in[$i],$PG_eval_errors,$PG_full_error_report) = PG_answer_eval(math_constants($in1[$i]));
-# 			} else {
-# 				$PG_eval_errors = ' ';
-# 			}
-# 			if ($PG_eval_errors) {			  ##error message from eval	or above
-# 				$formattedSubmittedAnswer =	$PG_eval_errors;
-# 				$formattedSubmittedAnswer =clean_up_error_msg($formattedSubmittedAnswer);
-# 				$PGanswerMessage = 'There is a syntax error	in your	answer';
-# 				$PGanswerMessage = '' if $PG_eval_errors eq	' ';
-# 				my $ans_hash = new AnswerHash(
-# 						'score'					=>	0,
-# 						'correct_ans'			=>	"( " . join(", ", @correct_vector ) . " )",
-# 						'student_ans'			=>	[@in],
-# 						'ans_message'			=>	$PGanswerMessage,
-# 						'type'					=>	'std_number',
-# 						'preview_text_string'	=>	' ',
-# 						'preview_latex_string'	=>	' ',
-# 						'original_student_ans'	=>	"( " . join(", ", @in1 ) . " )"
-# 				);
-# 				return($ans_hash);
-# 			}		
-# 		}
-# 		return($ans_hash) unless @correct_vector == @in;  # make sure the vectors are the same dimension
-# 		$vec = new Matrix(2,1);
-# 		$vec->assign(1,1, $in[0]);
-# 		$vec->assign(2,1, $in[1]);
-# 		$out_vec = $matrix * $vec;
-# 		$diff[0] = $out_vec->element(1,1) - $vec->element(1,1)*$eigenvalue;
-# 		$diff[1] = $out_vec->element(2,1) - $vec->element(2,1)*$eigenvalue;
-# 		$ans_hash->{score} = zero_check(~~@diff);
-# 		$ans_hash;
-# 	};
-# 	$ans_eval;
-# }
-# 
+ANS(num_cmp( $e->element($min,$min) ));
+ANS($v1->cmp(checker => ~~&ismult ) );
+ANS(num_cmp( $e->element($max,$max) ));
+ANS($v2->cmp(checker => ~~&ismult ) );
 
 
 ENDDOCUMENT() ;        
