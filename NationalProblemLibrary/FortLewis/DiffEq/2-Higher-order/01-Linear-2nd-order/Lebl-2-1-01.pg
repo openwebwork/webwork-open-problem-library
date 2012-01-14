@@ -27,9 +27,13 @@ loadMacros(
 "MathObjects.pl",
 "PGmatrixmacros.pl",
 "parserPopUp.pl",
+"parserMultiAnswer.pl",
+"weightedGrader.pl",
 );
 
 TEXT(beginproblem());
+
+install_weighted_grader();
 
 
 #############################
@@ -49,6 +53,33 @@ $wronskian = $a11 * $a22 - $a12 * $a21;
 
 $pop = PopUp(["Choose","zero","nonzero"],"nonzero");
 
+
+$multians1 = MultiAnswer($a11, $a12, $a21, $a22)->with(
+
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  checkTypes => 0,
+  format =>  "<table border='0' cellspacing='10'>
+  <tr><td> %s </td><td> %s </td></tr>
+  <tr><td> %s </td><td> %s </td></tr>
+  </table>",
+  tex_format =>  "\left\lbrack\begin{array}{rr} %s & %s \\ %s & %s \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my @score = ();
+      foreach my $j (0..3) {
+        $score[$j] = 0;
+        if ($c[$j]->typeMatch($s[$j]) && $c[$j] == $s[$j]) { $score[$j] = 1; }
+      }
+      return [ @score ];
+  }
+
+);
+
+
 ######################
 #  Main text
 
@@ -62,7 +93,9 @@ $BCENTER
 \{ 
 mbox(
   "Wronskian = \( \mathrm{det} \)",
-  display_matrix([[ans_rule(10),ans_rule(10)], [ans_rule(10),ans_rule(10)]], align=>'cc'),
+  display_matrix([
+  [$multians1->ans_rule(10),$multians1->ans_rule(10)], 
+  [$multians1->ans_rule(10),$multians1->ans_rule(10)]], align=>'cc'),
   " = ".$SPACE.ans_rule(20)
 );
 \}
@@ -79,13 +112,12 @@ Context()->normalStrings;
 
 $showPartialCorrectAnswers = 1;
 
-ANS( $a11->cmp() );
-ANS( $a12->cmp() );
-ANS( $a21->cmp() );
-ANS( $a22->cmp() );
-ANS( $wronskian->cmp() );
-ANS( $pop->cmp() );
+WEIGHTED_ANS( $multians1->cmp(), 50 );
 
-COMMENT("MathObject version.");
+WEIGHTED_ANS( $wronskian->cmp(), 40 );
+
+WEIGHTED_ANS( $pop->cmp(), 10 );
+
+COMMENT("MathObject version.  Uses parserMultiAnswer.pl to format the matrix nicely.");
 
 ENDDOCUMENT();
