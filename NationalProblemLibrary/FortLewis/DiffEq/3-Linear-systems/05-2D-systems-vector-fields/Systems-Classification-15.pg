@@ -7,9 +7,9 @@
 ## DBsubject('Calculus')
 ## DBchapter('Differential Equations')
 ## DBsection('Systems of Differential Equations')
-## Date('03/19/2011')
+## Date('01/31/2012')
 ## Author('Paul Pearson')
-## Institution('Fort Lewis College')
+## Institution('Rochester and Fort Lewis College')
 ## TitleText1('')
 ## EditionText1('')
 ## AuthorText1('')
@@ -20,7 +20,6 @@
 ##################################
 #  Initialization
 
-
 DOCUMENT();
 
 loadMacros(
@@ -28,50 +27,43 @@ loadMacros(
 "PGmatrixmacros.pl",
 "MathObjects.pl",
 "parserMultiAnswer.pl",
-"MatrixUnimodular.pl",
-"unionLists.pl",
 "parserRadioButtons.pl",
+"unionLists.pl",
 "weightedGrader.pl",
 );
 
-TEXT(beginproblem());
-
 install_weighted_grader();
 
-##################################
-#  Setup
-
-Context("Numeric");
-Context()->variables->add(
-'t'=>'Real',
-'c1'=>'Real',
-'c2'=>'Real',
-);
-
-SRAND($psvn);
-
-
-$lambda1 = random(-5,-2,1);
-do { $lambda2 = random(-4,-1,1); } until ($lambda1 < $lambda2);
-
-$radio = RadioButtons(
-  ["source / unstable node","sink / stable node","saddle","center point / ellipses","spiral source","spiral sink","none of these"],
-  "sink / stable node", # correct answer
-  last => ["none of these"], # can be a list
-);
+TEXT(beginproblem());
 
 
 
-@M = small_unimodular_diagonalization_GL2Z($lambda1,$lambda2);
+#####################################
+#  Setup 1
 
-$A = new Matrix(2,2);
-$A->assign(1,1, $M[0]);
-$A->assign(2,1, $M[1]);
-$A->assign(1,2, $M[2]);
-$A->assign(2,2, $M[3]);
+Context("Complex");
+
+# roots -a +/- bi
+
+$a = random(2,6,1);
+do { $b = random(2,6,1); } until ($b != $a);
+
+$bb = $b * $b;
 
 
-$multians1 = MultiAnswer($lambda1, $M[4], $M[5], $lambda2, $M[6], $M[7])->with(
+$A11 = $a;  $A12 = -1*($bb);
+$A21 = 1;        $A22 = $a;
+
+$lambda1 =  Complex("$a + $b i");
+$v11 = Complex("-$b");
+$v21 = Complex("i");
+
+$lambda2 = Complex("$a -$b i");
+$v12 = Complex("-$b");
+$v22 = Complex("-i");
+
+
+$multians1 = MultiAnswer($lambda1, $v11, $v21, $lambda2, $v12, $v22)->with(
 
     singleResult => 1,
     checkTypes => 0,
@@ -94,53 +86,45 @@ $multians1 = MultiAnswer($lambda1, $M[4], $M[5], $lambda2, $M[6], $M[7])->with(
         my @c = @{$correct};
 	my @s = @{$student};
 
-        $flag1 = 0;
-        $flag2 = 0;
-        $flag  = 0;
+        if (   $c[1]->typeMatch($s[1]) 
+            && $c[2]->typeMatch($s[2]) 
+            && $c[4]->typeMatch($s[4]) 
+            && $c[5]->typeMatch($s[5]) 
+            && ($s[1] * $s[5] == $s[2] * $s[4])) {
+              Value::Error("Your vectors are not linearly independent");
+        }
 
-        Value::Error("Your vectors are parallel") if
-        $c[1]->typeMatch($s[1]) &&
-        $c[2]->typeMatch($s[2]) &&
-        $c[4]->typeMatch($s[4]) &&
-        $c[5]->typeMatch($s[5]) &&
-        ($s[1] * $s[5] == $s[2] * $s[4]);
-        
-        if ( $c[0]->typeMatch($s[0]) && 
-             $c[1]->typeMatch($s[1]) && 
-             $c[2]->typeMatch($s[2]) && 
-             ($s[1] != 0 || $s[2] != 0) ) 
-        {
-          if ( ($M[0] * $s[1] + $M[2] * $s[2] == $s[0] * $s[1]) &&
-               ($M[1] * $s[1] + $M[3] * $s[2] == $s[0] * $s[2]) 
+        if (   $c[0]->typeMatch($s[0]) 
+            && $c[1]->typeMatch($s[1]) 
+            && $c[2]->typeMatch($s[2]) 
+            && ($s[1] != 0 || $s[2] != 0)) {
+          if ( ($A11 * $s[1] + $A12 * $s[2] == $s[0] * $s[1]) &&
+               ($A21 * $s[1] + $A22 * $s[2] == $s[0] * $s[2]) 
           ){
                 $flag1=1;
           }
         }
 
-        if ( $c[3]->typeMatch($s[3]) && 
-             $c[4]->typeMatch($s[4]) && 
-             $c[5]->typeMatch($s[5]) && 
-             ($s[4] != 0 || $s[5] != 0) ) 
-        {
-          if ( ($M[0] * $s[4] + $M[2] * $s[5] == $s[3] * $s[4]) &&
-               ($M[1] * $s[4] + $M[3] * $s[5] == $s[3] * $s[5]) 
+        if (   $c[3]->typeMatch($s[3]) 
+            && $c[4]->typeMatch($s[4]) 
+            && $c[5]->typeMatch($s[5]) 
+            && ($s[4] != 0 || $s[5] != 0)) {
+          if ( ($A11 * $s[4] + $A12 * $s[5] == $s[3] * $s[4]) &&
+               ($A21 * $s[4] + $A22 * $s[5] == $s[3] * $s[5]) 
           ){
                 $flag2=1;
           }
         }
 
-        if($flag1==1 && $flag2 ==1){
-           $flag=1;
-        }else{
-           if ($flag1 == 1) {
-              Value::Error("The eigenpair { lambda1, v1 } is correct");
-           } elsif ($flag2 == 1) {
-              Value::Error("The eigenpair { lambda2, v2 } is correct");
-           }else{
-              Value::Error("Neither of the eigenpairs is correct");
-           }
+        if ($flag1==1 && $flag2 ==1) {
+           return 1;
+        } elsif ($flag1 == 1) {
+            Value::Error("The eigenpair { lambda1, v1 } is correct");
+        } elsif ($flag2 == 1) {
+            Value::Error("The eigenpair { lambda2, v2 } is correct");
+        } else {
+            Value::Error("Neither of the eigenpairs is correct");
         }
-        return $flag; 
        
     }
 );
@@ -148,9 +132,78 @@ $multians1 = MultiAnswer($lambda1, $M[4], $M[5], $lambda2, $M[6], $M[7])->with(
 
 
 
-$x1 = Compute("$M[4] c1 e^($lambda1 t) + $M[6] c2 e^($lambda2 t)");
-$x2 = Compute("$M[5] c1 e^($lambda1 t) + $M[7] c2 e^($lambda2 t)");
 
+
+#####################################
+#  Main text 1
+
+Context()->texStrings;
+BEGIN_TEXT
+\{ BeginList('OL', type=>'a') \}
+$ITEM
+Consider the linear system
+$PAR
+\[ 
+\displaystyle
+\boldsymbol{ \vec{y}^{\,\prime} }
+=
+\left\lbrack
+\begin{array}{rr}
+$A11 & $A12 \\
+$A21 & $A22
+\end{array}
+\right\rbrack
+\boldsymbol{\vec{y}}.
+\]
+$BR
+$BR
+Find the eigenvalues and eigenvectors for the coefficient matrix.
+$BCENTER
+\{ 
+mbox(
+[
+'\( \lambda_1 = \) ',
+$multians1->ans_rule(5),
+', \( \boldsymbol{\vec{v}_1} =  \) ', 
+display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]]),
+', and \( \lambda_2 = \) ',
+$multians1->ans_rule(5),
+', \( \boldsymbol{\vec{v}_2} =  \) ', 
+display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]]),
+],
+allowbreaks=>'yes'
+) 
+\}
+$ECENTER
+END_TEXT
+Context()->normalStrings;
+
+
+##################################
+#  Answer evaluation 1
+
+$showPartialCorrectAnswers = 1;
+
+WEIGHTED_ANS( $multians1->cmp(), 50 );
+
+
+
+###############################################################
+###############################################################
+
+
+########################
+#  Setup 2
+
+Context("Numeric");
+Context()->variables->add(
+'t'=>'Real',
+'c1'=>'Real',
+'c2'=>'Real',
+);
+
+$x1 = Compute("e^($a t) * ( $b c1 cos($b t) + $b c2 sin($b t) )");
+$x2 = Compute("e^($a t) * ( c1 sin($b t) - c2 cos($b t) )");
 
 $gensolution = MultiAnswer($x1, $x2)->with(
 
@@ -192,8 +245,8 @@ $gensolution = MultiAnswer($x1, $x2)->with(
            && $s[1]->D('c1') != Formula(0)
            && $s[0]->D('c2') != Formula(0)
            && $s[1]->D('c2') != Formula(0)
-           && $M[0] * $s[0] + $M[2] * $s[1] == $s[0]->D('t')
-           && $M[1] * $s[0] + $M[3] * $s[1] == $s[1]->D('t')
+           && $A11 * $s[0] + $A12 * $s[1] == $s[0]->D('t')
+           && $A21 * $s[0] + $A22 * $s[1] == $s[1]->D('t')
          ) 
       { return 1; } else { return 0; }
 
@@ -201,47 +254,16 @@ $gensolution = MultiAnswer($x1, $x2)->with(
 );
 
 
+$radio = RadioButtons(
+  ["source / unstable node","sink / stable node","saddle","center point / ellipses","spiral source","spiral sink","none of these"],
+  "spiral source", # correct answer
+  last => ["none of these"], # can be a list
+);
 
 
-#######################################
-#  Main text
 
 Context()->texStrings;
 BEGIN_TEXT
-\{ BeginList('OL',type=>'a') \}
-
-$ITEM
-Find the eigenvalues and corresponding eigenvectors 
-for the matrix 
-\(
-\displaystyle
-P =
-\left\lbrack
-\begin{array}{rr}
-$M[0] & $M[2] \\
-$M[1] & $M[3]
-\end{array} 
-\right\rbrack.
-\)
-$BCENTER
-\{ 
-mbox(
-[
-'\( \lambda_1 = \) ',
-$multians1->ans_rule(5),
-', \( \boldsymbol{\vec{v}_1} =  \) ', 
-display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]]),
-', and \( \lambda_2 = \) ',
-$multians1->ans_rule(5),
-', \( \boldsymbol{\vec{v}_2} =  \) ', 
-display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]]),
-],
-allowbreaks=>'yes'
-) 
-\}
-$ECENTER
-
-
 $ITEMSEP
 $ITEM
 Find the most general solution to the linear system of 
@@ -264,13 +286,12 @@ END_TEXT
 Context()->normalStrings;
 
 
-###################################
-#  Answer evaluation
 
-WEIGHTED_ANS( $multians1->cmp(), 50 );
 WEIGHTED_ANS( $gensolution->cmp(), 45 );
 WEIGHTED_ANS( $radio->cmp(), 5 );
 
-COMMENT('MathObject version.  Distinct negative integer eigenvalues.');
 
-ENDDOCUMENT();
+
+COMMENT('MathObject version.  Complex eigenvalues a +/- bi and complex eigenvectors.');
+
+ENDDOCUMENT(); 

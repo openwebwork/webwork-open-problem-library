@@ -7,9 +7,9 @@
 ## DBsubject('Calculus')
 ## DBchapter('Differential Equations')
 ## DBsection('Systems of Differential Equations')
-## Date('03/19/2011')
+## Date('01/31/2012')
 ## Author('Paul Pearson')
-## Institution('Fort Lewis College')
+## Institution('Rochester and Fort Lewis College')
 ## TitleText1('')
 ## EditionText1('')
 ## AuthorText1('')
@@ -20,7 +20,6 @@
 ##################################
 #  Initialization
 
-
 DOCUMENT();
 
 loadMacros(
@@ -28,96 +27,129 @@ loadMacros(
 "PGmatrixmacros.pl",
 "MathObjects.pl",
 "parserMultiAnswer.pl",
-"MatrixUnimodular.pl",
-"unionLists.pl",
 "parserRadioButtons.pl",
+"unionLists.pl",
 "weightedGrader.pl",
 );
 
-TEXT(beginproblem());
-
 install_weighted_grader();
 
-
-##################################
-#  Setup
-
-Context("Numeric");
-Context()->variables->are(t=>"Real");
-
-
-$lambda1 = random(-7,-1,1);
-do { $lambda2 = random(-7,-1,1); } until ($lambda2 != $lambda1);
-
-$radio = RadioButtons(
-  ["source / unstable node","sink / stable node","saddle","center point / ellipses","spiral source","spiral sink","none of these"],
-  "sink / stable node", # correct answer
-  last => ["none of these"], # can be a list
-);
+TEXT(beginproblem());
 
 
 
-@M = unimodular_diagonalization_GL2Z($lambda1,$lambda2);
+#####################################
+#  Setup 1
 
-$A = new Matrix(2,2);
-$A->assign(1,1, $M[0]);
-$A->assign(2,1, $M[1]);
-$A->assign(1,2, $M[2]);
-$A->assign(2,2, $M[3]);
+Context("Complex");
 
+$b = random(2,7,1);
+$bb = $b * $b;
 
-$multians = MultiAnswer( Real($M[4]), Real($M[5]), Compute("e^($lambda1 t)"),
-                         Real($M[6]), Real($M[7]), Compute("e^($lambda2 t)") 
-                       )->with(
+$i = random(0,2,1);
+
+if ( $i == 0 ) {
+
+  $A11 = 0;  $A12 = -1*($bb);
+  $A21 = 1;  $A22 = 0;
+
+  $lambda1 =  Complex("$b i");
+  $v11 = Complex("$b");
+  $v21 = Complex("-i");
+
+  $lambda2 = Complex("-$b i");
+  $v12 = Complex("$b");
+  $v22 = Complex("i");
+
+} elsif ( $i == 1 ) {
+
+  $A11 = 0;    $A12 = -1;
+  $A21 = $bb;  $A22 = 0;
+
+  $lambda1 =  Complex("$b i");
+  $v11 = Complex("i");
+  $v21 = Complex("$b");
+
+  $lambda2 = Complex("-$b i");
+  $v12 = Complex("-i");
+  $v22 = Complex("$b");
+
+} else {
+
+  $A11 = 0;   $A12 = -1*($b);
+  $A21 = $b;  $A22 = 0;
+
+  $lambda1 =  Complex("$b i");
+  $v11 = Complex("1");
+  $v21 = Complex("-i");
+
+  $lambda2 = Complex("-$b i");
+  $v12 = Complex("1");
+  $v22 = Complex("i");
+
+}
+
+$multians1 = MultiAnswer($lambda1, $v11, $v21, $lambda2, $v12, $v22)->with(
+
     singleResult => 1,
     checkTypes => 0,
     allowBlankAnswers => 1,
-    format =>  "A &lt;%s, %s&gt; + B &lt;%s, %s&gt;",
-    tex_format =>  "\text{A} <%s, %s> %s + \text{B} <%s, %s> %s" ,
+    format =>  
+    "<table border='0' cellspacing='0'>
+    <tr>
+      <td> %s, </td>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+      <td>&nbsp;&nbsp; %s,</td>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    </tr>
+    </table>",
+    tex_format =>  
+    "%s, \left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack; \ \ 
+     %s, \left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack",
+
     checker => sub {
-        my ($correct, $student, $self ) = @_;
-	my ($stuv11, $stuv12, $stuf1, $stuv21, $stuv22, $stuf2) = @{$student}[0..5];
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
 
-        if ($stuv11 && $stuv12 && $stuf1 && $stuv21 && $stuv22 && $stuf2) {
-           my $v1 = new Matrix(2, 1);
-           my $v2 = new Matrix(2, 1);
-           if ( ($stuv11 != 0 || $stuv12 !=0) && ($stuv21 != 0 || $stuv22 !=0) ) {
-             $v1-> assign(1,1, $stuv11);
-             $v1-> assign(2,1, $stuv12);
-             $v2-> assign(1,1, $stuv21);
-             $v2-> assign(2,1, $stuv22);
+        if (   $c[1]->typeMatch($s[1]) 
+            && $c[2]->typeMatch($s[2]) 
+            && $c[4]->typeMatch($s[4]) 
+            && $c[5]->typeMatch($s[5]) 
+            && ($s[1] * $s[5] == $s[2] * $s[4])) {
+              Value::Error("Your vectors are not linearly independent");
+        }
 
-             if (  
-                   ( 
-                     ( $A * $v1 == $lambda1 * $v1 && $stuf1 == Formula("e^($lambda1 t)") ) &&
-                     ( $A * $v2 == $lambda2 * $v2 && $stuf2 == Formula("e^($lambda2 t)") ) 
-                   ) || ( 
-                     ( $A * $v1 == $lambda2 * $v1 && $stuf1 == Formula("e^($lambda2 t)") ) &&
-                     ( $A * $v2 == $lambda1 * $v2 && $stuf2 == Formula("e^($lambda1 t)") ) 
-                   )
-                ) 
-             {
-                return 1;
-             } 
+        if (   $c[0]->typeMatch($s[0]) 
+            && $c[1]->typeMatch($s[1]) 
+            && $c[2]->typeMatch($s[2]) 
+            && ($s[1] != 0 || $s[2] != 0)) {
+          if ( ($A11 * $s[1] + $A12 * $s[2] == $s[0] * $s[1]) &&
+               ($A21 * $s[1] + $A22 * $s[2] == $s[0] * $s[2]) 
+          ){
+                $flag1=1;
+          }
+        }
 
-             if (  
-                   ( 
-                     ( $A * $v1 == $lambda1 * $v1 && $stuf1 == Formula("e^($lambda1 t)") ) ||
-                     ( $A * $v1 == $lambda2 * $v1 && $stuf1 == Formula("e^($lambda2 t)") ) 
-                   ) || ( 
-                     ( $A * $v2 == $lambda2 * $v2 && $stuf2 == Formula("e^($lambda2 t)") ) ||
-                     ( $A * $v2 == $lambda1 * $v2 && $stuf2 == Formula("e^($lambda1 t)") ) 
-                   )
-                ) 
-             {
-                Value::Error("Your answer is partially correct");
-                return 0;
-             } else {
-                return 0;
-             }
+        if (   $c[3]->typeMatch($s[3]) 
+            && $c[4]->typeMatch($s[4]) 
+            && $c[5]->typeMatch($s[5]) 
+            && ($s[4] != 0 || $s[5] != 0)) {
+          if ( ($A11 * $s[4] + $A12 * $s[5] == $s[3] * $s[4]) &&
+               ($A21 * $s[4] + $A22 * $s[5] == $s[3] * $s[5]) 
+          ){
+                $flag2=1;
+          }
+        }
 
- 
-           }
+        if ($flag1==1 && $flag2 ==1) {
+           return 1;
+        } elsif ($flag1 == 1) {
+            Value::Error("The eigenpair { lambda1, v1 } is correct");
+        } elsif ($flag2 == 1) {
+            Value::Error("The eigenpair { lambda2, v2 } is correct");
+        } else {
+            Value::Error("Neither of the eigenpairs is correct");
         }
        
     }
@@ -126,55 +158,166 @@ $multians = MultiAnswer( Real($M[4]), Real($M[5]), Compute("e^($lambda1 t)"),
 
 
 
-#######################################
-#  Main text
+
+
+#####################################
+#  Main text 1
 
 Context()->texStrings;
 BEGIN_TEXT
-\{ BeginList('OL',type=>'a') \}
-
+\{ BeginList('OL', type=>'a') \}
 $ITEM
-Find the most general solution to the linear system 
-of differential equations
-\(
+Consider the linear system
+$PAR
+\[ 
 \displaystyle
-\vec{x}^{\, \prime}
+\boldsymbol{ \vec{y}^{\,\prime} }
 =
 \left\lbrack
 \begin{array}{rr}
-$M[0] & $M[2] \\
-$M[1] & $M[3]
-\end{array} 
+$A11 & $A12 \\
+$A21 & $A22
+\end{array}
 \right\rbrack
-\vec{x}.
-\)
+\boldsymbol{\vec{y}}.
+\]
 $BR
 $BR
+Find the eigenvalues and eigenvectors for the coefficient matrix.
+$BCENTER
 \{ 
 mbox(
 [
-display_matrix([['\( x_1(t) \)'],['\( x_2(t) \)']]),
-' = A', 
-display_matrix([[$multians->ans_rule(5)],[$multians->ans_rule(5)]]),
-$multians->ans_rule(10),
-' + B ', 
-display_matrix([[$multians->ans_rule(5)],[$multians->ans_rule(5)]]),
-$multians->ans_rule(10)
+'\( \lambda_1 = \) ',
+$multians1->ans_rule(5),
+', \( \boldsymbol{\vec{v}_1} =  \) ', 
+display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]]),
+', and \( \lambda_2 = \) ',
+$multians1->ans_rule(5),
+', \( \boldsymbol{\vec{v}_2} =  \) ', 
+display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]]),
 ],
 allowbreaks=>'yes'
 ) 
 \}
-
+$ECENTER
 END_TEXT
+Context()->normalStrings;
 
-TEXT(MODES(HTML=>"The entries in the vectors should be constants, 
-and you must ${BBOLD}enter an answer in every answer box${EBOLD} to get
-feedback on whether your answer is correct.",TeX=>""));
 
+##################################
+#  Answer evaluation 1
+
+$showPartialCorrectAnswers = 1;
+
+WEIGHTED_ANS( $multians1->cmp(), 50 );
+
+
+
+###############################################################
+###############################################################
+
+
+########################
+#  Setup 2
+
+Context("Numeric");
+Context()->variables->add(
+'t'=>'Real',
+'c1'=>'Real',
+'c2'=>'Real',
+);
+
+if ( $i == 0 ) {
+
+  $x1 = Compute("$b c1 cos($b t) + $b c2 sin($b t)");
+  $x2 = Compute("c1 sin($b t) - c2 cos($b t)");
+
+} elsif ( $i == 1 ) {
+
+  $x1 = Compute("c1 cos($b t) + c2 sin($b t)");
+  $x2 = Compute("$b c1 sin($b t) - $b c2 cos($b t)");
+
+} else {
+
+  $x1 = Compute("c1 cos($b t) + c2 sin($b t)");
+  $x2 = Compute("c1 sin($b t) - c2 cos($b t)");
+
+}
+
+$gensolution = MultiAnswer($x1, $x2)->with(
+
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+    "<table border='0' cellspacing='0'>
+    <tr><td>x<sub>1</sub>(t) = %s</td></tr>
+    <tr><td>x<sub>2</sub>(t) = %s</td></tr>
+    </table>",
+    tex_format =>  
+    "\begin{array}{l} 
+    x_1(t) = %s \\ 
+    x_2(t) = %s 
+    \end{array}",
+
+    checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+
+      if ( !$c[0]->typeMatch($s[0]) || !$c[1]->typeMatch($s[1]) ) {
+           Value::Error("<b>You must enter both x<sub>1</sub>(t) and x<sub>2</sub>(t)</b>");
+      }
+
+      if (    $c[0]->typeMatch($s[0]) && $s[0] != Formula(0) && $s[0]->isFormula
+           && $c[1]->typeMatch($s[1]) && $s[1] != Formula(0) && $s[1]->isFormula
+           && (    $s[0]->D('c1') == Formula(0) || $s[1]->D('c1') == Formula(0)
+                || $s[0]->D('c2') == Formula(0) || $s[1]->D('c2') == Formula(0)
+              )
+         ) 
+      { Value::Error("Don't forget the constants c1 and c2"); } 
+
+ 
+      if (    $c[0]->typeMatch($s[0]) && $s[0] != Formula(0) && $s[0]->isFormula
+           && $c[1]->typeMatch($s[1]) && $s[1] != Formula(0) && $s[1]->isFormula
+           && $s[0]->D('c1') != Formula(0) 
+           && $s[1]->D('c1') != Formula(0)
+           && $s[0]->D('c2') != Formula(0)
+           && $s[1]->D('c2') != Formula(0)
+           && $A11 * $s[0] + $A12 * $s[1] == $s[0]->D('t')
+           && $A21 * $s[0] + $A22 * $s[1] == $s[1]->D('t')
+         ) 
+      { return 1; } else { return 0; }
+
+    }
+);
+
+
+$radio = RadioButtons(
+  ["source / unstable node","sink / stable node","saddle","center point / ellipses","spiral source","spiral sink","none of these"],
+  "center point / ellipses", # correct answer
+  last => ["none of these"], # can be a list
+);
+
+
+
+Context()->texStrings;
 BEGIN_TEXT
+$ITEMSEP
+$ITEM
+Find the most general solution to the linear system of 
+differential equations \( \boldsymbol{\vec{x}^{\, \prime}} = P \boldsymbol{\vec{x}} \). 
+Use \( c_1 \) and \( c_2 \) to denote arbitrary constants, and enter them as ${BTT}c1${ETT}
+and ${BTT}c2${ETT}.
+$BR
+$BR
+\( x_1(t) = \) \{ $gensolution->ans_rule(40) \}
+$BR
+\( x_2(t) = \) \{ $gensolution->ans_rule(40) \}
 
 $ITEMSEP
-$ITEM In the phase plane, this system is best described as a
+$ITEM The behavior of this system is best described as
 $BR
 \{ $radio->buttons() \}
 
@@ -183,14 +326,12 @@ END_TEXT
 Context()->normalStrings;
 
 
-###################################
-#  Answer evaluation
 
-$showPartialCorrectAnswers = 1;
-
-WEIGHTED_ANS( $multians->cmp(), 95 );
+WEIGHTED_ANS( $gensolution->cmp(), 45 );
 WEIGHTED_ANS( $radio->cmp(), 5 );
 
-COMMENT('MathObject version.  Distinct positive integer eigenvalues, distinct integer eigenvectors.');
 
-ENDDOCUMENT();
+
+COMMENT('MathObject version.  Complex eigenvalues +/- bi and complex eigenvectors.');
+
+ENDDOCUMENT(); 

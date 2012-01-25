@@ -60,8 +60,8 @@ $radio = RadioButtons(
 @M = small_unimodular_diagonalization_GL2Z($lambda1,$lambda2);
 
 # the matrix to be analyzed
-$a11 = $M[0];  $a12 = $M[2];
-$a21 = $M[1];  $a22 = $M[3];
+$A11 = $M[0];  $A12 = $M[2];
+$A21 = $M[1];  $A22 = $M[3];
 
 $v1top = Formula("$M[4] e^($lambda1 t)");
 $v1bot = Formula("$M[5] e^($lambda1 t)");
@@ -73,48 +73,74 @@ $v2bot = Formula("$M[7] e^($lambda2 t)");
 
 $multians = MultiAnswer($v1top, $v1bot, $v2top, $v2bot)->with(
 
-  singleResult => 1,
-  allowBlankAnswers => 1,
-  format =>  "A &lt;%s, %s&gt; + B &lt;%s, %s&gt;",
-  tex_format =>  "\text{A} \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack + ".
-                 "\text{B} \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack",
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+    "<table border='0' cellspacing='0'>
+    <tr>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+      <td>&nbsp;&nbsp;</td>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    </tr>
+    </table>",
+    tex_format =>  
+    "\left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack, \ \ 
+     \left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack",
 
-  checker => sub {
-      my ( $correct, $student, $self ) = @_;
-      # my ( $c1, $c2, $c3, $c4 ) = @{$correct};
-      my ( $s1, $s2, $s3, $s4 ) = @{$student};
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
 
-      Value::Error('Answers should be non-constant functions, '.
-      'and <b>every answer blank must be filled</b> to get feedback.') unless 
-      $s1->isFormula && $s2->isFormula && $s3->isFormula && $s4->isFormula;
+        $flag1 = 0;
+        $flag2 = 0;
+        $flag  = 0;
 
-      my ( $s1p, $s2p, $s3p, $s4p ) = ( $s1->D('t'), $s2->D('t'), $s3->D('t'), $s4->D('t') ); 
+        Value::Error("Your solutions are not linearly independent") if
+        $c[0]->typeMatch($s[0]) &&
+        $c[1]->typeMatch($s[1]) &&
+        $c[2]->typeMatch($s[2]) &&
+        $c[3]->typeMatch($s[3]) &&
+        ($s[0] * $s[3] == $s[1] * $s[2]);
 
-      my $left  = (($s1p == $a11*$s1 + $a12*$s2) && 
-                   ($s2p == $a21*$s1 + $a22*$s2));
+        if ( $c[0]->typeMatch($s[0]) && 
+             $c[1]->typeMatch($s[1]) && 
+             ($s[0] != 0 || $s[1] != 0) ) 
+        {
+          if ( ($A11 * $s[0] + $A12 * $s[1] == $s[0]->D('t')) &&
+               ($A21 * $s[0] + $A22 * $s[1] == $s[1]->D('t')) 
+          ){
+                $flag1=1;
+          }
+        }
 
-      my $right = (($s3p == $a11*$s3 + $a12*$s4) && 
-                   ($s4p == $a21*$s3 + $a22*$s4));
-      
-      my $notparallel = ($s1*$s4 != $s2*$s3);
+        if ( $c[2]->typeMatch($s[2]) && 
+             $c[3]->typeMatch($s[3]) && 
+             ($s[2] != 0 || $s[3] != 0) ) 
+        {
+          if ( ($A11 * $s[2] + $A12 * $s[3] == $s[2]->D('t')) &&
+               ($A21 * $s[2] + $A22 * $s[3] == $s[3]->D('t')) 
+          ){
+                $flag2=1;
+          }
+        }
 
-      if ($left && !$right) { 
-          $self->setMessage(1,"The vector on the left is correct.");
-          return 0.67;
-      }
-      if ($right && !$left) { 
-          $self->setMessage(1,"The vector on the right is correct.");
-          return 0.67;
-      }
-      if ($left && $right && !$notparallel) { 
-          $self->setMessage(1,"Your solutions are linearly dependent.");
-          return 0.67; 
-      }
-      if ($left && $right && $notparallel) { return 1; } else { return 0; }
-
-  }
+        if($flag1==1 && $flag2 ==1){
+           $flag=1;
+        }else{
+           if ($flag1 == 1) {
+              Value::Error("The solution on the left is correct");
+           } elsif ($flag2 == 1) {
+              Value::Error("The solution on the right is correct");
+           }else{
+              Value::Error("Neither of the solutions is correct");
+           }
+        }
+        return $flag; 
+       
+    }
 );
-
 
 
 #######################################
@@ -129,7 +155,7 @@ Find the most general real-valued solution to the linear system
 of differential equations
 \(
 \displaystyle
-\vec{x}^{\, \prime}
+\boldsymbol{\vec{x}^{\, \prime}}
 =
 \left\lbrack
 \begin{array}{rr}
@@ -137,7 +163,7 @@ $M[0] & $M[2] \\
 $M[1] & $M[3]
 \end{array} 
 \right\rbrack
-\vec{x}.
+\boldsymbol{\vec{x}}.
 \)
 $BR
 $BR
@@ -145,9 +171,9 @@ $BR
 mbox(
 [
 display_matrix([['\( x_1(t) \)'],['\( x_2(t) \)']]),
-' = A', 
+'\( = c_1 \)', 
 display_matrix([[$multians->ans_rule(5)],[$multians->ans_rule(5)]]),
-' + B ', 
+'\( + \ c_2 \)', 
 display_matrix([[$multians->ans_rule(5)],[$multians->ans_rule(5)]]),
 ],
 allowbreaks=>'yes'
@@ -175,74 +201,3 @@ WEIGHTED_ANS( $radio->cmp(), 5 );
 COMMENT('MathObject version. Distinct negative integer eigenvalues.');
 
 ENDDOCUMENT();
-
-
-@M = unimodular_diagonalization_GL2Z($lambda1,$lambda2);
-
-$corv11 = Formula("$M[4] e^($lambda1 t)");
-$corv21 = Formula("$M[5] e^($lambda1 t)");
-$corv12 = Formula("$M[6] e^($lambda2 t)");
-$corv22 = Formula("$M[7] e^($lambda2 t)");
-
-
-
-$multians = MultiAnswer( $corv11, $corv21, $corv12, $corv22 )->with(
-    singleResult => 1,
-    checkTypes => 0,
-    allowBlankAnswers => 1,
-    format =>  "A &lt;%s, %s&gt; + B &lt;%s, %s&gt;",
-    tex_format =>  "\text{A} <%s, %s> + \text{B} <%s, %s>" ,
-    checker => sub {
-        my ($correct, $student, $self ) = @_;
-	my ($stuv11, $stuv21, $stuv12, $stuv22) = @{$student}[0..3];
-
-        Value::Error('Your answers should be formulas, not constants')
-        unless $stuv11->isFormula && 
-               $stuv21->isFormula &&
-               $stuv12->isFormula &&
-               $stuv22->isFormula;
-
-        # if both vectors are nonempty and nonzero
-        if ( 
-             ($stuv11 && $stuv21 && $stuv12 && $stuv22) && 
-             ($stuv11 != 0 || $stuv21 != 0) &&
-             ($stuv12 != 0 || $stuv22 != 0)
-           ) {
-           if ( 
-                (($corv11 * $stuv21 == $corv21 * $stuv11) && ($corv22 * $stuv12 == $corv12 * $stuv22)) ||  
-                (($corv11 * $stuv22 == $corv21 * $stuv12) && ($corv22 * $stuv11 == $corv12 * $stuv21))  
-              )
-           { return 1; }
-        }
-
-        # if the left vector is nonempty and nonzero
-        if ( ($stuv11 && $stuv21) && ($stuv11 != 0 || $stuv21 != 0) ) {
-           if ( 
-                ($corv11 * $stuv21 == $corv21 * $stuv11) ||
-                ($corv12 * $stuv21 == $corv22 * $stuv11) 
-              )
-           { 
-              $self->setMessage(1,"The vector on the left is correct.");
-              return 0.67;
-           }
-        }
-
-        # if the right vector is nonempty and nonzero
-        if ( ($stuv12 && $stuv22) && ($stuv12 != 0 || $stuv22 != 0) ) {
-           if (
-                ($corv12 * $stuv22 == $corv22 * $stuv12) ||
-                ($corv11 * $stuv22 == $corv21 * $stuv12) 
-              )
-           { 
-              $self->setMessage(3,"The vector on the right is correct.");
-              return 0.67;
-           }
-        }
-       
-        return 0;
-
-    }
-);
-
-
-
