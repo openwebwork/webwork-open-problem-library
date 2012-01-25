@@ -34,11 +34,12 @@ TEXT(beginproblem());
 
 
 #############################
-#  Setup
+#  Setup 1
 
 Context("Numeric");
 Context()->variables->add(
-A=>"Real",B=>"Real",y=>"Real",
+#'c1'=>"Real",'c2'=>"Real",
+y=>"Real",
 'a'=>'Parameter','b'=>'Parameter'
 );
 
@@ -46,15 +47,13 @@ $k = random(2,5,1);
 $k2 = 2 * $k;
 $kk = $k * $k;
 
-$diffeq = "y'' - $k2 y' + $kk y = e^{$k x}"; # tex
+$diffeq = "y^{\,\prime\prime} - $k2 y^{\,\prime} + $kk y = e^{$k x}"; # tex
 
 $yparticular = Compute("1/2 x^2 e^($k x) + (a x + b) e^($k x)");
-$yhomogeneous = Compute("(A x + B) e^($k x)");
-$ygeneral = Compute("1/2 x^2 e^($k x) + (A x + B) e^($k x)");
 
 
 ######################
-#  Main text
+#  Main text 1
 
 Context()->texStrings;
 BEGIN_TEXT
@@ -68,12 +67,43 @@ $BR
 \{ ans_rule(40) \}
 \{ AnswerFormatHelp("formulas") \}
 
+END_TEXT
+Context()->normalStrings;
 
+####################################
+#  Answer evaluation 1
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $yparticular->cmp() );
+
+
+
+####################################
+#  Setup 2
+
+Context("Numeric");
+Context()->variables->add(
+'c1'=>"Real",'c2'=>"Real",y=>"Real",
+);
+Context()->variables->set(
+'c1'=>{limits=>[2,4]},
+'c2'=>{limits=>[2,4]}
+);
+
+
+$yhomogeneous = Compute("(c1 x + c2) e^($k x)");
+$ygeneral = Compute("1/2 x^2 e^($k x) + (c1 x + c2) e^($k x)");
+
+
+Context()->texStrings;
+BEGIN_TEXT
 $ITEMSEP
 $ITEM Find the most general solution to the 
 associated homogeneous differential equation.  
-Use \( A \) and \( B \) in your answer to denote 
-arbitrary constants.
+Use \( c_1 \) and \( c_2 \) in your answer to denote 
+arbitrary constants and enter them as ${BTT}c1${ETT} 
+and ${BTT}c2${ETT}.
 $BR
 $BR
 \( y_h = \)
@@ -84,7 +114,7 @@ $BR
 $ITEMSEP
 $ITEM Find the most general solution to the 
 original nonhomogeneous differential equation.  
-Use \( A \) and \( B \) in your answer to denote 
+Use \( c_1 \) and \( c_2 \) in your answer to denote 
 arbitrary constants.
 $BR
 $BR
@@ -100,13 +130,10 @@ Context()->normalStrings;
 ######################
 #  Answer evaluation
 
-$showPartialCorrectAnswers = 1;
 
-ANS( $yparticular->cmp() );
-
-ANS( $yhomogeneous->cmp( 
+ANS( $yhomogeneous->cmp(
   checker => sub {
-    my ( $correct, $student, $self ) = @_;
+    my ( $correct, $student, $answerHash ) = @_;
     my $stu   = Formula($student);
 
     ################################
@@ -114,8 +141,8 @@ ANS( $yhomogeneous->cmp(
     #
     Value->Error("Is your answer the most general solution?") 
     if ( 
-      Formula($stu->D('A'))==Formula(0) || 
-      Formula($stu->D('B'))==Formula(0) 
+      Formula($stu->D('c1'))==Formula(0) || 
+      Formula($stu->D('c2'))==Formula(0) 
     );
 
     ############################################
@@ -123,33 +150,45 @@ ANS( $yhomogeneous->cmp(
     #
     my $x = Real(1.24);
 
-    my $a11 = $stu->eval(A=>1,B=>0,x=>$x,y=>0);
-    my $a12 = $stu->eval(A=>0,B=>1,x=>$x,y=>0);
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
  
-    my $a21 = $stu->D('x')->eval(A=>1,B=>0,x=>$x,y=>0);
-    my $a22 = $stu->D('x')->eval(A=>0,B=>1,x=>$x,y=>0);
+    my $a21 = $stu->D('x')->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a22 = $stu->D('x')->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
 
-    my $wronskian = $a11*$a22 - $a21*$a12;
+    # my $wronskian = $a11*$a22 - $a21*$a12;
+    # Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    # if ($wronskian==Real(0));
 
     Value->Error("Your functions are not linearly independent or your answer is not complete") 
-    if ($wronskian==Real(0));
+    if ($a11 * $a22 == $a21 * $a12);
+
 
     ########################################################
     #  Check that the student answer is a solution to the DE
     #
-    my $stux  = Formula($stu->D('x'));
-    my $stuxx = Formula($stu->D('x','x'));
-    my $stuDE = Formula($stuxx - $k2*$stux + $kk*$stu)
-    ->with(test_points=>[[1,1,1,0],[1,1,0,0],[2,1,1,0],[1,2,0,0]]);
+    my $stu1 = Formula($stu->D('x'));
+    my $stu2 = Formula($stu->D('x','x'));
+    return $stu2 + $kk * $stu == $k2 * $stu1;
 
-    return ($stuDE==Formula(0));
+#    # old code that didn't work well
+#    # apparently checking whether something is zero is not numerically stable
+#    my $stuDE = Formula($stuxx - $k2*$stux + $kk*$stu)
+#    ->with(test_at=>[[1,-1,1,-1],[1,2,3,1],[2,1,1,3],[1,2,4,-1],[2,4,1,-3]]);
+#    return ($stuDE==Formula("0"));
+
+    # new code that seems to work very reliably is obtained by simply rewriting 
+    # the equation $stuDE = 0, so that both sides of the equation vary.
+    # return $stuxx + $kk * $stu == $k2 * $stux;
 
 }));
+
+
 
 
 
 ANS( $ygeneral->cmp( checker => sub {
-    my ( $correct, $student, $self ) = @_;
+    my ( $correct, $student, $answerHash ) = @_;
     my $stu   = Formula($student);
 
     ################################
@@ -157,8 +196,8 @@ ANS( $ygeneral->cmp( checker => sub {
     #
     Value->Error("Is your answer the most general solution?") 
     if ( 
-      Formula($stu->D('A'))==Formula(0) || 
-      Formula($stu->D('B'))==Formula(0) 
+      Formula($stu->D('c1'))==Formula(0) || 
+      Formula($stu->D('c2'))==Formula(0) 
     );
 
     ############################################
@@ -166,30 +205,35 @@ ANS( $ygeneral->cmp( checker => sub {
     #
     my $x = Real(1.24);
 
-    my $a11 = $stu->eval(A=>1,B=>0,x=>$x,y=>0);
-    my $a12 = $stu->eval(A=>0,B=>1,x=>$x,y=>0);
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
  
-    my $a21 = $stu->D('x')->eval(A=>1,B=>0,x=>$x,y=>0);
-    my $a22 = $stu->D('x')->eval(A=>0,B=>1,x=>$x,y=>0);
+    my $a21 = $stu->D('x')->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a22 = $stu->D('x')->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
 
-    my $wronskian = $a11*$a22 - $a21*$a12;
+    # my $wronskian = $a11*$a22 - $a21*$a12;
+    # Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    # if ($wronskian==Real(0));
 
     Value->Error("Your functions are not linearly independent or your answer is not complete") 
-    if ($wronskian==Real(0));
+    if ($a11 * $a22 == $a21 * $a12);
+
 
     ########################################################
     #  Check that the student answer is a solution to the DE
     #
-    my $stux  = Formula($stu->D('x'));
-    my $stuxx = Formula($stu->D('x','x'));
-    my $stuDE = Formula($stuxx - $k2*$stux + $kk*$stu)
-    ->with(test_points=>[[1,1,1,0],[1,1,0,0],[2,1,1,0],[1,2,0,0]]);
+    my $stu1 = Formula($stu->D('x'));
+    my $stu2 = Formula($stu->D('x','x'));
+    return ($stu2 - $k2 * $stu1 + $kk * $stu) == Formula("e^($k x)");
 
-    return ($stuDE==Formula("e^($k x)"));
+    # my $stuDE = Formula($stuxx - $k2*$stux + $kk*$stu)
+    # ->with(test_points=>[[1,1,1,0],[1,1,0,0],[2,1,1,0],[1,2,0,0]]);
+    # return ($stuDE==Formula("e^($k x)"));
 
 }));
 
 
-COMMENT("MathObject version.");
+COMMENT("MathObject version.  Characteristic polynomial (r - a)^2.");
 
 ENDDOCUMENT();
+

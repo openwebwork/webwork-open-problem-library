@@ -38,7 +38,7 @@ TEXT(beginproblem());
 
 Context("Numeric");
 Context()->variables->add(
-A=>"Real",B=>"Real",y=>"Real",
+y=>"Real",
 'a'=>'Parameter','b'=>'Parameter'
 );
 
@@ -52,15 +52,10 @@ do { $yprime0 = random(1,5,1); } until ($yprime0 != $y0);
 $num = 2*$k*$yprime0+1;
 $den = 2*$k**2;
 
-$diffeq = "y'' + $kk y = \cos($k x) + \sin($k x)"; # tex
+$diffeq = "y^{\,\prime\prime} + $kk y = \cos($k x) + \sin($k x)"; # tex
 
 $yparticular = Compute("-1/$k2 x cos($k x) + 1/$k2 x sin($k x) + a cos($k x) + b sin($k x)");
-$yhomogeneous = Compute("A cos($k x) + B sin($k x)");
-$yinitvalprob = Compute("-1/$k2 x cos($k x) + 1/$k2 x sin($k x) + $y0 cos($k x) + $num/$den sin($k x)");
 
-
-######################
-#  Main text
 
 Context()->texStrings;
 BEGIN_TEXT
@@ -74,12 +69,43 @@ $BR
 \{ ans_rule(60) \}
 \{ AnswerFormatHelp("formulas") \}
 
+END_TEXT
+Context()->normalStrings;
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $yparticular->cmp() );
+
+
+##################################
+#  reset the context and get rid of adaptive parameters
+
+Context("Numeric");
+Context()->variables->add(
+'y' =>'Real',
+'c1'=>'Real',
+'c2'=>'Real',
+);
+Context()->variables->set(
+'c1'=>{limits=>[2,4]},
+'c2'=>{limits=>[2,4]}
+);
+
+
+$yhomogeneous = Compute("c1 cos($k x) + c2 sin($k x)");
+$yinitvalprob = Compute("-1/$k2 x cos($k x) + 1/$k2 x sin($k x) + $y0 cos($k x) + $num/$den sin($k x)");
+
+
+Context()->texStrings;
+BEGIN_TEXT
 
 $ITEMSEP
 $ITEM Find the most general solution to the 
 associated homogeneous differential equation.  
-Use \( A \) and \( B \) in your answer to denote 
-arbitrary constants.
+Use \( c_1 \) and \( c_2 \) in your answer to denote 
+arbitrary constants.  Enter 
+\( c_1 \) as ${BTT}c1${ETT} and
+\( c_2 \) as ${BTT}c2${ETT}.
 $BR
 $BR
 \( y_h = \)
@@ -91,7 +117,7 @@ $ITEMSEP
 $ITEM Find the solution to the original 
 nonhomogeneous differential equation satisfying
 the initial conditions \( y(0) = $y0 \) and 
-\( y'(0) = $yprime0 \).
+\( y^{\,\prime}(0) = $yprime0 \).
 $BR
 $BR
 \( y = \)
@@ -106,13 +132,11 @@ Context()->normalStrings;
 ######################
 #  Answer evaluation
 
-$showPartialCorrectAnswers = 1;
 
-ANS( $yparticular->cmp() );
 
 ANS( $yhomogeneous->cmp( 
   checker => sub {
-    my ( $correct, $student, $self ) = @_;
+    my ( $correct, $student, $answerHash ) = @_;
     my $stu   = Formula($student);
 
     ################################
@@ -120,8 +144,8 @@ ANS( $yhomogeneous->cmp(
     #
     Value->Error("Is your answer the most general solution?") 
     if ( 
-      Formula($stu->D('A'))==Formula(0) || 
-      Formula($stu->D('B'))==Formula(0) 
+      Formula($stu->D('c1'))==Formula(0) || 
+      Formula($stu->D('c2'))==Formula(0) 
     );
 
     ############################################
@@ -129,26 +153,31 @@ ANS( $yhomogeneous->cmp(
     #
     my $x = Real(1.24);
 
-    my $a11 = $stu->eval(A=>1,B=>0,x=>$x,y=>0);
-    my $a12 = $stu->eval(A=>0,B=>1,x=>$x,y=>0);
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
  
-    my $a21 = $stu->D('x')->eval(A=>1,B=>0,x=>$x,y=>0);
-    my $a22 = $stu->D('x')->eval(A=>0,B=>1,x=>$x,y=>0);
+    my $a21 = $stu->D('x')->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a22 = $stu->D('x')->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
 
-    my $wronskian = $a11*$a22 - $a21*$a12;
+    # my $wronskian = $a11*$a22 - $a21*$a12;
+    # Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    # if ($wronskian==Real(0));
 
     Value->Error("Your functions are not linearly independent or your answer is not complete") 
-    if ($wronskian==Real(0));
+    if ($a11 * $a22 == $a21 * $a12);
 
     ########################################################
     #  Check that the student answer is a solution to the DE
     #
-    my $stux  = Formula($stu->D('x'));
-    my $stuxx = Formula($stu->D('x','x'));
-    my $stuDE = Formula($stuxx + $kk*$stu)
-    ->with(test_points=>[[1,1,1,0],[1,1,0,0],[2,1,1,0],[1,2,0,0]]);
+    my $stu1 = Formula($stu->D('x'));
+    my $stu2 = Formula($stu->D('x','x'));
+    return ($stu2) == (-1 * $kk * $stu);
 
-    return ($stuDE==Formula(0));
+
+    # my $stuDE = Formula($stuxx + $kk*$stu)
+    # ->with(test_points=>[[1,1,1,0],[1,1,0,0],[2,1,1,0],[1,2,0,0]]);
+    # return ($stuDE==Formula(0));
+    # return ($stuxx) == (-1 * $kk * $stu);
 
 }));
 
@@ -157,6 +186,6 @@ ANS( $yhomogeneous->cmp(
 ANS( $yinitvalprob->cmp() );
 
 
-COMMENT("MathObject version.");
+COMMENT("MathObject version.  Characteristic polynomial r^2 + a^2.");
 
 ENDDOCUMENT();
