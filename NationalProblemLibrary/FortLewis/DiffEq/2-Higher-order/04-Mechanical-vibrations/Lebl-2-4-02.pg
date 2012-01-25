@@ -67,7 +67,8 @@ constant) is
 $ITEM Set up a differential equation that describes this 
 system.  Let \( x \) to denote the displacement, in meters,
 of the mass from its equilibrium position, and give your answer
-in terms of \( x, x', x'' \).  Assume that positive displacement 
+in terms of \( x, x^{\,\prime}, x^{\,\prime\prime} \).  
+Assume that positive displacement 
 means the mass is farther from the wall than when the system
 is at equilibrium.
 $BR
@@ -85,7 +86,11 @@ ANS( $diffeq->cmp() );
 
 Context("Numeric");
 Context()->variables->add(
-A=>"Real",B=>"Real",t=>"Real",
+'c1'=>"Real",'c2'=>"Real",t=>"Real",
+);
+Context()->variables->set(
+'c1'=>{limits=>[2,4]},
+'c2'=>{limits=>[2,4]}
 );
 
 Context()->flags->set(
@@ -99,7 +104,7 @@ $disc = $c**2 - 4*$m*$k; # discriminant
 $absdisc = abs($disc);
 $den  = 2*$m;  # denominator
 
-$answer = Compute("x = e^(-$b t / $den) * ( A cos(sqrt($absdisc) t / $den) + B sin(sqrt($absdisc) t / $den) )");
+$answer = Compute("x = e^(-$b t / $den) * ( c1 cos(sqrt($absdisc) t / $den) + c2 sin(sqrt($absdisc) t / $den) )");
 
 $pop = PopUp(["?","over damped","critically damped","under damped"],"under damped");
 
@@ -108,9 +113,11 @@ BEGIN_TEXT
 $ITEMSEP
 $ITEM Find the general solution to your 
 differential equation from the previous part.  
-Use \( A \) and \( B \) to denote arbitrary
+Use \( c_1 \) and \( c_2 \) to denote arbitrary
 constants.  Use \( t \) for independent variable 
-to represent the time elapsed in seconds.
+to represent the time elapsed in seconds. Enter
+\( c_1 \) as ${BTT}c1${ETT} and
+\( c_2 \) as ${BTT}c2${ETT}.
 $BR
 \{ ans_rule(60) \}
 \{ AnswerFormatHelp("equations") \}
@@ -130,10 +137,10 @@ $BR
 END_TEXT
 Context()->normalStrings;
 
-ANS( $answer->cmp( tolerance=>0.1, tolType=>'absolute', 
+ANS( $answer->cmp( # tolerance=>0.1, tolType=>'absolute', 
   checker => sub {
 
-    my ( $correct, $student, $self ) = @_;
+    my ( $correct, $student, $answerHash ) = @_;
     my $stu   = Formula($student->{tree}{rop});
 
     #################################
@@ -141,8 +148,8 @@ ANS( $answer->cmp( tolerance=>0.1, tolType=>'absolute',
     #
     Value->Error("Is your answer the most general solution?") 
     if ( 
-      Formula($stu->D('A'))==Formula(0) || 
-      Formula($stu->D('B'))==Formula(0) 
+      Formula($stu->D('c1'))==Formula(0) || 
+      Formula($stu->D('c2'))==Formula(0) 
     );
 
 
@@ -151,16 +158,18 @@ ANS( $answer->cmp( tolerance=>0.1, tolType=>'absolute',
     #
     my $t = Real(-2.12);
 
-    my $a11 = $stu->eval(A=>1,B=>0,t=>$t,x=>0);
-    my $a12 = $stu->eval(A=>0,B=>1,t=>$t,x=>0);
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,t=>$t,x=>0);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,t=>$t,x=>0);
 
-    my $a21 = $stu->D('t')->eval(A=>1,B=>0,t=>$t,x=>0);
-    my $a22 = $stu->D('t')->eval(A=>0,B=>1,t=>$t,x=>0);
+    my $a21 = $stu->D('t')->eval('c1'=>1,'c2'=>0,t=>$t,x=>0);
+    my $a22 = $stu->D('t')->eval('c1'=>0,'c2'=>1,t=>$t,x=>0);
 
-    my $wronskian = $a11*$a22 - $a21*$a12; 
+    # my $wronskian = $a11*$a22 - $a21*$a12; 
+    # Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    # if ($wronskian==Real(0));
 
     Value->Error("Your functions are not linearly independent or your answer is not complete") 
-    if ($wronskian==Real(0));
+    if ($a11 * $a22 == $a21 * $a12);
 
 
     #################################
@@ -168,10 +177,12 @@ ANS( $answer->cmp( tolerance=>0.1, tolType=>'absolute',
     #
     my $stu1  = Formula($stu->D('t'));
     my $stu2  = Formula($stu->D('t','t'));
-    my $stuDE = Formula($m*$stu2 + $c*$stu1 + $k*$stu)
-    ->with(test_points=>[[1,1,1,0],[2,1,2,0],[1,2,-1,0],[-2,1,0,0]]);
+    return ($m * $stu2 + $c * $stu1) == (-1 * $k * $stu);
 
-    return ($stuDE==Formula(0));
+    # my $stuDE = Formula($m*$stu2 + $c*$stu1 + $k*$stu)
+    # ->with(test_points=>[[1,1,1,0],[2,1,2,0],[1,2,-1,0],[-2,1,0,0]]);
+    # return ($stuDE==Formula(0));
+
 
 }));
 
@@ -179,6 +190,6 @@ ANS( $pop->cmp() );
 
 ANS( Compute("sqrt(4*$k*$m)")->cmp() );
 
-COMMENT("MathObject version.");
+COMMENT("MathObject version. Under damped system.");
 
 ENDDOCUMENT();
