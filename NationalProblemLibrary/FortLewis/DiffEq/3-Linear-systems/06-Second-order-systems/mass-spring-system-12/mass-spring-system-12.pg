@@ -39,7 +39,13 @@ TEXT(beginproblem());
 #  Setup
 
 Context("Numeric");
-Context()->variables->are(t=>"Real");
+Context()->variables->are(
+'t' =>'Real',
+'a1'=>'Real',
+'a2'=>'Real',
+'b1'=>'Real',
+'b2'=>'Real',
+);
 
 
 $f = list_random(2,3,4,5);
@@ -92,48 +98,66 @@ $multians1 = MultiAnswer( $A[0], $A[1], $A[2], $A[3] )->with(
     }
 );
 
-$c0 = Real("1");
-$c1 = Real("1");
-$c2 = Formula("$f t");
-$c3 = Formula("$f t");
-$c4 = Real("-2");
-$c5 = Real("1");
-$c6 = Formula("2*$f t");
-$c7 = Formula("2*$f t");
+#$c0 = Real("1");
+#$c1 = Real("1");
+#$c2 = Formula("$f t");
+#$c3 = Formula("$f t");
+#$c4 = Real("-2");
+#$c5 = Real("1");
+#$c6 = Formula("2*$f t");
+#$c7 = Formula("2*$f t");
 
+$f2 = 2 * $f;
 
-$multians2 = MultiAnswer( $c0, $c1, $c2, $c3, $c4, $c5, $c6, $c7 )->with(
+$x1 = Formula("1(a1 cos($f t) + b1 sin($f t)) - 2(a2 cos($f2 t) + b2 sin($f2 t))");
+$x2 = Formula("1(a1 cos($f t) + b1 sin($f t)) + 1(a2 cos($f2 t) + b2 sin($f2 t))");
+
+$multians2 = MultiAnswer($x1, $x2)->with(
+
     singleResult => 1,
     checkTypes => 0,
     allowBlankAnswers => 1,
-    format =>  "%s, %s, %s, %s, <br /> %s, %s, %s, %s",
-    tex_format =>  "\left\lbrack\begin{array}{rr} %s \\[2ex] %s \end{array}\right\rbrack (a_1 \cos(%s) + b_1 \sin(%s)) + 
-                    \left\lbrack\begin{array}{rr} %s \\[2ex] %s \end{array}\right\rbrack (a_2 \cos(%s) + b_2 \sin(%s))",
-    checker => sub {
-        my ($correct, $student, $self ) = @_;
-	my ($s0, $s1, $s2, $s3, $s4, $s5, $s6, $s7) = @{$student};
+    format =>  
+    "<table border='0' cellspacing='0'>
+    <tr><td>x<sub>1</sub>(t) = %s</td></tr>
+    <tr><td>x<sub>2</sub>(t) = %s</td></tr>
+    </table>",
+    tex_format =>  
+    "\begin{array}{l} 
+    x_1(t) = %s \\ 
+    x_2(t) = %s 
+    \end{array}",
 
-        if ( (
-             ($s0 != 0 || $s1 != 0) && 
-             ($s4 != 0 || $s5 != 0) && 
-             ($c0 * $s1 == $c1 * $s0) && 
-             ($c2 == $s2) && 
-             ($c3 == $s3) && 
-             ($c4 * $s5 == $c5 * $s4) && 
-             ($c6 == $s6) && 
-             ($c7 == $s7)  
-             ) || (
-             ($s0 != 0 || $s1 != 0) && 
-             ($s4 != 0 || $s5 != 0) && 
-             ($c4 * $s1 == $s0 * $c5) && 
-             ($c6 == $s2) && 
-             ($c7 == $s3) && 
-             ($c0 * $s5 == $c1 * $s4) && 
-             ($c2 == $s6) && 
-             ($c3 == $s7)  
-             )
-           ) 
-        { return 1; } else { Value::Error('At least one entry is incorrect'); }
+    checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+
+      if ( !$c[0]->typeMatch($s[0]) || !$c[1]->typeMatch($s[1]) ) {
+           Value::Error("<b>You must enter both x<sub>1</sub>(t) and x<sub>2</sub>(t)</b>");
+      }
+
+      if (    $c[0]->typeMatch($s[0]) && $s[0] != Formula(0) && $s[0]->isFormula
+           && $c[1]->typeMatch($s[1]) && $s[1] != Formula(0) && $s[1]->isFormula
+           && (    $s[0]->D('a1') == Formula(0) || $s[1]->D('a1') == Formula(0)
+                || $s[0]->D('a2') == Formula(0) || $s[1]->D('a2') == Formula(0)
+                || $s[0]->D('b1') == Formula(0) || $s[1]->D('b1') == Formula(0)
+                || $s[0]->D('b2') == Formula(0) || $s[1]->D('b2') == Formula(0)
+              )
+         ) 
+      { Value::Error("Don't forget the constants a1, a2, b1, b2"); } 
+
+ 
+      if (    $c[0]->typeMatch($s[0]) && $s[0] != Formula(0) && $s[0]->isFormula
+           && $c[1]->typeMatch($s[1]) && $s[1] != Formula(0) && $s[1]->isFormula
+           && $s[0]->D('a1') != Formula(0) && $s[1]->D('a1') != Formula(0)
+           && $s[0]->D('a2') != Formula(0) && $s[1]->D('a2') != Formula(0)
+           && $s[0]->D('b1') != Formula(0) && $s[1]->D('b1') != Formula(0)
+           && $s[0]->D('b2') != Formula(0) && $s[1]->D('b2') != Formula(0)
+           && $A[0] * $s[0] + $A[1] * $s[1] == $s[0]->D('t')->D('t')
+           && $A[2] * $s[0] + $A[3] * $s[1] == $s[1]->D('t')->D('t')
+         ) 
+      { return 1; } else { return 0; }
 
     }
 );
@@ -182,19 +206,12 @@ allowbreaks=>'yes'
 $ITEMSEP
 $ITEM
 Find the general solution to this system of differential equations.
-\{ 
-mbox(
-[
-display_matrix([['\( x_1(t) \)'],['\( x_2(t) \)']]),
-' = ',
-display_matrix([[$multians2->ans_rule(5)],[$multians2->ans_rule(5)]]),
-'\( \Big( a_1 \cos\big( \)' . $multians2->ans_rule(5) . '\( \big) + b_1 \sin\big( \)' . $multians2->ans_rule(5) . '\( \big) \Big) + \)',
-display_matrix([[$multians2->ans_rule(5)],[$multians2->ans_rule(5)]]),
-'\( \Big( a_2 \cos\big( \)' . $multians2->ans_rule(5) . '\( \big) + b_2 \sin\big( \)' . $multians2->ans_rule(5) . '\( \big) \Big) \)'
-],
-allowbreaks=>'yes'
-) 
-\}
+Use \( a_1, a_2, b_1, b_2 \) to denote arbitrary constants, and enter 
+them as ${BTT}a1${ETT}, ${BTT}a2${ETT}, ${BTT}b1${ETT}, ${BTT}b2${ETT}. 
+$BR
+\( x_1(t) = \) \{ $multians2->ans_rule(60) \}
+$BR
+\( x_2(t) = \) \{ $multians2->ans_rule(60) \}
 
 \{ EndList('OL') \}
 END_TEXT
