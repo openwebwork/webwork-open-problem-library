@@ -41,8 +41,8 @@ Context("Numeric");
 Context()->variables->are(t=>"Real");
 
 # the matrix to be analyzed
-$a11 = 1;  $a12 = -2;
-$a21 = 2;  $a22 =  5;
+$A11 = 1;  $A12 = -2;
+$A21 = 2;  $A22 =  5;
 
 $v1top = Formula("-e^(3 t)");
 $v1bot = Formula("e^(3 t)");
@@ -50,50 +50,68 @@ $v1bot = Formula("e^(3 t)");
 $v2top = Formula("(1 - 2t) e^(3 t)");
 $v2bot = Formula("2t e^(3 t)");
 
-
 $multians = MultiAnswer($v1top, $v1bot, $v2top, $v2bot)->with(
 
-  singleResult => 1,
-  allowBlankAnswers => 1,
-  format =>  "A &lt;%s, %s&gt; + B &lt;%s, %s&gt;",
-  tex_format =>  "\text{A} \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack + ".
-                 "\text{B} \left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack",
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+    "<table border='0' cellspacing='0'>
+    <tr>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+      <td>&nbsp;&nbsp;</td>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    </tr>
+    </table>",
+    tex_format =>  
+    "\left\lbrack \begin{array}{c} %s \\ %s \end{array}\right\rbrack, \ \ 
+     \left\lbrack \begin{array}{c} %s \\ %s \end{array}\right\rbrack",
 
-  checker => sub {
-      my ( $correct, $student, $self ) = @_;
-      # my ( $c1, $c2, $c3, $c4 ) = @{$correct};
-      my ( $s1, $s2, $s3, $s4 ) = @{$student};
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
 
-      Value::Error('Answers should be non-constant functions, '.
-      'and <b>every answer blank must be filled</b> to get feedback.') unless 
-      $s1->isFormula && $s2->isFormula && $s3->isFormula && $s4->isFormula;
+        $flag1 = 0;
+        $flag2 = 0;
+        $flag  = 0;
 
-      my ( $s1p, $s2p, $s3p, $s4p ) = ( $s1->D('t'), $s2->D('t'), $s3->D('t'), $s4->D('t') ); 
+        Value::Error("Your solutions are not linearly independent") if
+        $c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) &&
+        $c[2]->typeMatch($s[2]) && $c[3]->typeMatch($s[3]) &&
+        ($s[0] * $s[3] == $s[1] * $s[2]);
 
-      my $left  = (($s1p == $a11*$s1 + $a12*$s2) && 
-                   ($s2p == $a21*$s1 + $a22*$s2));
+        if ( $c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) && ($s[0] != 0 || $s[1] != 0) ) {
+          if ( ($A11 * $s[0] + $A12 * $s[1] == $s[0]->D('t')) &&
+               ($A21 * $s[0] + $A22 * $s[1] == $s[1]->D('t')) 
+          ){
+                $flag1=1;
+          }
+        }
 
-      my $right = (($s3p == $a11*$s3 + $a12*$s4) && 
-                   ($s4p == $a21*$s3 + $a22*$s4));
-      
-      my $notparallel = ($s1*$s4 != $s2*$s3);
+        if ( $c[2]->typeMatch($s[2]) && $c[3]->typeMatch($s[3]) && ($s[2] != 0 || $s[3] != 0) ) {
+          if ( ($A11 * $s[2] + $A12 * $s[3] == $s[2]->D('t')) &&
+               ($A21 * $s[2] + $A22 * $s[3] == $s[3]->D('t')) 
+          ){
+                $flag2=1;
+          }
+        }
 
-      if ($left && !$right) { 
-          $self->setMessage(1,"The vector on the left is correct.");
-          return 0.67;
-      }
-      if ($right && !$left) { 
-          $self->setMessage(1,"The vector on the right is correct.");
-          return 0.67;
-      }
-      if ($left && $right && !$notparallel) { 
-          $self->setMessage(1,"Your solutions are linearly dependent.");
-          return 0.67; 
-      }
-      if ($left && $right && $notparallel) { return 1; } else { return 0; }
-
-  }
+        if ($flag1==1 && $flag2 ==1) {
+           $flag = 1;
+        }else{
+           if ($flag1 == 1) {
+              Value::Error("The vector on the left is correct");
+           } elsif ($flag2 == 1) {
+              Value::Error("The vector on the right is correct");
+           } else {
+              Value::Error("Neither of the solutions is correct");
+           }
+        }
+        return $flag;        
+    }
 );
+
 
 
 #######################################
@@ -109,27 +127,27 @@ of differential equations
 =
 \left\lbrack
 \begin{array}{rr}
-$a11 & $a12 \\
-$a21 & $a22
+$A11 & $A12 \\
+$A21 & $A22
 \end{array} 
 \right\rbrack
 \boldsymbol{\vec{x}}.
 \)
-$BR
-$BR
+$PAR
+$BCENTER
 \{ 
 mbox(
 [
 display_matrix([['\( x_1(t) \)'],['\( x_2(t) \)']]),
-' = A', 
+' \( = c_1 \) ', 
 display_matrix([[$multians->ans_rule(10)],[$multians->ans_rule(10)]]),
-' + B ', 
+' \( + \ c_2 \) ', 
 display_matrix([[$multians->ans_rule(10)],[$multians->ans_rule(10)]]),
 ],
 allowbreaks=>'yes'
 ) 
 \}
-
+$ECENTER
 END_TEXT
 Context()->normalStrings;
 

@@ -1,0 +1,322 @@
+## DESCRIPTION
+## Eigenvalues and systems of differential equations
+## ENDDESCRIPTION
+
+## KEYWORDS ('linear algebra','matrix','eigenvalue','eigenvector','systems','systems of differential equations')
+
+## DBsubject('Calculus')
+## DBchapter('Differential Equations')
+## DBsection('Systems of Differential Equations')
+## Date('03/19/2011')
+## Author('Paul Pearson')
+## Institution('Fort Lewis College')
+## TitleText1('Elementary Differential Equations')
+## EditionText1('2')
+## AuthorText1('Kohler and Johnson')
+## Section1('4.7')
+## Problem1('6')
+
+
+##################################
+#  Initialization
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"unionLists.pl",
+);
+
+TEXT(beginproblem());
+
+
+
+##################################
+#  Setup
+
+Context("Numeric");
+Context()->variables->are(
+'t' =>'Real',
+'c1'=>'Real',
+'c2'=>'Real',
+);
+
+$k = random(2,6,1);
+
+# the matrix to be analyzed
+$A11 = 0;       $A12 = $k;
+$A21 = -1*($k); $A22 = 2*($k);
+
+# B = A - lambda I, notice that B^2 is the zero matrix
+$B11 = -1*($k); $B12 = $k;
+$B21 = -1*($k); $B22 = $k;
+
+
+# repeated eigenvalue, multiplicity 2
+$lambda = Real("$k");
+
+# the eigenvector
+$w1top = Real("1");
+$w1bot = Real("1");
+
+# the generalized eigenvector
+$w2top = Real("0");
+$w2bot = Real("1/$k");
+
+$multians0 = MultiAnswer($lambda, $w1top, $w1bot, $w2top, $w2bot)->with(
+
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+    "<table border='0' cellspacing='0'>
+    <tr>
+      <td> %s </td>
+      <td> &nbsp; &nbsp;</td>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+      <td>&nbsp;&nbsp;</td>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    </tr>
+    </table>",
+    tex_format =>  
+    "%s, \left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack, 
+     \left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack",
+
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
+
+        Value::Error("Your solutions are not linearly independent") if
+        $c[1]->typeMatch($s[1]) && $c[2]->typeMatch($s[2]) &&
+        $c[3]->typeMatch($s[3]) && $c[4]->typeMatch($s[4]) &&
+        ($s[1] * $s[4] == $s[2] * $s[3]);
+
+        if (   $c[0]->typeMatch($s[0]) # type checking
+            && $c[1]->typeMatch($s[1]) 
+            && $c[2]->typeMatch($s[2])
+            && $c[3]->typeMatch($s[3]) 
+            && $c[4]->typeMatch($s[4])
+            && ($s[1] != 0 || $s[2] != 0) # don't allow zero vector to be entered
+            && ($s[3] != 0 || $s[4] != 0) 
+            && ($A11 * $s[1] + $A12 * $s[2] == $s[0] * $s[1]) # eigenvector check
+            && ($A21 * $s[1] + $A22 * $s[2] == $s[0] * $s[2]) 
+            && ($B11 * $s[3] + $B12 * $s[4] == $s[1]) # generalized eigenvector check
+            && ($B21 * $s[3] + $B22 * $s[4] == $s[2])
+          )
+        { return 1; } 
+        
+
+        if (   $c[0]->typeMatch($s[0]) # type checking
+            && $c[1]->typeMatch($s[1]) 
+            && $c[2]->typeMatch($s[2])
+            && ($s[1] != 0 || $s[2] != 0) # don't allow zero vector to be entered
+            && ($A11 * $s[1] + $A12 * $s[2] == $s[0] * $s[1]) # eigenvector check
+            && ($A21 * $s[1] + $A22 * $s[2] == $s[0] * $s[2]) 
+           )
+        {  Value::Error("The eigenpair { lambda, v1 } is correct"); } 
+
+        return 0;
+
+    }
+);
+
+
+
+$y1gen = Formula("e^($k t) ( c1  + c2 t )");
+$y2gen = Formula("e^($k t) ( c1  + c2 (t + 1/$k) )");
+
+$multians1 = MultiAnswer($y1gen, $y2gen)->with(
+
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+    "<table border='0' cellspacing='0'>
+    <tr><td>y<sub>1</sub>(t) = %s</td></tr>
+    <tr><td>y<sub>2</sub>(t) = %s</td></tr>
+    </table>",
+    tex_format =>  
+    "\begin{array}{l} 
+    y_1(t) = %s \\ 
+    y_2(t) = %s 
+    \end{array}",
+
+    checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+
+      if ( !$c[0]->typeMatch($s[0]) || !$c[1]->typeMatch($s[1]) ) {
+           Value::Error("<b>You must enter both y<sub>1</sub>(t) and y<sub>2</sub>(t)</b>");
+      }
+
+      if (    $c[0]->typeMatch($s[0]) && $s[0] != Formula(0) && $s[0]->isFormula
+           && $c[1]->typeMatch($s[1]) && $s[1] != Formula(0) && $s[1]->isFormula
+           && (    $s[0]->D('c1') == Formula(0) || $s[1]->D('c1') == Formula(0)
+                || $s[0]->D('c2') == Formula(0) || $s[1]->D('c2') == Formula(0)
+              )
+         ) 
+      { Value::Error("Don't forget the constants c1 and c2"); } 
+
+ 
+      if (    $c[0]->typeMatch($s[0]) && $s[0] != Formula(0) && $s[0]->isFormula
+           && $c[1]->typeMatch($s[1]) && $s[1] != Formula(0) && $s[1]->isFormula
+           && $s[0]->D('c1') != Formula(0) 
+           && $s[1]->D('c1') != Formula(0)
+           && $s[0]->D('c2') != Formula(0)
+           && $s[1]->D('c2') != Formula(0)
+           && $A11 * $s[0] + $A12 * $s[1] == $s[0]->D('t')
+           && $A21 * $s[0] + $A22 * $s[1] == $s[1]->D('t')
+         ) 
+      { return 1; } 
+
+      return 0;
+
+    }
+);
+
+
+$c1 = non_zero_random(-4,4,1);
+$n = random(1,4,1);
+$c2 = $k * $n;
+
+$y1init = $c1;
+$y2init = $c1 + $n;
+
+$y1ivp = $y1gen->substitute('c1'=>$c1,'c2'=>$c2);
+$y2ivp = $y2gen->substitute('c1'=>$c1,'c2'=>$c2);
+
+
+$multians2 = MultiAnswer($y1ivp, $y2ivp)->with(
+
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+    "<table border='0' cellspacing='5'><tr><td>y<sub>1</sub>(t) = %s </td></tr><tr><td>y<sub>2</sub>(t) = %s </td></tr></table>",
+    tex_format =>  
+    "\begin{array}{l} y_1(t) = %s \\ y_2(t) = %s \end{array}",
+
+    checker => sub {
+        my ($correct, $student, $self ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
+    
+        $flag1 = 0;
+        $flag2 = 0;
+        $flag  = 0;
+
+        if ( $s[0] && !($s[1]) ) { 
+           if ($c[0] == $s[0]) { $flag1 = 1; }
+        }
+        if ( $s[1] && !($s[0]) ) { 
+           if ($c[1] == $s[1]) { $flag2 = 1; }
+        }
+        if ( $s[0] && $s[1] ) { 
+           if ($c[0] == $s[0]) { $flag1 = 1; }
+           if ($c[1] == $s[1]) { $flag2 = 1; }
+        }
+
+        if ($flag1==1 && $flag2 ==1) {
+           $flag = 1;
+        }else{
+           if ($flag1 == 1) {
+              Value::Error("The solution y<sub>1</sub>(t) is correct");
+           } elsif ($flag2 == 1) {
+              Value::Error("The solution y<sub>2</sub>(t) is correct");
+           } else {
+              Value::Error("Neither of the solutions is correct");
+           }
+        }
+        return $flag;        
+       
+    }
+);
+
+
+#######################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+Consider the initial value problem
+$PAR
+\[
+\displaystyle
+\begin{array}{rcll}
+y_1^{\,\prime} & = & $A12 y_2, & \ y_1(0) = $y1init,  
+\\
+y_2^{\,\prime} & = & $A21 y_1 + $A22 y_2, & \ y_2(0) = $y2init.
+\end{array} 
+\]
+$BR
+
+\{ BeginList("OL",type=>"a") \}
+
+$ITEM
+Find the eigenvalue \( \lambda \), an eigenvector
+\( \boldsymbol{\vec{v}_1} \), and a generalized
+eigenvector \( \boldsymbol{\vec{v}_2} \) for the 
+coefficient matrix of this linear system.
+$BCENTER
+\{ 
+mbox(
+[
+'\( \lambda = \) ',
+$multians0->ans_rule(5),
+', \( \boldsymbol{\vec{v}_1} =  \) ', 
+display_matrix([[$multians0->ans_rule(5)],[$multians0->ans_rule(5)]]),
+', \( \boldsymbol{\vec{v}_2} =  \) ', 
+display_matrix([[$multians0->ans_rule(5)],[$multians0->ans_rule(5)]]),
+],
+allowbreaks=>'yes'
+) 
+\}
+$ECENTER
+
+
+$ITEMSEP
+$ITEM
+Find the most general real-valued solution to the linear system 
+of differential equations.  Use \( c_1 \) and \( c_2 \) to 
+denote arbitrary constants, and enter them as ${BTT}c1${ETT} and
+${BTT}c2${ETT}.
+$BR
+\( y_1(t) = \) \{ $multians1->ans_rule(50) \}
+$BR
+\( y_2(t) = \) \{ $multians1->ans_rule(50) \}
+
+$ITEMSEP
+$ITEM
+Solve the original initial value problem.
+$BR
+\( y_1(t) = \) \{ $multians2->ans_rule(20) \}
+$BR
+\( y_2(t) = \) \{ $multians2->ans_rule(20) \}
+
+\{ EndList("OL") \}
+
+END_TEXT
+Context()->normalStrings;
+
+
+###################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $multians0->cmp() );
+
+ANS( $multians1->cmp() );
+
+ANS( $multians2->cmp() );
+
+COMMENT('MathObject version.');
+
+ENDDOCUMENT();
+
