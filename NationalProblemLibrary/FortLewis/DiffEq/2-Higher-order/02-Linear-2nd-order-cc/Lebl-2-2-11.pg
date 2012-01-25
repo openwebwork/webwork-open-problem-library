@@ -37,8 +37,9 @@ TEXT(beginproblem());
 
 Context("Numeric");
 Context()->variables->add(
-A=>"Real",B=>"Real",y=>"Real",
+'c1'=>"Real",'c2'=>"Real",y=>"Real",
 );
+Context()->variables->set('c1'=>{limits=>[2,4]},'c2'=>{limits=>[2,4]});
 Context()->flags->set(
     formatStudentAnswer=>'parsed',
     reduceConstants=>0,
@@ -59,13 +60,13 @@ $msa = -($s) * $a;
 # char poly (r + $s $a)^2 + $b^2
 
 if ($s==1) {
-  $diffeq = "y'' + $a2 y' + $c y = 0"; # tex
+  $diffeq = "y^{\,\prime\prime} + $a2 y^{\,\prime} + $c y = 0"; # tex
 } else {
-  $diffeq = "y'' - $a2 y' + $c y = 0"; # tex
+  $diffeq = "y^{\,\prime\prime} - $a2 y^{\,\prime} + $c y = 0"; # tex
 }
 
 
-$answer = Compute("y = A e^($msa x) cos($b x) + B e^($msa x) sin($b x)");
+$answer = Compute("y = c1 e^($msa x) cos($b x) + c2 e^($msa x) sin($b x)");
 
 
 ######################
@@ -74,9 +75,10 @@ $answer = Compute("y = A e^($msa x) cos($b x) + B e^($msa x) sin($b x)");
 Context()->texStrings;
 BEGIN_TEXT
 Find the general solution to \( $diffeq \).
-In your answer, use \( A \) and \( B \) to 
+In your answer, use \( c_1 \) and \( c_2 \) to 
 denote arbitrary constants and \( x \) 
-the independent variable.
+the independent variable.  Enter \( c_1 \) as
+${BTT}c1${ETT} and \( c_2 \) as ${BTT}c2${ETT}.
 $BR
 $BR
 \{ ans_rule(40) \}
@@ -90,7 +92,7 @@ Context()->normalStrings;
 
 $showPartialCorrectAnswers = 1;
 ANS( $answer->cmp( checker => sub {
-    my ( $correct, $student, $self ) = @_;
+    my ( $correct, $student, $answerHash ) = @_;
     my $stu   = Formula($student->{tree}{rop});
 
     ################################
@@ -98,8 +100,8 @@ ANS( $answer->cmp( checker => sub {
     #
     Value->Error("Is your answer the most general solution?") 
     if ( 
-      Formula($stu->D('A'))==Formula(0) || 
-      Formula($stu->D('B'))==Formula(0) 
+      Formula($stu->D('c1'))==Formula(0) || 
+      Formula($stu->D('c2'))==Formula(0) 
     );
 
     ############################################
@@ -107,30 +109,35 @@ ANS( $answer->cmp( checker => sub {
     #
     my $x = Real(1.24);
 
-    my $a11 = $stu->eval(A=>1,B=>0,x=>$x,y=>0);
-    my $a12 = $stu->eval(A=>0,B=>1,x=>$x,y=>0);
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
  
-    my $a21 = $stu->D('x')->eval(A=>1,B=>0,x=>$x,y=>0);
-    my $a22 = $stu->D('x')->eval(A=>0,B=>1,x=>$x,y=>0);
+    my $a21 = $stu->D('x')->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a22 = $stu->D('x')->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
 
-    my $wronskian = $a11*$a22 - $a21*$a12;
+    # my $wronskian = $a11*$a22 - $a21*$a12;
+    # Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    # if ($wronskian==Real(0));
 
     Value->Error("Your functions are not linearly independent or your answer is not complete") 
-    if ($wronskian==Real(0));
+    if ($a11 * $a22 == $a21 * $a12);
+
 
     ########################################################
     #  Check that the student answer is a solution to the DE
     #
-    my $stux  = Formula($stu->D('x'));
-    my $stuxx = Formula($stu->D('x','x'));
-    my $stuDE = Formula($stuxx + $s*$a2*$stux + $c*$stu)
-    ->with(test_points=>[[1,1,0.1,0],[2,1,0,0],[1,2,-0.1,0],[1,1,0,1]]);
+    my $stu1 = Formula($stu->D('x'));
+    my $stu2 = Formula($stu->D('x','x'));
+    return ($stu2 + $s * $a2 * $stu1) == (-1 * $c * $stu);
 
-    return ($stuDE==Formula(0));
+    #my $stuDE = Formula($stuxx + $s*$a2*$stux + $c*$stu)
+    #->with(test_points=>[[1,1,0.1,0],[2,1,0,0],[1,2,-0.1,0],[1,1,0,1]]);
+    #return ($stuDE==Formula(0));
+
 
 }));
 
 
-COMMENT("MathObject version.");
+COMMENT("MathObject version.  Characteristic polynomial (r + s a)^2 + b^2");
 
 ENDDOCUMENT();
