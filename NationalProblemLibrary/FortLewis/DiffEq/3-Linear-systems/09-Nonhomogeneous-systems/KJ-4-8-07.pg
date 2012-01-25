@@ -7,14 +7,14 @@
 ## DBsubject('Differential Equations')
 ## DBchapter('Linear systems')
 ## DBsection('Nonhomogeneous linear systems')
-## Date('01/31/2012')
-## Author('Paul Pearson and Veronika Furst')
+## Date('04/12/2011')
+## Author('Paul Pearson')
 ## Institution('Fort Lewis College')
 ## TitleText1('Elementary Differential Equations')
 ## EditionText1('2006')
 ## AuthorText1('Kohler and Johnson')
 ## Section1('4.8')
-## Problem1('3')
+## Problem1('7')
 
 
 ##################################
@@ -42,39 +42,28 @@ Context()->variables->are(
 t=>"Real"
 );
 
-# Define real "pre-eigenvalues" for generating matrix A
-$a = non_zero_random(-3,3,1);
-do { $b = non_zero_random(-3,3,1); } until ($b != $a);
-
-do { $c = non_zero_random(-3,3,1); } until ($c != -1);
-# Eigenvectors:  <c,-1>, <1,1>
+# Eigenvectors:  <1,-1>, <1,-2>
+# Eigenvalues:    -1,      1
 
 #  The matrix for the system
-$A11 = $b + $a * $c;
-$A12 = $b * $c - $a * $c;
-$A21 = $b - $a;
-$A22 = $a + $b * $c; 
+$A11 = -3;  $A12 = -2;
+$A21 =  4;  $A22 =  3; 
+
 
 # Redefine true eigenvalues of matrix A
-$lambda1 = $a * ($c + 1);
-$lambda2 = $b * ($c + 1);
-
-# Initial conditions
-$init1 = random(0,1,1);
-$init2 = random(0,1,1);
+$lambda1 = -1;
+$lambda2 =  1;
  
 
-########################################
+#########################################
 #  Homogeneous (complementary) solution
 
 # Correct complementary solution
-# for the e-vect < c, -1 >
-$yc1top = Formula("$c e^($lambda1*t)")->reduce;
-$yc1bot = Formula("-e^($lambda1*t)")->reduce;
+$yc1top = Compute(" 1 e^(-t)");
+$yc1bot = Compute("-1 e^(-t)");
 
-# for the e-vect < 1, 1 >
-$yc2top = Formula("e^($lambda2*t)");
-$yc2bot = Formula("e^($lambda2*t)");
+$yc2top = Compute(" 1 e^(t)");
+$yc2bot = Compute("-2 e^(t)");
 
 
 $multians1 = MultiAnswer($yc1top, $yc1bot, $yc2top, $yc2bot)->with(
@@ -146,31 +135,26 @@ $multians1 = MultiAnswer($yc1top, $yc1bot, $yc2top, $yc2bot)->with(
 
 
 
-##############################
+#############################################
 #  Particular solution
 
-do { $r = non_zero_random(-4,4,1) } until (
-       $r != $lambda1 
-    && $r != $lambda2 
-    && $r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21 != 0
-);
+# Random entry in nonhomogeneous part
+$k = non_zero_random(-4,4,2);
 
-# Vector g(t) = <e^(rt), 0>
-# Guess solution of the form e^(rt)*<scalar1, scalar2>
+# Vector g(t) = < $k sin(t), 0 >
+# Guess solution of the form \vec{a} sin(t) + \vec{b} cos(t)
 
-$g1 = Formula("e^($r*t)")->reduce;
+$g1 = Formula("$k sin(t)");
+$g2 = Formula("0");
 
-$scalar1 = Real("($A22 - $r)/($r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21)")->reduce;
-($num1, $den1) = reduce( $A22 - $r, ($r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21) );
+$a = 1.5 * $k;
+$b = -0.5 * $k;
+$c = -2 * $k;
 
-$scalar2 = Real("(-1 * $A21)/($r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21)")->reduce;
-($num2, $den2) = reduce( (-1 * $A21), ($r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21) );
+$yptop = Compute("$a sin(t) + $b cos(t)");
+$ypbot = Compute("$c sin(t)");
 
-$y1part = Compute("($num1 / $den1) e^($r t)");
-$y2part = Compute("($num2 / $den2) e^($r t)");
-
-
-$multians2 = MultiAnswer( $y1part, $y2part )->with(
+$multians2 = MultiAnswer( $yptop, $ypbot )->with(
 
     singleResult => 1,
     checkTypes => 0,
@@ -179,19 +163,13 @@ $multians2 = MultiAnswer( $y1part, $y2part )->with(
     <tr><td> %s </td></tr>
     <tr><td> %s </td></tr>
     </table>",
-    tex_format =>  "\left\lbrack\begin{array}{rr} %s \\\\ %s \end{array}\right\rbrack",
+    tex_format =>  "\left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack",
 
     checker => sub {
         my ($correct, $student, $answerHash ) = @_;
         my @c = @{$correct};
 	my @s = @{$student};
         my @score = ();
-
-        Value::Error('Answers should be non-constant functions') unless 
-           $c[0]->typeMatch($s[0])
-        && $c[1]->typeMatch($s[1])
-        && $s[0]->isFormula 
-        && $s[1]->isFormula;
 
         foreach my $i (0..1) {
           if ( $c[$i]->typeMatch($s[$i]) && $c[$i] == $s[$i] ) { 
@@ -216,21 +194,20 @@ $multians2 = MultiAnswer( $y1part, $y2part )->with(
 
 
 
-
-#######################################
+#########################################
 #  IVP solution
 
-$ivpc2 = Real("($init1 + $c * $init2 - $scalar1 - $scalar2 * $c) / (1+$c)");
-$ivpc1 = Real("($init1 - $ivpc2 - $scalar1) / $c");
+$C1 = non_zero_random(-5,5,1);
+do { $C2 = non_zero_random(-5,5,1); } until ($C2 != $C1);
 
-#$y1part = Compute("($num1 / $den1) e^($r t)");
-#$y2part = Compute("($num2 / $den2) e^($r t)");
+$init1 = -1 * $C1 - ($C2 / 2) - ($k / 2);
+$init2 = $C1 + $C2;
 
-#$y1ivp = $y1part + $ivpc1*$yc1top + $ivpc2*$yc2top;
-#$y2ivp = $y2part + $ivpc1*$yc1bot + $ivpc2*$yc2bot;
 
-$y1ivp = Compute("($num1 / $den1) e^($r t) + $ivpc1 * $yc1top + $ivpc2 * $yc2top");
-$y2ivp = Compute("($num2 / $den2) e^($r t) + $ivpc1 * $yc1bot + $ivpc2 * $yc2bot");
+#IVP solution
+
+$y1ivp = Compute("-$C1 e^(-t) - ($C2 / 2) e^t + $a sin(t) + $b cos(t)");
+$y2ivp = Compute("$C1 e^(-t) + $C2 e^t + $c sin(t)");
 
 $multians3 = MultiAnswer( $y1ivp, $y2ivp )->with(
 
@@ -241,7 +218,7 @@ $multians3 = MultiAnswer( $y1ivp, $y2ivp )->with(
     <tr><td> %s </td></tr>
     <tr><td> %s </td></tr>
     </table>",
-    tex_format =>  "\left\lbrack\begin{array}{rr} %s \\\\ %s \end{array}\right\rbrack",
+    tex_format =>  "\left\lbrack\begin{array}{rr} %s \\ %s \end{array}\right\rbrack",
 
     checker => sub {
         my ($correct, $student, $answerHash ) = @_;
@@ -299,7 +276,7 @@ $A21 & $A22
 + \left\lbrack
 \begin{array}{c}
 $g1 \\
-0
+$g2
 \end{array} 
 \right\rbrack, 
 \quad \quad
@@ -331,9 +308,11 @@ allowbreaks=>'yes'
 \}
 
 $ITEMSEP
-$ITEM Construct a particular solution by assuming the form 
-\( \boldsymbol{\vec{y}}_P(t) = $g1 \boldsymbol{\vec{a}} \) 
-and solving for the undetermined constant vector \( \boldsymbol{\vec{a}} \).
+$ITEM Construct a particular solution by assuming 
+the form \( \boldsymbol{\vec{y}}_P(t) = \boldsymbol{\vec{a}} 
++ \boldsymbol{\vec{b}} t \) and solving for the undetermined 
+constant vectors \( \boldsymbol{\vec{a}} \) and 
+\( \boldsymbol{\vec{b}} \).
 $BR
 $BR
 \{ 
@@ -347,10 +326,10 @@ allowbreaks=>'yes'
 \}
 
 $ITEMSEP
-$ITEM Form the general solution \( \boldsymbol{\vec{y}}(t) 
-= \boldsymbol{\vec{y}}_C(t) + \boldsymbol{\vec{y}}_P(t) \) 
-and impose the initial condition to obtain the solution of 
-the initial value problem.
+$ITEM Form the general solution \( \boldsymbol{\vec{y}}(t) = 
+\boldsymbol{\vec{y}}_C(t) + \boldsymbol{\vec{y}}_P(t) \) and 
+impose the initial condition to obtain the solution of the 
+initial value problem.
 $BR
 $BR
 \{
@@ -381,4 +360,3 @@ ANS( $multians3->cmp() );
 COMMENT('MathObject version.');
 
 ENDDOCUMENT();
-

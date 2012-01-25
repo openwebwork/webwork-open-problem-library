@@ -7,14 +7,14 @@
 ## DBsubject('Differential Equations')
 ## DBchapter('Linear systems')
 ## DBsection('Nonhomogeneous linear systems')
-## Date('01/31/2012')
-## Author('Paul Pearson and Veronika Furst')
+## Date('04/12/2011')
+## Author('Paul Pearson')
 ## Institution('Fort Lewis College')
 ## TitleText1('Elementary Differential Equations')
 ## EditionText1('2006')
 ## AuthorText1('Kohler and Johnson')
 ## Section1('4.8')
-## Problem1('3')
+## Problem1('5')
 
 
 ##################################
@@ -41,40 +41,32 @@ Context("Numeric");
 Context()->variables->are(
 t=>"Real"
 );
+Context()->variables->set(t=>{limits=>[-0.25,25]});
 
-# Define real "pre-eigenvalues" for generating matrix A
-$a = non_zero_random(-3,3,1);
-do { $b = non_zero_random(-3,3,1); } until ($b != $a);
-
-do { $c = non_zero_random(-3,3,1); } until ($c != -1);
-# Eigenvectors:  <c,-1>, <1,1>
+# Eigenvectors:  <1,1>, <1,-1>
+# Eigenvalues:    -1,      1
 
 #  The matrix for the system
-$A11 = $b + $a * $c;
-$A12 = $b * $c - $a * $c;
-$A21 = $b - $a;
-$A22 = $a + $b * $c; 
+$A11 =  0;  $A12 = -1;
+$A21 = -1;  $A22 =  0; 
+
 
 # Redefine true eigenvalues of matrix A
-$lambda1 = $a * ($c + 1);
-$lambda2 = $b * ($c + 1);
+$lambda1 = -1;
+$lambda2 = 1;
 
-# Initial conditions
-$init1 = random(0,1,1);
-$init2 = random(0,1,1);
+
  
 
-########################################
+#########################################
 #  Homogeneous (complementary) solution
 
 # Correct complementary solution
-# for the e-vect < c, -1 >
-$yc1top = Formula("$c e^($lambda1*t)")->reduce;
-$yc1bot = Formula("-e^($lambda1*t)")->reduce;
+$yc1top = Compute("e^(-t)");
+$yc1bot = Compute("e^(-t)");
 
-# for the e-vect < 1, 1 >
-$yc2top = Formula("e^($lambda2*t)");
-$yc2bot = Formula("e^($lambda2*t)");
+$yc2top = Compute("e^(t)");
+$yc2bot = Compute("-e^(t)");
 
 
 $multians1 = MultiAnswer($yc1top, $yc1bot, $yc2top, $yc2bot)->with(
@@ -146,31 +138,19 @@ $multians1 = MultiAnswer($yc1top, $yc1bot, $yc2top, $yc2bot)->with(
 
 
 
-##############################
+#############################################
 #  Particular solution
 
-do { $r = non_zero_random(-4,4,1) } until (
-       $r != $lambda1 
-    && $r != $lambda2 
-    && $r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21 != 0
-);
+# Random entry in nonhomogeneous part
+$r = 2; # list_random(2);
+$den = ($r)**2 - 1;
 
-# Vector g(t) = <e^(rt), 0>
-# Guess solution of the form e^(rt)*<scalar1, scalar2>
+# Guess solution of the form \vec{a} e^($rt) + \vec{b} t + \vec{c}
 
-$g1 = Formula("e^($r*t)")->reduce;
+$yptop = Compute("-e^($r t) / $den - 1");
+$ypbot = Compute("$r e^($r t) / $den + t");
 
-$scalar1 = Real("($A22 - $r)/($r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21)")->reduce;
-($num1, $den1) = reduce( $A22 - $r, ($r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21) );
-
-$scalar2 = Real("(-1 * $A21)/($r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21)")->reduce;
-($num2, $den2) = reduce( (-1 * $A21), ($r * ($A22 + $A11 - $r) - $A11 * $A22 + $A12 * $A21) );
-
-$y1part = Compute("($num1 / $den1) e^($r t)");
-$y2part = Compute("($num2 / $den2) e^($r t)");
-
-
-$multians2 = MultiAnswer( $y1part, $y2part )->with(
+$multians2 = MultiAnswer( $yptop, $ypbot )->with(
 
     singleResult => 1,
     checkTypes => 0,
@@ -186,12 +166,6 @@ $multians2 = MultiAnswer( $y1part, $y2part )->with(
         my @c = @{$correct};
 	my @s = @{$student};
         my @score = ();
-
-        Value::Error('Answers should be non-constant functions') unless 
-           $c[0]->typeMatch($s[0])
-        && $c[1]->typeMatch($s[1])
-        && $s[0]->isFormula 
-        && $s[1]->isFormula;
 
         foreach my $i (0..1) {
           if ( $c[$i]->typeMatch($s[$i]) && $c[$i] == $s[$i] ) { 
@@ -216,21 +190,22 @@ $multians2 = MultiAnswer( $y1part, $y2part )->with(
 
 
 
-
-#######################################
+#########################################
 #  IVP solution
 
-$ivpc2 = Real("($init1 + $c * $init2 - $scalar1 - $scalar2 * $c) / (1+$c)");
-$ivpc1 = Real("($init1 - $ivpc2 - $scalar1) / $c");
+# Initial conditions
+$init1 = random(0,1,1);
+$init2 = random(0,1,1);
 
-#$y1part = Compute("($num1 / $den1) e^($r t)");
-#$y2part = Compute("($num2 / $den2) e^($r t)");
+$c1 = Real("0.5 * ( ($init1 + 1 / $den + 1) - ($init2 - $r / $den) )");
+$c2 = Real("0.5 * ( ($init1 + 1 / $den + 1) + ($init2 - $r / $den) )");
 
-#$y1ivp = $y1part + $ivpc1*$yc1top + $ivpc2*$yc2top;
-#$y2ivp = $y2part + $ivpc1*$yc1bot + $ivpc2*$yc2bot;
 
-$y1ivp = Compute("($num1 / $den1) e^($r t) + $ivpc1 * $yc1top + $ivpc2 * $yc2top");
-$y2ivp = Compute("($num2 / $den2) e^($r t) + $ivpc1 * $yc1bot + $ivpc2 * $yc2bot");
+#IVP solution
+
+$y1ivp = Compute(" $c1 e^t + $c2 e^(-t) - e^($r t) / $den - 1");
+$y2ivp = Compute("- $c1 e^t + $c2 e^(-t) + $r e^($r t) / $den + t");
+$y2ivp->{limits} = [0.25,0.75];
 
 $multians3 = MultiAnswer( $y1ivp, $y2ivp )->with(
 
@@ -298,8 +273,8 @@ $A21 & $A22
 \boldsymbol{\vec{y}}
 + \left\lbrack
 \begin{array}{c}
-$g1 \\
-0
+t \\
+e^{$r t}
 \end{array} 
 \right\rbrack, 
 \quad \quad
@@ -331,9 +306,11 @@ allowbreaks=>'yes'
 \}
 
 $ITEMSEP
-$ITEM Construct a particular solution by assuming the form 
-\( \boldsymbol{\vec{y}}_P(t) = $g1 \boldsymbol{\vec{a}} \) 
-and solving for the undetermined constant vector \( \boldsymbol{\vec{a}} \).
+$ITEM Construct a particular solution by assuming 
+the form \( \boldsymbol{\vec{y}}_P(t) = \boldsymbol{\vec{a}} e^{$r t} 
++ \boldsymbol{\vec{b}} t + \boldsymbol{\vec{c}} \) and solving for the undetermined 
+constant vectors \( \boldsymbol{\vec{a}}, \boldsymbol{\vec{b}}, \) and 
+\( \boldsymbol{\vec{c}} \).
 $BR
 $BR
 \{ 
@@ -347,10 +324,10 @@ allowbreaks=>'yes'
 \}
 
 $ITEMSEP
-$ITEM Form the general solution \( \boldsymbol{\vec{y}}(t) 
-= \boldsymbol{\vec{y}}_C(t) + \boldsymbol{\vec{y}}_P(t) \) 
-and impose the initial condition to obtain the solution of 
-the initial value problem.
+$ITEM Form the general solution \( \boldsymbol{\vec{y}}(t) = 
+\boldsymbol{\vec{y}}_C(t) + \boldsymbol{\vec{y}}_P(t) \) and 
+impose the initial condition to obtain the solution of the 
+initial value problem.
 $BR
 $BR
 \{
@@ -381,4 +358,3 @@ ANS( $multians3->cmp() );
 COMMENT('MathObject version.');
 
 ENDDOCUMENT();
-
