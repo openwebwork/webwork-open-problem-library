@@ -22,21 +22,17 @@ DOCUMENT() ;        # This should be the first executable line in the problem.
 loadMacros(
 "PG.pl",
 "PGbasicmacros.pl",
-"PGchoicemacros.pl",
 "PGanswermacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGgraphmacros.pl",
-"PGdiffeqmacros.pl",
+"Parser.pl",
 ) ;
 
 TEXT(beginproblem()) ;
 $showPartialCorrectAnswers = 1 ;
 
-# $switch = random(0,1,1);
+Context('Numeric')->variables->add(y=>'Real');
+
 $a = random(2,4,1) * random(-1,1,2);
 $b = non_zero_random(-4,4,1);
-# $c = $b + $switch*non_zero_random(-4,4,1);
-# $d = $a + $switch*non_zero_random(-4,4,1);  # this is exact if $b==$c
 $n = random(1,4,1);
 $n1=$n+1;
 $m = random(2,4,1);
@@ -50,10 +46,30 @@ Find an explicit or implicit solutions to the differential equation
 
 END_TEXT
 
-ANS(level_curve_check(
-         FEQ(" -${a}y-x"),
-          FEQ(" e^( ${a}x )(y   + x/$a - 1/($a)^2 ) "), initial_t=>0,initial_y=>2/($a)**2,tol => .1)    
-);     
+# Specially modified for this particular answer
+sub cmult {
+  my ( $correct, $student, $self ) = @_;
+  my $context = Context()->copy;
+  my $const = $student->eval(x=>0, y=>1/($a)**2);
+  $student = Formula($context, $student-$const);
+  if($student== Formula($context, "0")) {
+    Value::Error("The function cannot be constant");
+    return 0;
+  }
+  $context->flags->set(no_parameters=>0);
+  $context->variables->add('C1'=>'Parameter');
+  my $c1 = Formula($context,'C1');
+  $student = Formula($context, "$student");
+  $correct = Formula($context,"$c1*$correct");
+  return $correct == $student;
+}
+
+ANS(Compute("e^( ${a}x )(y   + x/$a - 1/($a)^2 )")->cmp(checker => ~~&cmult));
+
+#ANS(level_curve_check(
+#         FEQ(" -${a}y-x"),
+#          FEQ(" e^( ${a}x )(y   + x/$a - 1/($a)^2 ) "), initial_t=>0,initial_y=>2/($a)**2,tol => .1)    
+#);     
 
 ENDDOCUMENT() ;        # This should be the last executable line in the problem.
 
