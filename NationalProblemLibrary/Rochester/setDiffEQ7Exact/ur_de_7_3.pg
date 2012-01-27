@@ -22,11 +22,8 @@ DOCUMENT() ;        # This should be the first executable line in the problem.
 loadMacros(
 "PG.pl",
 "PGbasicmacros.pl",
-"PGchoicemacros.pl",
 "PGanswermacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGgraphmacros.pl",
-"PGdiffeqmacros.pl",
+"MathObjects.pl"
 ) ;
 
 TEXT(beginproblem()) ;
@@ -41,13 +38,19 @@ $n1=$n+1;
 $m = random(2,4,1);
 $m1= $m+1;
 
+Context('Numeric')->variables->add(y=>'Real');
+
+$s1 = nicestring([$a, $b], ['xy^2', 'y']);
+$s2 = nicestring([$a, $b], ['x^2 y', 'x']);
+
 BEGIN_TEXT
 
 Use the "mixed partials" check to see if the following differential equation is exact.
 $BR
 If it is exact find
- a function F(x,y) whose level curves are solutions to the differential equation
-\[ ( ${a}xy^2 + ${b}y )dx + ( ${a}x^2y +${b}x )dy= 0 \]
+ a function \( F(x,y)\) whose level curves are solutions to the 
+differential equation
+\[ ( $s1 )dx + ( $s2 )dy= 0 \]
 $BR
 \{ pop_up_list(' ' => '&nbsp','not_exact' => 'not exact', 'exact' => 'exact') \}
 $BR
@@ -69,14 +72,38 @@ END_TEXT
                                                         'original_student_ans'  =>      '');
                         };
 
- $ans_eval = ($equationIsExactQ eq 'exact') ? level_curve_check(
-          FEQ("( - ${a}xy^2 - ${b}y )/( ${a}x^2y +${b}x )"),
-          #FEQ("x+y"),
-          #FEQ("y"),
-          #FEQ("y-e^x"),
-          FEQ("( ${a}/2) x^2y^2  + (${b})xy "),
-           initial_t => 1, initial_y => 5) :
-          $ok;   
+# Can input a root, which defaults to [0,0], and another point
+#  which defaults to [2,1]
+sub lcc {
+  my ( $correct, $student, $anshash) = @_;
+  my %ah = %{ $anshash };
+  my $root = $ah{root};
+  $root = [0,0] unless defined($root);
+  my $other = $ah{other};
+  $other = [2,1] unless defined($other);
+  my $const = $student->eval(x=>$root->[0], y=>$root->[1]);
+  $student = $student-$const;
+  if($student== 0) {
+    Value::Error("The function cannot be constant");
+    return 0;
+  }
+  my $c1 = $student->eval(x=>$other->[0], y=>$other->[1])/
+    $correct->eval(x=>$other->[0], y=>$other->[1]);
+  $student = $student/$c1;
+  return $correct == $student;
+}
+
+
+ $ans_eval = ($equationIsExactQ eq 'exact') ? 
+  Compute(" $a/2 x^2y^2  + $b x y ")->cmp(checker => ~~&lcc, other=>[$a*$b,1])
+#level_curve_check(
+#  FEQ("( - ${a}xy^2 - ${b}y )/( ${a}x^2y +${b}x )"),
+#  #FEQ("x+y"),
+#  #FEQ("y"),
+#  #FEQ("y-e^x"),
+#  FEQ("( ${a}/2) x^2y^2  + (${b})xy "),
+# initial_t => 1, initial_y => 5) 
+  : $ok;   
       
 ANS($ans_eval);
 ENDDOCUMENT() ;        # This should be the last executable line in the problem.

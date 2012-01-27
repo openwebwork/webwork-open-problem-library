@@ -40,31 +40,38 @@ $m1= $m+1;
 
 BEGIN_TEXT
 
-Find an explicit or implicit solutions to the differential equation
+Find a function \(F(x,y)\) whose level curves are solutions to the differential equation
 \[ ( x^2 + ${a}xy )dx + x dy= 0 \]
 \(F(x,y) = \) \{ ans_rule(30) \}
 
 END_TEXT
 
-# Specially modified for this particular answer
-sub cmult {
-  my ( $correct, $student, $self ) = @_;
-  my $context = Context()->copy;
-  my $const = $student->eval(x=>0, y=>1/($a)**2);
-  $student = Formula($context, $student-$const);
-  if($student== Formula($context, "0")) {
+
+# Can input a root, which defaults to [0,0], and another point
+#  which defaults to [2,1]
+sub lcc {
+  my ( $correct, $student, $anshash) = @_;
+  my %ah = %{ $anshash };
+  my $root = $ah{root};
+  $root = [0,0] unless defined($root);
+  my $other = $ah{other};
+  $other = [2,1] unless defined($other);
+  my $const = $student->eval(x=>$root->[0], y=>$root->[1]);
+  $student = $student-$const;
+  if($student== 0) {
     Value::Error("The function cannot be constant");
     return 0;
   }
-  $context->flags->set(no_parameters=>0);
-  $context->variables->add('C1'=>'Parameter');
-  my $c1 = Formula($context,'C1');
-  $student = Formula($context, "$student");
-  $correct = Formula($context,"$c1*$correct");
+  my $c1 = $student->eval(x=>$other->[0], y=>$other->[1])/
+    $correct->eval(x=>$other->[0], y=>$other->[1]);
+  $student = $student/$c1;
   return $correct == $student;
 }
 
-ANS(Compute("e^( ${a}x )(y   + x/$a - 1/($a)^2 )")->cmp(checker => ~~&cmult));
+
+
+ANS(Compute("e^( ${a}x )(y   + x/$a - 1/($a)^2 )")->cmp(checker => ~~&lcc,
+  root => [0, 1/($a)**2], other=>[0, 5+1/($a)^2] ));
 
 #ANS(level_curve_check(
 #         FEQ(" -${a}y-x"),
