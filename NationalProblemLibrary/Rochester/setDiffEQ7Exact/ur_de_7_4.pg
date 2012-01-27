@@ -22,15 +22,14 @@ DOCUMENT() ;        # This should be the first executable line in the problem.
 loadMacros(
 	"PG.pl",
 	"PGbasicmacros.pl",
-	"PGchoicemacros.pl",
 	"PGanswermacros.pl",
-	"PGauxiliaryFunctions.pl",
-	"PGgraphmacros.pl",
-	"PGdiffeqmacros.pl",
+    "MathObjects.pl"
 ) ;
 
 TEXT(beginproblem()) ;
 $showPartialCorrectAnswers = 0 ;
+
+Context('Numeric')->variables->add(y=>'Real');
 
 $a= non_zero_random(-4,4,1);
 $b= non_zero_random(-4,4,1);
@@ -41,16 +40,44 @@ $n1=$n+1;
 $m = random(2,4,1);
 $m1= $m+1;
 
+$yn = $n==1 ? 'y': "y^$n";
+
+$s1 = nicestring([-$a, -$b], ["x^$m", 'y']);
+$s2 = nicestring([$c, $d], ['x', $yn]);
+
 BEGIN_TEXT
 
 Use the "mixed partials" check to see if the following differential equation is exact.
 $BR
 If it is exact find a function \(F(x,y)\) whose level curves are solutions to the differential equation
-\[ \frac{dy}{dx} = \frac{ -${a}x^${m} - ${b}y }{ ${c}x +${d}y^${n} }\]
+\[ \frac{dy}{dx} = \frac{ $s1 }{ $s2 }\]
 \{ pop_up_list(' ' => '&nbsp','not_exact' => 'not exact', 'exact' => 'exact') \}
+$BR
 $BR
 \(F(x,y) = \) \{ ans_rule(30) \}
 END_TEXT
+
+# Can input a root, which defaults to [0,0], and another point
+#  which defaults to [2,1]
+sub lcc {
+  my ( $correct, $student, $anshash) = @_;
+  my %ah = %{ $anshash };
+  my $root = $ah{root};
+  $root = [0,0] unless defined($root);
+  my $other = $ah{other};
+  $other = [2,1] unless defined($other);
+  my $const = $student->eval(x=>$root->[0], y=>$root->[1]);
+  $student = $student-$const;
+  if($student== 0) {
+    Value::Error("The function cannot be constant");
+    return 0;
+  }
+  my $c1 = $student->eval(x=>$other->[0], y=>$other->[1])/
+    $correct->eval(x=>$other->[0], y=>$other->[1]);
+  $student = $student/$c1;
+  return $correct == $student;
+}
+
 
  $equationIsExactQ = ($b==$c) ? 'exact': 'not_exact';
  ANS(str_cmp($equationIsExactQ) );
@@ -68,11 +95,12 @@ END_TEXT
 			);
  };
  		$ans_eval = ($equationIsExactQ eq 'exact')  
-					? level_curve_check(
-											FEQ("-(${a}x^${m} + ${b}y)/(${c}x +${d}y^${n})"),
-											FEQ("( ${a}/$m1) x^{$m1}  +${b}xy + ( ${d}/$n1)y^${n1}"), initial_t=>1,initial_y=>10) 
-					:
-					  $ok;
+					? 
+   Compute("$a/$m1 x^$m1 + $b xy + $d/$n1 y^$n1")->cmp(checker => ~~&lcc)
+#  level_curve_check(
+#	FEQ("-(${a}x^${m} + ${b}y)/(${c}x +${d}y^${n})"),
+#	FEQ("( ${a}/$m1) x^{$m1}  +${b}xy + ( ${d}/$n1)y^${n1}"), initial_t=>1,initial_y=>10) 
+					: $ok;
   
      
 ANS($ans_eval);
