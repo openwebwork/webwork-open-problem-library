@@ -37,25 +37,94 @@ TEXT(beginproblem());
 ##################################
 #  Setup
 
-Context("Vector2D");
-Context()->variables->are(
-t=>"Real"
-);
+#Context("Vector2D");
+Context("Numeric")->variables->are(t=>"Real");
 
 $c = random(-5,-1,1);
 $d = -($c);
 do { $f = non_zero_random(-5,5,1); } until ($f != $c && $f != $d);
 $g = -($f);
 
-$a[0][0] = $c;
-$a[0][1] = $d;
-$a[1][0] = $d;
-$a[1][1] = $c;
+$A11 = $c;
+$A12 = $d;
+$A21 = $d;
+$A22 = $c;
 
-$frac = Compute("$f/$c");
+#$frac = Compute("$f/$c");
 
-$answer1 = ColumnVector([0,$frac]);
-$answer2 = ColumnVector([1,1]);
+#$answer1 = ColumnVector([0,$frac]);
+#$answer2 = ColumnVector([1,1]);
+
+$y1top = Formula("0");
+$y1bot = Formula("$f/$c");
+
+$y2top = Formula("1");
+$y2bot = Formula("1");
+
+
+$multians1 = MultiAnswer($y1top, $y1bot, $y2top, $y2bot)->with(
+
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+    "<table border='0' cellspacing='0'>
+    <tr>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+      <td>&nbsp;&nbsp;</td>
+      <td><table border='0' cellspacing='5'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    </tr>
+    </table>",
+    tex_format =>  
+    "\left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack + c 
+     \left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack",
+
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
+
+        my $flag1 = 0;
+        my $flag2 = 0;
+
+        Value::Error("Your solutions are not linearly independent") if
+        $c[0]->typeMatch($s[0]) &&
+        $c[1]->typeMatch($s[1]) &&
+        $c[2]->typeMatch($s[2]) &&
+        $c[3]->typeMatch($s[3]) &&
+        ($s[0] * $s[3] == $s[1] * $s[2]);
+
+        if ( $c[0]->typeMatch($s[0]) && 
+             $c[1]->typeMatch($s[1]) && 
+             ($s[0] != 0 || $s[1] != 0) ) 
+        {
+          if ( ($A11 * $s[0] + $A12 * $s[1] + $f == $s[0]->D('t')) &&
+               ($A21 * $s[0] + $A22 * $s[1] + $g == $s[1]->D('t')) 
+          ){
+                $flag1=1;
+          }
+        }
+
+        if ( $c[2]->typeMatch($s[2]) && 
+             $c[3]->typeMatch($s[3]) && 
+             ($s[2] != 0 || $s[3] != 0) && 
+             ($s[2] == $s[3]) 
+           ) 
+        { $flag2=1; }
+
+        if ($flag1==1 && $flag2 ==1){
+           return 1;
+        } elsif ($flag1 == 1) {
+           Value::Error("The vector on the left is correct");
+        } elsif ($flag2 == 1) {
+           Value::Error("The vector on the right is correct");
+        }else{
+           Value::Error("Neither of the vectors is correct");
+        }
+       
+    }
+);
+
 
 
 
@@ -65,8 +134,8 @@ $answer2 = ColumnVector([1,1]);
 Context()->texStrings;
 BEGIN_TEXT
 
-Determine all equilibrium solutions (i.e., 
-solutions as \( t \to \infty \))
+Determine all equilibrium solutions (i.e., constant solutions that other
+solutions approach as \( t \to \infty \))
 of the following nonhomogeneous linear system:
 $PAR
 \[
@@ -75,8 +144,8 @@ $PAR
 =
 \left\lbrack
 \begin{array}{rr}
-$a[0][0] & $a[0][1] \\
-$a[1][0] & $a[1][1]
+$A11 & $A12 \\
+$A21 & $A22
 \end{array} 
 \right\rbrack
 \boldsymbol{\vec{y}}(t)
@@ -92,16 +161,14 @@ $BR
 \{ 
 mbox(
 [
-' \( \boldsymbol{\vec{y}}(t) = \) ',
-$answer1->ans_array(),
+'\( \boldsymbol{\vec{y}}(t) = \)', 
+display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]]),
 ' \( + \ c \) ', 
-$answer2->ans_array(),
-'$SPACE where \( c \) can be any real constant.'
+display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]]),
 ],
 allowbreaks=>'yes'
 ) 
 \}
-
 END_TEXT
 Context()->normalStrings;
 
@@ -111,66 +178,6 @@ Context()->normalStrings;
 
 $showPartialCorrectAnswers = 1;
 
-ANS( $answer1->cmp() );
-ANS( $answer2->cmp( parallel=>1 ) );
+ANS( $multians1->cmp() );
 
 ENDDOCUMENT();
-
-
-\( \boldsymbol{\vec{y}}(t) = \)
-\{ $answer1->ans_array() \}
-\( + c \) 
-\{ $answer2->ans_array() \}
-
-
-
-$multians = MultiAnswer( 0, $frac, 1, 1 )->with(
-    singleResult => 1,
-    checkTypes => 0,
-    allowBlankAnswers => 1,
-    format =>  "&lt;%s, %s&gt; + c &lt;%s, %s&gt;",
-    tex_format =>  "\left\lbrack\begin{array}{r} %s \\ %s \end{array}\right\rbrack + \text{\(c\)} ".
-                   "\left\lbrack\begin{array}{r} %s \\ %s \end{array}\right\rbrack" ,
-
-    checker => sub {
-        my ($correct, $student, $self ) = @_;
-	my ($stuv11, $stuv21, $stuv12, $stuv22) = @{$student}[0..3];
-
-        # if both vectors are nonempty and the second is nonzero
-        if ( 
-             ( $stuv11=~/~~S/ && $stuv21=~/~~S/ && $stuv12=~/~~S/ && $stuv22=~/~~S/) &&
-             ( $stuv12 != 0 )
-           ) {
-           if ( 
-                ($stuv21 == $stuv11 + $frac) &&
-                ($stuv12 == $stuv22) 
-              )
-           { return 1; }
-        }
-
-        # if the left vector is nonempty 
-        if ( $stuv11=~/~~S/ && $stuv21=~/~~S/ ) {
-        if ( 
-                $stuv21 == $stuv11 + $frac
-              )
-           { 
-              $self->setMessage(1,"The vector on the left is correct.");
-              return 0.67;
-           }
-        }
-
-        # if the right vector is nonempty and nonzero
-        if ( $stuv12=~/~~S/ && $stuv22=~/~~S/ && $stuv12 != 0) {
-        if (
-                $stuv12 == $stuv22
-              )
-           { 
-              $self->setMessage(2,"The vector on the right is correct.");
-              return 0.67;
-           }
-        }
-       
-        return 0;
-
-    }
-);
