@@ -1,0 +1,221 @@
+## DESCRIPTION
+## Higher order ODEs: constant coefficient second order nonhomogeneous linear ODEs
+## ENDDESCRIPTION
+
+## KEYWORDS('differential equations','second order linear ODE','constant coefficients','nonhomogeneous')
+
+## DBsubject('Differential Equations')
+## DBchapter('Higher Order Differential Equations')
+## DBsection('Second Order Linear Nonhomogeneous')
+## Date('03/01/2012')
+## Author('Paul Pearson')
+## Institution('Fort Lewis College')
+## TitleText1('Elementary Differential Equations')
+## EditionText1('2')
+## AuthorText1('Kohler and Johnson')
+## Section1('3.8')
+## Problem1('14')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"AnswerFormatHelp.pl",
+"parserAssignment.pl",
+"unionLists.pl",
+);
+
+TEXT(beginproblem());
+
+
+#############################
+#  Setup 1
+
+Context("Numeric");
+Context()->variables->add(
+y=>"Real",
+'a'=>'Parameter','b'=>'Parameter'
+);
+
+
+$B = non_zero_random(-3,3,1);
+$C = list_random(0.5,1.5,2.5);
+
+$B5 = 5 * $B;
+$C2 = 2 * $C;
+
+if ($C2 != 1) {
+  $diffeq = "y^{\,\prime\prime} + 4 y^{\,\prime} + 5 y =  $B5 x + $C2 e^{-x}"; # tex
+} else {
+  $diffeq = "y^{\,\prime\prime} + 4 y^{\,\prime} + 5 y =  $B5 x + e^{-x}"; # tex
+}
+
+
+$yparticular = Compute("-4*$B/5 + $B x + $C e^(-x) + a e^(-2x) cos(x) + b e^(-2x) sin(x)");
+
+Context()->texStrings;
+BEGIN_TEXT
+\{ BeginList('OL',type=>'a') \}
+
+$ITEM Find a particular solution to the 
+nonhomogeneous differential equation \( $diffeq \).
+$BR
+$BR
+\( y_p = \) 
+\{ ans_rule(60) \}
+\{ AnswerFormatHelp("formulas") \}
+
+END_TEXT
+Context()->normalStrings;
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $yparticular->cmp() );
+
+
+
+###########################################
+# Get rid of adaptive parameters which might mess with answer checkers.
+
+Context("Numeric");
+Context()->variables->add(
+'c1'=>"Real",'c2'=>"Real",
+'y'=>"Real",
+);
+Context()->variables->set(
+'c1'=>{limits=>[2,4]},
+'c2'=>{limits=>[2,4]},
+'x'=>{limits=>[-3,-1]}
+);
+
+$yhomogeneous = Compute("c1 e^(-2x) cos(x) + c2 e^(-2x) sin(x)");
+$ygeneral = Compute("-4*$B/5 + $B x + $C e^(-x) + c1 e^(-2x) cos(x) + c2 e^(-2x) sin(x)");
+
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$ITEMSEP
+$ITEM Find the most general solution to the 
+associated homogeneous differential equation.  
+Use \( c_1 \) and \( c_2 \) in your answer to denote 
+arbitrary constants, and enter them as ${BTT}c1${ETT}
+and ${BTT}c2${ETT}.
+$BR
+$BR
+\( y_h = \)
+\{ ans_rule(60) \}
+\{ AnswerFormatHelp("formulas") \}
+
+
+$ITEMSEP
+$ITEM Find the most general solution to the 
+original nonhomogeneous differential equation.  
+Use \( c_1 \) and \( c_2 \) in your answer to denote 
+arbitrary constants.
+$BR
+$BR
+\( y = \)
+\{ ans_rule(60) \}
+\{ AnswerFormatHelp("formulas") \}
+
+\{ EndList('OL') \}
+END_TEXT
+Context()->normalStrings;
+
+
+######################
+#  Answer evaluation
+
+
+ANS( $yhomogeneous->cmp( 
+  checker => sub {
+    my ( $correct, $student, $answerHash ) = @_;
+    my $stu   = Formula($student);
+
+    ################################
+    #  Check for arbitrary constants
+    #
+    Value->Error("Is your answer the most general solution?") 
+    if ( 
+      Formula($stu->D('c1'))==Formula(0) || 
+      Formula($stu->D('c2'))==Formula(0) 
+    );
+
+    ############################################
+    #  Check for linear independence (Wronskian)
+    #
+    my $x = Real(1.24);
+
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
+ 
+    my $a21 = $stu->D('x')->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a22 = $stu->D('x')->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
+
+    # my $wronskian = $a11*$a22 - $a21*$a12;
+    # Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    # if ($wronskian==Real(0));
+
+    Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    if ($a11 * $a22 == $a21 * $a12);
+
+    ########################################################
+    #  Check that the student answer is a solution to the DE
+    #
+    my $stu1 = Formula($stu->D('x'));
+    my $stu2 = Formula($stu->D('x','x'));
+    return ($stu2 + 5 * $stu) == -4 * $stu1; 
+
+}));
+
+
+ANS( $ygeneral->cmp( checker => sub {
+    my ( $correct, $student, $answerHash ) = @_;
+    my $stu   = Formula($student);
+
+    ################################
+    #  Check for arbitrary constants
+    #
+    Value->Error("Is your answer the most general solution?") 
+    if ( 
+      Formula($stu->D('c1'))==Formula(0) || 
+      Formula($stu->D('c2'))==Formula(0) 
+    );
+
+    ############################################
+    #  Check for linear independence (Wronskian)
+    #
+    my $x = Real(1.24);
+
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
+ 
+    my $a21 = $stu->D('x')->eval('c1'=>1,'c2'=>0,x=>$x,y=>0);
+    my $a22 = $stu->D('x')->eval('c1'=>0,'c2'=>1,x=>$x,y=>0);
+
+    # my $wronskian = $a11*$a22 - $a21*$a12;
+    # Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    # if ($wronskian==Real(0));
+
+    Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    if ($a11 * $a22 == $a21 * $a12);
+
+    ########################################################
+    #  Check that the student answer is a solution to the DE
+    #
+    my $stu1 = Formula($stu->D('x'));
+    my $stu2 = Formula($stu->D('x','x'));
+    return ($stu2 + 4 * $stu1 + 5 * $stu) == Formula("$B5 x + $C2 e^(-x)"); 
+
+}));
+
+
+COMMENT("MathObject version.  Characteristic polynomial (r + a)^2 + b^2.");
+
+ENDDOCUMENT();
