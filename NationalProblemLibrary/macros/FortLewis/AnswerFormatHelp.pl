@@ -42,6 +42,39 @@ Paul Pearson, Fort Lewis College, Department of Mathematics
 
 ###########################
 
+  ###########################
+  #  Site administration
+  #
+  #  The only thing you may need to modify is the value
+  #  of $helpurl near the end of this file.
+  #
+  ###########################
+  #  Usage
+  #
+  #  DOCUMENT();
+  #  loadMacros("PGstandard.pl","AnswerFormatHelp.pl",);
+  #  TEXT(beginproblem());
+  #  BEGIN_TEXT
+  #  \{ AnswerFormatHelp("formulas") \} $PAR
+  #  \{ AnswerFormatHelp("equations","help entering equations") \} $PAR
+  #  \{ AnswerFormatHelp("formulas","help (formulas)","http://webwork.someschool.edu/dir/subdir/") \}
+  #  END_TEXT
+  #  ENDDOCUMENT();
+  #
+  #  First example: use defaults.
+  #
+  #  Second example: use customized text displayed to the student
+  #  as the html link.
+  #
+  #  Third example: additionally points to a particular URL where 
+  #  html help files are located. The URL must end with a forward slash.
+  #
+  #  The third method is not recommended, as a universal, site-wide,
+  #  or course-wide solution obtained by modifying the value of
+  #  $helpdir in AnswerFormatHelp.pl is preferable to setting the
+  #  URL in every individual PG file manually.
+  #
+  ###########################
 
 
 sub _AnswerFormatHelp_init {}; # don't reload this file
