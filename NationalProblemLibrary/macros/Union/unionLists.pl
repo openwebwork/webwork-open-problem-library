@@ -14,36 +14,47 @@
 
 sub _unionLists_init {}; # don't reload this file
 
-######################################################################
-#
-#  Usage:  BeginList(type,options);
-#
-#  Produces <OL> and <UL> lists.  Type must be either "OL" or "UL",
-#  (and defaults to "OL").  The options are
-#
-#    type => "type"            Specifies the type of marker
-#                              (default is none specified)
-#
-#    value => num or string    Specified the initial value of the
-#                              item numbering
-#
-#    tex_par => 1 or 0         Set paragraph spacing in TeX mode
-#                              (default is 0)
-#
-#    noTopSkip => 1 or 0       Remove top skip produced by enumerate
-#                              in TeX mode
-#                              (default is 0)
-#
-#  Example:
-#
-#    BEGIN_TEXT
-#      \{BeginList("OL")\}
-#      $ITEM This is the first item
-#      $ITEM This is the second
-#      \{EndList("OL")\}
-#    END_TEXT
-#
-  
+=head2 unionLists.pl
+
+ ######################################################################
+ #
+ #  Usage:  BeginList(type,options);
+ #
+ #  Produces <OL> and <UL> lists.  Type must be either "OL" or "UL",
+ #  (and defaults to "OL").  The options are
+ #
+ #    type => "type"            Specifies the type of marker
+ #                              (default is none specified)
+ #
+ #    value => num or string    Specified the initial value of the
+ #                              item numbering
+ #
+ #    tex_par => 1 or 0         Set paragraph spacing in TeX mode
+ #                              (default is 0)
+ #
+ #    noTopSkip => 1 or 0       Remove top skip produced by enumerate
+ #                              in TeX mode
+ #                              (default is 0)
+ #
+ #  Example:
+ #
+ #    BEGIN_TEXT
+ #      \{BeginList("OL")\}
+ #      $ITEM This is the first item
+ #      $ITEM This is the second
+ #      \{EndList("OL")\}
+ #    END_TEXT
+ #
+ #
+ #  Usage:  EndList(type)
+ #
+ #  where type is the list type (and must match the BeginList type).
+ #
+ 
+ 
+ 
+=cut
+
 sub BeginList {
   my $LIST = 'OL';
   $LIST = shift if (uc($_[0]) eq "OL" or uc($_[0]) eq "UL");

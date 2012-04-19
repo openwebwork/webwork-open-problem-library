@@ -21,6 +21,7 @@ sub includePGfile {
   $PGfile =~ s![^/]+$!!; $PGfile .= $name;
   while ($PGfile =~ s![^/]*/../!!) {}
   $PGfile =~ s!^tmpEdit/!!;
+  warn("file is $PGfile, directory is $main::templateDirectory");
   my $problem = read_whole_problem_file($main::templateDirectory.$PGfile);
 
   my ($oldpname,$oldname) = 
@@ -50,9 +51,12 @@ sub includeRandomProblem {
   my @flist = @_;
   my @shuffle = _NchooseK(scalar(@flist),scalar(@flist));
   my $start = $initialProblemNumber; $start = 1 unless defined $start;
+  WARN_MESSAGE("There is an error in initializing this random problem. initialProblemNumber $start is greater than the current problem number $probNum")
+     if $probNum-$start < 0 ;
   my $n = (@shuffle)[$probNum-$start];
   includePGfile($flist[$n]);
-  $main::problemPostamble->{HTML} = "";  # Hack to prevent ENDDOCUMENT from adding it again
+  #$main::problemPostamble->{HTML} = "";  # Hack to prevent ENDDOCUMENT from adding it again
+                                          # commenting this out is another hack which prevents nesting on quizzes -- go figure
 }
 
 #
