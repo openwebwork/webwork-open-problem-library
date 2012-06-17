@@ -1,4 +1,14 @@
-webwork-open-problem-library2
+webwork-open-problem-library
 =============================
 
-A library of WeBWorK problem contributed by the OpenWeBWorK community
+This is the WeBWorK Open Problem Library (OPL for short).  Here you
+will find all WeBWorK problems contributed by the OpenWeBWorK
+community.
+
+
+
+Notes
+-----
+
+This library was previously called the National Problem Library.
+
