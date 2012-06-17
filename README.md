@@ -6,7 +6,6 @@ will find all WeBWorK problems contributed by the OpenWeBWorK
 community.
 
 
-
 Notes
 -----
 
