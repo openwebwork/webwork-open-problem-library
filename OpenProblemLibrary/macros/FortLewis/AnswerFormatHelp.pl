@@ -4,7 +4,7 @@ AnswerFormatHelp.pl
 
 =head1 SYNOPSIS
 
-Creates links for students to help documentation on formatting 
+Creates knowls for students to help documentation on formatting 
 answers and allows for custom help links. 
 
 =head1 DESCRIPTION
@@ -43,12 +43,6 @@ Paul Pearson, Fort Lewis College, Department of Mathematics
 ###########################
 
   ###########################
-  #  Site administration
-  #
-  #  The only thing you may need to modify is the value
-  #  of $helpurl near the end of this file.
-  #
-  ###########################
   #  Usage
   #
   #  DOCUMENT();
@@ -57,7 +51,6 @@ Paul Pearson, Fort Lewis College, Department of Mathematics
   #  BEGIN_TEXT
   #  \{ AnswerFormatHelp("formulas") \} $PAR
   #  \{ AnswerFormatHelp("equations","help entering equations") \} $PAR
-  #  \{ AnswerFormatHelp("formulas","help (formulas)","http://webwork.someschool.edu/dir/subdir/") \}
   #  END_TEXT
   #  ENDDOCUMENT();
   #
@@ -66,20 +59,53 @@ Paul Pearson, Fort Lewis College, Department of Mathematics
   #  Second example: use customized text displayed to the student
   #  as the html link.
   #
-  #  Third example: additionally points to a particular URL where 
-  #  html help files are located. The URL must end with a forward slash.
-  #
-  #  The third method is not recommended, as a universal, site-wide,
-  #  or course-wide solution obtained by modifying the value of
-  #  $helpdir in AnswerFormatHelp.pl is preferable to setting the
-  #  URL in every individual PG file manually.
-  #
   ###########################
 
 
 sub _AnswerFormatHelp_init {}; # don't reload this file
 
+# This now calls helpLink to produce a knowl with the help.
+# The only difference is in the default text used for the knowl.
+
+
 sub AnswerFormatHelp {
+  my $helptype = shift;
+  my $customstring = shift;
+
+  if($customstring) {
+    return helpLink($helptype, $customstring);
+  }
+  my %typeHash = (
+    'angle' => 'angles',
+    'decimal' => 'decimals',
+    'equation' => 'equations',
+    'exponent' => 'exponents',
+    'formula' => 'formulas',
+    'fraction' => 'fractions',
+    'inequalit' => 'inequalities',
+    'limit' => 'limits',
+    'log' => 'logarithms',
+    'number' => 'numbers',
+    'point' => 'points',
+    'vector' => 'vectors',
+    'interval' => 'intervals',
+    'unit' => 'units',
+    'syntax' => 'syntax',
+  );
+  my $helpname = '';
+  for my $ref (keys %typeHash) {
+    if ( $helptype =~ /$ref/i) {
+      $helpname = $typeHash{$ref};
+      last;
+    }
+  }
+  return helpLink($helptype, "help ($helpname)");
+}
+
+# Old version of this function, preserved until the new version has
+# been more fully tested.
+
+sub old_AnswerFormatHelp {
 
 #
 #  Define some local variables
