@@ -21,7 +21,7 @@ sub includePGfile {
   $PGfile =~ s![^/]+$!!; $PGfile .= $name;
   while ($PGfile =~ s![^/]*/../!!) {}
   $PGfile =~ s!^tmpEdit/!!;
-  warn("file is $PGfile, directory is $main::templateDirectory");
+#  warn("file is $PGfile, directory is $main::templateDirectory");
   my $problem = read_whole_problem_file($main::templateDirectory.$PGfile);
 
   my ($oldpname,$oldname) = 
