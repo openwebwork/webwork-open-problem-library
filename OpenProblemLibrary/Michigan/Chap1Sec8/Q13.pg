@@ -61,21 +61,33 @@ $limit = Compute("ln($a)")->with( tolType=>'absolute', tolerance=>0.01 );
 ##    that f(delta) = a - 0.01 (if our window is [a - 0.01, a + 0.01])
 ##    or f(delta) = a - 0.02 (if our window is [a - 0.02, a]).
 
-## get a reasonable guess for what the answer actually is
-$g = $func - Compute("ln($a) + 0.01");
-$gp = $func->D();
-## a first guess is to solve using the leading term of the Taylor expansion
-$x0 = Compute("sqrt(.06)/$a");
-$x1 = $x0 - $g->eval(x => $x0)/$gp->eval(x=>$x0);
-$x2 = $x1 - $g->eval(x => $x1)/$gp->eval(x=>$x1);
-$x3 = $x2 - $g->eval(x => $x2)/$gp->eval(x=>$x2);
-$x4 = $x3 - $g->eval(x => $x3)/$gp->eval(x=>$x3);
-## so, our first guess is
-$delta0 = $x4;
+# old version
+# ## get a reasonable guess for what the answer actually is
+# $g = $func - Compute("ln($a) + 0.01");
+# $gp = $func->D();
+# ## a first guess is to solve using the leading term of the Taylor expansion
+# $x0 = Compute("sqrt(.06)/$a");
+# $x1 = $x0 - $g->eval(x => $x0)/$gp->eval(x=>$x0);
+# $x2 = $x1 - $g->eval(x => $x1)/$gp->eval(x=>$x1);
+# $x3 = $x2 - $g->eval(x => $x2)/$gp->eval(x=>$x2);
+# $x4 = $x3 - $g->eval(x => $x3)/$gp->eval(x=>$x3);
+# ## so, our first guess is
+# $delta0 = $x4;
+
+# new version: f(x) ~ ln(a) + (ln(a))^2 x/2 + ln(a)^3 x^2/6, so we can
+#    guess that our delta is
+# $delta0 = .02/(log($a))**2;  # linear approximation
+$loga = log($a);
+$delta0n = (-15*$loga + sqrt(3)*sqrt(-2*$loga + 75*$loga*$loga)) /
+    (10*$loga*$loga);
+$delta0p = (-15*$loga + sqrt(3)*sqrt(2*$loga + 75*$loga*$loga)) /
+    (10*$loga*$loga);
+$delta0 = .5*($delta0p - $delta0n);
+
 $y0 = Compute("ln($a) - .01");
 $y1 = Compute("ln($a) + .01");
 
-$mp = MultiAnswer( -$delta0, $delta0, $y0, $y1 )->with(
+$mp = MultiAnswer( $delta0n, $delta0p, $y0, $y1 )->with(
     singleAnswer=>0,
     checker=>sub {
 	my ( $correct, $student, $self ) = @_;
@@ -138,6 +150,11 @@ $mp = MultiAnswer( -$delta0, $delta0, $y0, $y1 )->with(
 					  "really leaves through the " .
 					  "right side of your window.");
 		    }
+		}
+		## also check that the x range isn't too big
+		if ( 2*$delta0+0.0002 < ($student->[1] - $student->[0]) ) {
+		    $ret[0] = 0;
+		    $ret[1] = 0;
 		}
 		return [ @ret ];
 	    }
