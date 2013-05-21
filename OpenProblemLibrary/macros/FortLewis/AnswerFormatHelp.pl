@@ -80,7 +80,8 @@ our ($syntaxHelpExists,   $angleHelpExists, $decimalHelpExists,
     $equationHelpExists, $exponentHelpExists, $formulaHelpExists, $fractionHelpExists, $inequalitiesHelpExists, 
     $intervalHelpExists, $limitsHelpExists, $logarithmsHelpExists, $numberHelpExists, $pointsHelpExists,
     $unitsHelpExists, $vectorsHelpExists,
-    );
+    ) = (0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, );
+    
 sub _AnswerFormatHelp_init {}; # don't reload this file
 
 sub AnswerFormatHelp {
