@@ -1,13 +1,16 @@
 sub textbook_ref {
     my ($text, $sec, $ex) = @_;
+return "";
     return "$text section $sec, exercise $ex";
 }
 
 sub textbook_ref_corr {
+return "";
     return "Similar to " . textbook_ref(@_) . ".";
 }
 
 sub textbook_ref_exact {
+return "";
     return "From " . textbook_ref(@_) . ".";
 }
 
