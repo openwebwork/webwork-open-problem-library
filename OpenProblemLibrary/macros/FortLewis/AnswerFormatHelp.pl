@@ -76,7 +76,12 @@ Paul Pearson, Fort Lewis College, Department of Mathematics
   #
   ###########################
 
-
+our ($syntaxHelpExists,   $angleHelpExists, $decimalHelpExists,
+    $equationHelpExists, $exponentHelpExists, $formulaHelpExists, $fractionHelpExists, $inequalitiesHelpExists, 
+    $intervalHelpExists, $limitsHelpExists, $logarithmsHelpExists, $numberHelpExists, $pointsHelpExists,
+    $unitsHelpExists, $vectorsHelpExists,
+    ) = (0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, );
+    
 sub _AnswerFormatHelp_init {}; # don't reload this file
 
 sub AnswerFormatHelp {
@@ -127,7 +132,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $angleHelpExists = 1;
+$angleHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (angles)"; } else { $helpstring = $customstring; }
@@ -175,7 +180,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $decimalHelpExists = 1;
+$decimalHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (decimals)"; } else { $helpstring = $customstring; }
@@ -222,7 +227,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $equationHelpExists = 1;
+$equationHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (equations)"; } else { $helpstring = $customstring; }
@@ -267,7 +272,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $exponentHelpExists = 1;
+$exponentHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (exponents)"; } else { $helpstring = $customstring; }
@@ -329,7 +334,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $formulaHelpExists = 1;
+ $formulaHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (formulas)"; } else { $helpstring = $customstring; }
@@ -431,7 +436,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $inequalitiesHelpExists = 1;
+$inequalitiesHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (inequalities)"; } else { $helpstring = $customstring; }
@@ -483,7 +488,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $intervalHelpExists = 1;
+$intervalHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (intervals)"; } else { $helpstring = $customstring; }
@@ -533,7 +538,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $limitsHelpExists = 1;
+$limitsHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (limits)"; } else { $helpstring = $customstring; }
@@ -597,7 +602,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $logarithmsHelpExists = 1;
+$logarithmsHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (logarithms)"; } else { $helpstring = $customstring; }
@@ -648,7 +653,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $numberHelpExists = 1;
+ $numberHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (numbers)"; } else { $helpstring = $customstring; }
@@ -695,7 +700,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $pointsHelpExists = 1;
+$pointsHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (points)"; } else { $helpstring = $customstring; }
@@ -739,7 +744,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $unitsHelpExists = 1;
+$unitsHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (units)"; } else { $helpstring = $customstring; }
@@ -789,7 +794,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $vectorsHelpExists = 1;
+$vectorsHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (vectors)"; } else { $helpstring = $customstring; }
@@ -833,7 +838,7 @@ return false;
 </script>
 END_HEADER_TEXT
 
-our $syntaxHelpExists = 1;
+$syntaxHelpExists = 1;
 }
 
 if (!$customstring) { $helpstring = "help (syntax)"; } else { $helpstring = $customstring; }

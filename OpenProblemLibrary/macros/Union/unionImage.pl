@@ -58,10 +58,10 @@ sub Image {
   my $HTML; my $TeX;
   ($image,$ilink) = @{$image} if (ref($image) eq "ARRAY");
   $image = alias(insertGraph($image)) if (ref($image) eq "WWPlot");
-  $image = alias($image) unless ($image =~ m!^/|^http:!i); # see note
+  $image = alias($image) unless ($image =~ m!^(/|https?:)!i); # see note
   if ($ilink) {
     $ilink = alias(insertGraph($ilink)) if (ref($ilink) eq "WWPlot");
-    $ilink = alias($ilink) unless ($ilink =~ m!^/|^http:!i); # see note
+    $ilink = alias($ilink) unless ($ilink =~ m!^(/|https?:)!i); # see note
   } else {$ilink = $image}
   #
   # Note: These cases were added to handle the examples where the 

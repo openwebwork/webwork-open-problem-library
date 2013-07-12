@@ -836,9 +836,9 @@ sub RandomNormalNumber{
   
   $num = random(.01,.99,.01);
   if ($num >= .5){
-    $norm_num =  normal_distr($num-.5, $mean, $dev);
+    $norm_num =  normal_distr($num-.5, mean=>$mean, deviation=>$dev);
   } else {
-    $norm_num =  2*$mean - normal_distr(.5 - $num, $mean, $dev);
+    $norm_num =  2*$mean - normal_distr(.5 - $num, mean=>$mean, deviation=>$dev);
   }
   $norm_num;
 }
