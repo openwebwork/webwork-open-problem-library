@@ -1,9 +1,7 @@
 ## BEGIN_DESCRIPTION
 ## Using the Sage single cell server, determine an estimate for the limit 
-## of f(x,y) by looking at pieces of the surface with decreasing radial distance 
-## If the piece does not converge to a point, there is no limit.  Otherwise, the
-## student will estimate the z-value by adjusting viewing angle till the value can
-## be read off from the z-axis.
+## of f(x,y) by looking at a contour plot of the surface. 
+## If around the limit point there is a dramatic change in colors, there is no limit.  
 ## END_DESCRIPTION
 
 ## KEYWORDS('sage', 'sagelet', 'limits', 'multivariate')
@@ -79,30 +77,14 @@ $ans6 = Compute("$c3");
 
 $SageCode = <<SAGE_CODE;
 
-#  Starting point for radius values before collapsing in as R approaches 0.
-#  Functions ought to be "reasonable" within a circular domain of radius R surrounding 
-#  the desired (x_0,y_0).
-
-var("x,y,z")
-Rmin=1/10
-Rmax=2
-
-~~@interact(layout=dict(top=[["num"]], 
-right=[["in_3d"],["curves"],["nojavagraph"]],
-bottom=[["R"]]))
-def _(num=selector(["f1","f2","f3","f4","f5","f6"],label='\( f  =  \)'),
-    R=slider(Rmin,Rmax,1/10,Rmax,label='\(R\)'),
-    curves=checkbox(default=false,label='Show curves'),
-    in_3d=checkbox(default=false,label='3D'),
-    nojavagraph=checkbox(default=false,label='Problems with 3D Graph?')):
-    
-    if nojavagraph:
-        view_method = "tachyon"
-    else:
-        view_method = "jmol"
-
-#  Other options java3d (which uses OpenGL) and canvas3d (which uses JavaScript)
-
+var('x,y')
+~~@interact
+def _(num=selector(["f1","f2","f3","f4","f5","f6"],label="f(x,y)= "),
+      show_surface=checkbox(default=false,label='Show in 3D'),
+      zoom1 = checkbox(default=false,label='Zoom In'),
+      zoom2 = checkbox(default=false,label='Really Zoom In'),
+      zoom3 = checkbox(default=false,label='Hugh Zoom In')
+      ):
     if num=="f1":
         f(x,y) = $f1
         [x0,y0] = $p1
@@ -120,55 +102,41 @@ def _(num=selector(["f1","f2","f3","f4","f5","f6"],label='\( f  =  \)'),
         [x0,y0] = $p5
     else:
         f(x,y) = $f6a
-        (x0,y0) = $p6
+        [x0,y0] = $p6
 
-#  convert to polar coordinates
-    g(r,t) = f(x=r*cos(t)+x0,y=r*sin(t)+y0)
-#   Sage graphing transformation used to see the original surface.
-    cylinder = (r*cos(t)+x0,r*sin(t)+y0,z)
-    surface = plot3d(g,(t,0,2*pi),(r,1/100,Rmax),transformation=cylinder,opacity=0.6)
-#   Regraph the surface for smaller and smaller radii controlled by the slider.
-    collapsing_surface = plot3d(g,(t,0,2*pi),(r,1/100,R),transformation=cylinder,rgbcolor=(0,1,0))
-    
-    G = surface+collapsing_surface
-    html("Move the slider to see what happens as \( {R \\rightarrow 0} \)")
-    html("The surface has a limit as \({(x,y)\\rightarrow ("+str(x0)+","+str(y0)+")} \)")
-    html("if the green region collapses to a point.")
-
-#   If checked, add a couple of curves on the surface corresponding to limit as x->x0 for y=x^(3/5),
-#   and as y->y0 for x=y^(3/5).  Should make this more robust but perhaps using 
-#   these relatively obtuse curves could eliminate problems.
-    
-    if curves:
-        curve_x = parametric_plot3d([x0-t,y0-t^(3/5),f(x=x0-t,y=y0-t^(3/5))],(t,Rmin,Rmax),color='red',thickness=10)
-        curve_y = parametric_plot3d([x0+t^(3/5),y0+t,f(x=x0+t^(3/5),y=y0+t)],(t,Rmin,Rmax),color='red',thickness=10)
-        R2 = Rmin/4
-        G += arrow((x0-Rmin,y0-Rmin^(3/5),f(x=x0-Rmin,y=y0-Rmin^(3/5))),(x0-R2,y0-R2^(3/5),f(x=x0-R2,y=y0-R2^(3/5))),size=30 )
-        G += arrow((x0+Rmin^(3/5),y0+Rmin,f(x=x0+Rmin^(3/5),y=y0+Rmin)),(x0+R2^(3/5),y0+R2,f(x=x0+R2^(3/5),y=y0+R2)),size=30 )  
-
-        limit_x = limit(f(x=x0-t,y=y0-t^(3/5)),t=0)
-        limit_y = limit(f(x=x0+t^(3/5),y=y0+t),t=0)
-        text_x = text3d(limit_x,(x0,y0,limit_x))
-        text_y = text3d(limit_y,(x0,y0,limit_y))
-        G += curve_x+curve_y+text_x+text_y 
-  
-        html('The red curves represent a couple of trajectories on the surface.  If they do not meet, then')
-        html('there is also no limit.  (If computer hangs up, likely the computer can not do these limits.)')
-        html('\n<center><font color="red">\(\lim_{(x,?)\\rightarrow(x_0,y_0)} f(x,y) =%s\)</font>'%str(limit_x)+'  and <font color="red">\(\lim_{(?,y)\\rightarrow(x_0,y_0)} f(x,y) =%s\)</font></center>'%str(limit_y))
-        
-    if in_3d:
-        show(G,stereo="redcyan",viewer=view_method)
+    if zoom3:
+        xrange=(x,x0-0.0001,x0+0.0001)
+        yrange=(y,y0-0.0001,y0+0.0001)
+    elif zoom2:
+        xrange=(x,x0-0.01,x0+0.01)
+        yrange=(y,y0-0.01,y0+0.01)
+    elif zoom1:
+        xrange=(x,x0-0.1,x0+0.1)
+        yrange=(y,y0-0.1,y0+0.1)
     else:
-        show(G,perspective_depth=true,viewer=view_method)
+        xrange=(x,x0-1,x0+1)
+        yrange=(y,y0-1,y0+1)
+
+    html('\[\lim_{(x,y) \\to  (%s'%str(x0)+',%s)'%str(y0)+' }f(x,y) = ?\]')
+
+    if show_surface:
+        p=plot3d(f,xrange,yrange, opacity=0.6,plot_points=75)
+        show(p, xmin=xrange[1],xmax=xrange[2],ymin=yrange[1], ymax=yrange[2])
+    else:
+        print html('A surface probably has a limit at the point if there is not a sudden change in color there.')    
+        surface = contour_plot(f,xrange, yrange,cmap='jet',colorbar=True,contours=50)
+        limit_point = point((x0,y0),color='red',size=30,zorder=3)
+        show(limit_point+surface)
 
 SAGE_CODE
 
 Sage(
   SageCode=>$SageCode,
-  ButtonText=>'Click Here to Refresh Interactive Cell', 
+  ButtonText=>'Click Here to Evaluate/Reload',
   AnswerReturn => 0
 );
 
+TEXT(beginproblem());
 
 TEXT(MODES(TeX =>"",HTML=>EV3(<<'EOT')));
 
