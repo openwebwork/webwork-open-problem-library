@@ -28,7 +28,6 @@ loadMacros(
 "MathObjects.pl",
 "PGunion.pl",
 "problemRandomize.pl",
-"sage.pl",
 );
 
 TEXT(beginproblem());
@@ -58,16 +57,14 @@ $f4 = Formula("$c1*sin(x*y)/(x + y)**2");
 $f4a = "$c1*sin(x*y)/(x + y)**2";
 $f5 = Formula("sin($b*(x**2+y**2+$c2*pi))/(x**2+y**2)");
 $f5a = "sin($b*(x**2+y**2+$c2*pi))/(x**2+y**2)";
-$f6 = Formula("((x-$c1)**$pow + (y-$c2)**$pow + $c2)/((x-$c1)**$pow + (y-$c2)**$pow + $c1)");
-$f6a = "((x-$c1)**$pow + (y-$c2)**$pow + $c2)/((x-$c1)**$pow + (y-$c2)**$pow + $c1)";
+$f6 = Formula("(x**$pow + y**$pow + $c2)/(x**$pow + y**$pow + $c1)");
 
 $p1 = Point((0,0));
 $p2 = Point((0,0));
 $p3 = Point((1,0));
 $p4 = Point((0,0));
 $p5 = Point((0,0));
-$p6a = "($c1,$c2)";
-$p6 = Point(($c1,$c2));
+$p6 = Point((0,0));
 
 $ans1 = Compute(0);
 $ans2 = Compute("NONE");
@@ -76,22 +73,28 @@ $ans4 = Compute("NONE");
 $ans5 = Compute("-$b");
 $ans6 = Compute("$c3");
 
+$sol1 = Formula("r*$pow*(cos(t)**$powp1 - sin(t)**$powp1)/(cos(t)**$pow + sin(t)**$pow)");
+$sol2 = Formula("(cos(t)**$pow - $powp1*sin(t)**$pow)/(cos(t)**$pow + sin(t)**$pow)");
 
-$SageCode = <<SAGE_CODE;
+####################################################
+
+TEXT(MODES(TeX=>"", HTML=><<SAGE_CODE));
+<div id="sagecell"><script type="text/code">
 
 #  Starting point for radius values before collapsing in as R approaches 0.
 #  Functions ought to be "reasonable" within a circular domain of radius R surrounding 
 #  the desired (x_0,y_0).
-
 var("x,y,z")
 Rmin=1/10
 Rmax=2
 
-~~@interact(layout=dict(top=[["num"]], 
+~~@interact(layout=dict(top=[["f"],["x0"],["y0"]], 
 right=[["in_3d"],["curves"],["nojavagraph"]],
 bottom=[["R"]]))
-def _(num=selector(["f1","f2","f3","f4","f5","f6"],label='\( f  =  \)'),
+def _(f=selector([$f1,$f2,$f3,$f4a,$f5a,$f6],label=" f(x,y)= "),
     R=slider(Rmin,Rmax,1/10,Rmax,label='\(R\)'),
+    x0=input_box(0,width=10,label='\(x_0=\)'),
+    y0=input_box(0,width=10,label='\(y_0=\)'),
     curves=checkbox(default=false,label='Show curves'),
     in_3d=checkbox(default=false,label='3D'),
     nojavagraph=checkbox(default=false,label='Problems with 3D Graph?')):
@@ -101,39 +104,18 @@ def _(num=selector(["f1","f2","f3","f4","f5","f6"],label='\( f  =  \)'),
     else:
         view_method = "jmol"
 
-#  Other options java3d (which uses OpenGL) and canvas3d (which uses JavaScript)
-
-    if num=="f1":
-        f(x,y) = $f1
-        [x0,y0] = $p1
-    elif num=="f2":
-        f(x,y) = $f2
-        [x0,y0] = $p2
-    elif num=="f3":
-        f(x,y) = $f3
-        [x0,y0] = $p3
-    elif num=="f4":
-        f(x,y) = $f4a
-        [x0,y0] = $p4
-    elif num=="f5":
-        f(x,y) = $f5a
-        [x0,y0] = $p5
-    else:
-        f(x,y) = $f6a
-        (x0,y0) = $p6
-
 #  convert to polar coordinates
     g(r,t) = f(x=r*cos(t)+x0,y=r*sin(t)+y0)
 #   Sage graphing transformation used to see the original surface.
     cylinder = (r*cos(t)+x0,r*sin(t)+y0,z)
-    surface = plot3d(g,(t,0,2*pi),(r,1/100,Rmax),transformation=cylinder,opacity=0.6)
+    surface = plot3d(g,(t,0,2*pi),(r,1/100,Rmax),transformation=cylinder,opacity=0.7)
 #   Regraph the surface for smaller and smaller radii controlled by the slider.
     collapsing_surface = plot3d(g,(t,0,2*pi),(r,1/100,R),transformation=cylinder,rgbcolor=(0,1,0))
     
     G = surface+collapsing_surface
+    html("Enter the given limit point \({(x_0,y_0} )\)")
     html("Move the slider to see what happens as \( {R \\rightarrow 0} \)")
-    html("The surface has a limit as \({(x,y)\\rightarrow ("+str(x0)+","+str(y0)+")} \)")
-    html("if the green region collapses to a point.")
+    html("The surface has a limit as \((x,y)\\rightarrow\) ("+str(x0)+","+str(y0)+") if the green region collapses to a point.")
 
 #   If checked, add a couple of curves on the surface corresponding to limit as x->x0 for y=x^(3/5),
 #   and as y->y0 for x=y^(3/5).  Should make this more robust but perhaps using 
@@ -160,20 +142,34 @@ def _(num=selector(["f1","f2","f3","f4","f5","f6"],label='\( f  =  \)'),
         show(G,stereo="redcyan",viewer=view_method)
     else:
         show(G,perspective_depth=true,viewer=view_method)
+</script></div>
 
 SAGE_CODE
 
-Sage(
-  SageCode=>$SageCode,
-  ButtonText=>'Click Here to Refresh Interactive Cell', 
-  AnswerReturn => 0
-);
+TEXT(MODES(TeX=>"", HTML=><<'SAGE_SCRIPT'));
 
+<script src="http://aleph.sagemath.org/static/jquery.min.js"></script>
+<script src="http://aleph.sagemath.org/embedded_sagecell.js"></script>
+
+<script>
+$(function () {
+   sagecell.makeSagecell({inputLocation:  '#sagecell',
+                          template:       sagecell.templates.minimal,
+                          autoeval:        true, 
+                          evalButtonText: 'Start/Restart'});
+});
+</script>
+
+
+SAGE_SCRIPT
+
+TEXT(beginproblem());
 
 TEXT(MODES(TeX =>"",HTML=>EV3(<<'EOT')));
 
 $PAR
-
+This problem allows the student to see the actual formula for the function. Another version that does not give explicit formulas is available and probably is a better way to make the student consider concepts only.
+$PAR
 Determining 
 \[ \lim_{(x,y)\rightarrow(x_0,y_0)} f(x,y) \] 
 by definition can often be very difficult.  The interactive worksheet above allows the user to visualize this problem using a polar coordinates approach.  Such an approach allows one to squeeze the domain values \((x,y)\) about the point of interest \((x_0,y_0)\).  If the range values on the surface are then subsequently squeezed to a point, the function has a limit of this common value.  If not, then no limit will exist.
@@ -182,12 +178,12 @@ Determine an appropriate value for each limit or (if no limit exists) enter NONE
 $PAR
 \{ 
 BeginTable(border=>0,padding=>0,spacing=>0) .
-row( "\[ \lim_{(x,y)\rightarrow $p1} f_1(x,y) = \]", ans_rule(10) ).
-row( "\[ \lim_{(x,y)\rightarrow $p2} f_2(x,y) = \]", ans_rule(10) ).
-row( "\[ \lim_{(x,y)\rightarrow $p3} f_3(x,y) = \]", ans_rule(10) ).
-row( "\[ \lim_{(x,y)\rightarrow $p4} f_4(x,y) = \]", ans_rule(10) ).
-row( "\[ \lim_{(x,y)\rightarrow $p5} f_5(x,y) = \]", ans_rule(10) ).
-row( "\[ \lim_{(x,y)\rightarrow $p6} f_6(x,y) = \]", ans_rule(10) ).
+row( "\[ \lim_{(x,y)\rightarrow $p1} $f1 = \]", ans_rule(10) ).
+row( "\[ \lim_{(x,y)\rightarrow $p2} $f2 = \]", ans_rule(10) ).
+row( "\[ \lim_{(x,y)\rightarrow $p3} $f3 = \]", ans_rule(10) ).
+row( "\[ \lim_{(x,y)\rightarrow $p4} $f4 = \]", ans_rule(10) ).
+row( "\[ \lim_{(x,y)\rightarrow $p5} $f5 = \]", ans_rule(10) ).
+row( "\[ \lim_{(x,y)\rightarrow $p6} $f6 = \]", ans_rule(10) ).
 EndTable() 
 \}
 $PAR
@@ -216,17 +212,26 @@ END_HINT
 
 BEGIN_SOLUTION
 $PAR
-$BBOLD SOLUTION $EBOLD
+$BBOLD Partial Solution $EBOLD
 $BR
-For \[f(x,y)\], the shrinking region is determined by performing a the polar substitution:
+For \[$f1\], do the polar substitution:
 $BR
-\[ x = x_0 + r*cos(t) \]
-\[ y = y_0 + r*sin(t) \]
+\[ x = r*cos(t) \]
+\[ y = r*sin(t) \]
 $BR
-simplifying and then taking the limit as\( R \rightarrow 0\).
+and simplify to get
+\[ $sol1 \]
+$BR
+So long as the term with trig functions is not unbounded as t approaches 0, then the \( r \rightarrow 0 \) forces the limit to be zero.
 $PAR
-Answers:
-$BR
+For the second limit, notice polar substitution now gives:
+\[ $sol2 \]
+and there is no \(r\) left to make the term get small.  Since different values
+of the angle \(t\) can make this expression change, then there is no single value 
+to approach and therefore there is no limit. 
+$PAR
+The other problems are worked similarly.  Results:
+$PAR
 \( L_1 = $ans1 \)
 $BR
 \( L_2 = $ans2 \)
