@@ -36,7 +36,8 @@ loadMacros(
 "PGchoicemacros.pl",
 "PGanswermacros.pl",
 "PGauxiliaryFunctions.pl",
-"PGgraders.pl"
+"PGgraders.pl",
+"parserMultiAnswer.pl"
 );
 
 ##Note this uses Mike Gage's custom full_partial_grader
@@ -47,13 +48,51 @@ $showPartialCorrectAnswers = 1;
 
 $aa = random(3,8,1);
 
+Context('Numeric');
+Context()->variables->add(t => "Real");
+
+$mp = MultiAnswer(Formula("sin(t)/$aa"), Formula("sin(t)^2/(2*$aa^2)"),
+   Real(0), Real("pi/2"))->with( 
+   allowBlankAnswers=>1,
+   checker => sub {
+      my ($correct,$student,$self) = @_;  # get the parameters
+      my ($f,$g,$ai,$bi) = @{$student};      # extract the student answers
+      my @results = (0,0,0,0);
+	  if($f ne '' and Formula($f) == $correct->[0]) {
+	  #$self->setMessage(1, "Hi");
+		$results[0] = 1;
+		if($g ne '' and $g == $correct[1]) {
+		  $results[1] = 1;
+		  $results[2] = 1 if($ai ne '' and $ai == $correct->[2]);
+		  $results[3] = 1 if($bi ne '' and $bi == $correct->[3]);
+		}
+	  }
+	  if($f ne '' and $f == Formula("cos(t)/$aa")) {
+		$results[0] = 1;
+		if($g ne '' and $g == Formula("-cos(t)^2/(2*$aa^2)")) {
+		  $results[1] = 1;
+		  $results[2] = 1 if($ai ne '' and $ai == Real("pi/2"));
+		  $results[3] = 1 if($bi ne '' and $bi == Real(0));
+		} elsif ($g ne '' and $g == Formula("cos(t)^2/(2*$aa^2)")) {
+		  $results[1] = 1;
+		  $results[2] = 1 if($ai ne '' and $ai == Real(0));
+		  $results[3] = 1 if($bi ne '' and $bi == Real("pi/2"));
+		}
+	  }
+
+	  return [@results];
+    },
+);
+
 TEXT(beginproblem());
 BEGIN_TEXT
-$BBOLD Note:$EBOLD You can get full credit for this problem by just entering the final
-answer (to the last question) correctly. The initial questions are meant as hints
-towards the final answer and also allow you the opportunity to get partial credit.
+$BBOLD Note:$EBOLD You can get full credit for this problem by just 
+entering the final answer (to the last question) correctly. The initial 
+questions are meant as hints towards the final answer and also allow you 
+the opportunity to get partial credit.
 $PAR
-Consider the definite integral \( \displaystyle \int_0^{1/$aa} x\sin^{-1}($aa x)\, dx\)
+Consider the definite integral 
+\( \displaystyle \int_0^{1/$aa} x\sin^{-1}($aa x)\, dx\)
 $BR
 
 The first step in evaluating this integral is to apply integration by parts:
@@ -76,19 +115,23 @@ $BR
 The most appropriate substitution to simplify this integral is
 \(x = g(t)\) where
 $BR
-\(g(t)\) =  \{ ans_rule(40)\}
+\(g(t)\) =  \{ $mp->ans_rule(40)\}
 $BR
-Note: We are using \(t\) as variable for angles instead of \(\theta\), since there is no
-standard way to type \(\theta\) on a computer keyboard.
+$BR
+Note: We are using \(t\) as variable for angles instead of \(\theta\), 
+since there is no standard way to type \(\theta\) on a computer keyboard.
 
-After making this substitution and simplifying (using trig identities), we obtain the integral
+$BR
+$BR
+After making this substitution and simplifying (using trig identities), 
+we obtain the integral
 \( \displaystyle \int_a^b k(t)\,dt\) where
 $BR
-\(k(t)\) =  \{ ans_rule(40)\}
+\(k(t)\) =  \{ $mp->ans_rule(40)\}
 $BR
-\(a\) =  \{ ans_rule()\}
+\(a\) =  \{ $mp->ans_rule(5)\}
 $BR
-\(b\) =  \{ ans_rule()\}
+\(b\) =  \{ $mp->ans_rule(5)\}
 $BR
 
 After evaluating this integral and plugging back into the integration by parts formula we obtain:
@@ -110,10 +153,11 @@ END_TEXT
 ANS(fun_cmp("asin($aa*x)",var=> 'x',domain => [.1/$aa, 0.5/$aa] ));
 ANS(fun_cmp("x", vars=>"x"));
 ANS(fun_cmp("$aa*x^2/(2*sqrt(1-$aa^2*x^2))", limits=>[0.1/$aa,0.9/$aa], vars=>"x"));
-ANS(fun_cmp("(sin(t))/$aa", vars=>"t"));
-ANS(fun_cmp("(sin(t))^2/(2*$aa^2)", vars=>"t"));
-ANS(num_cmp(0, mode=>"strict", relTol=>0));
-ANS(num_cmp(1.570796327));
+#ANS(fun_cmp("(sin(t))/$aa", vars=>"t"));
+#ANS(fun_cmp("(sin(t))^2/(2*$aa^2)", vars=>"t"));
+#ANS(num_cmp(0, mode=>"strict", relTol=>0));
+#ANS(num_cmp(1.570796327));
+ANS($mp->cmp);
 ANS(num_cmp(.7853981635/(2*$aa**2)));
 
 ENDDOCUMENT();
