@@ -7,30 +7,37 @@
 ## DBsubject(Linear algebra)
 ## DBchapter(Linear transformations)
 ## DBsection(Kernel and image)
-## Institution('TCNJ')
-## KEYWORDS('vector space', 'linear transformation' 'matrix' 'image')
+## Date(July 2013)
+## Institution(TCNJ and Hope College)
+## Author(Paul Pearson)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
 ## Section1('3.1')
 ## Problem1('')
-DOCUMENT();        # This should be the first executable line in the problem.
+## KEYWORDS('vector space', 'linear transformation' 'matrix' 'image')
+
+DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGnumericalmacros.pl",
-"PGstatisticsmacros.pl", 
-"PGmatrixmacros.pl",
-"Parser.pl",
-"Generic.pl"
+"PGstandard.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+"PGcourse.pl",
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
+
+install_problem_grader(~~&std_problem_grader);
+
+Context('Matrix');
+Context()->flags->set(
+  tolerance => 0.001,
+  tolType => "absolute",
+);
+
+do {
 
 $a11=1;
 $a12 = non_zero_random(-3,3,1);
@@ -38,6 +45,7 @@ $a13 = non_zero_random(-3,3,1);
 $a21=0;
 $a22=1;
 $a23 = non_zero_random(-3,3,1);
+
 $m1 = non_zero_random(-3,3,1);
 $m2 = non_zero_random(-3,3,1);
 $m3 = non_zero_random(-3,3,1);
@@ -45,60 +53,40 @@ $m3 = non_zero_random(-3,3,1);
 $a31=$m1;
 $a32=$m1*$a12 +$m2;
 $a33=$m1*$a13 + $m2*$a23;
-$b1 = 1*$m1+$a12*$m2 + $a13* $m3;
-$b2 = 0*$m1+$a22*$m2 + $a23* $m3;
-$b3 = $a31*$m1+$a32*$m2 + $a33* $m3;
 
+$A = Matrix([
+[$a11, $a12, $a13], 
+[$a21, $a22, $a23],
+[$a31, $a32, $a33],
+]);
 
+} until ($A->det == 0);
 
+$u = Matrix([[$m1], [$m2],[$m3]]);
 
+$b = $A * $u;
 
-Context("Vector");
-$b=Matrix->new_from_array_ref([[$b1], [$b2], [$b3]]);
-$vec=Matrix->new_from_array_ref( [[1, $a12, $a13],[0,1,$a23], [$a31, $a32, $a33]]);
+$popup = PopUp(['choose','unique','not unique'],'not unique');
 
+Context()->texStrings;
 BEGIN_TEXT
-
-
-\{ mbox( 'Let \( A = \)', display_matrix($vec), '\(,\, b= \)', display_matrix($b) ) \}
+Let \[ A = $A \ \mbox{ and } \ \vec{b} = $b. \]
+Define the linear transformation \( T: {\mathbb R}^3 \rightarrow {\mathbb R}^3\) by \(T(\vec{x}) = A\vec{x}\).  
+Find a vector \(\vec{x}\) whose image under \(T\) is \(\vec{b}\).
 $BR
-
-Define the linear transformation \( T: {\mathbb R}^3 \rightarrow {\mathbb R}^3\) as \(T(x) = Ax\). $BR
-\{ mbox( 'Find a vector \(x \) whose image under \(T\) is \(b\) .' ) \}  $BR
-
 $BR
-\{ mbox( '\( x = \)', ans_rule() ) \} 
+\( \vec{x} = \) \{ $u->ans_array \}.
 $BR
-Is the vector \(x\) unique? (enter YES or NO) \{ans_rule(5)\}
-
-
-
+Is the vector \(\vec{x}\) unique? \{ $popup->menu \}
 END_TEXT
+Context()->normalStrings;
 
-$ans = "no";
+ANS($u->cmp(checker=>sub {
+my ( $correct, $student, $ansHash ) = @_;
+$s = Matrix($student);
+return $A * $s == $b;
+}));
+ANS($popup->cmp);
 
-
-
-sub check{
-  my $stu=shift();
-  $x1=$stu->extract(1); 
-  $x2=$stu->extract(2);
-  $x3=$stu->extract(3);
-  $d1 = $a11 * $x1 + $a12* $x2 + $a13*$x3;
-  $d2 = $a21 * $x1 + $a22* $x2 + $a23*$x3;
-  $d3 = $a31 * $x1 + $a32* $x2 + $a33*$x3;
-  if($d1==$b1 && $d2==$b2 && $d3==$b3){
-     $g=0;
-}else{
-     $g=1;
-} 
-  $g==0;
-}
-
-
-ANS(generic_cmp("23",type => 'Vector', length => 3, checker => ~~&check));
-ANS(str_cmp($ans));
-
-ENDDOCUMENT();       # This should be the last executable line in the problem.
-
-  
+COMMENT('MathObject version.  Solution is never unique.');
+ENDDOCUMENT();
