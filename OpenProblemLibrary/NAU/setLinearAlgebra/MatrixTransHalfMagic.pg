@@ -17,8 +17,10 @@ loadMacros(
 "PGstandard.pl",
 "MathObjects.pl",
 "parserMultiAnswer.pl",
-"AnswerFormatHelp.pl",
+# "AnswerFormatHelp.pl",
 "PGcourse.pl",
+"MatrixReduce.pl",
+"rank.pl",
 );
 $showPartialCorrectAnswers = 1;
 TEXT(beginproblem()); 
@@ -48,42 +50,54 @@ $A = Matrix([[$a,$b],[$b,$a]]);
 $sA = Formula("$a+$b");
 $LA = Matrix([[-$b,-$a],[-$a,-$b]]);
 
-$multians = MultiAnswer($B1, $B2, $ML)->with(
+$multians = MultiAnswer($B1, $B2)->with(
 singleResult => 1,
 checker => sub {
 my ( $correct, $student, $self ) = @_;
 my @s = @{$student};
 my @c = @{$correct};
-my $s0 = Matrix($s[0]); 
-my $s1 = Matrix($s[1]);
-my $t  = Matrix($s[2]);
+$s0 = Matrix($s[0]); 
+$s1 = Matrix($s[1]);
 
-return 0 if (! magic($s0)); 
-return 0 if (! magic($s1)); 
-if (Matrix(
+if (! magic($s0)) {
+  $self->setMessage(1,"Not half-magic.");
+  return 0 ;
+} 
+if (! magic($s1)) {
+  $self->setMessage(2,"Not half-magic.");
+  return 0 ;
+} 
+if (rank(Matrix(
       [$s0->element(1,1),$s0->element(1,2),
        $s0->element(2,1),$s0->element(2,2)],
       [$s1->element(1,1),$s1->element(1,2),
        $s1->element(2,1),$s1->element(2,2)],
       [0,0,0,0],
       [0,0,0,0],
-      )->order_LR != 2) {
+      )) != 2) {
+  $self->setMessage(1,"Not independent.");
+  $self->setMessage(2,"Not independent.");  
   return 0;
 }
-
-my $Ls0=$s0-($s0->element(1,1)+$s0->element(1,2))*$M1;
-if ($Ls0 != ($t->element(1,1)*$s0 + $t->element(2,1)*$s1) ) {
-  return 0;
-}
-
-my $Ls1=$s1-($s1->element(1,1)+$s1->element(1,2))*$M1;
-if ($Ls1 != ($t->element(1,2)*$s0 + $t->element(2,2)*$s1) ) {
-  return 0;
-}
-
 return 1;
 }
 );
+
+sub mycheck {
+  my ($correct, $student, $ansHash) = @_;
+  my $t  = Matrix($student);
+  my $Ls0=$s0-($s0->element(1,1)+$s0->element(1,2))*$M1;
+  if ($Ls0 != ($t->element(1,1)*$s0 + $t->element(2,1)*$s1) ) {
+    Value->Error("Incorrect first column"); # this does not seem to work, don't know why
+    return 0;
+  }
+  my $Ls1=$s1-($s1->element(1,1)+$s1->element(1,2))*$M1;
+  if ($Ls1 != ($t->element(1,2)*$s0 + $t->element(2,2)*$s1) ) {
+    Value->Error("Incorrect second column"); # this does not seem to work, don't know why
+    return 0;
+  }
+  return 1;
+}
 
 
 Context()->texStrings;
@@ -127,7 +141,7 @@ $BR
 $BR
 
 \( [L]_B^B = \)
-\{ $multians->ans_array(3) \}.
+\{ $ML->ans_array(3) \}.
 
 
 END_TEXT
@@ -136,7 +150,12 @@ Context()->normalStrings;
 ANS( $sA->cmp() );
 ANS( $LA->cmp() );
 ANS( $multians->cmp() );
+ANS( $ML->cmp( checker=>~~&mycheck ) );
 
 COMMENT('MathObject version.');
 
 ENDDOCUMENT();
+
+
+
+
