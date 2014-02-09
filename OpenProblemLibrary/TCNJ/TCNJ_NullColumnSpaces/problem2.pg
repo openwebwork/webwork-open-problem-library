@@ -7,26 +7,28 @@
 ## DBsubject(Linear algebra)
 ## DBchapter(Euclidean spaces)
 ## DBsection(Row, column, and null spaces)
-## Institution('TCNJ')
-## KEYWORDS('matrix' 'null space')
+## Date(July 2013)
+## Institution(TCNJ and Hope College)
+## Author(Paul Pearson)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
 ## Section1('4.3')
 ## Problem1('')
+## KEYWORDS('matrix' 'null space')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGanswermacros.pl",
-"Parser.pl",
-"Generic.pl",
-"PGmatrixmacros.pl"
+"PGstandard.pl",
+"MathObjects.pl",
+"PGcourse.pl",
 );
 
 TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+Context('Matrix');
 
 $e = non_zero_random(2,4,1);
 $f = non_zero_random(2,4,1);
@@ -36,49 +38,56 @@ $b = non_zero_random(-5*$f,-3*$f,$f);
 $c = non_zero_random(-2*$e,2*$e,$e);
 $d = non_zero_random(-2*$f,2*$f,$f);
 
-$m = new Matrix(3, 4);
 
-$m->assign(1,1,$a );
-$m->assign(1,2,$b );
-$m->assign(1,3,-$a*($e+1)/$e );
-$m->assign(1,4,$b*($f+1)/$f );
+$a11 = $a;
+$a12 = $b;
+$a13 = - $a*($e+1)/$e;
+$a14 = $b*($f+1)/$f;
 
-$m->assign(2,1,$c );
-$m->assign(2,2,-$d );
-$m->assign(2,3,-$c*($e+1)/$e );
-$m->assign(2,4,-$d*($f+1)/$f );
+$a21 = $c;
+$a22 = - $d;
+$a23 = - $c*($e+1)/$e;
+$a24 = - $d*($f+1)/$f;
 
-$m->assign(3,1,0 );
-$m->assign(3,2,$d-$b );
-$m->assign(3,3,0 );
-$m->assign(3,4,($d-$b)*($f+1)/$f );
+$a31 = 0;
+$a32 = $d - $b;
+$a33 = 0;
+$a34 = ($d - $b)*($f+1)/$f;
 
-Context("Vector");
+$A = Matrix([
+[$a11, $a12, $a13, $a14 ],
+[$a21, $a22, $a23, $a24 ],
+[$a31, $a32, $a33, $a34 ],
+]);
 
+$answer =Matrix([$a11,$a12,$a13])->transpose;
+
+Context()->texStrings;
 BEGIN_TEXT
-
-\{mbox('Let the matrix M = ', display_matrix($m))\}$BR$BR
-
-Find a non-zero vector in the column space of M.
-
-\{ans_rule()\}
-
+Let \[ A = $A. \]
+Find a non-zero vector in the column space of \(A\).
+$BR
+$BR
+\{ $answer->ans_array(10) \}
 END_TEXT
+Context()->normalStrings;
 
-sub check{
-  my $stu=shift();
-  $x1=$stu->extract(1); 
-  $x2=$stu->extract(2);
-  $x3=$stu->extract(3);
-  
-  $w = ($x1 + $x2 + $x3) / ($a + $c);
-  $x = ($x1 - $a*$w) / $b;
-  $y = ($c*$w - $x2) / $d;
-  $z = $x3 / ($d - $b);
-
-  ($x == $y) && ($y == $z) && (($x1 != 0) || ($x2 != 0) || ($x3 != 0));
+sub mycheck{
+  my ($c, $s, $ansHash ) = @_;
+  $s = Matrix($s);
+  # Put the columns of A that have pivots into B.
+  # Solve s = B x for x using
+  # x = (B^T B)^{-1} B^T s.
+  # Then, check that s is NOT in the span of B by 
+  # s != Bx.
+  my $B = Matrix([[$a11,$a12],[$a21,$a22],[$a31,$a32]]);
+  my $BT = $B->transpose;
+  my $x =  (($BT * $B)->inverse) * ($BT) * $s;
+  return 0 if $s == Matrix([[0],[0],[0]]);
+  return $s == $B * $x;
 }
 
-ANS(generic_cmp("23",type => 'Vector', length => 3, checker => ~~&check));
+ANS($answer->cmp(checker=>~~&mycheck));
 
-ENDDOCUMENT();       # This should be the last executable line in the problem.
+COMMENT('MathObject version');
+ENDDOCUMENT();
