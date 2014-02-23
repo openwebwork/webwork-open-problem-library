@@ -4,10 +4,12 @@
 
 ## Tagged by tda2d
 
-## DBsubject('Linear Algebra')
-## DBchapter('Eigenvalues and Eigenvectors')
-## DBsection('Computing Eigenvalues and Eigenvectors')
-## Institution('TCNJ')
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(July 2013)
+## Institution(TCNJ and Hope College)
+## Author(Paul Pearson)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
@@ -18,25 +20,21 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl",
-"PGdiffeqmacros.pl",
-"parserMultiAnswer.pl"
+"PGstandard.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",
+"PGcourse.pl",
 );
 
+
 TEXT(beginproblem());
+
 $showPartialCorrectAnswers = 1;
+
+Context('Matrix');
 
 $eig = random(-9,9,1);
 
-$a= new Matrix(2,2);
 # define invertible matrix
         $a11 = random(-1,1,2);
         $a12 = non_zero_random(-3,3,1);
@@ -45,106 +43,43 @@ $a= new Matrix(2,2);
         $b1 = random(-1,1,2);
         $a22 = $mult * $a12 + $b1;
 
-        $a->assign(1,1, $a11);
-        $a->assign(1,2, $a12);
-        $a->assign(2,1, $a21);
-        $a->assign(2,2, $a22);
-        $a_lr = $a->decompose_LR();
         $a_det = $a11 * $b1;
 
+$a = Matrix([
+[$a11,$a12],
+[$a21,$a22],
+]);
+
 # define inverse matrix
-        $b = $a_lr->invert_LR();
+$b = $a->inverse;
 
-    $e = new Matrix(2,2);
-    $e->assign(1,1, $eig);
-    $e->assign(2,2, $eig);
-    $e->assign(1,2, non_zero_random(-2,2,1));
-    $e->assign(2,1, 0);	
+$e = Matrix([
+[$eig,non_zero_random(-2,2,1)],
+[0,$eig],
+]);
 
-# define final matrix
-        $matrix = $a * $e *$b;
-        $matrix_lr = $matrix->decompose_LR();
-        $matrix_det = $matrix_lr->det_LR();
+$matrix = $a * $e *$b;
 
-# matrix entries are integers, but sometimes are printed as *e-16 or something like that.
-# to avoid this, we will round each entry
 
-foreach $i (1..2) {
-        foreach $j (1..2) {
-                $m[$i][$j] = $matrix->element($i,$j);
-                $m[$i][$j] = round($m[$i][$j]);
-                $matrix -> assign($i,$j,$m[$i][$j]);
-        }
-}
+$lambda[1] = Compute("$eig");
+$vec[1] = $a->column(1);
 
-## to check that we have a correct answer, just verify that
-##    the appropriate matrix multiplication works
-$ev = MultiAnswer( $eig, $a11, $a12 )->with(
-    singleResult => 1,
-    checkTypes => 0,
-    allowBlankAnswers => 1,
-    format =>  "Eigenvalue = %s, Eigenvector=(%s, %s)" ,
-    tex_format =>  "\text{Eigenvalue }= %s, \text{Eigenvector }=(%s, %s)" ,
-    checker => sub {
-        my ($correct, $student, $self ) = @_;
-	my $stuE = @{$student}[0];
-	my ($v1, $v2) = @{$student}[1..2];
-        my $flag = -1;
-        my $flag2 = 0;
-        if( $stuE ){
-          if($stuE != $eig) {
-                 Value::Error("Your eigenvalue is incorrect.");
-                 $flag=0; 
-          }else{
-             if(!( ($v1) && ($v2) )){
-                 $flag=0;
-                 Value::Error("Your eigenvalue is correct. Please enter an eigenvector.");
-             } 
-          }
-        }else{
-          Value::Error("You need to enter an eigenvalue.");
-          $flag=0;
-        }
-
-        if ($flag == -1){
-          if ($v1 == 0 && $v2==0)  {
-             Value::Error("Eigenvectors must be nonzero.");
-             $flag=0;
-          }else{
-	     $flag2 = (( $m[1][1]*$v1 + $m[1][2]*$v2 == $eig * $v1) &&
-                      ( $m[2][1]*$v1 + $m[2][2]*$v2 == $eig * $v2));
-             if(!$flag2){
-                 Value::Error("The eigenvalue is correct, but not the eigenvector.");
-             }
-	  }
-        }
-        return $flag2;
-    }
-);
-
+Context()->texStrings;
 BEGIN_TEXT
-
-\{ mbox( 'The matrix \(A=\)', display_matrix($matrix) ) \} 
-$BR
+The matrix.
+\[ A = $matrix. \]
 has an eigenvalue \(\lambda\) of multiplicity 2 with 
-corresponding eigenvector \(v\). 
+corresponding eigenvector \(\vec{v}\).  Find \( \lambda \)
+and \( \vec{v} \).
 $BR
 $BR
-Then
-\( \lambda =\) \{$ev->ans_rule(5)\}, and 
-\(v  = \)  ( \{$ev->ans_rule(5)\},  \{$ev-> ans_rule(5)\} )
+\( \lambda = \) \{ $lambda[1]->ans_rule(5) \}
+has an eigenvector \( \vec{v} = \) \{ $vec[1]->ans_array(5) \}.
 END_TEXT
+Context()->normalStrings;
 
+ANS($lambda[1]->cmp);
+ANS($vec[1]->cmp(checker => ~~&basis_checker_one_column ));
 
-##\{ NAMED_ANS_RULE(vec1,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec1,10) \} ).
-
-
-
-## ANS(num_cmp($eig));
-## NAMED_ANS(vec1 => check_eigenvector($e->element(1,1), $matrix, correct_ans =>[$a->column(1)->list]) );
-##END_TEXT
-
-ANS($ev->cmp() );
-
-ENDDOCUMENT() ;
-
+COMMENT('MathObject version.  Repeated eigenvalues and defective matrix.');
+ENDDOCUMENT();

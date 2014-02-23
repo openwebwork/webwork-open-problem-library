@@ -4,27 +4,37 @@
 
 ## Tagged by tda2d
 
-## DBsubject('Linear Algebra')
-## DBchapter('Euclidean Spaces')
-## DBsection('Span')
-## Institution('TCNJ')
-## KEYWORDS('vectors' 'span')
+## DBsubject(Linear algebra)
+## DBchapter(Euclidean spaces)
+## DBsection(Span)
+## Date(July 2013)
+## Institution(TCNJ and Hope College)
+## Author(Paul Pearson)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
 ## Section1('2.2')
 ## Problem1('')
-DOCUMENT();        # This should be the first executable line in the problem.
+## KEYWORDS('vectors' 'span')
+
+DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGanswermacros.pl",
-"Parser.pl",
-"Generic.pl",
+"PGstandard.pl",
+"MathObjects.pl",
+"PGcourse.pl",
 );
 
 TEXT(beginproblem());
+$showPartialCorrectAnswers = 0;
+
+Context('Matrix');
+Context()->flags->set(
+  tolerance => 0.01,
+  tolType => "absolute",
+);
+
+do {
 
 $v01 = non_zero_random(-5,5,1);
 $v02 = random(-5,5,1);
@@ -38,36 +48,49 @@ $v11 = $mult*$v01;
 $v12 = $mult*$v02+$d1;
 $v13 = $mult*$v03+$d2;
 
-Context("Vector");
-$A=Vector($v01, $v02, $v03);
-$B=Vector($v11, $v12, $v13);
+#$A=Vector($v01, $v02, $v03);
+#$B=Vector($v11, $v12, $v13);
 
+$a11 = $v01;  $a12 = $v11;
+$a21 = $v02;  $a22 = $v12;
+$a31 = $v03;  $a32 = $v13;
+
+} until ($a11 * $a22 != $a12 * $a21);
+
+$u = Matrix([$a11, $a21, $a31])->transpose;
+$v = Matrix([$a12, $a22, $a32])->transpose;
+
+# take the cross product of u and v
+$answer = Matrix([ 
+$a21 * $a32 - $a22 * $a31, 
+-1*($a11 * $a32 - $a12 * $a31),
+$a11 * $a22 - $a12 * $a21
+])->transpose;
+
+Context()->texStrings;
 BEGIN_TEXT
-
-Let \( u = \) \(\{$A->TeX\} \) and \( v = \) \(\{$B->TeX\} \)
+Let \( \vec{u} = $u \) and \( \vec{v} = $v \).
+Find a vector \( \vec{w} \) ${BBOLD}not${EBOLD} in \( \mathrm{span}\left\lbrace \vec{u}, \vec{v} \right\rbrace \).
 $BR
 $BR
-Find a vector \( w \) not in \( span\left\{"\{"\} u, v\right\} \).
-$BR
-$BR
-\( w = \) \{ans_rule()\}
-
+\( \vec{w} = \) \{ $answer->ans_array \}
 END_TEXT
+Context()->normalStrings;
 
-sub check{
-  my $stu=shift();
-  $x1=$stu->extract(1); 
-  $x2=$stu->extract(2);
-  $x3=$stu->extract(3);
-  
-  $det = $v01*$v12-$v02*$v11;
-  $x = ($x1*$v12-$x2*$v11)/$det;
-  $y = ($x2*$v01-$x1*$v02)/$det;
-  $left = $x*$v03+$y*$v13;
-
-  $left != $x3;
+sub mycheck{
+  my ($c, $s, $ansHash ) = @_;
+  $s = Matrix($s);
+  # Put the columns of A that have pivots into B.
+  # Solve s = B x for x using
+  # x = (B^T B)^{-1} B^T s.
+  # Then, check that s is NOT in the span of B by 
+  # s != Bx.
+  my $B = Matrix([[$a11,$a12],[$a21,$a22],[$a31,$a32]]);
+  my $BT = $B->transpose;
+  my $x =  (($BT * $B)->inverse) * ($BT) * $s;
+  return $s != $B * $x;
 }
 
-ANS(generic_cmp("23",type => 'Vector', length => 3, checker => ~~&check));
-
-ENDDOCUMENT();       # This should be the last executable line in the problem.
+ANS($answer->cmp(checker=>~~&mycheck));
+COMMENT('MathObject version');
+ENDDOCUMENT();

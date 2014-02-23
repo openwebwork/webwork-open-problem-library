@@ -4,121 +4,73 @@
 
 ## Tagged by tda2d
 
-## DBsubject('Linear Algebra')
-## DBchapter('Systems of Linear Equations')
-## DBsection('Vector Equations')
-## Institution('TCNJ')
-## KEYWORDS('vector' 'system' 'equation' 'line')
+## DBsubject(Linear algebra)
+## DBchapter(Systems of linear equations)
+## DBsection(Vector equations)
+## Date(July 2013)
+## Institution(TCNJ and Hope College)
+## Author(Paul Pearson)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
 ## Section1('2.1')
 ## Problem1('')
-DOCUMENT();        # This should be the first executable line in the problem.
+## KEYWORDS('vector' 'line','vector' 'system' 'equation' 'line')
+
+DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGmatrixmacros.pl",
+"PGstandard.pl",
 "MathObjects.pl",
 "parserMultiAnswer.pl",
+"MatrixCheckers.pl",
+"PGcourse.pl",
 );
-
 
 TEXT(beginproblem());
-Context('Numeric');
-
 $showPartialCorrectAnswers = 1;
 
-$p1 = Compute( random(-6,6,1) );
-$p2 = Compute( random(-6,6,1) );
-$p3 = Compute( random(-6,6,1) );
-$p4 = Compute( 0 );
+Context('Matrix')->variables->are('t'=>'Real');
+Context()->noreduce('(-x)-y');
 
-$q1 = Compute( non_zero_random(-6,6,1) );
-$q2 = Compute( non_zero_random(-6,6,1) );
-$q3 = Compute( non_zero_random(-6,6,1) );
-$q4 = Compute( 1 );
+do {
+@p = (non_zero_random(-6,6,1),non_zero_random(-6,6,1),non_zero_random(-6,6,1),non_zero_random(-6,6,1));
+@v = (non_zero_random(-6,6,1),non_zero_random(-6,6,1),non_zero_random(-6,6,1),non_zero_random(-6,6,1));
+} until ($p[0] * $v[1] != $p[1] * $v[0]);
 
-$xone = FEQ( "$p1 + $q1 t" );
-$xtwo = FEQ( "$p2 + $q2 t" );
-$xthr = FEQ( "$p3 + $q3 t" );
+foreach my $i (0..3) {
+$x[$i] = Formula("$p[$i] + t * $v[$i]")->reduce;
+}
 
-$vecChk = MultiAnswer($p1,$p2,$p3,$p4,$q1,$q2,$q3,$q4)->with(
-    singleResult => 0,
-    checker => sub {
-        my ( $correct, $student, $self ) = @_;
-	my @stu = @$student;
-	my @cor = @$correct;
+$displace = Matrix([$p[0],$p[1],$p[2],$p[3]])->transpose;
+$basis1 = Matrix([$v[0],$v[1],$v[2],$v[3]])->transpose;
 
-	## by default, everything is wrong
-	@res = ( 0, 0, 0, 0, 0, 0, 0, 0 );
-
-	## calculate the constant vector less the expected
-	##    input; this should be a constant multiple of
-	##    the x_4 coefficient vector
-	my @v = ( $stu[0] - $cor[0], $stu[1] - $cor[1], $stu[2] - $cor[2],
-		  $stu[3] - $cor[3] );
-
-	## if all of these are zero, we're ok
-	if ( $v[0] == 0 && $v[1] == 0 && $v[2] == 0 && $v[3] == 0 ) {
-	    $res[0] = 1;  $res[1] = 1;  $res[2] = 1;  $res[3] = 1;
-	} else {
-	    ## otherwise, find the constant multiple and verify that it
-	    ##   is the same
-	    $testind = $v[0] ? 0 : ($v[1] ? 1 : ($v[2] ? 2 : 3));
-	    $k = $v[$testind] / $cor[$testind + 4];
-
-	    foreach my $i ( 0, 1, 2, 3 ) {
-		if ( $k*$cor[$i+4] == $v[$i] ) {
-		    $res[$i] = 1;
-		}
-	    }
-	}
-
-	## then make sure that the remaining values are a nonzero
-	##    multiple of the second input vector.  any values that
-	##    are zero are wrong, of course.
-	@ok = ( 0, 0, 0, 0 );
-	my $j = 0;
-	foreach my $i ( 4, 5, 6, 7 ) {
-	    if ( $stu[$i] != 0 ) {
-		$ok[$i-3] = 1;
-		$j = $i if (! $j);
-	    }
-	}
-	if ( $j ) {
-	    $k = $stu[$j]/$cor[$j];
-	    foreach my $i ( 4, 5, 6, 7 ) {
-		$res[$i] = 1 if ( $ok[$i-3] && $k*$cor[$i] == $stu[$i] );
-	    }
-	}
-	return [ @res ];
-    }
+$multians = MultiAnswer($displace, $basis1)->with(
+  singleResult => 1,
+  separator => ', ',
+  tex_separator => ', ',
+  allowBlankAnswers=>0,
+  checker => ~~&parametric_plane_checker_columns,
 );
 
-
+Context()->texStrings;
 BEGIN_TEXT
 Suppose the solution set of a certain system of equations can be described as
-\(x_{1}= $xone\), \(x_{2}= $xtwo\), \(x_{3}= $xthr\), where \(t\) is a free variable.
-Use vectors to describe this set as a "line" in \( {\mathbb R}^4\).
-$PAR
-\{ mbox( '\(x=\)',
-	 display_matrix([ [ $vecChk->ans_rule(5) ], [ $vecChk->ans_rule(5) ],
-			  [ $vecChk->ans_rule(5) ], [ $vecChk->ans_rule(5) ] ]),
-	 '\(+ t \)',
-	 display_matrix([ [ $vecChk->ans_rule(5) ], [ $vecChk->ans_rule(5) ],
-			  [ $vecChk->ans_rule(5) ], [ $vecChk->ans_rule(5) ] ])
-	 ) \}
-
+\( x_1 = $x[0] \),
+\( x_2 = $x[1] \),
+\( x_3 = $x[2] \),
+\( x_4 = $x[3] \),
+where \( t \) is a free variable.
+Use vectors to describe this solution set as a line in \( \mathbb{R}^4 \).
+$BR
+$BR
+\( L(t) = \)
+\{ $multians->ans_array \}
+\( + t \)
+\{ $multians->ans_array \}.
 END_TEXT
+Context()->normalStrings;
 
-ANS($vecChk->cmp() );
-
-
+ANS($multians->cmp);
 COMMENT('MathObject version');
 ENDDOCUMENT();
