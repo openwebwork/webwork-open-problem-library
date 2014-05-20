@@ -1,0 +1,262 @@
+##DESCRIPTION
+#
+# File Created: 6/6/2008
+# Last Modified: 9/1/2011
+# Problem Author:Darwyn Cook
+# WeBWorK Entry: Victoria Sweetser
+# Location: Alfred University
+#
+##ENDDESCRIPTION
+
+##KEYWORDS('Derivative','Product','rule')
+##
+
+## DBsubject('Calculus')
+## DBchapter('Differentiation')
+## DBsection('The Product and Quotient Rules')
+## Date('9/1/2011')
+## Author('Darwyn Cook')
+## Institution('Alfred University')
+## TitleText1('Calculus: with Early Transcendentals')
+## EditionText1('8')
+## AuthorText1('Anton')
+## Section1('3.4')
+## Problem1('1')
+
+DOCUMENT();
+
+# Load whatever macros you need for the problem
+loadMacros("PG.pl",
+           "PGbasicmacros.pl",
+           "MathObjects.pl",
+           "contextFraction.pl",
+           "parserMultiAnswer.pl",
+           "Alfredmacros.pl");
+jsmathmode();
+
+## Show partial correct answers
+$showPartialCorrectAnswers = 1;
+
+## Display the problem information
+TEXT(beginproblem());
+
+## Declare Variables
+Context("Numeric");
+Context()->reduction->set('(-x)+y'=>0,'(-x)-y'=>0);
+
+$polynomial = 0;
+$rational = 1;
+$exponential = 2;
+$logarithmic = 3;
+$trig = 4;
+$inversetrig = 5;
+
+#####
+# Change this line to change which types of functions are allowed from the list # above.
+$function1type = $polynomial;
+
+$function2type = Compute(random(0,$function1type));
+##########################################################
+##
+## Build a table of functions
+##
+##
+
+## coefficients for polynomial functions
+$a0 = Compute(non_zero_random(-10,10));
+$a1 = Compute(random(2,9));
+$a2 = Compute(non_zero_random(-10,10));
+$b0 = Compute(non_zero_random(-10,10));
+$b1 = Compute(random(2,9));
+$b2 = Compute(non_zero_random(-10,10));
+
+if ($b2 == $a2){$b2++;};
+
+## exponents for polynomial functions
+$n1= Compute(random(0,3));
+$n2 = Compute(random(4,6));
+$n3 = Compute(random(7,9));
+
+$f1 = Formula("sqrt(x^(2*$n1+1))");
+$f1->{limits}=[0,10];
+
+$f2 = Formula("1/sqrt(x^(2*$n2+1))");
+$f2->{limits}=[0,10];
+
+$f3 = Formula("ln($a1*x)");
+$f3->{limits}=[0,10];
+
+$f4 = Formula("ln($b1*x)");
+$f4->{limits}=[0,10];
+
+$f5 = Formula("asin($a1*x)");
+$f5->{limits}=[-1.5/($a1),1.5/($a1)];
+
+$f6 = Formula("acos($b1*x)");
+$f6->{limits}=[0,3/($b1)];
+
+$f7 = Formula("atan($b1*x)");
+$f7->{limits}=[-1.5/($b1),1.5/($b1)];
+
+# You want at least two functions of each type, even if they are redundant
+@Functions = ([Formula("$a0+$a1*x+$a2*x^2")->reduce,
+Formula("$b0*x^($n1)+$b1*x^($n2)+$b2*x^($n3)")->reduce],
+[$f1,$f2],
+[Formula("e^($a0*x)")->reduce,Formula("($a1)^(x)")->reduce],
+[$f3,$f4],
+[Formula("cos($a1*x)")->reduce,Formula("sin($a1*x)")->reduce,Formula("tan($a1*x)")->reduce,Formula("cot($a1*x)")->reduce,Formula("sec($a1*x)")->reduce,Formula("csc($a1*x)")->reduce],
+[$f5,$f6,$f7]); 
+
+
+
+#Pick out the array of functions of functiontype
+@functions1 = @{$Functions[$function1type]};
+@functions2 = @{$Functions[$function2type]};
+
+if ($function1type == $function2type){
+$function1 = Compute(random(0,$#functions1));
+@array = ();
+for($i=0;$i<=$#functions1;$i++){
+   if ($i != $function1type){
+      push(@array,$i);
+   }
+}
+$function2 = Compute($array[random(0,$#array)]);
+}
+else{
+$function1 = Compute(random(0,$#functions1));
+$function2 = Compute(random(0,$#functions2));
+}
+
+$f = $functions1[$function1];
+$g = $functions2[$function2];
+$h = $f*$g;
+$df = $f->D('x');
+$dg = $g->D('x');
+$dh = $h->D('x');
+
+#### And now we check for all of the myriad ways they may have plugged these functions in
+$productrulechecker = MultiAnswer($df,$g,$f,$dg)->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $f1stu, $f2stu,$f3stu,$f4stu ) = @{$student};
+      my ( $f1, $f2, $f3, $f4 ) = @{$correct};
+      my @fgrade = (0,0,0,0); 
+      my @fstu = ($f1stu,$f2stu,$f3stu,$f4stu);
+      my @fcorrect = ($f1,$f2,$f3,$f4);
+      #we will associate each student answer with a prime number, noting which student answer is in which blank. This allows us to make use of the fundamental theorem of arithmetic.
+      my @prime = (2,3,5,7);
+      my @answerblank = (0,0,0,0);
+
+      for($i=0;$i<4;$i++){
+         for($j=0;$j<4;$j++){
+            if($fcorrect[$i]==$fstu[$j]){
+              $answerblank[$j] = $prime[$i];
+            }
+         }
+      };
+      for($i=0;$i<4;$i++){
+         if(!$answerblank[$i]){
+           $self->setMessage($i+1,"All of your answers should be $f, $g or a derivative of one of these functions");
+         }
+      }
+#now we rely on the fact that products of primes are unique. First we check to see if all of the blanks are correct
+      if ((($answerblank[0]*$answerblank[1] == 6)&&($answerblank[2]*$answerblank[3] == 35))||(($answerblank[0]*$answerblank[1] == 35)&&($answerblank[2]*$answerblank[3] == 6))){
+         @fgrade = (1,1,1,1);         
+      }
+#now check to see if the first pair of blanks is correct, knowing one pair is not
+     elsif ($answerblank[0]*$answerblank[1] == 6){
+           if (($answerblank[2] == 5)||($answerblank[2] == 7)){
+              @fgrade = (1,1,1,0);
+           }
+           elsif (($answerblank[3] == 5)||($answerblank[3] == 7)){
+              @fgrade = (1,1,0,1);
+           }
+           else {@fgrade = (1,1,0,0);}
+     }
+     elsif ($answerblank[0]*$answerblank[1] == 35){
+           if (($answerblank[2] == 2)||($answerblank[2] == 3)){
+              @fgrade = (1,1,1,0);
+           }
+           elsif (($answerblank[3] == 2)||($answerblank[3] == 3)){
+              @fgrade = (1,1,0,1);
+           }
+           else {@fgrade = (1,1,0,0);}
+     }
+#if both sets are not correct, and the first set is not correct, check to see if the last pair are
+     elsif ($answerblank[2]*$answerblank[3] == 6){
+           if (($answerblank[0] == 5)||($answerblank[0] == 7)){
+              @fgrade = (1,0,1,1);
+           }
+           elsif (($answerblank[1] == 5)||($answerblank[1] == 7)){
+              @fgrade = (0,1,1,1);
+           }
+           else {@fgrade = (0,0,1,1);}
+     }
+     elsif ($answerblank[2]*$answerblank[3] == 35){
+           if (($answerblank[0] == 2)||($answerblank[0] == 3)){
+              @fgrade = (1,0,1,1);
+           }
+           elsif (($answerblank[1] == 2)||($answerblank[1] == 3)){
+              @fgrade = (0,1,1,1);
+           }
+           else {@fgrade = (0,0,1,1);}
+     }
+#at this point they don't have a matched set of blanks correct. look for a single function in each pair that is right. You have to make sure you only get one for each pair of answer blanks.
+    else{
+         if (($answerblank[0])&&($answerblank[2])&&($answerblank[0]*$answerblank[2] !=6)&&($answerblank[0]*$answerblank[2] !=35)&&($answerblank[0]!=$answerblank[2])){
+            @fgrade = (1,0,1,0);
+            }
+         elsif (($answerblank[0])&&($answerblank[3])&&($answerblank[0]*$answerblank[3] !=6)&&($answerblank[0]*$answerblank[3] !=35)&&($answerblank[0]!=$answerblank[3])){
+            @fgrade = (1,0,0,1);
+            }
+         elsif (($answerblank[1])&&($answerblank[2])&&($answerblank[1]*$answerblank[2] !=6)&&($answerblank[1]*$answerblank[2] !=35)&&($answerblank[1]!=$answerblank[2])){
+            @fgrade = (0,1,1,0);
+            }
+         elsif (($answerblank[1])&&($answerblank[3])&&($answerblank[1]*$answerblank[3] !=6)&&($answerblank[1]*$answerblank[3] !=35)&&($answerblank[1]!=$answerblank[3])){
+            @fgrade = (0,1,0,1);
+            }
+         elsif ($answerblank[0]){@fgrade = (1,0,0,0)}  
+         elsif ($answerblank[1]){@fgrade = (0,1,0,0)}
+         elsif ($answerblank[2]){@fgrade = (0,0,1,0)}  
+         elsif ($answerblank[3]){@fgrade = (0,0,0,1)}     
+        };   
+     return [@fgrade];         
+}
+);
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \(h(x) = $h\). Then \(h(x)=f(x)g(x)\), where
+$BR 
+$BR
+\(f(x)\) = \{ans_rule\}
+$BR
+$BR
+and
+$BR
+$BR
+\(g(x)\) = \{ans_rule\}.
+$BR
+$BR
+By the product rule,
+$BR
+$BR
+\(
+\begin{aligned}
+ \>h'(x)\> &= \hbox{\{$productrulechecker->ans_rule(20)\}} * \hbox{\{$productrulechecker->ans_rule(20)\}}+ \hbox{\{$productrulechecker->ans_rule(20)\}}* \hbox{\{$productrulechecker->ans_rule(20)\}}\\
+&= \hbox{\{ans_rule(100)\}}\\
+\end{aligned}
+\)
+$BR
+END_TEXT
+Context()->normalStrings;
+ANS($f->cmp);
+ANS($g->cmp);
+
+ANS($productrulechecker->cmp());
+
+ANS($dh->cmp);
+ENDDOCUMENT();
