@@ -43,7 +43,7 @@ $IINT = IINT();
 $IIINT = IIINT();
 
 sub VUSAGE {
-    return $BBOLD . ' Usage: ' . $EBOLD . 'To enter a vector, for example \(\langle x,y,z\rangle\), type "' . $LTS . ' x, y, z ' . $GTS . '".';
+    return $BBOLD . ' Usage: ' . $EBOLD . 'To enter a vector, for example \(\langle x,y,z\rangle\), type '.$LQ . '\('. $LTS .'\) x, y, z \(' . $GTS . '\)' . $RQ;
 }
 
 $VUSAGE = VUSAGE();

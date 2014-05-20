@@ -35,7 +35,7 @@ loadMacros(
 "MathObjects.pl",
 "parserMultiAnswer.pl",
 # "parserNumberWithUnits.pl",
-# "parserFormulaWithUnits.pl", 
+# "parserFormulaWithUnits.pl",
 # "parserFormulaUpToConstant.pl",
 # "PGcourse.pl",
 );
@@ -61,6 +61,7 @@ $integ = Compute( "-$rsq*$a" );
 
 $rparam = MultiAnswer( $rt, $r0, $r1, $integ )->with(
     singleResult=>0,
+    allowBlankAnswers=>1,
     checker=>sub {
         my ( $c, $s, $ans ) = @_;
 
@@ -70,6 +71,9 @@ $rparam = MultiAnswer( $rt, $r0, $r1, $integ )->with(
         ##    too.
         my ( $svec, $t0, $t1, $sint ) = @{$s};
 
+	if ( ! $svec ) {
+	    return [ 0, 0, 0, 0 ];
+	}
 	my ( $sx, $sy, $sz ) = $svec->value;
 	my $brutalHack = 0;
 	## if the student answer is given in ijk format, we get one
@@ -132,29 +136,31 @@ $rparam = MultiAnswer( $rt, $r0, $r1, $integ )->with(
 	    }
 
 	## finally check the integrand
-	    if ( $brutalHack ) {
-		## then we have to work around the inability of a vector
-		##    defined in ijk format to resolve components and
-		##    therefore take derivatives
+	    if ( $sint ) {
+		if ( $brutalHack ) {
+		    ## then we have to work around the inability of a vector
+		    ##    defined in ijk format to resolve components and
+		    ##    therefore take derivatives
 
-		my $svecString = $svec->string;
-		my ($bnd, $sxval) = ($svecString =~ /.*(^|~~*j|~~*k)(.+)~~*i/);
-		my ($bnd, $syval) = ($svecString =~ /.*(^|~~*i|~~*k)(.+)~~*j/);
-		$sxval = Formula($sxval);
-		$syval = Formula($syval);
+		    my $svecString = $svec->string;
+		    my ($bnd, $sxval) = ($svecString =~ /.*(^|~~*j|~~*k)(.+)~~*i/);
+		    my ($bnd, $syval) = ($svecString =~ /.*(^|~~*i|~~*k)(.+)~~*j/);
+		    $sxval = Formula($sxval);
+		    $syval = Formula($syval);
 
-		$sxd = $sxval->D('t');
-		$syd = $syval->D('t');
+		    $sxd = $sxval->D('t');
+		    $syd = $syval->D('t');
 
-		$sintc = $a*($sy*$sxd - $sx*$syd);
-		$res[3] = ( $sintc == $sint ) ? 1 : 0;
+		    $sintc = $a*($sy*$sxd - $sx*$syd);
+		    $res[3] = ( $sintc == $sint ) ? 1 : 0;
 
-	    } else {
-		$sxd = $sx->D('t');
-		$syd = $sy->D('t');
+		} else {
+		    $sxd = $sx->D('t');
+		    $syd = $sy->D('t');
 
-		$sintc = $a*($sy*$sxd - $sx*$syd);
-		$res[3] = ( $sintc == $sint ) ? 1 : 0;
+		    $sintc = $a*($sy*$sxd - $sx*$syd);
+		    $res[3] = ( $sintc == $sint ) ? 1 : 0;
+		}
 	    }
 	}
 	return [ @res ];
@@ -181,7 +187,10 @@ parameterizes this curve.
 $BR
 \(\vec r(t) = \) \{ $rparam->ans_rule(25) \}, $BR
 with \{ $rparam->ans_rule(5) \} \(\le t\le\) \{ $rparam->ans_rule(5) \}
-
+$BR
+${BITALIC}(Note that answers must be provided for all three of these
+answer blanks to be able to determine correctness of the
+parameterization.)$EITALIC
 $BR
 With this parameterization, the circulation integral is
 $BR
