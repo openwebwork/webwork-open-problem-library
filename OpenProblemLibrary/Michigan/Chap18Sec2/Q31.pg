@@ -8,10 +8,11 @@
 
 
 ## DBsubject(Calculus - multivariable)
-## DBchapter(Vector Calculus)
-## DBsection(Line Integrals)
+## DBchapter(Calculus of vector fields)
+## DBsection(Line integrals)
 ## Institution(University of Michigan)
 ## Author(Gavin LaRose)
+## Level(4)
 ## TitleText1('Calculus')
 ## AuthorText1('Hughes-Hallett')
 ## EditionText1('5')
@@ -50,10 +51,11 @@ $twoa = 2*$a;
 $mag = Formula( "$a" );
 
 $mc = MultiAnswer( Compute("cos(t)"), Compute("sin(t)"), Compute("0"),
-		   Compute("2*pi"), $mag, Compute("-sin(t)"),
+		   Compute("2*pi"), Compute("-sin(t)"),
 		   Compute("cos(t)"),
 		   Compute("-$a*sin(t)"), Compute("$a*cos(t)") )->with(
     singleResult=>0,
+    allowBlankAnswers=>1,
     checker=>sub {
 	my ( $c, $s, $ans ) = @_;
 
@@ -61,57 +63,78 @@ $mc = MultiAnswer( Compute("cos(t)"), Compute("sin(t)"), Compute("0"),
 	##    the functions aren't constant, and we start and end at
 	##    the same place.  we really only want to go around once,
 	##    too.
-	my ( $sx, $sy, $t0, $t1, $sm, $vx, $vy, $sfx, $sfy ) = @{$s};
+	my ( $sx, $sy, $t0, $t1, $vx, $vy, $sfx, $sfy ) = @{$s};
 
-	my $sx0 = $sx->eval( t=>$t0 );
-	my $sx1 = $sx->eval( t=>$t1 );
-	my $sy0 = $sy->eval( t=>$t0 );
-	my $sy1 = $sy->eval( t=>$t1 );
+	my @res = ( 0, 0, 0, 0, 0, 0, 0, 0 );
 
-	my @res = ( 0, 0, 0, 0, 0, 0, 0, 0, 0 );
-	$res[4] = $mag == $sm ? 1 : 0;
+	if ( $sx, $sy, $t0, $t1 ) {
+	    my $sx0 = $sx->eval( t=>$t0 );
+	    my $sx1 = $sx->eval( t=>$t1 );
+	    my $sy0 = $sy->eval( t=>$t0 );
+	    my $sy1 = $sy->eval( t=>$t1 );
 
-	if ( Formula("1") == $sx*$sx + $sy*$sy && $t0 != $t1 &&
-	     atan2( $sy0, $sx0 ) == atan2( $sy1, $sx1 ) ) {
+	    if ( Formula("1") == $sx*$sx + $sy*$sy && $t0 != $t1 &&
+		 atan2( $sy0, $sx0 ) == atan2( $sy1, $sx1 ) ) {
 
-	    $res[0] = 1;
-	    $res[1] = 1;
+		$res[0] = 1;
+		$res[1] = 1;
 
-	    my $dt = ($t1 - $t0)/20;
-	    my $theta0 = atan2( $sy0, $sx0 );
-	    my $dtheta = abs( $theta0 -
-			      atan2( $sy->eval( t=>($t0+$dt) ),
-				     $sx->eval( t=>($t0+$dt) ) ) );
-	    my $isErr = 0;
-	    for ( my $i=2; $i<18; $i++ ) {
-		## make sure that we're not past the starting point
-		my $xtmp = $sx->eval( t=>($t0 + $i*$dt) );
-		my $ytmp = $sy->eval( t=>($t0 + $i*$dt) );
-		my $theta1 = atan2( $ytmp, $xtmp );
-		if ( abs( $theta0 - $theta1 ) < $dtheta ) {
-		    $ans->setMessage(3, 'Make sure that your ' .
-				     'parameteriation traverses the ' .
-				     'curve only once.');
-		    $isErr = 1;
-		    break;
+		my $dt = ($t1 - $t0)/20;
+		my $theta0 = atan2( $sy0, $sx0 );
+		my $dtheta = abs( $theta0 -
+				  atan2( $sy->eval( t=>($t0+$dt) ),
+					 $sx->eval( t=>($t0+$dt) ) ) );
+		my $isErr = 0;
+		for ( my $i=2; $i<18; $i++ ) {
+		    ## make sure that we're not past the starting point
+		    my $xtmp = $sx->eval( t=>($t0 + $i*$dt) );
+		    my $ytmp = $sy->eval( t=>($t0 + $i*$dt) );
+		    my $theta1 = atan2( $ytmp, $xtmp );
+		    if ( abs( $theta0 - $theta1 ) < $dtheta ) {
+			$ans->setMessage(3, 'Make sure that your ' .
+					 'parameteriation traverses the ' .
+					 'curve only once.');
+			$isErr = 1;
+			break;
+		    }
+		}
+		if ( ! $isErr ) {
+		    $res[2] = 1;
+		    $res[3] = 1;
+		}
+
+		if ( $vx ) {
+		    $res[4] = $sx->D('t') == $vx ? 1 : 0;
+		}
+		if ( $vy ) {
+		    $res[5] = $sy->D('t') == $vy ? 1 : 0;
+		}
+
+		if ( $sfx ) {
+		    $res[6] = Compute("-$a*$sy") == $sfx ? 1 : 0;
+		}
+		if ( $sfy ) {
+		    $res[7] = Compute("$a*$sx") == $sfy ? 1 : 0;
 		}
 	    }
-	    if ( ! $isErr ) {
-		$res[2] = 1;
-		$res[3] = 1;
-	    }
-
-	    $res[5] = $sx->D('t') == $vx ? 1 : 0;
-	    $res[6] = $sy->D('t') == $vy ? 1 : 0;
-
-	    $res[7] = Compute("-$a*$sy") == $sfx ? 1 : 0;
-	    $res[8] = Compute("$a*$sx") == $sfy ? 1 : 0;
 	}
 	return [ @res ];
     }
 );
 
 $int = Compute( "2*$a*pi" );
+
+# this isn't really necessary; I was trying to avoid re-ordering the
+#    parts of the problem, but failed.
+$mc_ans_rule1 = $mc->ans_rule(35);
+$mc_ans_rule2 = $mc->ans_rule(35);
+$mc_ans_rule3 = $mc->ans_rule(5);
+$mc_ans_rule4 = $mc->ans_rule(5);
+$mc_ans_rule5 = $mc->ans_rule(25);
+$mc_ans_rule6 = $mc->ans_rule(25);
+$mc_ans_rule7 = $mc->ans_rule(25);
+$mc_ans_rule8 = $mc->ans_rule(25);
+$mag_ans_rule = $mag->ans_rule(35);
 
 Context()->texStrings;
 TEXT(beginproblem());
@@ -124,41 +147,45 @@ $PAR
 ${BBOLD}(a)$EBOLD
 Parameterize \(C\).
 $BR
-\( x(t) = \) \{ $mc->ans_rule(35) \}
+\( x(t) = \) $mc_ans_rule1
 $BR
-\( y(t) = \) \{ $mc->ans_rule(35) \}
+\( y(t) = \) $mc_ans_rule2
 $BR
-with \{ $mc->ans_rule(5) \} \(\le t\le\) \{ $mc->ans_rule(5) \}
+with $mc_ans_rule3 \(\le t\le\) $mc_ans_rule4
+$BR
+$BITALIC(Note that you have to provide answers for all of these blanks
+for it to be possible to evaluate whether your parameterization is
+correct.)$EITALIC
 
 $PAR
 ${BBOLD}(b)$EBOLD
-Find \( \Vert\vec{F}\Vert \) on \(C\):
-$BR
-\( \Vert\vec{F}\Vert = \) \{ ans_rule(35) \}
-
-$PAR
-${BBOLD}(c)$EBOLD
 With the parameterization in (a), what is a vector \(\vec v(t)\) that is
 tangent to the circle \(C\)?
 $BR
-\(\vec v(t) = \) \{ $mc->ans_rule(25) \} \(\vec i + \)
-\{ $mc->ans_rule(25) \} \(\vec j\)
+\(\vec v(t) = \) $mc_ans_rule5 \(\vec i + \)
+$mc_ans_rule6 \(\vec j\)
 
 $PAR
-${BBOLD}(d)$EBOLD
+${BBOLD}(c)$EBOLD
 With the same parameterization, what is \(F\) on \(C\)?
 $BR
-\(\vec F = \)  \{ $mc->ans_rule(25) \} \(\vec i + \)
-\{ $mc->ans_rule(25) \} \(\vec j\)
+\(\vec F = \)  $mc_ans_rule7 \(\vec i + \)
+$mc_ans_rule8 \(\vec j\)
 $PAR
 (Note that your results from (c) and (d) show that \(\vec F\)
 is tangent to \(C\) at all points.)
 
 $PAR
+${BBOLD}(d)$EBOLD
+Find \( \Vert\vec{F}\Vert \) on \(C\):
+$BR
+\( \Vert\vec{F}\Vert = \) $mag_ans_rule
+
+$PAR
 ${BBOLD}(e)$EBOLD
 Find \(\int_C\vec F\cdot d\vec r\).
 $BR
-\(\int_C\vec F\cdot d\vec r = \) \{ ans_rule(35) \}
+\(\int_C\vec F\cdot d\vec r = \) \{ $int->ans_rule(35) \}
 $BR
 (Note how is this related to the length of the curve \(C\) (that
 is, the circumference of the circle).)
@@ -167,6 +194,7 @@ END_TEXT
 Context()->normalStrings;
 
 ANS($mc->cmp() );
+ANS($mag->cmp() );
 ANS($int->cmp() );
 
 Context()->texStrings;
@@ -180,16 +208,6 @@ which we may parameterize with \(x = \cos(t)\), \(y = \sin(t)\), with
 
 $PAR
 ${BBOLD}(b)$EBOLD
-At any point in the plane, the magnitude of \(\vec{F}\) is given by
-\(\Vert{\vec F}\Vert=\sqrt{(-$a y)^2+ ($a x)^2} = 5\sqrt{x^2 + y^2}\).
-Thus, along the unit circle,
-\(\Vert{\vec F}\Vert=$a\).  We can also see this by using the parameterization
-in ${BBOLD}(a)$EBOLD: on \(C\),
-\(\vec F = -$a\sin(t)\,\vec i + $a\cos(t)\,\vec j\), so that
-\(\Vert F \Vert = $a\).
-
-$PAR
-${BBOLD}(c)$EBOLD
 Suppose \(\vec r=x\,\vec i + y\,\vec j\) is a radius vector to a
 point \((x,y)\) on the unit circle centered
 at the origin.  Then
@@ -198,9 +216,19 @@ circle is
 \[ \vec r\,'(t) = -\sin(t)\,\vec i + \cos(t)\,\vec j.\]
 
 $PAR
-${BBOLD}(d)$EBOLD
+${BBOLD}(c)$EBOLD
 We have \(\vec F = -$a\sin(t)\,\vec i + $a\cos(t)\,\vec j\), so that
 \(\vec F\) is tangent to the circle at every point.
+
+$PAR
+${BBOLD}(d)$EBOLD
+At any point in the plane, the magnitude of \(\vec{F}\) is given by
+\(\Vert{\vec F}\Vert=\sqrt{(-$a y)^2+ ($a x)^2} = 5\sqrt{x^2 + y^2}\).
+Thus, along the unit circle,
+\(\Vert{\vec F}\Vert=$a\).  We can also see this by using the parameterization
+in ${BBOLD}(a)$EBOLD: on \(C\),
+\(\vec F = -$a\sin(t)\,\vec i + $a\cos(t)\,\vec j\), so that
+\(\Vert F \Vert = $a\).
 
 $PAR
 ${BBOLD}(e)$EBOLD
