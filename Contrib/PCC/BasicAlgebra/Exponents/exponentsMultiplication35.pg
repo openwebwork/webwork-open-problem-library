@@ -1,0 +1,129 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Simplify the following expression
+#    x^m * x^n
+#    ---   ---
+#     a     b
+#
+# We use a randomly-named variable (could be x, y, z, etc) from
+# PCCmacros.pl
+#
+# This problem chooes m and n to be POSITIVE. a and b can 
+# be any (non-zero) integer on the interval [-10,10]. Neither a nor 
+# b will be -1 or 1.
+#
+# Last edited: Hughes 9/4/13, Carl Yao 6/28/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('multiply','exponent','simplify','fraction')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "answerHints.pl",
+  "bizarroArithmetic.pl",
+  "contextFraction.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedPolynomial-Strict");
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1});
+
+# m and n are the exponents
+$m=random(2,20,1);
+$n=random(2,20,1);
+$a=random(2.5,9.5,1)*random(-1,1,2)+0.5;
+$b=$a;
+$b=random(2.5,9.5,1)*random(-1,1,2)+0.5 while($a==$b);
+
+# myvar is the variable- could be x, y, z, ..., anything in PCCmacros.pl
+$myvar = RandomVariableName(type=>'variable');
+Context()->variables->are($myvar=>'Real');
+
+# custom error message
+Context()->{error}{msg}{"A variable can appear only once in each term of a polynomial"}
+  = "Your answer must be fully simplified";
+
+# quick reduction check (if $m or $n is 1)
+$myvar1 = Formula("$myvar^$m/$a")->reduce;
+$myvar2 = Formula("$myvar^$n/$b")->reduce;
+$total = $m+$n;
+$coeff = $a*$b;
+$ans = Formula("$myvar^($total)/$coeff")->reduce;
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+Use the properties of exponents to simplify the following
+   
+    [``\left([$myvar1]\right) \cdot \left([$myvar2]\right)``]
+
+    [____________]
+
+END_PGML
+
+$wrong=$m*$n;
+ANS($ans -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      Context()->flags->set(limits=>[0.95,1.05]);
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      Context()->flags->set(limits=>[0.25,0.4]);
+      Value->Error("Your answer is correct, but please simplify it further") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0);
+      return 1;
+}) ->
+  withPostFilter(AnswerHints(
+    [Compute("$myvar^($wrong)")] =>
+    "When multiplying terms with the same base, you do not multiply the exponents.")));
+
+Context("Fraction");
+$aFrac = Fraction(1,$a);
+$bFrac = Fraction(1,$b);
+$coeffFrac = Fraction(1,$coeff);
+
+
+
+BEGIN_PGML_SOLUTION
+We _multiply_ the coefficients, and _add_ the exponents as follows
+
+    [`\begin{aligned}
+           \left([$myvar1]\right) \cdot \left([$myvar2]\right)&=\left([$aFrac]\right) \cdot \left([$bFrac]\right)\cdot [$myvar]^{[$m]+[$n]}\\
+                             &=[$coeffFrac][$myvar]^{[$total]}\\
+&=[$ans]
+       \end{aligned}`]
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

@@ -1,0 +1,211 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Solve the following quadratic equation
+#
+#       b x^2  - a = 0
+#
+# If you need to use the square root symbol, 
+# as in x=sqrt{17}, type it like: *sqrt(17)*
+#
+# a and b are both prime numbers
+#
+# Last updated: Hughes 8/4/13
+# ENDDESCRIPTION
+
+## DBCCSS('A-REI.4.b')
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('equations', 'Simplification')
+## KEYWORDS('solve','quadratic','equation','square root','prime','add')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+      "PGstandard.pl",
+      "parserOneOf.pl",
+      "MathObjects.pl",
+      "parserAssignment.pl",
+      "answerHints.pl",
+      "PGML.pl",
+      "contextLimitedRadical.pl",
+    ,
+  "PGcourse.pl",
+);
+
+##############################################
+    
+Context("LimitedRadical");
+Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0, formatStudentAnswer=>parsed);
+                               
+parser::Assignment->Allow;
+
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+Context()->operators->redefine('or',using=>',',from=>'Numeric');
+Context()->operators->set(
+      ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+      'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+    );
+Context()->lists->set(List => {separator => " or "});
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  );
+
+$var = "x";
+
+# choose $a and $b
+$a = list_random(2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67);
+$b = $a;
+$b = list_random(2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67) while($b==$a);
+
+# for the answer
+$c = $a*$b;
+$ans = List(OneOf(                          # first solution
+                Formula("$var=sqrt($a/$b)"),  # radical in denominator
+                Formula("$var=sqrt($c)/$b")), # rationalized denominator
+            OneOf(                          # second solution
+                Formula("$var=-1*sqrt($a/$b)"), # radical in denominator
+                Formula("$var=-1*sqrt($c)/$b")) # rationalized denominator
+            );
+#$ans = OneOf(Formula("$var=sqrt(2/3)"),Formula("$var=sqrt(6)/3"));
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+Solve the quadratic equation
+
+     [` [$b][$var]^2  - [$a]= 0`]
+
+     [_______________________]
+
+* Enter multiple answers separated by commas, such as [`x=1,x=-1`]
+* If you need to use the square root symbol, 
+as in [`x=\sqrt{17}`], type it using: *sqrt(17)*
+* If there are no real solutions, enter *no real solutions*
+
+END_PGML
+
+##############################################
+
+
+
+$showPartialCorrectAnswers = 1;
+# IMPORTANT- don't change this to ANS($ans->cmp(list_checker => ~~&radicalListCheck));
+# because  the oneof parser messes up the number of correct answers
+ANS($ans->cmp(list_checker => sub {
+     my ($correct,$student,$ansHash,$value) = @_;
+     my $score = 0;              # number of correct student answers
+     my @errors = ();            # stores error messages
+     my $i, $j, $k;              # loop counters
+     return (0, @errors) if $ansHash->{isPreview};
+     my $fullStudent = $ansHash->{student_formula};
+     my $fullCorrect = Formula($ansHash->{correct_ans});
+
+     my @fullStudentValue = $fullStudent->value;
+     my @fullCorrectValue = $fullCorrect->value;
+     my $n = scalar(@fullStudentValue);  # number of student answers
+     my $m = scalar(@fullCorrectValue);  # number of correct answers
+
+     #
+     #  Loop though the student answers
+     ##
+     for ($i = 0; $i < $n; $i++) {
+       my $ith = Value::List->NameForNumber($i+1);
+       my $p = $fullStudentValue[$i];   # i-th student answer
+
+       #
+       #  Check that the student's answer is an assignment (or whatever the right type)
+       #
+       my $assingmentMessageGiven = 0;
+       my $nosolutionMessageGiven = 0;
+       if (defined($p)) {
+           if($p eq "no real solutions")
+           {
+              push(@errors,"This equation does have some solutions- try using the square root method.");
+              $nosolutionMessageGiven = 1;
+           }
+       elsif($p->type ne "Assignment") {
+           push(@errors,"Your $ith entry should be written $var= $US$US$US__");
+           $assingmentMessageGiven = 1;
+           }
+       }
+
+       #
+       #  Check that the answer hasn't been given before
+       #
+       for ($j = 0, $used = 0; $j < $i; $j++) {
+         if ($p == $fullStudentValue[$j]) {
+           push(@errors,"Your $ith solution is the same as a previous one");
+           $used = 1; last;
+         }
+       }
+
+       #
+       #  If not already used, check that it is a correct and reduced answer
+       #
+       if (!$used) {
+          my $numericallyCorrect, $reduced;
+          for ($k = 0, $numericallyCorrect = 0; ($k < $m) ; $k++) {
+                    $q = $fullCorrectValue[$k];
+                    if ($q == $p) {
+                          $numericallyCorrect = 1;
+                          Context()->flags->set(setSqrt=>exp(1)/ln(2), checkAddSub => 1,setRoot=>exp(1)/ln(2), checkDiv => 1,checkMul=>1);
+                          delete $p->{test_values}, $q->{test_values};
+                             if ($p == $q) {$reduced = 1} else {$reduced = 0}; # check if form is correct
+
+                          Context()->flags->set(setSqrt => 0, checkAddSub => 0,setRoot => 0, checkDiv => 0,checkMul=>0);
+                          $score++ if ($numericallyCorrect and $reduced);
+                          push(@errors,"Your $ith solution is not fully simplified") if ($numericallyCorrect and !$reduced and ($n>1));
+                          push(@errors,"Your solution is not fully simplified") if ($numericallyCorrect and !$reduced and ($n==1));
+                          last;
+                  }
+         }
+         push(@errors,"Your $ith solution is not correct") if (!$numericallyCorrect and ($n>1) and !$assingmentMessageGiven );
+         push(@errors,"Your solution is not correct") if (!$numericallyCorrect and ($n==1) and !$assingmentMessageGiven and !$nosolutionMessageGiven );
+       }
+     }
+
+     #
+     #  Check that there are the right number of answers
+     #
+     if (!$ansHash->{isPreview}) {
+       push(@errors,"Do you have all the solutions?") if (($n < 2) and ($score < 2));
+       push(@errors,"Should a quadratic equation have more than two solutions?") if ($n > 2);
+     }
+     return ($score,@errors);
+   }));
+
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+There are a few ways to solve quadratic equations- the easiest way to solve this particular 
+type of problem is to use the _square root method_. 
+
+    [`
+       \begin{aligned}
+                 [$b][$var]^2-[$a] = 0& \Rightarrow [$b][$var]^2=[$a] \\
+                                     & \Rightarrow [$var]^2=\frac{[$a]}{[$b]} \\
+                                    & \Rightarrow [$var]= -\sqrt{\frac{[$a]}{[$b]}}\text{ or } [$var]=\sqrt{\frac{[$a]}{[$b]}}\\
+                                    & \Rightarrow [$var]= -\frac{\sqrt{[$a]}}{\sqrt{[$b]}}\cdot\frac{\sqrt{[$b]}}{\sqrt{[$b]}}\text{ or } [$var]=\frac{\sqrt{[$a]}}{\sqrt{[$b]}}\cdot\frac{\sqrt{[$b]}}{\sqrt{[$b]}}\\
+                                    & \Rightarrow [$var]= -\frac{\sqrt{[$c]}}{[$b]}\text{ or } [$var]=\frac{\sqrt{[$c]}}{[$b]}\\
+       \end{aligned}
+    `]
+
+Note that _all_ quadratic equations have *two* (possibly repeated) solutions; in this problem both solutions are real. Each solution can be checked by substituting it into the original equation- this is left as an exercise.  We rationalized the denominator in each solution by multiplying by a factor of [`1`] using [`\frac{\sqrt{[$b]}}{\sqrt{[$b]}}`].
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();
+

@@ -1,0 +1,171 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a pie chart, do fraction subtraction word problem.
+#
+# Last edited by Carl Yao on 12/21/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Fractions')
+## KEYWORDS('fraction','graph','application','pie chart')
+## DBCCSS('3.NF.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGgraphmacros.pl",
+  "PGcourse.pl",
+  "contextFraction.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+Context("LimitedFraction");
+
+@den=(); @num=();@frac=();
+
+$num[0]=0;$den[0]=1;$frac[0]=0;
+
+do {
+   for my $i (1..3) {
+      $den[$i] = random(3,12,1);
+      do {$num[$i] = random(1,int($den[$i]/2),1);} until (gcd($num[$i],$den[$i])==1);
+      $frac[$i] = Fraction($num[$i],$den[$i]);
+   }
+
+   $frac[4] = 1-$frac[1]-$frac[2]-$frac[3];
+   ($num[4],$den[4]) = $frac[4]->value;
+
+   $frac1 = $frac[1];
+   $frac2 = $frac[2];
+   $frac3 = $frac[3];
+   $frac4 = $frac[4];
+   ($num1,$den1)=$frac1->value;
+   ($num2,$den2)=$frac2->value;
+   ($num3,$den3)=$frac3->value;
+   ($num4,$den4)=$frac4->value;
+
+   $com = lcm(lcm($den1,$den2),$den3);
+   $factor1 = $com/$den1;
+   $factor2 = $com/$den2;
+   $factor3 = $com/$den3;
+   $factor4 = $com/$den4;
+} until (($frac[4]>0) && ($den[4]<10) && ($com!=$den4));
+
+$ans = $frac[4];
+
+$scale = 2;
+$downshift = -0.4;
+$radius = 1;
+$gr = init_graph(-$scale,-$scale,$scale,$scale,
+size=>[400,400]
+);
+
+$title = "School Population Breakdown by Race";
+$gr->lb( new Label(0, $scale/1.5,$title,'black','center','middle'));
+
+$xfunc = sub { my $t = shift();
+    return $radius*cos($t); };
+$yfunc = sub { my $t = shift();
+    return $radius*sin($t)+$downshift; };
+$circle = new Fun( $xfunc, $yfunc, $gr );
+$circle->domain(0,6.2832);
+
+$gr->new_color("color0", 250,250,210);
+$gr->new_color("color1", 255,255,0);
+$gr->new_color("color2", 255,218,185);
+$gr->new_color("color3", 173,255,47);
+@color=("color0","color1","color2","color3");
+
+@legend=("White","Black","Hispanic","others");
+
+@fracCumulative = ();
+$fracCumulative[0] = 0;
+$fracTemp=0;
+
+for my $i (1..4) {
+   $fracTemp = $fracTemp + $frac[$i];
+   $fracCumulative[$i] = $fracTemp;
+}
+
+for my $i (0..3) {
+   $end0x = $radius*cos($fracCumulative[$i]*2*pi);
+   $end0y = $radius*sin($fracCumulative[$i]*2*pi)+$downshift;
+   $end1x = $radius*cos($fracCumulative[$i+1]*2*pi);
+   $end1y = $radius*sin($fracCumulative[$i+1]*2*pi)+$downshift;
+   $end2x = $radius/2*cos(($fracCumulative[$i]+$fracCumulative[$i+1])*pi);
+   $end2y = $radius/2*sin(($fracCumulative[$i]+$fracCumulative[$i+1])*pi)+$downshift;
+   $end3x = 1.3*$radius*cos(($fracCumulative[$i]+$fracCumulative[$i+1])*pi);
+   $end3y = 1.3*$radius*sin(($fracCumulative[$i]+$fracCumulative[$i+1])*pi)+$downshift;
+
+   $gr->moveTo(0,0+$downshift);
+   $gr->lineTo($end0x,$end0y,'blue',1);
+   $gr->moveTo(0,0+$downshift);
+   $gr->lineTo($end1x,$end1y,'blue',1);
+   $gr->fillRegion([$end2x,$end2y,$color[$i]]);
+
+   $gr->lb( new Label($end2x, $end2y,"$num[$i+1]/$den[$i+1]",'black','center','middle')) unless ($i==3);
+   $gr->lb( new Label($end3x, $end3y,$legend[$i],'black','center','middle'));
+}
+
+$difference = $frac[1]-$frac[2];
+($difNum,$difDen)=$difference->value;
+
+$alt = "This is a pie chart about a school population breakdown by race. The school has $frac[1] $legend[0] students, $frac[2] $legend[1] students, $frac[3] $legend[2] students and an unknown fraction of students of other races.";
+
+##############################################
+
+BEGIN_PGML
+
+The pie chart represents a school's student population.
+
+>>[@image( insertGraph($gr), width=>400, 
+    height=>400, tex_size=>800, extra_html_tags => "alt = '$alt' title = '$alt'")@]*<<
+
+Answer the following question with fraction.
+
+[__________]{$ans} of the school's population is made up of students of other races.
+
+END_PGML
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+By the pie chart, the school has [`[$frac1]`] white students, [`[$frac2]`] black students and [`[$frac3]`] Hispanic students. To find the fraction of the other races, we use subtraction:
+
+    [``
+\begin{aligned}[t]
+   &\phantom{{}=}1-[$frac1]-[$frac2]-[$frac3] \\
+   &= \frac{1}{1}-[$frac1]-[$frac2]-[$frac3] \\
+   &= \frac{1 \cdot [$com]}{1 \cdot [$com]} - \frac{[$num1]\cdot[$factor1]}{[$den1]\cdot[$factor1]} - \frac{[$num2]\cdot[$factor2]}{[$den2]\cdot[$factor2]} -\frac{[$num3]\cdot[$factor3]}{[$den3]\cdot[$factor3]} \\
+   &= \frac{[$com]}{[$com]} - \frac{[$num1*$factor1]}{[$den1*$factor1]} - \frac{[$num2*$factor2]}{[$den2*$factor2]} -\frac{[$num3*$factor3]}{[$den3*$factor3]} \\
+   &= \frac{[$com]-[$num1*$factor1]-[$num2*$factor2]-[$num3*$factor3]}{[$com]} \\
+   &= \frac{[$com-$num1*$factor1-$num2*$factor2-$num3*$factor3]}{[$com]} \\
+   &= \frac{[$com-$num1*$factor1-$num2*$factor2-$num3*$factor3]\div[$factor4]}{[$com]\div[$factor4]} \\
+   &= [$ans]
+\end{aligned}
+    ``]
+
+So [`[$ans]`] of the school's population is made up of students of other races.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
