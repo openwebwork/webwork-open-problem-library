@@ -1,0 +1,170 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# A small fair charges different admission for adults and children; it 
+# charges $a dollars for adults, and $c dollars for children.
+#
+# On a certain day, the fair takes $totalMoney and admits $totalPeople.
+#
+# How many adults and children were admitted?
+#
+# Last updated: Jordan 9/9/13; 9/1/13; Hughes, 7/2/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Lines', 'Equations')
+## DBCCSS('8.EE.8','A-REI.3','A-REI.5')
+## KEYWORDS('linear','equation','solve','system','integer','application')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextCurrency.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+
+#This approach guarantees integer solutions
+
+# the people
+$totalPeople = random(100,5000,100);
+$number_of_children = random(round($totalPeople/4),round($totalPeople/2));
+$number_of_adults = $totalPeople - $number_of_children;
+
+# the prices - make sure the prices aren't the same
+$price_of_adult_ticket = random(2,5,0.25);
+$price_of_child_ticket = $price_of_adult_ticket;
+$price_of_child_ticket = random(0.25,2,0.25) while($price_of_child_ticket == $price_of_adult_ticket);
+
+
+# the next variables just ease the notation-
+# the problem could be done without them
+
+# start with the solution
+$x=$number_of_children;
+$y=$number_of_adults;
+
+# set up the system
+#     a x + b y =e
+#     c x + d y = f
+# need to make sure that
+#     ad - bc != 0
+
+# initialize the variables
+$a=1;
+$b=1;
+$c=$price_of_adult_ticket;
+$d=$price_of_child_ticket;
+
+
+Context("Numeric");
+Context()->variables->are('x'=>'Real','y'=>'Real');
+
+# globally set the reductions one time
+# so that we can then merely call ->reduce;
+Context()->noreduce('(-x)-y','(-x)+y');
+
+$topLeft = Formula("$a*x+$b*y")->reduce;
+$e = $topLeft->eval(x=>$x,y=>$y);
+
+$botLeft = Formula("$c*x+$d*y")->reduce;
+$f = $botLeft->eval(x=>$x,y=>$y);
+
+Context("LimitedNumeric");
+Context()->variables->are('x'=>'Real','y'=>'Real');
+# without the tolerance set to 0 students can enter 
+# decimal values close to the value- not good!
+Context()->flags->set(
+  tolerance => 0,
+   tolType => "absolute");
+$ans1 = Compute("$x");
+$ans2 = Compute("$y");
+
+
+#Make currency amounts for some quantitities
+Context("Currency");
+Context()->flags->set(trimTrailingZeros=>1);
+Context()->currency->addSymbol("dollars","dollar");
+$currency_adult = Currency("$price_of_adult_ticket");
+$currency_child = Currency("$price_of_child_ticket");
+$currency_f = Currency("$f");
+
+
+Context("Numeric");
+Context()->variables->are('x'=>'Real','y'=>'Real');
+
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+A small fair charges different admission for adults and children; it 
+charges [`[$currency_adult]`] for adults, and [`[$currency_child]`] for children.
+
+On a certain day, the total revenue is [`[$currency_f]`] and the fair admits [`[$e]`] people.
+
+How many adults and children were admitted?
+
+    There were [__________]{$ans1} adults and [____________]{$ans2} children at the fair.
+
+END_PGML
+
+
+# x + by = e should be solved for x
+# provided that $a and $c are not equal- in this case we should use subtraction.
+$rhs=Formula("$e-$b*y")->reduce;
+$lhs=Formula("$c*$e-$c*$b*y+$d*y")->reduce;
+Context()->flags->set(reduceConstants=>0);
+$rhsSub = $rhs->substitute(y=>Formula("$y"));
+
+
+BEGIN_PGML_SOLUTION 
+Let's define [`x`] to be the number of adults who attended the fair, 
+and [`y`] to be number of children who attended the fair (you may have 
+used other letters, perhaps [`a`] and [`c`], for example).
+
+From the given information, we can construct the following system 
+of linear equations
+
+    [`\left\{\begin{aligned}
+  [$topLeft] & =  [$e] \\
+  [$botLeft] & =  [$f] 
+\end{aligned}\right.`]
+
+    Note that the first equation is from the information about the total 
+    number of people, and the second equation is from the total money taken.
+
+Let's solve the system using the following steps:
+* From the first equation we see that [`x=[$rhs]`], which we substitute into the _second_ 
+equation and solve for [`y`].
+* This gives [`[$lhs]=[$f]`] so [`y=[$y]`].
+* Now that we have [`y`], we find [`x`] using the _first_ equation: 
+
+      [`\begin{aligned}
+        x&=[$rhsSub]\\
+         &=[$x]
+        \end{aligned}`]
+* At this stage we have values for [`x`] and [`y`]; you should check that they 
+satisfy the original system of equations (exercise).
+
+We conclude that [`[$x]`] adults and [`[$y]`] children attended the fair. 
+END_PGML_SOLUTION 
+
+##############################################
+
+ENDDOCUMENT();

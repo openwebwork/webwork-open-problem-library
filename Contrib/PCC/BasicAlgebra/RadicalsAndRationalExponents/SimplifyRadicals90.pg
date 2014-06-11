@@ -1,0 +1,273 @@
+# WeBWorK problem written by Jeremy Shaw
+# Portland Community College
+#
+# Simplify sqrt(a)-sqrt(b)-sqrt(c)-sqrt(d). Choose a, b, c, d such that 
+# two pairs can be combined.
+#
+# Last edited: Kling 8/17/13; Jordan 8/2/13; Carl Yao, 7/22/13
+#
+# ENDDESCRIPTION
+
+## Problem Tagging Information
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Exponents and Radicals')
+## KEYWORDS('simplify','radical','square root')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Jeremy Shaw, Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('Portland Community College')
+
+#This command starts the problem.
+DOCUMENT();
+
+########Begin Load Macro Files############
+#This section loads any and all .pl files that contain useful subroutines
+# for the problem.
+
+loadMacros(
+  "PGstandard.pl",       #Always needed
+  "MathObjects.pl",      #Almost always needed
+  "PGML.pl",             #Almost always needed
+  "contextLimitedRadical.pl",
+  "PGcourse.pl",
+);
+
+
+########Begin Problem Setup############
+#This is where you initialize variables and run computations
+
+Context("Numeric");
+
+$simp_radicand1 = list_random(2,3,5,6,7);
+
+do
+{
+    $simp_radicand2 = list_random(2,3,5);
+}while($simp_radicand1 == $simp_radicand2);
+
+$coeff1 = random(5,7,1);
+$coeff2 = random(2,3,1);
+$coeff3 = random(2,6,1);
+$coeff4 = random(2,6,1);
+
+$coeff1_squared = $coeff1 ** 2;
+$coeff2_squared = $coeff2 ** 2;
+$coeff3_squared = $coeff3 ** 2;
+$coeff4_squared = $coeff4 ** 2;
+
+$radicand1 = $simp_radicand1 * $coeff1_squared;
+$radicand2 = $simp_radicand1 * $coeff2_squared;
+$radicand3 = $simp_radicand2 * $coeff3_squared;
+$radicand4 = $simp_radicand2 * $coeff4_squared;
+
+Context("LimitedRadical");
+
+$sqrt1 = Formula("sqrt($radicand1)");
+$sqrt2 = Formula("sqrt($radicand2)");
+$sqrt3 = Formula("sqrt($radicand3)");
+$sqrt4 = Formula("sqrt($radicand4)");
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+
+# Input is a number. Output is the prime factorization of the number
+# saved in an array, returned as a reference to the array.
+sub primeFactor {
+   my $n = shift;
+   @factors = ();
+   my $prime=2;
+   while (1) {
+      while ($n%$prime==0) {
+         $factors[scalar @factors] = $prime;
+         $n=$n/$prime;
+      }
+      if ($n==1) {return ~~@factors;}
+      $prime = &nextPrime($prime);
+   }
+}
+
+# Input 1 is a reference to an array with a number's prime factorization.
+# Output is all prime factors connected by ' \cdot '.
+sub line1 {
+   my $ra_factors = shift;
+   $line1Output = "";
+   foreach $item ( @$ra_factors ) {$line1Output .= "$item".' \cdot ';}
+   $line1Output =~ s/ \cdot $//;
+   return $line1Output;
+}
+
+# Input is the output of &line1() and the degree of the radical. 
+# $returnLine2 is the next step of simplifying the radical. 
+# For example, if input is "2 \cdot 2 \cdot 2 \cdot 3 \cdot 5", 
+# $degree=3, (meaning cube root), 
+# $returnLine2 is 2 sqrt[3]{3 \cdot 5}.
+# $returnLine3 is the final step of simplifying the radical.
+# In the above example, $returnLine3 is 2 sqrt[3]{15}.
+sub line2 {
+   my $line = shift;
+   my $degree = shift;
+   my $line2Output = "";
+   my @facs = split(/ \cdot /, $line);
+   my $size = 0+@facs;
+   my $i=0;
+   $outsideString = "";
+   $insideString = "";
+   $outsideNumber = 1;
+   $insideNumber = 1;
+   while ($i<$size) {
+      my $item = $facs[$i];
+      my $out = 1;
+      for (my $j=$i; $j<$i+$degree; $j++) {
+         if ($facs[$j]!=$item) {$out = 0;}
+      }
+      if ($out==0) {
+         $insideNumber *= $facs[$i];
+         $insideString .= "$facs[$i]".' \cdot ';
+         $i++;
+      }
+      else {
+         $outsideNumber *= $facs[$i];
+         $outsideString .= "$facs[$i]".' \cdot ';
+         $i=$i+$degree;
+      }
+   }
+   $outsideString =~ s/ \cdot $//;
+   $insideString =~ s/ \cdot $//;
+
+   $returnLine2 = "";
+   if ($insideString eq "") {$returnLine2 = $outsideString;}
+   elsif ($degree==2) {$returnLine2 = 
+        $outsideString.' \sqrt{'."$insideString".'}';}
+   else {$returnLine2 = 
+        $outsideString.' \sqrt['."$degree".']{'."$insideString".'}';}
+
+   $returnLine3 = "";
+   if ($returnLine2 !~ /\cdot/) {$returnLine3 = "";}
+   elsif ($degree==2) {$returnLine3 =
+        $outsideNumber.' \sqrt{'."$insideNumber".'}';}
+   else {$returnLine3 = 
+        $outsideNumber.' \sqrt['."$degree".']{'."$insideNumber".'}';}
+
+   return ($returnLine2,$returnLine3);
+}
+
+
+$c = $coeff1 - $coeff2;
+$d = $coeff3 + $coeff4;
+
+if ($c==1) {$c = ''};
+if ($d==1) {$d = ''};
+
+$answer = Formula("$c sqrt([$simp_radicand1]) - $d sqrt([$simp_radicand2])");
+
+########Begin What the Student Sees############
+
+TEXT(beginproblem());
+# Best practices always include this command here. It is responsible for
+# the gray box around the problem, problem enumeration, and the path to the
+# source .pg file.
+
+#Current best practice is to use the PGML environment to write the body.
+BEGIN_PGML
+
+Simplify the expression. Use *sqrt* for the square root symbol (Example: [`\sqrt{2} =`] *sqrt(2)*.)
+
+    [``[$sqrt1] - [$sqrt2] - [$sqrt3] - [$sqrt4] =``] [___________________]{$answer}
+
+
+END_PGML
+
+########Begin more complicated answer processing (if needed)############
+
+#Not needed in this template.
+
+########Begin answer hints.############
+
+#Not used in this template. For the PCC coding projects, I think that this
+#feature will rarely be used the first go-around.
+
+########Begin solution.############
+
+#The walk-through solution is presented to students after the due date, and
+#may soon also be used with a "show me how to do this" button that gives a
+#walk-through for a similar but randomly generated problem.
+
+#Output of simplifying $radicand1
+$line1Center = &line1(&primeFactor($radicand1));
+$output11 = '&= \sqrt{'.$line1Center.'}';
+($line2Center, $line3Center) = &line2($line1Center,2);
+$output12 = '&='.$line2Center;
+$output13 = "&";
+if ($line3Center ne "") {$output13 = '&='.$line3Center;}
+
+#Output of simplifying $radicand2
+$line1Center = &line1(&primeFactor($radicand2));
+$output21 = '&= \sqrt{'.$line1Center.'}';
+($line2Center, $line3Center) = &line2($line1Center,2);
+$output22 = '&='.$line2Center;
+$output23 = "&";
+if ($line3Center ne "") {$output23 = '&='.$line3Center;}
+
+#Output of simplifying $radicand3
+$line1Center = &line1(&primeFactor($radicand3));
+$output31 = '&= \sqrt{'.$line1Center.'}';
+($line2Center, $line3Center) = &line2($line1Center,2);
+$output32 = '&='.$line2Center;
+$output33 = "&";
+if ($line3Center ne "") {$output33 = '&='.$line3Center;}
+
+#Output of simplifying $radicand4
+$line1Center = &line1(&primeFactor($radicand4));
+$output41 = '&= \sqrt{'.$line1Center.'}';
+($line2Center, $line3Center) = &line2($line1Center,2);
+$output42 = '&='.$line2Center;
+$output43 = "&";
+if ($line3Center ne "") {$output43 = '&='.$line3Center;}
+
+
+BEGIN_PGML_SOLUTION
+
+First, simplify each radical to see if any of them are like radicals.
+
+    [``
+\begin{aligned}[t]
+   [$sqrt1] [$output11]&&\quad&[$sqrt2][$output21]&&\quad&[$sqrt3][$output31]&&\quad&[$sqrt4][$output41]\\
+            [$output12]&&&        [$output22]&&&        [$output32]&&&            [$output42]\\
+            [$output13]&&&        [$output23]&&&        [$output33]&&&            [$output43]\\
+\end{aligned}
+    ``]
+
+
+Then we combine like terms to reach the answer.
+
+    [``
+\begin{aligned}[t]
+   [$sqrt1] - [$sqrt2] - [$sqrt3] - [$sqrt4] 
+   &= [$coeff1] \sqrt{[$simp_radicand1]} - [$coeff2] \sqrt{[$simp_radicand1]} - [$coeff3] \sqrt{[$simp_radicand2]} - [$coeff4] \sqrt{[$simp_radicand2]} \\
+   &= [$answer]
+\end{aligned}
+    ``]
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();

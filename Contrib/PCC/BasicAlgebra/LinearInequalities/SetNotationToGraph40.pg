@@ -1,0 +1,190 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Change set notation to graph: x<=3
+#
+# Last edited by Jordan 8/29/13; Carl Yao on 7/21/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Inequalities')
+## KEYWORDS('linear','inequality', 'number line','set notation')
+## DBCCSS('7.EE.4')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserPopUp.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+
+$a = random(-4,4,1);
+
+$symbol = '\le';
+
+%answer = (leftType => 'inf',
+           rightType => 'closed',   #use 'inf' regardles of +/- inf
+           );
+
+
+$aspectRatio = 1/8;
+$horPixel = 400;
+$verPixel = $horPixel*$aspectRatio;
+$screenXSize = $horPixel;
+$screenYSize = $screenXSize*$aspectRatio;
+$reach = 5;
+$verticalSpace = $reach*$aspectRatio;
+$hardCopyPercent = 1000; #meaning 100%
+
+
+#initializing...
+@gr=();
+@alts=();
+
+#indices will be 0..$#gr in some order, with the index of the correct graph in the 0th position.
+@indices=();
+
+
+#make the graphs
+for $leftType ('open','closed', 'inf') 
+{
+   for $rightType ('open','closed', 'inf')
+   {
+      my $tempgr = init_graph(-$reach,-$verticalSpace,$reach,$verticalSpace,
+                              axes=>[$reach+1,0],
+                              size=>[$horPixel,$verPixel]
+                             );
+      @ticks = ();
+      for my $j ((-$reach)..($reach)) {push(@ticks,$j);};
+
+      $tempgr->h_ticks(0,"black",@ticks);
+      $tempgr->lb( new Label(0,-$verticalSpace/5,0,'black','center','top'));
+
+      if (($leftType eq 'inf' or $rightType eq 'inf') and !(($leftType eq 'inf' and $rightType eq 'inf'))) 
+      {
+         $altText = "";
+         $altText = "This is the graph of a number line. ";
+         $tempgr->lb( new Label($a,-$verticalSpace/5,$a,'blue','center','top'));
+         if ($leftType eq 'open' or $rightType eq 'open')
+         {
+             $altText = $altText."It has a hollow circle at $a, ";
+             $tempgr->stamps( open_circle($a,0,'blue') ) 
+         }
+         else 
+         {
+             $altText = $altText."It has a filled circle at $a, ";
+             $tempgr->stamps( closed_circle($a,0,'blue') ) 
+         };
+         $tempgr->moveTo($a,0);
+         if ($leftType eq 'inf') {
+              $altText = $altText."and the number line is shaded everywhere left from $a.";
+              $tempgr->arrowTo(-0.99*$reach,0,'blue',3);
+         } else {
+              $altText = $altText."and the number line is shaded everywhere right from $a.";
+              $tempgr->arrowTo(0.99*$reach,0,'blue',3);
+         }
+         push(@gr,$tempgr);push(@alts,$altText);
+         if ($answer{leftType} ne $leftType or $answer{rightType} ne $rightType)
+            {push(@indices, $#gr);}
+            else {unshift(@indices, $#gr);}
+      }
+
+}};
+
+#A permutation function
+sub shufflemap {
+    my $n = shift();
+    my $m = $n - 1;
+    my $zeroind;
+    my %map = ();
+    my @vals = (0..$m);
+    for ( my $i=0; $i<$m; $i++ ) {
+  my $j = random(0,$m-$i,1);
+  $map{$i} = $vals[$j];
+  $zeroind = $i if ( $map{$i} == 0 );
+  splice(@vals, $j, 1);
+    }
+    $map{$m} = $vals[0];
+    $zeroind = $m if ( $map{$m} == 0 );
+    return( { %map }, $zeroind );
+}
+
+($shuffle, $zero) = shufflemap(4);    #$zero is the preimage of 0.
+                                    
+
+@ar_choice = ("A","B","C","D");
+
+$pop = PopUp( [qw(? A B C D)], $ar_choice[$zero] );
+
+
+##############################################
+$refreshCachedImages = 1;
+TEXT(beginproblem());
+Context()->texStrings;
+
+BEGIN_TEXT
+
+$PAR
+Choose the graph showing the solutions to \(x $symbol $a\).
+$PAR
+
+A. \{ image( insertGraph($gr[ $indices[$shuffle->{0}] ]), width=>$screenXSize, height=>$screenYSize, tex_size=>$hardCopyPercent, 
+   extra_html_tags=>'title="$alts[ $indices[$shuffle->{0}] ]" alt="$alts[ $indices[$shuffle->{0}] ]" align="top" ' ) \}
+$PAR
+
+B. \{ image( insertGraph($gr[ $indices[$shuffle->{1}] ]), width=>$screenXSize, height=>$screenYSize, tex_size=>$hardCopyPercent, 
+   extra_html_tags=>'title="$alts[ $indices[$shuffle->{1}] ]" alt="$alts[ $indices[$shuffle->{1}] ]" align="top" ' ) \}
+$PAR
+C. \{ image( insertGraph($gr[ $indices[$shuffle->{2}] ]), width=>$screenXSize, height=>$screenYSize, tex_size=>$hardCopyPercent, 
+   extra_html_tags=>'title="$alts[ $indices[$shuffle->{2}] ]" alt="$alts[ $indices[$shuffle->{2}] ]" align="top" ' ) \}
+$PAR
+D. \{ image( insertGraph($gr[ $indices[$shuffle->{3}] ]), width=>$screenXSize, height=>$screenYSize, tex_size=>$hardCopyPercent, 
+   extra_html_tags=>'title="$alts[ $indices[$shuffle->{3}] ]" alt="$alts[ $indices[$shuffle->{3}] ]" align="top" ' ) \}
+
+
+$PAR
+
+$SPACE $SPACE $SPACE\{ $pop->menu() \}
+
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################
+
+ANS( $pop->cmp() );
+
+BEGIN_PGML_SOLUTION
+
+The inequality is [`x [$symbol] [$a]`]. 
+
+Since [`x`] needs to be smaller than [`[$a]`], we should shade all numbers to the _left_ of [`[$a]`], moving toward [` -\infty `].
+
+Since the inequality symbol is [`[$symbol]`], we should use a closed ending at [`[$a]`].
+
+The correct answer is [@ $pop->correct_ans() @]*.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

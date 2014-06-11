@@ -1,0 +1,116 @@
+# WeBWorK problem written by Alex Jordan
+# Portland Community College
+#
+# Evaluate an expression ($a*$myx+$b*$myy+$c)/($d*$myx+$e*$myy) 
+# all are small integers, answer may be a fraction
+#
+# Last edited: Jordan 6/11/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Algebraic Expressions')
+## KEYWORDS('evaluate','rational','fraction','multivariable)
+## DBCCSS('6.EE.2.c','3.NF.3.b')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+$myA = RandomVariableName(type=>all);
+$myB = $myA;
+while ($myB eq $myA)
+{$myB = RandomVariableName(type=>constant);}
+Context()->variables->are($myA => "Real",$myB => "Real");
+
+do{
+$Aat = non_zero_random(-10,10,1);
+$Bat = non_zero_random(-10,10,1);
+$a = non_zero_random(-10,10,1);
+$b = non_zero_random(-10,10,1);
+$c = non_zero_random(-10,10,1);
+$d = non_zero_random(-10,10,1);
+$e = non_zero_random(-10,10,1);
+} until (($d*$Aat+$e*$Bat) != 0);
+
+Context()->flags->set(reduceConstants=>0);
+Context()->noreduce('(-x)+y','(-x)-y');
+$func = Compute("($a*$myA+$b*$myB+$c)/($d*$myA+$e*$myB)")->reduce;
+$subbedin = $func->substitute($myA=>"$Aat",$myB=>"$Bat");
+
+Context("LimitedFraction");
+Context()->flags->set(showMixedNumbers=>0);
+Context()->flags->set(requirePureFractions=>1);
+$ans = Fraction($a*$Aat+$b*$Bat+$c,$d*$Aat+$e*$Bat);
+
+  Context()->{cmpDefaults}{Fraction}{checker} = sub {
+    my ($correct,$student,$ans) = @_;
+    return 0 if $ans->{isPreview} || $correct != $student;
+    if ($student->class eq 'Fraction') {
+      my $gcd = gcd(($student->value)[0],($student->value)[1]);
+      Value::Error("Your answer is not simplified") if ($gcd != 1 or ($student->value)[1] == 1);}
+    $student = $ans->{student_formula};
+    $correct = $correct->{original_formula} if defined $correct->{original_formula};
+    my $OK = ($correct == $student); 
+    return $OK;
+  };
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Evaluate the expression for [`[$myA]=[$Aat]`] and [`[$myB]=[$Bat]`].
+
+    [``[$func]=``]  [_______]{$ans->cmp(cmp_class => "a fraction or an integer")}
+
+END_PGML
+
+##############################################
+
+@ans = $ans->value;
+$num = $ans[0];
+$den = $ans[1];
+
+$stringSoln = '';
+if ($a*$Aat+$b*$Bat+$c != $num) {
+$stringSoln = '&= \frac{[$a*$Aat+$b*$Bat+$c]}{[$d*$Aat+$e*$Bat]}\\[0.5pc]';};
+          
+BEGIN_PGML_SOLUTION
+We evaluate [`[$func]`] by replacing [`[$myA]`] with [`[$Aat]`] and [`[$myB]`] with [`[$Bat]`] in the formula.
+
+    [`\begin{aligned}
+    [$func] &= [$subbedin] \\   
+           [$stringSoln]**
+           &= [$ans]
+    \end{aligned}
+    `]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

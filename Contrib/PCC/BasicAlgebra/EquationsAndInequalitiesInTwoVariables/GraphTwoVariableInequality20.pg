@@ -1,0 +1,220 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Graph a linear inequality y<Mx.
+# M is a positive or negative integer.
+#
+# Last updated Carl Yao 9/4/13; 
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Equations and Inequalities')
+## DBsection('Linear Inequalities')
+## KEYWORDS('linear','inequality','graph','two variables')
+## DBCCSS('A-REI.12')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserRadioButtons.pl",
+  "pccTables.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+$symbol = '<';
+
+Context("Numeric");
+$refreshCachedImages=1;
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+$scramble{4} = 4;
+$inverse{4} = 4;
+
+$m=non_zero_random(-5,5,1);
+$b=0;
+@ar_mb = ([$m,$b,'dashed'],[-$m,$b,'dashed'],[$m,$b,''],[-$m,$b,''],[$m,$b,'dashed']);
+
+#This subroutine is used later to see which side to shade.
+sub testPoint {
+   local ($x, $y, $grNum) = ($_[0], $_[1], $_[2]);
+   if (($grNum==0) || ($grNum==4)) {return ($y < $m * $x);}
+   if ($grNum==1) {return ($y > -$m * $x);}
+   if ($grNum==2) {return ($y >= $m * $x);}
+   if ($grNum==3) {return ($y <= -$m * $x);}
+}
+
+$x1 = 0;
+$y1 = $m*$x1+$b;
+$x2 = 1;
+$y2 = $m*$x2+$b;
+
+Context("Point");
+Context()->parens->set("[" => {type => "Interval", close => "]"});
+Context()->parens->set("{" => {type => "Set", close => "}"});
+Context()->parens->set("<" => {type => "Vector", close => ">"});
+$pt1=Compute("($x1,$y1)");
+$pt2=Compute("($x2,$y2)");
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([0,$x2, 5],[$b,-$b,$y2,5],centerOrigin=>1);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+@gr=();
+
+for my $i (0..4) {
+
+   $f = Formula("$ar_mb[$i][0] *x + $ar_mb[$i][1]")->reduce;
+
+   $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+   );
+   $gr[$i]->lb('reset');
+
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (Real($j) == 0) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+
+   $gr[$i]->lb( new Label($min[0]+$marksep[0]/8, $max[1]-$marksep[1]/8, $ALPHABET[$inverse{$i}], 'black', 'left', 'top')) unless ($i==4);
+
+   $gr[$i]->moveTo($min[0],$f->eval(x=>$min[0]));
+   $gr[$i]->lineTo($max[0],$f->eval(x=>$max[0]),'blue',2,$ar_mb[$i][2]);
+
+   $gr[$i]->moveTo($min[0],$f->eval(x=>$min[0]));
+   $gr[$i]->lineTo($max[0],$f->eval(x=>$max[0]),'white',1);
+
+   $gr[$i]->new_color("lightred",  245,234,229);
+
+   $xfillcoord = 0;
+   $yfillcoord = ($f->eval(x=>$xfillcoord))+$marksep[1];
+   $yfillcoord = ($f->eval(x=>$xfillcoord))-$marksep[1] if !(&testPoint($xfillcoord, $yfillcoord, $i));
+
+   $gr[$i]->fillRegion([$xfillcoord, $yfillcoord,"lightred"]);
+
+   $x3 = 1;
+   $y3 = $f->eval(x=>$x3);
+   $dashOrSolid = ($ar_mb[$i][2] eq 'dashed') ? 'dashed' : 'solid';
+   push(@ALTtags,"Graph $ALPHABET[$inverse{$i}]: This is a graph of a line passing through (0,$ar_mb[$i][1]) and ($x3,$y3). The line is $dashOrSolid. The side including the point ($xfillcoord,$yfillcoord) is shaded.");
+}
+
+pop(@ALTtags);
+push(@ALTtags,"This is a graph of a line passing through (0,$ar_mb[4][1]) and ($x3,$y3). The line is $dashOrSolid. The side including the point ($xfillcoord,$yfillcoord) is shaded.");
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$inverse{0}], # correct answer
+  order => ["A","B","C","D"],
+);
+
+##############################################
+
+BEGIN_PGML
+
+Choose the graph that shows the solutions to [`y [$symbol] [$f]`]. On your own graphing paper, first graph the line (either dotted or solid), and then pick a test point to decide which side of the line should be shaded. *Warning:* if you skip the steps that you should be doing on paper, then you are not practicing what the exercise intends for your to practice.
+
+    The correct graph is graph    
+    [@$radio->buttons()@]*
+
+[@EnlargeImageStatementPGML@]**
+END_PGML
+
+Context()->texStrings;
+
+BEGIN_TEXT
+$BCENTER
+\{ 
+LayoutTable([[image( insertGraph($gr[$scramble{0}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{0}]" title = "$ALTtags[$scramble{0}]"'  ),
+image( insertGraph($gr[$scramble{1}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{1}]" title = "$ALTtags[$scramble{1}]"'  ),
+],
+[image( insertGraph($gr[$scramble{2}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{2}]" title = "$ALTtags[$scramble{2}]"'  ),
+image( insertGraph($gr[$scramble{3}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{3}]" title = "$ALTtags[$scramble{3}]"'  )
+]], allcellcss => "padding:20pt;")
+
+\}
+$ECENTER
+$PAR
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################
+
+ANS( $radio->cmp() );
+
+$gr[4]->lb( new Label($x1,$y1-$marksep[1]/5,' '."$pt1".' ','red','right','middle'));
+$gr[4]->lb( new Label($x2,$y2,' '."$pt2",'red','left','middle'));
+$gr[4]->lb( new Label(0,1,"test point (0,1)".'  ','red','right','middle'));
+
+$gr[4]->stamps( closed_circle($x1,$y1,'red') );
+$gr[4]->stamps( closed_circle($x2,$y2,'red') );
+$gr[4]->stamps( closed_circle(0,1,'red') );
+
+$mOutput = $m==1 ? "" : "$m \cdot";
+$mOutput = $m==-1 ? "-" : "$m \cdot";
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+To graph the inequality \( y $symbol $f \), we first graph the line \( y=$f \). You can use either the table method or slope-triangle method to locate two points on the line.
+$PAR
+Note that the line is $dashOrSolid, because the inequality symbol is \( $symbol \).
+$PAR
+Next, we need to decide which side to shade. Usually we substitute \(x=0\) and \(y=0\) into the inequality. However, for this problem, \( (0,0) \) is on the line \( y = $f \), so we have to pick another point.
+$PAR
+Let's pick the point \( (0, 1) \). We substitute \(x=0\) and \(y=1\) into \( y $symbol $f \), and we have:
+$PAR
+\[
+\begin{aligned}[t]
+   y &$symbol $f \\
+   1 &$symbol $mOutput 0 \\
+   1 &$symbol 0
+\end{aligned}
+\]
+ $PAR
+This is false, so we shade the side without the point \( (0, 1) \).
+$PAR
+We can see the correct answer is \{ $radio->correct_ans() \}.
+
+$BCENTER
+\{ image( insertGraph($gr[4]), width=>400, height=>400, tex_size=>400, 
+   extra_html_tags=>'alt = "$ALTtags[$scramble{4}]" title = "$ALTtags[$scramble{4}]"'  ) \}
+
+$ECENTER
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

@@ -1,0 +1,126 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Simplify the following expression
+#     (x^m)^n
+#
+# We use an INTEGER value for x on the interval [2,20]
+#
+# This problem chooes m and n to be POSITIVE
+#
+# Last edited: Carl Yao 6/28/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('multiply','exponent','simplify')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "answerHints.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedPolynomial-Strict");
+
+# m and n are the exponents
+$mybase=random(2,20,1);
+$m=random(2,10,1);
+$n=random(2,10,1);
+
+# myvar is the variable, chosen as x in this problem
+# since it will be replaced by a number anyway
+$myvar = "x";
+
+# custom error message
+Context()->{error}{msg}{"A variable can appear only once in each term of a polynomial"}
+  = "Your answer must be fully simplified";
+
+# compute the total
+$total = $m*$n;
+
+# set answer in polynomial context
+$ans = Formula("$myvar^($total)");
+
+# quick reduction check (if $m or $n is 1)
+$myvar = Formula("$myvar^$m")->reduce;
+
+
+Context("Numeric");                                   # since these problems have *numeric* bases
+Context()->operators->undefine('*','/','+','-');      # stops operations in the answer
+Context()->flags->set(formatStudentAnswer=>'parsed'); # this line stops 9^3 being computed, and leaves it as 9^3
+
+Context()->operators->set(
+   '^' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+   '**' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef});
+
+
+# now that we're in numeric context, do the substitution
+$myvar = $myvar->substitute(x=>$mybase);
+$ans = $ans->substitute(x=>$mybase);
+$ans = Compute($ans);
+
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+Use the properties of exponents to simplify the following
+   
+    [`\left([$myvar]\right)^{[$n]}`]
+
+    [____________]
+
+END_PGML
+
+$wrong=$m+$n;
+ANS($ans -> cmp(checker=>sub{
+my ( $correct, $student, $ansHash ) = @_;
+return 0 if $ansHash->{isPreview} || $correct != $student;
+$student = $ansHash->{student_formula};
+$correct = $correct->{original_formula} if defined $correct->{original_formula};
+$student = Formula("$student"); $correct = Formula("$correct");
+return 0 unless ($correct == $student);
+Context()->flags->set(bizarroPow=>1);
+delete $correct->{test_values}, $student->{test_values};
+Value->Error("Simplify according to the rules of exponents, not in any other way") unless (($correct == $student) or ($student == $correct));
+Context()->flags->set(bizarroPow=>0);
+return 1;
+}) ->
+  withPostFilter(AnswerHints(
+    [Compute("$mybase^($wrong)")] =>
+    "We do not add the exponents for problems like these.")));
+
+
+BEGIN_PGML_SOLUTION
+We _multiply_ the exponents as follows
+
+    [`\begin{aligned}
+           \left([$mybase]^{[$m]}\right)^{[$n]}&=[$mybase]^{[$m]\cdot[$n]}\\
+                             &=[$mybase]^{[$total]}
+       \end{aligned}`]
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

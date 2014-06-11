@@ -1,0 +1,355 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a quadratic function's equation, build a table and graph it.
+# y=(x+a)^2, where a could be a positive or negative integer.
+#
+# Last edit by: Hughes 9/3/13, Carl Yao 08/20/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('quadratic','function','parabola','table','graph')
+## DBCCSS('F.IF.7.a')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "pccTables.pl",
+  "parserMultiAnswer.pl",
+  "parserRadioButtons.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->variables->add(y=>'Real');
+Context()->flags->set(showExtraParens=>0, reduceConstants=>0);
+Context()->noreduce("(-x)-y","(-x)+y");
+$refreshCachedImages=1;
+
+#This array stores value of a in y=(x+a)^2.
+#$gr[0] shows y=(x+a)^2
+#$gr[1] shows y=(x-a)^2
+#$gr[2] shows y=x^2+a
+#$gr[3] shows y=x^2-a
+#$a[0] is the correct graph. The others are used in wrong graphs.
+#$a[4] is used in the correct graph.
+@a=();
+$a[0] = list_random(-5..-1,1..5);
+$a[1] = -$a[0];
+$a[2] = $a[0];
+$a[3] = -$a[0];
+$a[4] = $a[0];
+
+$left = Compute("y");
+$right = Compute("(x+$a[0])**2")->reduce;
+
+#for alternative display and title purposes
+@rightFunc = ();
+$rightFunc[0] = Compute("(x+$a[0])**2")->reduce;
+$rightFunc[1] = Compute("(x+$a[1])**2")->reduce;
+$rightFunc[2] = Compute("x**2+$a[2]")->reduce;
+$rightFunc[3] = Compute("x**2+$a[3]")->reduce;
+$rightFunc[4] = $rightFunc[0];
+
+Context("Point");
+Context()->parens->set("[" => {type => "Interval", close => "]"});
+Context()->parens->set("{" => {type => "Set", close => "}"});
+Context()->parens->set("<" => {type => "Vector", close => ">"});
+@vertex=();
+$vertex[0]=Compute("(-$a[0],0)");
+$vertex[1]=Compute("(-$a[1],0)");
+$vertex[2]=Compute("(0,$a[2])");
+$vertex[3]=Compute("(0,$a[3])");
+$vertex[4]=$vertex[0];
+
+@extraPoint = ();
+@extraPointX = ();
+@extraPointY = ();
+for my $i (0..4) {
+   @temp = $vertex[$i]->value;
+   $extraPointX[$i] = $temp[0]+1;
+   $extraPointY[$i] = $rightFunc[$i]->eval(x=>$extraPointX[$i]);
+   $extraPoint[$i] = Compute("($extraPointX[$i],$extraPointY[$i])");
+}
+
+Context("Numeric");
+Context()->variables->add(y=>'Real');
+Context()->flags->set(showExtraParens=>0, reduceConstants=>0);
+Context()->noreduce("(-x)-y","(-x)+y");
+
+
+@defaultAnswers = ();
+for my $i (0..4) {
+  $x[$i] = $i-2;
+  $y[$i] = $right->eval(x=>$x[$i]);
+  push(@defaultAnswers,$x[$i]);
+  push(@defaultAnswers,$y[$i]);
+}
+
+$multians = MultiAnswer(@defaultAnswers)->with(
+  singleResult => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my @sxy = @{$student};
+      my @xs, @ys;
+     for my $k (0..4) 
+       {$xs[$k] = $sxy[2*$k];
+        $ys[$k] = $sxy[2*$k+1];}
+     #
+     #  Loop though the student answers
+     ##
+     for ($i = 0; $i <= 4; $i++) {
+       my $ith = Value::List->NameForNumber($i+1);
+       #
+       #  Check that the student's answers are Reals
+       #
+       Value->Error("Your $ith x-value is not a number") if ($xs[$i]->type ne "Number");
+       Value->Error("Your $ith y-value is not a number") if ($ys[$i]->type ne "Number");
+       #
+       #  Check that the point hasn't been given before
+       #
+       for ($j = 0, $used = 0; $j < $i; $j++) {
+         my $jth = Value::List->NameForNumber($j+1);
+         if ($xs[$j] == $xs[$i] and $ys[$j] == $ys[$i]) {
+           Value->Error("Your $ith row in the table is the same as your $jth row") unless $ansHash->{isPreview};
+           $used = 1; last;
+         }
+       }
+       #
+       #  If not already used, check that it satisfies the equation
+       #    and increase the score if so.
+       #
+       if (!$used) {
+         Value->Error("Your $ith row is not correct") unless $ansHash->{isPreview} or $left->eval(x=>$xs[$i],y=>$ys[$i]) == $right->eval(x=>$xs[$i],y=>$ys[$i]);
+         }
+       }
+     return 1;
+});
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+
+$scramble{4} = 4;
+$inverse{4} = 4;
+
+$xmin = -10;
+$xmax = -$xmin;
+$ymin = -10;
+$ymax = 50;
+
+#These two variables decide how many labels are on each axis.
+$xmark = 2;
+$ymark = 5;
+
+@gr=();
+
+#$gr[0] through $gr[3] are options; $gr[4] is used in solution.
+for ($i=0;$i<=4;$i++) {
+   $gr[$i] = init_graph($xmin,$ymin,$xmax,$ymax,
+   axes=>[0,0],
+   grid=>[($xmax-$xmin)/$xmark,($ymax-$ymin)/$ymark],
+   size=>[xPixels(),yPixels()]
+   );
+   $gr[$i]->lb('reset');
+   for ($j=-$xmax+$xmark;$j<$xmax;$j=$j+$xmark) {
+      $gr[$i]->lb( new Label($j,  -0.1, $j,'black','center','top'));
+   }
+   for ($j=$ymin+$ymark;$j<$ymax;$j=$j+$ymark) {
+      if (Real($j) == 0) {next;}
+      $gr[$i]->lb( new Label(0,  $j,' '.$j,'black','left','middle'));
+   }
+
+   $gr[$i]->lb( new Label($xmin, $ymax, ' '.$ALPHABET[$inverse{$i}], 'black', 'left', 'top')) unless ($i==4);
+
+   $xpoint1 = $xmin;
+   $xpoint2 = 0;
+   $xpoint3 = $xmax;
+
+   if (($i==0) || ($i==1) || ($i==4)) {
+      add_functions($gr[$i], "(x+$a[$i])**2 for x in <$xmin,$xmax> using color:red and weight:1");
+      $ypoint1 = ($xpoint1 + $a[$i])**2;
+      $ypoint2 = ($xpoint2 + $a[$i])**2;
+      $ypoint3 = ($xpoint3 + $a[$i])**2;
+   }
+
+   if (($i==2) || ($i==3)) {
+      add_functions($gr[$i], "x**2+$a[$i] for x in <$xmin,$xmax> using color:red and weight:1");
+      $ypoint1 = $xpoint1**2 + $a[$i];
+      $ypoint2 = $xpoint2**2 + $a[$i];
+      $ypoint3 = $xpoint3**2 + $a[$i];
+   }
+
+ $ypoint1 = $xmin**2+$a[$i]*$xmin;
+  $ypoint2 = $xmax**2+$a[$i]*$xmax;
+   if($i==4)
+   {
+   push(@alt,"Graph $ALPHABET[$inverse{0}]: graph of a parabola passing through the points ($xpoint1,$ypoint1), ($xpoint2,$ypoint2) and ($xpoint3,$ypoint3)");
+   }
+   else
+   {
+    push(@alt,"Graph $ALPHABET[$inverse{$i}]: graph of a parabola passing through the points ($xpoint1,$ypoint1), ($xpoint2,$ypoint2) and ($xpoint3,$ypoint3)");
+   }
+}
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$inverse{0}], # correct answer
+  order => ["A","B","C","D"],
+);
+
+##############################################
+
+BEGIN_PGML
+
+Make a table of solutions for the equation [`[$left]=[$right]`]. Then, choose the correct graph for the equation.
+
+END_PGML
+
+Context()->texStrings;
+BEGIN_TEXT
+
+\{ 
+DataTable([[{data=>"\(x\)",header=>"CH"},{data=>"\(y\)",header=>"CH"},],
+ [$multians->ans_rule(8), $multians->ans_rule(8)],
+[$multians->ans_rule(8), $multians->ans_rule(8)],
+[$multians->ans_rule(8), $multians->ans_rule(8)],
+[$multians->ans_rule(8), $multians->ans_rule(8)],
+[$multians->ans_rule(8), $multians->ans_rule(8)],
+], allcellcss=>"border:1px solid;padding:4pt;text-align:center;width=50pt;", caption => "Values of \(x\) and \(y\) satisfying the equation \($left=$right\)", captioncss =>"padding:4pt; text-decoration:none;");
+\}  
+
+
+$PAR
+
+END_TEXT
+
+Context()->normalStrings;
+
+BEGIN_PGML
+
+Based on values in the table, choose the correct graph.
+
+[@EnlargeImageStatementPGML()@]** 
+
+    The correct graph is graph    
+    [@$radio->buttons()@]*
+
+END_PGML
+
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+$BCENTER
+\{ 
+LayoutTable([[image( insertGraph($gr[$scramble{0}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{0}]" title = "$alt[$scramble{0}]"'  ),
+image( insertGraph($gr[$scramble{1}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{1}]" title = "$alt[$scramble{1}]"'  ),
+],
+[image( insertGraph($gr[$scramble{2}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{2}]" title = "$alt[$scramble{2}]"'  ),
+image( insertGraph($gr[$scramble{3}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{3}]" title = "$alt[$scramble{3}]"'  )
+]], allcellcss => "padding:20pt;")
+
+\}
+$ECENTER
+$PAR
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################
+
+ANS( $multians->cmp() ); 
+ANS( $radio->cmp() );
+
+##############################################
+
+#Plot some points in the correct solution graph.
+for my $i (0..4) {
+   $gr[4]->stamps( closed_circle($defaultAnswers[2*$i],   $defaultAnswers[2*$i+1],'black') );
+   if ($defaultAnswers[2*$i]>=0) {
+      $gr[4]->lb( new Label($defaultAnswers[2*$i],$defaultAnswers[2*$i+1], " ($defaultAnswers[2*$i],$defaultAnswers[2*$i+1]) ",'black','left','bottom'));
+   } else {
+      $gr[4]->lb( new Label($defaultAnswers[2*$i],$defaultAnswers[2*$i+1], " ($defaultAnswers[2*$i],$defaultAnswers[2*$i+1]) ",'black','right','bottom'));
+   }
+}
+
+sub format_list {
+   return "" if !@_;
+   my $last = pop(@_);
+   return '\('.$last.'\)' if !@_;
+   return '\('.join('\), \(', @_) .'\) and \('. $last.'\)';
+}
+
+$xvals = format_list(@x);
+
+for my $i (0..4) {
+$ls[$i] = $left->substitute(x=>$x[$i]);
+$rs[$i] = $right->substitute(x=>$x[$i]);
+}
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+This solution will use the \(x\) values $xvals. The choice to use these \(x\)-values is arbitrary. Since they are small numbers, they might make calculations easier. It's important to include negative numbers.
+
+One at a time, we substitute these \(x\)-values into the equation \($left=$right\), and solve for \(y\)
+
+\[\begin{aligned}
+$ls[0] = $rs[0] &\implies y=$y[0]\\
+$ls[1] = $rs[1] &\implies y=$y[1]\\
+$ls[2] = $rs[2] &\implies y=$y[2]\\
+$ls[3] = $rs[3] &\implies y=$y[3]\\
+$ls[4] = $rs[4] &\implies y=$y[4]\\
+\end{aligned}
+\]
+
+So the table may be completed as:
+
+\{ 
+DataTable([[{data=>"\(x\)",header=>"CH"},{data=>"\(y\)",header=>"CH"},],
+ ["\($x[0]\)", "\($y[0]\)"],
+["\($x[1]\)", "\($y[1]\)"],
+["\($x[2]\)", "\($y[2]\)"],
+["\($x[3]\)", "\($y[3]\)"],
+["\($x[4]\)", "\($y[4]\)"],
+], allcellcss=>"border:1px solid;padding:4pt;text-align:center;width:60pt;", caption => "Values of \(x\) and \(y\) satisfying the equation \($left=$right\)", captioncss =>"padding:4pt; text-decoration:none;");
+\}  
+
+$PAR
+By values in the table, \{ $radio->correct_ans() \} is the correct answer.
+$PAR
+$BCENTER
+\{ image( insertGraph($gr[4]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{4}]" title = "$alt[$scramble{4}]"'  ) \}
+$ECENTER
+$PAR
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
+
+

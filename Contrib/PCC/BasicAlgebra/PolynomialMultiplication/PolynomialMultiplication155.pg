@@ -1,0 +1,172 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Find the area of the shaded region. 
+# Write the answer as an expanded polynomial in descending powers of [`[$var]`].
+#
+#       ----------
+#      |         |
+#      |         |
+#      |         |
+#      |         | (x+b)
+#      |         |
+#      |         |
+#       ----------
+#         (x+a)
+#
+#
+# Essentially this problem is just a FOILing problem.
+#
+# a and b are integers on the interval [1,10], and $b!=$a
+#
+# Last updated: Jordan 8/1/13; Carl Yao, 7/26/13, Jordan, 6/26/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Algebraic Expressions')
+## KEYWORDS('FOIL','polynomial','area','binomial','multiply')
+## DBCCSS('A-APR.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "PGgraphmacros.pl",
+,
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+$var = RandomVariableName(type=>'variable');
+Context()->variables->are($var=>'Real');
+
+# setup the first binomial: (x+$a)
+$a = random(1,10,1);
+@poly1array = (1,$a);
+
+# setup the binomial: (x+$b)
+$b=$a;
+$b = random(1,10,1) while($b==$a);
+@poly2array = (1,$b);
+
+# reduction check
+$poly1 = Formula(PolyString(~~@poly1array,order=>descending,var=>$var))->reduce->reduce;
+$poly2 = Formula(PolyString(~~@poly2array,order=>descending,var=>$var))->reduce->reduce;
+
+
+# for the solution
+
+$ans = Formula(PolyMult(~~@poly1array,~~@poly2array,output=>simplified,var=>$var))->reduce->reduce;
+
+$soln1 = Formula(PolyMult(~~@poly1array,~~@poly2array,output=>unsimplified,var=>$var))->reduce->reduce;
+
+
+Context("LimitedPolynomial-Strict");
+Context()->variables->are($var=>'Real');
+$ans = Formula($ans);
+
+# for the picture
+@x = (2,9);
+@y = (2,9);
+
+$cornersize = min(($x[1]-$x[0]),($y[1]-$y[0]))/10;
+
+$xmin = 0;         #The viewing window
+$xmax = 10;
+$ymin = 0;
+$ymax = 10;
+
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[300,300]);
+
+$picture->lb( new Label(($x[0]+$x[1])/2, $y[0]-0.5,$poly1,'black','center','middle'));
+$picture->lb( new Label($x[0]-1,($y[0]+$y[1])/2,$poly2,'black','center','middle'));
+
+$picture->new_color("lightblue", 200,200,255); # RGB
+$picture->new_color("darkblue",  100,100,255); 
+
+$picture->moveTo($x[0],$y[0]);
+$picture->lineTo($x[1],$y[0], darkblue,3);
+$picture->lineTo($x[1],$y[1], darkblue,3); 
+$picture->lineTo($x[0],$y[1], darkblue,3);
+$picture->lineTo($x[0],$y[0], darkblue,3);
+
+foreach $i (0,1) {
+ foreach $j (0,1) {
+
+$picture->moveTo($x[$i]+(-1)**$i*$cornersize,$y[$j]);
+$picture->lineTo($x[$i]+(-1)**$i*$cornersize,$y[$j]+(-1)**$j*$cornersize, darkblue,3);
+$picture->lineTo($x[$i],$y[$j]+(-1)**$j*$cornersize, darkblue,3);
+}}
+
+
+foreach $i (0,1) {
+ foreach $j (0,1) {
+$picture->fillRegion([
+  $x[$i]+(-1)**$i*$cornersize/2,$y[$j]+(-1)**$j*$cornersize/2,
+  lightblue]);
+}}
+
+$picture->fillRegion([
+  $x[0]+$cornersize*2,$y[0]+$cornersize*2, lightblue]);
+
+
+
+##############################################
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Find the area of the shaded region. Write the answer as an expanded polynomial in descending powers of [`[$var]`].
+
+    [________________]{$ans}
+
+Please note that the image is _not_ to scale.
+
+END_PGML
+BEGIN_TEXT
+$PAR
+$BCENTER
+\{
+image(insertGraph( $picture  ), tex_size=>300, height=>300, width=>300,
+extra_html_tags=>'alt="A rectangle with width $poly1 and height $poly2"
+  title="A rectangle with width $poly1 and height $poly2"'
+)
+\}
+$ECENTER
+END_TEXT
+
+
+BEGIN_PGML_SOLUTION
+
+The area of a rectangle is the product of two adjacent sides. We use the FOIL technique- *F*irst *O*utside *I*nside *L*ast
+
+    [`
+      \begin{aligned}
+              \left([$poly1]\right)([$poly2])&=[$soln1]\\
+                                &=[$ans]
+      \end{aligned}
+    `]
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

@@ -1,0 +1,315 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Find x-intercept(s) of y=x^2+bx+c.
+# There are two x-intercepts. Quadratic formula must be used.
+# Exact solutions are requested. Square root can be simplified.
+#
+# Last edit by: Hughes 9/3/13, Carl Yao 08/21/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('quadratic','function','parabola','intercept')
+## DBCCSS('F.IF.7.a','F.IF.8.a')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextLimitedRadical.pl",
+  "parserRadioButtons.pl",
+  "contextFraction.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+
+# Input is a number. Output is the prime factorization of the number
+# saved in an array, returned as a reference to the array.
+sub primeFactor {
+   my $n = shift;
+   @factors = ();
+   my $prime=2;
+   while (1) {
+      while ($n%$prime==0) {
+         $factors[scalar @factors] = $prime;
+         $n=$n/$prime;
+      }
+      if ($n==1) {return ~~@factors;}
+      $prime = &nextPrime($prime);
+   }
+}
+
+# Input 1 is a reference to an array with a number's prime factorization.
+# Output is all prime factors connected by ' \cdot '.
+sub line1 {
+   my $ra_factors = shift;
+   $line1Output = "";
+   foreach $item ( @$ra_factors ) {$line1Output .= "$item".' \cdot ';}
+   $line1Output =~ s/ \cdot $//;
+   return $line1Output;
+}
+
+# Input is the output of &line1() and the degree of the radical. 
+# $returnLine2 is the next step of simplifying the radical. 
+# For example, if input is "2 \cdot 2 \cdot 2 \cdot 3 \cdot 5", 
+# $degree=3, (meaning cube root), 
+# $returnLine2 is 2 sqrt[3]{3 \cdot 5}.
+# $returnLine3 is the final step of simplifying the radical.
+# In the above example, $returnLine3 is 2 sqrt[3]{15}.
+sub line2 {
+   my $line = shift;
+   my $degree = shift;
+   my $line2Output = "";
+   my @facs = split(/ \cdot /, $line);
+   my $size = 0+@facs;
+   my $i=0;
+   $outsideString = "";
+   $insideString = "";
+   $outsideNumber = 1;
+   $insideNumber = 1;
+   while ($i<$size) {
+      my $item = $facs[$i];
+      my $out = 1;
+      for (my $j=$i; $j<$i+$degree; $j++) {
+         if ($facs[$j]!=$item) {$out = 0;}
+      }
+      if ($out==0) {
+         $insideNumber *= $facs[$i];
+         $insideString .= "$facs[$i]".' \cdot ';
+         $i++;
+      }
+      else {
+         $outsideNumber *= $facs[$i];
+         $outsideString .= "$facs[$i]".' \cdot ';
+         $i=$i+$degree;
+      }
+   }
+   $outsideString =~ s/ \cdot $//;
+   $insideString =~ s/ \cdot $//;
+
+   $returnLine2 = "";
+   if ($insideString eq "") {$returnLine2 = $outsideString;}
+   elsif ($degree==2) {$returnLine2 = 
+        $outsideString.' \sqrt{'."$insideString".'}';}
+   else {$returnLine2 = 
+        $outsideString.' \sqrt['."$degree".']{'."$insideString".'}';}
+
+   $returnLine3 = "";
+   if ($returnLine2 !~ /\cdot/) {$returnLine3 = "";}
+   elsif ($degree==2) {$returnLine3 =
+        $outsideNumber.' \sqrt{'."$insideNumber".'}';}
+   else {$returnLine3 = 
+        $outsideNumber.' \sqrt['."$degree".']{'."$insideNumber".'}';}
+
+   return ($returnLine2,$returnLine3,$outsideNumber,$insideNumber);
+}
+
+###################################################
+
+TEXT(beginproblem());
+Context("Numeric");
+Context()->variables->add(y => "Real");
+Context()->flags->set(
+                        reduceConstants=>0, 
+                        reduceConstantFunctions=>0, 
+                        formatStudentAnswer=>parsed,
+                      showExtraParens=>0,
+                      );
+Context()->noreduce("(-x)-y","(-x)+y");
+
+$a = 1;
+$c = non_zero_random(-10,10,1);
+
+if ($c<0) {
+   do {$b=non_zero_random(-10,10,2);} until (int(sqrt($b**2-4*$a*$c))!=sqrt($b**2-4*$a*$c));
+} else {
+   $d = ceil(sqrt(4*$a*$c))+1;
+   do {$b = random($d,$d+10,1);} until ((int(sqrt($b**2-4*$a*$c))!=sqrt($b**2-4*$a*$c)) && (int($b/2)==$b/2));
+}
+
+$left = Compute("y");
+$right = Compute("$a*x**2+$b*x+$c")->reduce;
+
+$ansY = Point(0,$c);
+
+$b1 = -$b;
+$discriminant = $b**2-4*$a*$c;
+$discriminant1 = abs($b**2+4*$a*$c);
+$a1 = 2*$a;
+$a2 = 2*$a1;
+
+# Output of simplifying $discriminant, 
+# $out is the number outside the simplified radical.
+# $in is the number inside the simplified radical.
+$out=0;$in=0;
+$line1Center = &line1(&primeFactor($discriminant));
+$output01 = '&= \sqrt{'.$line1Center.'} \\';
+($line2Center, $line3Center, $out, $in) = &line2($line1Center,2);
+$output02 = '&='.$line2Center.'\\';
+if ($line3Center ne "") {
+   $output03 = '&='.$line3Center;
+   $output13 = $line3Center;
+} else {
+   $output03 = "";
+   $output13 = $line2Center;
+}
+
+# $firstNum is the first number in the solution.
+# $secondNum is the number outside the simplified radical.
+# $thirdNum is twice as big as $secondNum, used in a wrong solution.
+$firstNum = -$b/(2*$a);
+$secondNum = $out/(2*$a);
+if ($secondNum==1) {
+   $secondNum = "";
+   $thirdNum = 2;
+} else {
+   $thirdNum = 2*$secondNum;
+}
+
+
+#Create a hash and its inverse that randomizes the order of the four choices.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+
+#Create 4 choices
+@choices=();
+
+$choices[$scramble{0}] = "\left($firstNum + $secondNum\sqrt{$in},0\right) \text{ and } \left($firstNum - $secondNum\sqrt{$in},0\right)";
+
+$choices[$scramble{1}] = "\left(\frac{$b1+\sqrt{$discriminant}}{$a1},0\right) \text{ and } \left(\frac{$b1-\sqrt{$discriminant}}{$a1},0\right)";
+
+$choices[$scramble{2}] = "\left($firstNum + $thirdNum\sqrt{$in},0\right) \text{ and } \left($firstNum - $thirdNum\sqrt{$in},0\right)";
+
+$choices[$scramble{3}] = "\text{This parabola doesn't have any } x \text{-intercept.}";
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$scramble{0}], # correct answer
+  order => ["A","B","C","D"], separator=>$BR.$SPACE.$SPACE.$SPACE
+);
+
+
+
+##############################################
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Find any \( x \)-intercept(s) for the quadratic equation \( $left=$right \). 
+$PAR
+$SPACE$SPACE$SPACE A: \( $choices[0] \)
+$PAR
+$SPACE$SPACE$SPACE B: \( $choices[1] \)
+$PAR
+$SPACE$SPACE$SPACE C: \( $choices[2] \)
+$PAR
+$SPACE$SPACE$SPACE D: \( $choices[3] \)
+$PAR
+$SPACE$SPACE$SPACE\{ $radio->buttons() \}
+
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################
+
+ANS( $radio->cmp() );
+
+$s1 = -$b;
+$dis = $b**2-4*$a*$c;
+$s2 = 2*$a;
+$s3 = sqrt($dis);
+
+$ans=$choices[$scramble{0}];
+
+
+BEGIN_PGML_SOLUTION
+
+To find a parabola's [`x`]-intercept, we substitute [`y=0`] into [`[$left]=[$right]`], and then solve for [`x`]:
+
+    [``
+\begin{aligned}[t]
+   y &= [$right] \\
+   0 &= [$right] \\
+\end{aligned}
+    ``]
+
+The polynomial cannot be factored, so we use the Quadratic Formula to solve this equation. 
+
+Identify that [`a=[$a],b=[$b],c=[$c]`]. We have:
+
+    [``
+\begin{aligned}[t]
+   x &= \frac{-b \pm \sqrt{b^{2}-4ac}}{2a} \\
+   x &= \frac{-([$b]) \pm \sqrt{([$b])^{2}-4([$a])([$c])}}{2([$a])} \\
+   x &= \frac{[$s1] \pm \sqrt{[$dis]}}{[$s2]} \\
+\end{aligned}
+    ``]
+
+We can further simplify the radical part:
+
+    [``
+\begin{aligned}[t]
+   \sqrt{[$dis]} [$output01]
+                 [$output02]
+                 [$output03]
+\end{aligned}
+    ``]
+
+Now we can simplify the solution:
+
+    [``
+\begin{aligned}[t]
+   x &= \frac{[$s1] \pm \sqrt{[$dis]}}{[$s2]} \\
+   x &= \frac{[$s1] \pm [$output13]}{[$s2]} \\ 
+   x &= \frac{[$s1]}{[$s2]} \pm \frac{[$output13]}{[$s2]} \\
+   x &= [$firstNum] \pm [$secondNum]\sqrt{[$in]}
+\end{aligned}
+    ``]
+
+The parabola has two [`x`]-intercepts: [`[$ans]`].
+
+[@ $radio->correct_ans() @]** is the correct answer.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

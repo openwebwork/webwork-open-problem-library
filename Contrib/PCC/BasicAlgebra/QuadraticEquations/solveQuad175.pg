@@ -1,0 +1,172 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Solve the quadratic equation
+#
+#       a x^2 + bx + c = 0
+#
+# a!=1 in this problem.
+#
+# The solution is picked so that
+#
+#         -B \pm D \sqrt{C}
+#    x = ----------------
+#               A
+#
+# B, C are used in helping us to get a, b, c in the quadratic equation
+#
+# We ensure that C is prime, B is odd, (B^2-D^2 C)%A=0 and b^2-4ac isn't too big.
+#
+# D is randomly chosen from (3,5,7).
+#
+# This works because the solutions above satisfy
+#
+#   A^2 x^2 + 2 AB x + (B^2 -D^2 C) = 0
+#
+# Provided that (B^2-D^2 C)%A=0 then we can divide the equation by A and 
+# the equation becomes
+#
+#       A x^2 + 2B x + (B^2 - D^2 C) = 0
+#                      -------------
+#                            A
+#
+# Last updated: Hughes 8/9/13
+# ENDDESCRIPTION
+
+## DBCCSS('A-REI.4.b')
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('equations', 'Simplification')
+## KEYWORDS('solve','quadratic','equation','square root','quadratic formula','add','subtract','divide')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+      "PGstandard.pl",
+      "MathObjects.pl",
+      "parserAssignment.pl",
+      "answerHints.pl",
+      "PGML.pl",
+      "contextLimitedRadical.pl",
+      "PCCmacros.pl",
+    ,
+  "PGcourse.pl",
+);
+
+##############################################
+    
+Context("LimitedRadical");
+Context()->flags->set(
+                        reduceConstants=>0, 
+                        reduceConstantFunctions=>0, 
+                        formatStudentAnswer=>parsed,
+                      showExtraParens=>0,
+                      );
+                               
+parser::Assignment->Allow;
+
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+    Context()->operators->redefine('or',using=>',',from=>'Numeric');
+    Context()->operators->set(
+      ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+      'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+    );
+    Context()->lists->set(List => {separator => " or "});
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  );
+
+$var = "x";
+# a, b, c are used in a x^2 + bx + c = 0
+$a = 1;
+$b = 2;
+$c = 1;
+
+# The solution is picked so that
+#
+#         -B \pm D \sqrt{C}
+#    x = ----------------
+#               A
+#
+# B, C are used in helping us to get a, b, c in the quadratic equation
+#
+# We want C to be prime, and gcd(A,D)=1
+@primes = (2,3,5,7); # can add more to this array, but can make numbers potentially big
+$index = random(0,$#primes,1);
+$A = 2;
+$B = 0;
+$C = 0;
+$D = 0;
+
+while(($B**2-$D**2*$C)%$A !=0 or gcd($A,$D)!=1 or gcd($A,$B)!=1 or ($b**2-4*$a*$c)==0 or ($b**2-4*$a*$c)>180 )
+{
+    $A = random(3,7,1);
+    $B = non_zero_random(-5,5,1);
+    $index = random(0,scalar(@primes),1);
+    $C = $primes[$index];
+    $D = random(2,3,1);  # increasing D makes numbers potentially big
+
+    $a = $A;
+    $b = 2*$B;
+    $c = ($B**2-$D**2*$C)/$A;
+}
+$questionFormula = Formula("$a*$var^2+$b*$var+$c")->reduce;
+$b1 = $B*-1;
+
+$ans = List(Formula("$var=($b1-$D*sqrt($C))/$A"),Formula("$var=($b1+$D*sqrt($C))/$A"));
+
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+Solve the quadratic equation
+
+     [` [$questionFormula]= 0 `]
+
+     [_____________________________]
+
+* Enter multiple answers separated by commas, such as [`x=1,x=-1`]
+* Enter solutions such as [`\frac{1+\sqrt{3}}{2}`] using *(1+sqrt(3))/2* and note
+the grouping parentheses
+* If there are no real solutions, enter *no real solutions*
+
+END_PGML
+
+##############################################
+
+
+
+$showPartialCorrectAnswers = 1;
+ANS($ans->cmp(list_checker => ~~&radicalListCheck));
+
+##############################################
+BEGIN_PGML_SOLUTION
+This equation does 
+not easily factor, so we will use the Quadratic Formula:
+
+     [`
+        \begin{aligned}
+            [$var] & = \frac{-b\pm\sqrt{b^2-4ac}}{2a}\\
+                   & = \frac{[$b*-1]\pm\sqrt{[$b**2]-[$c*$a*4]}}{[$a*2]}\\
+                   & = \frac{[$b*-1]\pm\sqrt{[$b**2-$c*$a*4]}}{[$a*2]}\\
+                   & = \frac{[$b*-1]\pm[$D*2]\sqrt{[$C]}}{[$a*2]}\\
+        \end{aligned}
+     `]
+
+So [`[$ans]`].
+
+Note that _all_ quadratic equations have *two* (possibly repeated) solutions; in this problem both solutions are real. Each solution can be checked by substituting it into the original equation- this is left as an exercise.
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();
+

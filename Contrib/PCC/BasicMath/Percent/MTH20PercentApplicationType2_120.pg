@@ -1,0 +1,219 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a bar graph, find the percent of a certain category.
+#
+# Last edited by Carl Yao on 12/20/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('')
+## KEYWORDS('percent','graph','application','bar graph','rounding')
+## DBCCSS('7.RP.3','6.RP.3c')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextPercent.pl",
+#  "contextFraction.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedNumeric");
+
+$numBars = 5;
+$maxLimit = 200;
+
+@names = ("No. 1","No. 2","No. 3","No. 4","No. 5");
+@numStudents = ();
+$total = 0;
+$busName = $names[0];
+
+for my $i (0..$numBars-1) {
+   $numStudents[$i] = random(50,$maxLimit-20,1);
+   $total = $total + $numStudents[$i];
+}
+
+$decNotRounded = $numStudents[0]/$total;
+$decOne = sprintf("%.2f",$decNotRounded);
+$perOne = $decOne*100;
+
+Context("LimitedPercent-strict");
+Context()->flags->set(
+   trimTrailingZeros => 1,
+   decimalPlaces => 0,
+   tolerance => .005,
+);
+$perP = Compute("$perOne %");
+
+Context("LimitedNumeric");
+
+$yCover = $maxLimit;
+$ystep = $yCover/4;
+$xstep = 1;
+
+$xmin = -$xstep;         #The viewing window
+$xmax = $numBars+2*$xstep;
+$ymin = -$ystep/2;
+$ymax = $yCover+$ystep;
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[400,400]);
+$picture->lb('reset');
+
+$picture->moveTo(0,0);
+$picture->lineTo($xmax-$xstep/2, 0, black,3);
+$picture->moveTo(0,0);
+$picture->arrowTo(0, $ymax-$ystep/2, black,3);
+
+for my $i (0..4) {
+   $picture->stamps( closed_circle(0,$i*($maxLimit/4),'blue') );
+   $mark = $i*($maxLimit/4);
+   $picture->lb( new Label(-$xstep/2,$i*($maxLimit/4),"$mark",'black','center','middle'));
+}
+
+$picture->lb( new Label($xmax-$xstep/3,-$ystep/4,"bus lines",'black','right','middle'));
+$picture->lb( new Label($xstep/4,$ymax-$ystep/3,"number of people",'black','left','middle'));
+
+$picture->new_color("darkred",   159, 64, 16);
+$picture->new_color("pink",255,0,127);
+$picture->new_color("darkblue",  100,100,255);
+$picture->new_color("darkgreen",   0, 86, 34);
+$picture->new_color("red",  255,0,0);
+@colors = ('darkred','pink','darkblue','darkgreen','red');
+
+$alt0 = "";
+for my $i (0..$numBars-1) {
+   $picture->lb( new Label(($i+1)*$xstep,-$ystep/(2*(4-2*($i%2))),
+         "$names[$i]",$colors[$i],'center','middle'));
+   $picture->moveTo(($i+1-0.4)*$xstep,0);
+   $picture->lineTo(($i+1-0.4)*$xstep,$numStudents[$i],$colors[$i],2);
+   $picture->lineTo(($i+1+0.4)*$xstep,$numStudents[$i],$colors[$i],2);
+   $picture->lineTo(($i+1+0.4)*$xstep,0,$colors[$i],2);
+   $picture->fillRegion([ ($i+1)*$xstep,$numStudents[$i]/2,$colors[$i] ]);
+   $picture->lb( new Label(($i+1)*$xstep,$numStudents[$i]+$ystep/4,
+         "$numStudents[$i]",$colors[$i],'center','middle'));
+   $alt0 = $alt0."$numStudents[$i] students ride Bus $names[$i], ";
+}
+chop($alt0);chop($alt0);
+$alt0 = $alt0.'.';
+$alt = "This is a bar graph about the number of students riding each bus line available at a community college. $alt0";
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+
+BEGIN_TEXT
+
+A community college conducted a survey about the number of students riding each bus line available. The following bar graph is the result of the survey. $PAR
+
+$BCENTER
+\{ image(insertGraph( $picture  ), tex_size=>400, height=>400, width=>400, extra_html_tags => 'alt = "$alt" title = "$alt"') \}
+$ECENTER
+$PAR
+
+END_TEXT
+BEGIN_PGML
+
+What percent of students ride Bus [$busName]? 
+
+Fill in the blank with a percent. Round your percent to whole numbers, like [`11%`].
+
+*Solution:* Approximately [_________]{$perP} of students ride Bus [$busName]. 
+
+END_PGML
+
+##############################################
+
+$numStudentsOne = $numStudents[0];
+$numStudentsTwo = $numStudents[1];
+$numStudentsThree = $numStudents[2];
+$numStudentsFour = $numStudents[3];
+$numStudentsFive = $numStudents[4];
+
+BEGIN_PGML_SOLUTION
+
+First, we find the total number of students who participated in this survey:
+
+    [`` [$numStudentsOne]+[$numStudentsTwo]+[$numStudentsThree]+[$numStudentsFour]+[$numStudentsFive]=[$total] ``]
+
+Now, this problem can be boiled down to this question: [`[$numStudentsOne]`] is what percent of [`[$total]`]? We will show multiple methods to solve this problem.
+
+####Method 1  
+
+We will use proportion to solve this problem.
+
+Assume [`[$numStudentsOne]`] is [`x%`] of [` [$total] `], so "[`x`] out of [`100`]" corresponds to "[`[$numStudentsOne]`] out of [`[$total]`]".
+
+We will write and solve the proportion:
+
+    [``
+\begin{aligned}[t]
+   \frac{x}{100} &= \frac{[$numStudentsOne]}{[$total]} \\
+   [$total]x &= [$numStudentsOne] \cdot 100 \\
+   [$total]x &= [$numStudentsOne*100] \\
+   \frac{[$total]x}{[$total]} &= \frac{[$numStudentsOne*100]}{[$total]} \\
+   x &\approx [$decNotRounded*100] \\
+   x &\approx [$perOne]%
+\end{aligned}
+    ``]
+
+*Solution:* Approximately [`[$perOne]`] of students ride Bus [$busName]. 
+
+####Method 2  
+
+We will use the percentage formula to solve this problem.
+
+This translation from English to may  should help you remember the percentage formula.
+
+    [` 2 \text{ is } 50% \text{ of } 4 \Longleftrightarrow 2 = 0.5 \cdot 4 `]
+
+Assume [`[$numStudentsOne]`] is [`x`] (as a percent) of [` [$total] `]. We have:
+
+    [``
+\begin{aligned}
+  [$numStudentsOne] &= x \cdot [$total] \\
+  \frac{[$numStudentsOne]}{[$total]} &= \frac{x \cdot [$total]}{[$total]} \\  
+  [$decNotRounded] &\approx x \\
+  x &\approx [$perOne]%
+\end{aligned}
+    ``]
+
+*Solution:* Approximately [`[$perOne]`] of students ride Bus [$busName]. 
+
+####Method 3  
+
+In the sentence "[`[$numStudentsOne]`] is what percent of [` [$total] `],"
+
+* [`[$numStudentsOne]`] is the *percentage*,
+* "what percent" is the *rate*,
+* [` [$total] `] is the *base* (following the word "of").
+
+By the formula [` \text{rate} = \frac{\text{percentage}}{\text{base}} `], we do a division to solve the problem:
+
+    [`` \text{rate} = \frac{\text{percentage}}{\text{base}} = \frac{[$numStudentsOne]}{[$total]} \approx [$decNotRounded] \approx [$perOne]% ``]
+
+*Solution:* Approximately [`[$perOne]`] of students ride Bus [$busName]. 
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

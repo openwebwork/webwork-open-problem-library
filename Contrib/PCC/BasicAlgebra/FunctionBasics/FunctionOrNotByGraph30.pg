@@ -1,0 +1,320 @@
+# WeBWorK problem written by Alex Jordan
+# Portland Community College
+#
+# Decide which of six graphs represent functions.
+#
+# Last update: Jordan 9/15/13;
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Function')
+## DBsection('Domain and Range')
+## KEYWORDS('function','domain','range','graph')
+## DBCCSS('8.F','F-IF')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+  "PGchoicemacros.pl",
+  "pccTables.pl",
+  "unionTables.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+$refreshCachedImages=1;
+
+#parameters for graphs
+$a = random(-6,-3,1);
+$b = $a + random(2,4,1);
+$c = $b + random(2,4,1);
+$d = non_zero_random(-3,3,1);
+do {$e = non_zero_random(-3,3,1);} until ($e != $d-1);
+$f = random(2,5,1);
+$g = random(-3,3,1);
+$h = random(0.5,1.5,1);
+$k = random(-2,2,1);
+$l = random(-2,2,1);
+$m = random(-2,2,1);
+$n = random(1,3,1);
+$o = random(1,3,1);
+$p = random(2,4,1);
+$q = non_zero_random(-2,2,1);
+$r = random(2,5,1);
+$s = random(-4,4,1);
+do {$t = random(-4,4,1);} until ($s/$r != $t);
+
+$f1 = Formula("abs(x-$a) - abs(x-$b) + abs(x-$c)");
+$f2a = Formula("(x-$d)+$e");
+$f2b = Formula("2/(x-$d+1)+$e");
+$f3 = Formula("$f*sin($h*x+$g)+$k");
+
+$xfunc4 = sub { my $t = shift();
+    return $n*cos($t)+$l; };
+$yfunc4 = sub { my $t = shift();
+    return $o*sin($t)+$m; };
+
+$xfunc5 = sub { my $t = shift();
+    return $t**3-$p*$t+$q; };
+$yfunc5 = sub { my $t = shift();
+    return $t; };
+
+$f6 = Formula("x/$r");
+
+
+#Create a hash and its inverse that randomizes the order of the six graphs.
+%scramble = ();
+%inverse = ();
+for my $i (0..5) {
+  do {$temp = list_random(0..5)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$a,$b,$c,$s],
+[$f1->eval(x=>$a),
+ $f1->eval(x=>$b),
+ $f1->eval(x=>$c),
+ $f2a->eval(x=>$d),
+ $f2b->eval(x=>$e),
+ $k+$f,
+ $k-$f,
+ $l+$n,
+ $l-$n,
+ $m+$o,
+ $m-$o,
+ sqrt($p),
+ -sqrt($p),
+ $t,
+],centerOrigin=>1);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+@gr=();
+@ALTtags = ();
+
+for my $i (0..11) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, Real($j),'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, Real($j),'black','left','middle'));
+  }
+
+if ($i<6) {
+  $gr[$i]->lb( new Label($min[0]+$marksep[0]/8, $max[1]-$marksep[1]/8, $ALPHABET[$inverse{$i}], 'black', 'left', 'top'));
+  $ALTtags[$i] = "Graph $ALPHABET[$inverse{$i}]:";
+  }
+else {
+  $gr[$i]->lb( new Label($min[0]+$marksep[0]/8, $max[1]-$marksep[1]/8, $ALPHABET[$inverse{$i-6}], 'black', 'left', 'top'));
+  $ALTtags[$i] = "Graph $ALPHABET[$inverse{$i-6}]:";};
+
+
+};
+
+
+
+add_functions($gr[0], "$f1 for x in <$min[0],$max[0]> using color:blue and weight:1");
+add_functions($gr[6], "$f1 for x in <$min[0],$max[0]> using color:blue and weight:1");
+for my $i (@xticks,0) {
+  $gr[6]->moveTo($i,$min[1]);
+  $gr[6]->lineTo($i,$max[1],'red',2, dashed);
+};
+@x = ($min[0],$a,$b,$c,$max[0]);
+@y = ();
+for my $i (@x) {
+push (@y, $f1->eval(x=>$i));
+}
+$ALTtags[0] .= " a graph connecting the following points in order with straight lines: ($x[0],$y[0]), ($x[1],$y[1]), ($x[2],$y[2]), ($x[3],$y[3]), and ($x[4],$y[4])";
+$ALTtags[6] = $ALTtags[0]."; it passes the vertical line test.";
+
+add_functions($gr[1], "$f2a for x in <$min[0],$d] using color:blue and weight:1");
+add_functions($gr[1], "$f2b for x in ($d,$max[0]> using color:blue and weight:1");
+add_functions($gr[7], "$f2a for x in <$min[0],$d] using color:blue and weight:1");
+add_functions($gr[7], "$f2b for x in ($d,$max[0]> using color:blue and weight:1");
+for my $i (@xticks,0) {
+  $gr[7]->moveTo($i,$min[1]);
+  $gr[7]->lineTo($i,$max[1],'red',2,dashed);
+};
+@x = ();
+@x = ($min[0],$d,$d,$max[0]);
+@y = ();
+for my $i ($min[0],$d) {
+push (@y, $f2a->eval(x=>$i));
+};
+for my $i ($d,$max[0]) {
+push (@y, $f2b->eval(x=>$i));
+};
+$ALTtags[1] .= " a graph that begins on the left with a straight line connecting ($x[0],$y[0]) to ($x[1],$y[1]).  ($x[1],$y[1]) is a closed point. A second component of this graph begins at the open point ($x[2],$y[2]), and tapers down to y=$e as it moves rightward";
+$ALTtags[7] = $ALTtags[1]."; it passes the vertical line test.";
+
+add_functions($gr[2], "$f3 for x in <$min[0],$max[0]> using color:blue and weight:1");
+add_functions($gr[8], "$f3 for x in <$min[0],$max[0]> using color:blue and weight:1");
+for my $i (@xticks,0) {
+  $gr[8]->moveTo($i,$min[1]);
+  $gr[8]->lineTo($i,$max[1],'red',2,dashed);
+};
+$ALTtags[2] .= " a wave that only moves up and down as we read the graph from left to right";
+$ALTtags[8] = $ALTtags[2]."; it passes the vertical line test.";
+
+$fn3 = new Fun( $xfunc4, $yfunc4, $gr[3] );
+$fn3->domain(0,6.2832);
+$fn3->weight(1);
+$fn3 = new Fun( $xfunc4, $yfunc4, $gr[9] );
+$fn3->domain(0,6.2832);
+$fn3->weight(1);
+$gr[9]->moveTo($l,$min[1]);
+$gr[9]->lineTo($l,$max[1],'red',2,dashed);
+$gr[9]->stamps( closed_circle($l,$m+$o,'red') );
+$gr[9]->stamps( closed_circle($l,$m-$o,'red') );
+$ALTtags[3] .= " an ellipse";
+$ALTtags[9] = $ALTtags[3]."; it fails the vertical line test because a vertical line through the center of the ellipse crosses the graph in two places";
+
+$fn4 = new Fun( $xfunc5, $yfunc5, $gr[4] );
+$fn4->domain(-abs($min[1])**(1/3)-abs($d),($max[1])**(1/3)+abs($d));
+$fn4->weight(1);
+$fn4 = new Fun( $xfunc5, $yfunc5, $gr[10] );
+$fn4->domain(-abs($min[1])**(1/3)-abs($d),($max[1])**(1/3)+abs($d));
+$fn4->weight(1);
+$gr[10]->moveTo($q,$min[1]);
+$gr[10]->lineTo($q,$max[1],'red',2,dashed);
+$gr[10]->stamps( closed_circle($q,-sqrt($p),'red') );
+$gr[10]->stamps( closed_circle($q,0,'red') );
+$gr[10]->stamps( closed_circle($q,sqrt($p),'red') );
+$ALTtags[4] .= " a curve that begins in the lower left and moves rightward while slowly bending up; after some time it continues moving up but bends back to the left; after more time it continues moving up but bends back to the right";
+$ALTtags[10] = $ALTtags[4]."; it fails the vertical line test because a vertical line through the bends crosses the graph in three places";
+
+
+add_functions($gr[5], "$f6 for x in <$min[0],$max[0]> using color:blue and weight:1");
+$gr[5]->stamps( closed_circle($s,$t,'blue') );
+add_functions($gr[11], "$f6 for x in <$min[0],$max[0]> using color:blue and weight:1");
+$gr[11]->stamps( closed_circle($s,$t,'blue') );
+$gr[11]->moveTo($s,$min[1]);
+$gr[11]->lineTo($s,$max[1],'red',2,dashed);
+$gr[11]->stamps( closed_circle($s,$t,'red') );
+$gr[11]->stamps( closed_circle($s,$f6->eval(x=>$s),'red') );
+$ALTtags[5] .= " a straight line with a slight upward slope; there is also a separate point plotted at ($s,$t)";
+$ALTtags[11] = $ALTtags[5]."; it fails the vertical line test because a vertical line at x=$s crosses the graph at two places: once on the line and once on the point at ($s,$t)";
+
+
+$mc = new_checkbox_multiple_choice();
+$mc -> qa (
+"Select the letters of the graphs that do represent [`y`] as a function of [`x`]. ", 
+  "$ALPHABET[$inverse{0}]",
+  "$ALPHABET[$inverse{1}]",                
+  "$ALPHABET[$inverse{2}]",
+);
+$mc -> extra(
+  "$ALPHABET[$inverse{3}]",
+  "$ALPHABET[$inverse{4}]",
+  "$ALPHABET[$inverse{5}]",
+);
+$mc -> makeLast("A","B","C","D","E","F","None of the above");
+
+
+##############################################
+
+BEGIN_PGML
+
+Which of the following graphs represent [`y`] as a function of [`x`]?
+
+[@EnlargeImageStatementPGML()@]**
+
+END_PGML
+
+Context()->texStrings;
+
+BEGIN_TEXT
+$BCENTER
+\{ 
+
+LayoutTable([
+[image( insertGraph($gr[$scramble{0}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{0}]" title = "$ALTtags[$scramble{0}]"'  ),
+image( insertGraph($gr[$scramble{1}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{1}]" title = "$ALTtags[$scramble{1}]"'  ),],
+[image( insertGraph($gr[$scramble{2}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{2}]" title = "$ALTtags[$scramble{2}]"'  ),
+image( insertGraph($gr[$scramble{3}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{3}]" title = "$ALTtags[$scramble{3}]"'  )],
+[image( insertGraph($gr[$scramble{4}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{4}]" title = "$ALTtags[$scramble{4}]"'  ),
+image( insertGraph($gr[$scramble{5}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{5}]" title = "$ALTtags[$scramble{5}]"'  )],
+], allcellcss => "padding:20pt;")
+\}
+$ECENTER
+$PAR
+
+END_TEXT
+
+Context()->normalStrings;
+
+BEGIN_PGML
+
+[@$mc -> print_q() @]**  
+    [@$mc -> print_a() @]*
+
+END_PGML
+
+##############################################
+
+$showPartialCorrectAnswers = 0;
+
+ANS( checkbox_cmp( $mc->correct_ans() ) );
+
+
+
+#######################################################
+
+Context()->texStrings;
+
+BEGIN_SOLUTION
+
+To check if a graph represents \(y\) as a function of \(x\), apply the vertical line test:
+
+$BCENTER
+\{ 
+
+LayoutTable([
+[image( insertGraph($gr[$scramble{0}+6]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{0}+6]" title = "$ALTtags[$scramble{0}+6]"'  ),
+image( insertGraph($gr[$scramble{1}+6]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{1}+6]" title = "$ALTtags[$scramble{1}+6]"'  ),],
+[image( insertGraph($gr[$scramble{2}+6]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{2}+6]" title = "$ALTtags[$scramble{2}+6]"'  ),
+image( insertGraph($gr[$scramble{3}+6]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{3}+6]" title = "$ALTtags[$scramble{3}+6]"'  )],
+[image( insertGraph($gr[$scramble{4}+6]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{4}+6]" title = "$ALTtags[$scramble{4}+6]"'  ),
+image( insertGraph($gr[$scramble{5}+6]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{5}+6]" title = "$ALTtags[$scramble{5}+6]"'  )],
+], allcellcss => "padding:20pt;")
+\}
+$ECENTER
+$PAR
+
+Graphs \{$mc->correct_ans()\}, pass the vertical line test because no vertical line crosses them more than once. For each of the other graphs, there is a vertical line that crosses the graph more than once.
+
+END_SOLUTION
+
+
+
+ENDDOCUMENT();

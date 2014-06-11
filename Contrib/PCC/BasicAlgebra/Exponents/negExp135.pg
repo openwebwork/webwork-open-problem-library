@@ -1,0 +1,125 @@
+# WeBWorK problem written by Chris Hughes
+# Portland Community College
+#
+# Template:
+#
+#  Rewrite the following expression using only positive exponents.
+#
+#   (a x^m)^n*x^-p
+#
+#
+# We make sure that n*m-p>0 so that x is raised to a positive power.
+#
+# We choose a and m integer on [2,4]. 
+# 
+# Last updated: Carl Yao, 7/03/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Exponents and Radicals')
+## KEYWORDS('exponent','negative','fraction','simplify')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedPolynomial-Strict");
+$var = RandomVariableName(type=>'variable');
+Context()->variables->are($var=>'Real');
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1});
+
+
+
+# exponents
+$m = random(3,15,1);
+$n = random(2,4,1);
+$p = random(2,$m*$n-1,1);
+
+# coefficient
+$a = 11;
+$a = random(2,4,1) while($a**$n>100);
+
+# total
+$total = ($m*$n-$p);
+$totalCoeff = $a**$n;
+$ans = Formula("$totalCoeff*$var^($total)");
+
+##############################################
+TEXT(beginproblem());
+
+BEGIN_PGML
+Simplify the following expression, and write your answer using only _positive_ exponents.
+
+    [`
+        \left([$a][$var]^{[$m]}\right)^{[$n]}\cdot [$var]^{[$p*(-1)]}=
+     `][____________]
+
+END_PGML
+
+ANS($ans -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      Context()->flags->set(limits=>[0.95,1.05]);
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      Context()->flags->set(limits=>[0.25,0.4]);
+      Value->Error("Your answer is correct, but please simplify it further") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0);
+      return 1;
+}
+)); 
+
+
+
+BEGIN_PGML_SOLUTION
+
+We use the properties of exponents to help us here, remember that [`a^m\cdot a^n = a^{m+n}`] and [`\left(a^m\right)^n=a^{mn}`].
+
+    [`
+           \begin{aligned}
+                \left([$a][$var]^{[$m]}\right)^{[$n]}\cdot [$var]^{[$p*(-1)]} &= [$a]^{[$n]}[$var]^{[$m]\cdot[$n]}[$var]^{[$p*(-1)]}\\
+                                                                          & =[$totalCoeff][$var]^{[$m*$n]}[$var]^{[$p*(-1)]}\\
+                                                                      & =[$totalCoeff][$var]^{[$m*$n]-[$p]}\\
+                                    & = [$ans]
+           \end{aligned}
+    `]
+
+END_PGML_SOLUTION
+##############################################
+
+
+ENDDOCUMENT();
