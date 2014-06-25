@@ -33,8 +33,17 @@ TEXT(beginproblem());
 ## Set up the context to allow ' in variable names
 ##
 Context("Numeric");
-Context()->variables->are("x"=>"Real","y"=>"Real","k"=>"Real","lambda"=>"Real","alpha"=>"Real");
+Context()->variables->are("y"=>"Real","k"=>"Real","lambda"=>"Real");
+Context()->variables->set(lambda => {TeX => '{\lambda}'});
+Context()->variables->set(y=>{limits=>[0,8]}); 
 $context = Context()->copy;
+
+## A context without lambda
+Context("Numeric");
+Context()->variables->add("y"=>"Real","k"=>"Real","alpha"=>"Real","a"=>"Real",b=>"Real");
+Context()->variables->set(alpha => {TeX => '{\alpha}'});
+Context()->variables->set(y=>{limits=>[0,8]}); 
+$contextfinalanswer = Context()->copy;
 
 Context()->variables->{namePattern} = qr/[a-z][a-z0-9_]*'*/i;
 Context()->variables->are("x"=>"Real","y"=>"Real","t"=>"Real","X"=>"Real","X'"=>"Real","X''"=>"Real","T"=>"Real","T'"=>"Real","T''"=>"Real","Y"=>"Real","Y'"=>"Real","Y''"=>"Real","k"=>"Real","lambda"=>"Real","alpha"=>"Real","a"=>"Real",b=>"Real","c"=>"Real","d"=>"Real");
@@ -51,25 +60,29 @@ $Ydiff2 = Formula("y^($n)Y'+k^2*lambda*Y")->reduce;
 
 ## The DE in Y is separable first order, solve that first
 $left = Formula("Y'/Y");
-$right = Formula("-lambda*k^2/(y^($n))");
+$right = Formula($context,"-lambda*k^2/(y^($n))");
 $intleft = Formula("ln(abs(Y))");
 $intright = FormulaUpToConstant($context,"-lambda*k^2/(-$n+1)y^(-$n+1)");
-$Ynoc = Formula("e^(-lambda*k^2/(-$n+1)y^(-$n+1))");
-$Y = Formula("c*e^(-lambda*k^2/(-$n+1)y^(-$n+1))");
+$Ynoc = Formula("e^(lambda*k^2/($n-1)y^(-$n+1))");
+$Y = Formula("c*$Ynoc");
 ## Sturm-Louiville problem
 $Xequal = Formula("a+bx");
 $Yequal = Formula("c");
 $uequal = $Xequal;
 
 $Xless = Formula("a*cosh(alpha*x)+b*sinh(alpha*x)");
-$uless = $Xless*Formula("e^(-(alpha*k)^2/(-$n+1)y^(-$n+1))");
+$Yless = $Ynoc->substitute(lambda=>"-alpha^2");
+$uless = Formula($contextfinalanswer,"$Xless*$Yless");
 
 $Xgreater =  Formula("a*cos(alpha*x)+b*sin(alpha*x)");
-$ugreater = $Xgreater*Formula("e^((alpha*k)^2/(-$n+1)y^(-$n+1))");
+$Ygreater = $Ynoc->substitute(lambda=>"alpha^2");
+$ugreater = Formula($contextfinalanswer,"$Xgreater*$Ygreater");
 
 Context()->texStrings;
 BEGIN_TEXT
-
+\(\lambda\) is typed as lambda, \(\alpha\) as alpha.
+$BR
+$BR
 $PAR
 The PDE \[k^2\frac{\partial^2 u}{\partial x^2}=y^$n\frac{\partial u}{\partial y}\]
 is separable, so we look for solutions of the form \(u(x,t) = X(x)Y(y)\).  When solving DE in X and Y use the constants a and b for X and c for Y.
@@ -88,6 +101,8 @@ DE in X: \{$Xdiff2->ans_rule\} \( = 0\)
 $BR
 DE in Y: \{$Ydiff2->ans_rule\} \( = 0\)
 $BR
+$BR
+Now we solve the separate separated ODEs for the different cases in \(\lambda\). In each case the general solution in X is written with constants a and b and the general solution in Y is written with constants c and d. Write the functions alphabetically, so that if the solutions involve cos and sin, your answer would be acos(x) + bsin(x).
 $BR
 $BBOLD Case 1: $EBOLD \(\lambda = 0\)
 $BR
@@ -159,6 +174,6 @@ ANS($Xless->cmp);
 ANS($Xgreater->cmp);
 
 ANS($uequal->cmp->withPostFilter(AnswerHints(Formula("$Xequal*$Yequal")=>"c is redundant")));
-ANS($uless->cmp->withPostFilter(AnswerHints(Formula("$uless*c")=>"c is redundant")));
-ANS($ugreater->cmp->withPostFilter(AnswerHints(Formula("$ugreater*c")=>"c is redundant")));
+ANS($uless->cmp->withPostFilter(AnswerHints(Formula("c*$Xless*$Yless")=>"c is redundant")));
+ANS($ugreater->cmp->withPostFilter(AnswerHints(Formula("c*$Xgreater*$Ygreater")=>"c is redundant")));
 ENDDOCUMENT();        # This should be the last executable line in the problem.
