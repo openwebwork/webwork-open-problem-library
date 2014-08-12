@@ -7,72 +7,95 @@
 ## DBsubject(Linear algebra)
 ## DBchapter(Abstract vector spaces)
 ## DBsection(Basis and dimension)
-## Institution('Rochester')
+## Date('July 2013')
+## Author('Paul Pearson')
+## Institution('Rochester and Hope College')
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
 ## Section1('7.3')
 ## Problem1('')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl"
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PGcourse.pl",
 );
 
 TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
 
-my $ae = new AnswerEvaluator;
+Context('Matrix');
 
-$ae->{debug} = 0;
-
-$ae->ans_hash( 	correct_ans 		=> mbox(display_matrix([[1,0],[0,0]],'right'=>'.','left'=>'.'),display_matrix([[0,0],[1,0]],'right'=>'.','left'=>'.'),display_matrix([[0,0],[0,1]],'right'=>'.','left'=>'.')),
-		'zeroLevelTol'		=>	$main::functZeroLevelTolDefault,
-	       	'debug'			=>	0,
-     	);
-$ae->install_pre_filter(sub{
-	my $rh_ans = shift;
-	ans_array_filter( $rh_ans );
-	});
-
-$ae->install_evaluator(sub{
-	my $rh_ans = shift;
-	$rh_ans->{rm_correct_ans} =
-	Matrix->new_from_array_ref([[1,0,0],[0,0,0],[0,0,1],[0,1,0]]);
-	@stu = @{$rh_ans->{ra_student_ans}};
-	$ans = [Matrix->new_from_array_ref([[0],[0],[0],[0]]),Matrix->new_from_array_ref([[0],[0],[0],[0]]),Matrix->new_from_array_ref([[0],[0],[0],[0]])];
-	$ans->[0] = Matrix->new_from_array_ref([[$stu[0][0][0]],[$stu[0][0][1]],[$stu[0][1][0]],[$stu[0][1][1]]]);
-	$ans->[1] = Matrix->new_from_array_ref([[$stu[1][0][0]],[$stu[1][0][1]],[$stu[1][1][0]],[$stu[1][1][1]]]);
-	$ans->[2] = Matrix->new_from_array_ref([[$stu[2][0][0]],[$stu[2][0][1]],[$stu[2][1][0]],[$stu[2][1][1]]]);
-	$rh_ans->{ra_student_ans} = $ans;
-	compare_basis($rh_ans,'zeroLevelTol' => $rh_ans->{zeroLevelTol});
-});
-$ae->install_post_filter(sub{
-	my $rh_ans = shift;
-	$rh_ans->clear_error('EVAL');
-	$rh_ans->clear_error('SYNTAX');
-	$rh_ans;
-});
+$image1 = Matrix([ [1,0], [0,0] ]);
+$image2 = Matrix([ [0,0], [1,0] ]);
+$image3 = Matrix([ [0,0], [0,1] ]);
 
 
-$LEFT_BRACE = '\{';
-$RIGHT_BRACE = '\}';
+$image_multians = MultiAnswer($image1, $image2, $image3)->with(
+  singleResult => 1,
+  separator => ',',
+  tex_separator => ',',
 
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+
+      return 0 if scalar(@s) < scalar(@c);  # count the number of vector inputs
+
+      $C = Matrix([[1,0,0,0],[0,0,1,0],[0,0,0,1]])->transpose;
+
+      $s[0] = Matrix($s[0]);
+      $s[1] = Matrix($s[1]);
+      $s[2] = Matrix($s[2]);
+      $S = Matrix([ 
+      [$s[0]->element(1,1), $s[0]->element(1,2), $s[0]->element(2,1), $s[0]->element(2,2)],
+      [$s[1]->element(1,1), $s[1]->element(1,2), $s[1]->element(2,1), $s[1]->element(2,2)],
+      [$s[2]->element(1,1), $s[2]->element(1,2), $s[2]->element(2,1), $s[2]->element(2,2)],
+      ])->transpose;
+
+      #  Theorem: A^T A is invertible if and only if A has linearly independent columns.
+
+      #  Check that the professor's vectors are, in fact, linearly independent.
+      $CTC = ($C->transpose) * $C;
+      warn "Correct answer is a linearly dependent set." if ($CTC->det == 0);
+
+      #  Check that the student's vectors are linearly independent
+      if ( (($S->transpose) * $S)->det == 0) {
+        Value->Error("Your vectors are linearly dependent");
+        return 0;
+      }
+
+      # S = student, C = correct, X = change of basis matrix
+      # Solve S = CX for X using (C^T C)^{-1} C^T S = X.
+      $X = ($CTC->inverse) * (($C->transpose) * $S);
+      return $S == $C * $X;
+
+  }
+);
+
+
+
+Context()->texStrings;
 BEGIN_TEXT
-Find a basis for the space of 2x2 lower triangular matrices:
-\{mbox('\(${LEFT_BRACE}\)',ans_array(2,2,3),'\(,\)',ans_array_extension(2,2,3),'\(,\)',ans_array_extension(2,2,3),'\(${RIGHT_BRACE}\)')\}
+Find a basis for the space of \( 2 \times 2 \) lower triangular matrices.
+$BR
+$BR
+Basis = \(\Bigg\lbrace\) 
+\{ $image_multians->ans_array(2,2,5) \}, 
+\{ $image_multians->ans_array(2,2,5) \}, 
+\{ $image_multians->ans_array(2,2,5) \} 
+\(\Bigg\rbrace\)
 END_TEXT
+Context()->normalStrings;
 
-ANS($ae);
+ANS( $image_multians->cmp() );
 
 
-ENDDOCUMENT();       # This should be the last executable line in the problem.
+COMMENT('MathObject version');
 
+ENDDOCUMENT();

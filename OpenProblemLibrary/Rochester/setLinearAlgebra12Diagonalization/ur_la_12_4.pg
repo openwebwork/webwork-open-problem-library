@@ -7,28 +7,27 @@
 ## DBsubject(Linear algebra)
 ## DBchapter(Matrix factorizations)
 ## DBsection(Diagonalization)
-## Institution(Rochester)
+## Date('July 2013')
+## Author('Paul Pearson')
+## Institution('Rochester and Hope College')
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
 ## Section1('6.4')
 ## Problem1('')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl",
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PGcourse.pl",
 );
-
 TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+Context('Matrix');
 
 $r_sq = non_zero_random(1,6,1);
 $a = non_zero_random(-9,9,1);
@@ -53,53 +52,45 @@ $sol22 = 2*(-$a+$d+$r_sq);
 
 
 
-$A = Matrix->new_from_array_ref([[$a,$b],[$c,$d]]);
+$A = Matrix([[$a,$b],[$c,$d]]);
 
-my $ae = new AnswerEvaluator;
+$S = Matrix([[ $sol11,$sol12],[$sol21,$sol22]]);
+$D = Matrix([[$e_1,0],[0,$e_2]]);
 
-$ae->{debug} = 0;
+$multians = MultiAnswer($S,$D)->with(
+  singleResult => 0,
+  allowBlankAnswers => 0,
 
-$ae->ans_hash( 	correct_ans 		=> 	mbox(display_matrix([[ $sol11,$sol12],[$sol21,$sol22]],'left'=>'.','right'=>'.'), display_matrix([[$e_1,0],[0,$e_2]],'left'=>'.','right'=>'.') )
-,
-		'zeroLevelTol'		=>	$main::functZeroLevelTolDefault,
-	       	'debug'			=>	0,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my @s = @{$student};
+      my @c = @{$correct};
+      my $S = Matrix($s[0]);
+      my $D = Matrix($s[1]);
+
+      return 0 if $S->det == Real(0);
+      return 0 if ($D->element(1,2) != Real(0)) or ($D->element(2,1) != 0); 
+      return $A * $S == $S * $D;
+  }
 );
 
-$ae->install_pre_filter(~~&ans_array_filter);
 
-$ae->install_evaluator(sub{
-	my $rh_ans = shift;
-	my $invertible = $rh_ans->{ra_student_ans}->[0];
-	$invertible = Matrix->new_from_array_ref($invertible);
-	my $lr_mat = $invertible->decompose_LR();
-
-	my $diagonal   = $rh_ans->{ra_student_ans}->[1];
-	
-	if( abs($lr_mat->det_LR()) > $rh_ans->{zeroLevelTol} && is_diagonal( $diagonal ) ){
-		if( abs($A * $invertible - $invertible * Matrix->new_from_array_ref($diagonal) ) < $rh_ans->{zeroLevelTol} ){
-			$rh_ans->{score}=1;
-		}			
-
-	}
-	$rh_ans;
-});
-
-$ae->install_post_filter(sub{
-	my $rh_ans = shift;
-	$rh_ans->clear_error('EVAL');
-	$rh_ans->clear_error('SYNTAX');
-	$rh_ans;
-});
-
+Context()->texStrings;
 BEGIN_TEXT
-Let: \(A = \{ display_matrix_mm($A) \}\)$BR
-Find an invertible \(S\) and a diagonal \(D\) such that \(S^{-1}AS=D\). $BR
-\{mbox('\(S=\)',ans_array(2,2,3),'\(D=\)',ans_array_extension(2,2,3))\}
+Let \[ A = $A. \]
+Find an invertible matrix \(S\) and a diagonal matrix \(D\) such that \(S^{-1}AS=D\). 
+$BR
+$BR
+$BCENTER
+\(S=\) \{ $multians->ans_array(2,2,5) \}
+$BR
+$BR
+\(D=\) \{ $multians->ans_array(2,2,5) \}
+$ECENTER
 END_TEXT
+Context()->normalStrings;
 
-ANS($ae);
+ANS($multians->cmp);
 
-
-
-ENDDOCUMENT();       # This should be the last executable line in the problem.
-
+COMMENT('MathObject version');
+ENDDOCUMENT();
