@@ -2,9 +2,10 @@
 ## lcao tagged and PAID on 3-22-2004
 
 ## DBsubject(Linear algebra)
-## DBchapter('Matrices')
-## DBsection('Inverses')
-## Date('6/3/2002')
+## DBchapter(Matrices)
+## DBsection(Inverses)
+## Date(6/3/2002)
+## MO(1)
 ## TitleText1('Elementary Linear Algebra')
 ## AuthorText1('Larson, Edwards, Falvo')
 ## EditionText1('5')
@@ -25,11 +26,15 @@ loadMacros(
 "PGmatrixmacros.pl", 
 "PGnumericalmacros.pl",
 "PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl"
+"PGmorematrixmacros.pl",
+"parserMultiAnswer.pl",
+"PGcourse.pl",
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
+
+Context("Numeric")->variables->are(t=>'Real');
 
 $a[1] = random(2,6,1) * random(-1,1,2);
 $a[2] = $a[1];
@@ -47,22 +52,67 @@ $p = random(2,9,1);
 
 # det = $a[1] * $a[4] * e^(($m+$n)*t); 
 
-BEGIN_TEXT
-
-If \(A= \{ display_matrix_mm([["$a[1] e^{$m t} \sin($p t)", "$a[2] e^{$n t} \cos($p t)"], 
-				      ["$a[3] e^{$m t} \cos($p t)", "$a[4] e^{$n t} \sin($p t)"]])  \}\)
-$BR
-\{ mbox( 'then \(A^{-1}=\)', answer_matrix(2,2,25), '.' ) \}  
-
-END_TEXT
-
 $a142 = $a[1]*$a[4]/$a[2];
 $a143 = $a[1]*$a[4]/$a[3];
 
-ANS(fun_cmp("sin($p*t)/$a[1]/$E^{$m t}", vars=>'t'));
-ANS(fun_cmp("- cos($p t)/$a142/$E^{$m t}", vars=>'t'));
-ANS(fun_cmp("- cos($p t)/$a143/$E^{$n t}", vars=>'t'));
-ANS(fun_cmp("sin($p*t)/$a[4]/$E^{$n t}", vars=>'t'));
+$ans11 = Compute("sin($p*t)/$a[1]/e^{$m t}");
+$ans12 = Compute("- cos($p t)/$a142/e^{$m t}");
+$ans21 = Compute("- cos($p t)/$a143/e^{$n t}");
+$ans22 = Compute("sin($p*t)/$a[4]/e^{$n t}");
 
+
+$multians = MultiAnswer($ans11, $ans12, $ans21, $ans22)->with(
+
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  checkTypes => 0,
+  format =>  "<table border='0' cellspacing='10'><tr><td> %s </td><td> %s </td></tr> <tr><td> %s </td><td> %s </td></tr></table>",
+  tex_format =>  "\left\lbrack\begin{array}{rr} %s & %s \\ %s & %s \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my ( $c11, $c12, $c21, $c22 ) = @{$correct};
+      my ( $s11, $s12, $s21, $s22 ) = @{$student};
+      my @score = (0,0,0,0);
+      if ($c11->typeMatch($s11) && $c11 == $s11) { $score[0] = 1; }
+      if ($c12->typeMatch($s12) && $c12 == $s12) { $score[1] = 1; }
+      if ($c21->typeMatch($s21) && $c21 == $s21) { $score[2] = 1; }
+      if ($c22->typeMatch($s22) && $c22 == $s22) { $score[3] = 1; }
+      return [ @score ];
+  }
+
+);
+
+
+
+
+BEGIN_TEXT
+
+\{ 
+mbox( 
+'If \(A=\)', 
+display_matrix([
+["\($a[1] e^{$m t} \sin($p t)\)", "\($a[2] e^{$n t} \cos($p t)\)"], 
+["\($a[3] e^{$m t} \cos($p t)\)", "\($a[4] e^{$n t} \sin($p t)\)"]
+]),
+', then ' 
+) 
+\}
+$BR
+\{ 
+mbox(
+  "\( A^{-1} = \)",
+  display_matrix([
+  [$multians->ans_rule(15),$multians->ans_rule(15)], 
+  [$multians->ans_rule(15),$multians->ans_rule(15)]
+  ], align=>'cc')
+);
+\}
+
+END_TEXT
+
+ANS( $multians->cmp );
+
+COMMENT('MathObject version');
 ENDDOCUMENT();       # This should be the last executable line in the problem.
 

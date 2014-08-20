@@ -7,152 +7,113 @@
 ## DBsubject(Linear algebra)
 ## DBchapter(Abstract vector spaces)
 ## DBsection(Linear independence)
-## Institution('Rochester')
+## Date(July 2013)
+## Institution(Rochester and Hope College)
+## Author(Paul Pearson)
+## Static(1)
+## MO(1)
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();
 
 loadMacros(
-           "PGbasicmacros.pl",
-           "PGchoicemacros.pl",
-           "PGanswermacros.pl",
-           "PGgraphmacros.pl",
-           "PGnumericalmacros.pl",
-           "PGmatrixmacros.pl",
+"PGstandard.pl",
+"MathObjects.pl",
+"MatrixReduce.pl",
+"parserMultiAnswer.pl",
+"parserPopUp.pl",
+"PGcourse.pl",
 );
-
-
 TEXT(beginproblem());
+$showPartialCorrectAnswers = 0;
+install_problem_grader(~~&std_problem_grader);
+SRAND($psvn);
 
-$showPartialCorrectAnswers = 1;
+Context('Matrix');
 
-$flip = random(0,1,1);  # choose between dependent and independent vectors
-$lambda = new Matrix(3,1);
-# we'll scramble the vectors and coefficients
-@slice = NchooseK(3,3);
- 
-$v01 = non_zero_random(-5,5,1);
-$v02 = random(-5,5,1);
-$v03 = non_zero_random(-5,5,1);
+$Z = Matrix([0,0,0]);
 
-$vec[$slice[0]] = Matrix->new_column_matrix([$v01, $v02, $v03]);
+$ind = random(0,1,1); # dependent = 0, independent = 1
 
-$mult = non_zero_random(-2,2,1);
-$d1 = non_zero_random(-3,3,1);
-$d2 = non_zero_random(-3,3,1);
+if ($ind == 0) {
 
-$v11 = $mult*$v01;
-$v12 = $mult*$v02+$d1;
-$v13 = $mult*$v03+$d2;
+  $popup = PopUp(["Choose","linearly dependent", "linearly independent"],"linearly dependent");
 
-$vec[$slice[1]] = Matrix->new_column_matrix([ $v11, $v12, $v13 ]);
+  $A = Matrix([
+  [random(-5,5,1),random(-5,5,1),random(-5,5,1)],
+  [random(-5,5,1),random(-5,5,1),random(-5,5,1)],
+  [random(-5,5,1),random(-5,5,1),random(-5,5,1)],
+  ]);
+    
+  $s1 = random(2,5,1);
+  $s2 = random(2,5,1);
+  foreach my $i (1..3) {
+    change_matrix_entry($A,[3,$i], $s1 * $A->element(1,$i) + $s2 * $A->element(2,$i));
+  }
+  $w[0] = Real(-1*$s1);
+  $w[1] = Real(-1*$s2);
+  $w[2] = Real(1);
 
-if ($flip==0) {
-        $mult2 = non_zero_random(-2,2,1);
-        $mult3 = random(-2,2,1);
-        $d3 = non_zero_random(-5,5,1);
-        $vec[$slice[2]] = Matrix->new_column_matrix([ $mult2*$v01+$mult3*$v11, $mult2*$v02+$mult3*$v12, $mult2*$v03+$mult3*$v13+$d3 ]);
-    $lambda->assign($slice[0]+1 ,1,0);
-    $lambda->assign($slice[1]+1 ,1,0);
-    $lambda->assign($slice[2]+1 ,1,0);
-} else {
-	$lambda->assign($slice[0]+1 ,1,non_zero_random(-5,5,1) );
-	$lambda->assign($slice[1]+1 ,1,non_zero_random(-5,5,1) );
-	$vec[$slice[2]] = ( $lambda->element($slice[0]+1,1) )*$vec[$slice[0]] +( $lambda->element($slice[1]+1,1) ) *$vec[$slice[1]];
-	$lambda->assign($slice[2]+1,1,-1);
+} else { # independent
+
+  $popup = PopUp(["Choose","linearly dependent", "linearly independent"],"linearly independent");
+
+  do {
+
+  $A = Matrix([
+  [random(-5,5,1),random(-5,5,1),random(-5,5,1)],
+  [random(-5,5,1),random(-5,5,1),random(-5,5,1)],
+  [random(-5,5,1),random(-5,5,1),random(-5,5,1)],
+  ]);
+
+  } until ($A->det != 0);
+
+  foreach my $i (0..2) {
+    $w[$i] = Real(0);
+  }
+
+}
+
+foreach my $i (1..3) {
+  $a[$i - 1] = $A->row($i);
 }
 
 
-$sl = new_pop_up_select_list();
-$sl->qa(
-"Determine whether or not the three vectors listed above are linearly independent or linearly dependent.",
-($flip==0) ? 'Linearly_Independent' : 'Linearly_Dependent',
+$multians = MultiAnswer($w[0],$w[1],$w[2])->with(
+  singleResult => 1,
+  allowBlankAnswers => 0,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my @s = @{$student};
+      my @c = @{$correct};
+      if ($ind == 0) {
+        return 0 if ($s[0] == Real(0) and $s[1] == Real(0) and $s[2] == Real(0));
+        return $s[0] * $a[0] + $s[1] * $a[1] + $s[2] * $a[2] == $Z;
+      } else {
+        return ($s[0] == Real(0) and $s[1] == Real(0) and $s[2] == Real(0));
+      }
+  }
 );
-$sl->choose(1);
-$sl->ra_pop_up_list(['no_answer' => '  ?', 'Linearly_Independent' => 'Linearly Independent', 'Linearly_Dependent' => 'Linearly
-Dependent']);
 
+Context()->texStrings;
 BEGIN_TEXT
-\{ mbox( 'Let \( A = \)', display_matrix(~$vec[0]), ', \(B=\)', display_matrix(~$vec[1]), ',' ) \}
-$BR 
-\{ mbox( 'and \( C = \)', display_matrix(~$vec[2]), '.' ) \} 
+Are the vectors \( \vec{u} = $a[0] \), \( \vec{v} = $a[1] \) and \( \vec{w} = $a[2] \) linearly independent?  
 $BR
-\{$sl->print_q()\}  
-$BR
-The vectors were written horizontally this time, as they often are in books, but that is just to
-save space.  The problem is the same as if the vectors were written vertically.
-$BR
-If they are linearly dependent, determine a non-trivial linear relation - (a non-trivial relation is three numbers which
-are not all three zero.)
-otherwise, if the vectors are linearly independent, enter 0's for 
-the coefficients, since that relationship $BBOLD always $EBOLD holds.
-$BR
-\{NAMED_ANS_RULE(vec1,10)\}\(A+\) \{NAMED_ANS_RULE_OPTION(vec1,10)\}\(B+\)
-\{NAMED_ANS_RULE_OPTION(vec1,10)\} \(C = 0\).
+\{ $popup->menu \}
 $BR
 $BR
-You can use this \{htmlLink("/webwork_system_html/applets/matrix_row_tool.html",
-"row reduction tool", q!TARGET = "row_reduction"!) \} to help with the calculations.
-
+If they are linearly dependent, find scalars that are not all zero such that the equation below is true.
+If they are linearly independent, find the only scalars that will make the equation below true.
+$BR
+$BR
+\{ $multians->ans_rule(5) \} \( \vec{u} + \)
+\{ $multians->ans_rule(5) \} \( \vec{v} + \)
+\{ $multians->ans_rule(5) \} \( \vec{w} = \)
+\( \vec{0} \).
 END_TEXT
-ANS str_cmp($sl->ra_correct_ans);
-NAMED_ANS vec1=> vec_cmp2($lambda);
+Context()->normalStrings;
 
+ANS( $popup->cmp );
+ANS( $multians->cmp );
 
-sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
-    my $correct_matrix = shift;
-    my %options = @_;
-    $ans_eval = new AnswerEvaluator;
-    $ans_eval->{debug} = $options{debug};
-    set_default_options( ~~%options,
-						 debug			=>	0,
-	);
-
-    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",  
-    					 type		  => 'vec_cmp2'
-    );
-    $ans_eval->install_pre_filter(~~&is_array);
- 	$ans_eval->install_pre_filter(~~&std_num_array_filter);
- 
- 	$ans_eval->install_evaluator(sub { my $rh_ans = shift;
- 									   my %options  = @_;
- 									   my @in_vec=@{$rh_ans->input()};
-									   unless (@in_vec ) {
- 	                                   		return($rh_ans); # return blank answers
- 	                                   		# make sure the vectors are the same dimension
- 	                                   }
- 									   my $input_vec = Matrix->new_column_matrix($rh_ans->input());
- 									   my ($param,$inv);
-									   if ($flip == 0) { #case of independent vectors
- 									   		$param = new Matrix(1,1);
- 									   		$param->zero;
- 									   } else {
- 									   		$param = $correct_matrix->proj_coeff($input_vec);
- 									   		$param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
- 									   }
- 									    my $out_vec = $input_vec - $correct_matrix*$param;
-								 	    my @diff = $out_vec->list();  # lists a column vector
-								 		$rh_ans->{score} = zero_check(~~@diff,tol=>.001);
-								 		$rh_ans;
-
- 								 	
- 	});
-    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
- 											  my %options = @_;
- 											  if ($rh_ans->catch_error('NOTARRAY') ) {
- 												  $rh_ans->{ans_message} = "This answer is supposed to be an array";  
- 											  }
- 											  $rh_ans;
- 	});
- 	$ans_eval->install_post_filter( sub { 	  my $rh_ans= shift;
-  											  my %options = @_;
- 											  if ($rh_ans->catch_error('SYNTAX') ) {
- 												  $rh_ans->{ans_message} .= $rh_ans->{error_message};
- 												  $rh_ans->clear_error('SYNTAX');
- 											  }
-											  $rh_ans;
-  	});
-    $ans_eval;
-}
-
-ENDDOCUMENT() ;        
-
+COMMENT('MathObject version.  Independent half of the time, dependent half the time.');
+ENDDOCUMENT();
