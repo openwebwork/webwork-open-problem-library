@@ -29,8 +29,8 @@ loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
   "PGML.pl",
-  "parserAssignment.pl",
   "parserImplicitPlane.pl",
+  "parserAssignment.pl",
   "PGcourse.pl",
 );
 
@@ -39,6 +39,7 @@ loadMacros(
 Context("ImplicitPlane");
 Context()->flags->set(showExtraParens=>0);
 Context()->variables->are(x=>'Real', y=>'Real');
+Context()->noreduce('(-x)-y','(-x)+y','(-x)*y','x*(-y)','-n');
 
 $m=random(2,5,1);
 $b=random(1,5,1);
@@ -47,11 +48,28 @@ $x1=random(1,5,1);
 $y1=$m*$x1+$b;
 
 Context()->texStrings;
+$absX1 = abs($x1);
+$absY1 = abs($y1);
+if (($x1>0) && ($y1>0)) {
+   $ansPSstringTeX = "y-$y1=$m(x-$x1)"; 
+} elsif (($x1<0) && ($y1>0)) {
+   $ansPSstringTeX = "y-$y1=$m(x+$absX1)"; 
+} elsif (($x1>0) && ($y1<0)) {
+   $ansPSstringTeX = "y+$absY1=$m(x-$x1)"; 
+} else {
+   $ansPSstringTeX = "y+$absY1=$m(x+$absX1)"; 
+}
+
+if ($b>0) {$ansSIstringTeX = "y=$m x+$b";}
+else {
+   $absB = abs($b);
+   $ansSIstringTeX = "y=$m x-$absB";
+}
 $ansPSstring = "y-$y1=$m(x-$x1)"; 
 Context()->normalStrings;
 
 
-$ansPS = Compute($ansPSstring);
+$ansPS = ImplicitPlane($ansPSstring);
 
 Context("Numeric");
 Context()->variables->are(x=>'Real', y=>'Real');
@@ -66,7 +84,7 @@ BEGIN_PGML
 
 A line's slope is [`[$m]`]. The line passes through the point [`([$x1],[$y1])`]. Find an equation for this line in both slope-intercept form and point-slope form.
 
-    An equation for this line in slope-intercept form is: [_______________]{$ansSI}.
+    An equation for this line in slope-intercept form is: [_______________].
 
     An equation for this line in point-slope form is: [_______________].
 
@@ -74,10 +92,12 @@ END_PGML
 
 ##############################################
 
+ANS($ansSI->cmp());
+
 Context()->flags->set(reduceConstants=>0);
 Context()->flags->set(reduceConstantFormulas=>0);
 
-ANS($ansPS->cmp(correct_ans_latex_string => $ansPSstring
+ANS($ansPS->cmp(correct_ans_latex_string => $ansPSstringTeX
    ) -> withPostFilter(sub {
       my $ansHash = shift;
         my $student = $ansHash->{original_student_ans};
