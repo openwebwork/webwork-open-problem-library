@@ -35,6 +35,7 @@ loadMacros(
   "PCCmacros.pl",
   "parserImplicitPlane.pl",
   "contextFraction.pl",
+  "contextTypeset.pl",
   "PGcourse.pl",
 );
 
@@ -51,11 +52,12 @@ while($a==$sol or gcd($a,$sol)!=1)
 }
 #do {$a = random(2,40,1)} until ($a != $sol and gcd($a,$sol) != 1);
 $b = Fraction($sol,$a);
+($bnum, $bden) = $b->value;
 
 Context("ImplicitPlane");
 Context()->flags->set(showExtraParens=>0);
 Context()->flags->set(reduceConstants=>0);
-$ans = Compute("x/$a=$b");
+$ans = Compute("x/$a=$bnum/$bden");
 
 $bperl = $sol/$a;
 $bdenom = ($b->value)[1];
@@ -73,11 +75,28 @@ Translate the following sentence into a math equation. Use [`x`] to represent th
 
     The quotient of a number and [@numberWord($a)@] is [@numberWord($bperl,denominator=>$bdenom)@].
 
-    [_____________]{ImplicitPlane($ans)->cmp(cmp_class=>'a linear equation',correct_ans=>$ans)} 
+    [_____________]
 
 END_PGML
 
 ##############################################
+
+ANS($ans->cmp(
+  cmp_class => "a linear equation",
+  correct_ans=>Parser::Formula(Context("Typeset") , $ans->{correct_ans})->string,
+  correct_ans_latex_string=>Parser::Formula(Context("Typeset") , $ans->{correct_ans})->TeX, 
+  checker => sub {
+  my ($correct,$student,$ansHash) = @_;
+  $result = ($correct == $student);
+  my $context = Context();
+  Context("Typeset");
+  $student = Parser::Formula(Context("Typeset"), $ansHash->{original_student_ans});
+  $ansHash->{preview_text_string} = $student->string;
+  $ansHash->{preview_latex_string} = $student->TeX;
+  $ansHash->{student_ans} = $student->string;  
+  Context($context);
+  return $result
+}));
 
 
 BEGIN_PGML_SOLUTION
@@ -88,7 +107,8 @@ The word 'is' implies equality. So we have
 
 The word 'quotient' implies division, and that division is done left to right. So the equation we want is
 
-    [`[$ans]`]
+    [`[@Parser::Formula(Context("Typeset") , $ans->{correct_ans})->TeX@]`]
+
 
 END_PGML_SOLUTION
 

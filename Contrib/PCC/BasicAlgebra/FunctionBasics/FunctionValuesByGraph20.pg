@@ -122,7 +122,7 @@ $gr[2]->moveTo($min[0],$p1y);
 $gr[2]->lineTo($max[0],$p1y,'red',2,'dashed');
 $ALT2 = "This is the graph of a line passing through the points ($p0x,$p0y) and ($p1x,$p1y). A dashed horizontal line y=$p1y crosses the line at ($p1x,$p1y).";
 
-$xeqp1x = List(Formula("x=$p1x"),);
+$xeqp1x = Compute("x=$p1x");
 
 
 ##############################################
@@ -150,7 +150,47 @@ END_PGML
 $showPartialCorrectAnswers = 1;
 
 ANS(Compute($p0y)->cmp);
-ANS($xeqp1x->cmp(list_checker => ~~&radicalListCheck));
+ANS($xeqp1x->cmp(
+  checker => sub {
+    my ($correct,$student,$ans) = @_;
+    # count the number of student answers
+    my $fullStudent = $ans->{student_formula};
+    my @fullStudentValue = $fullStudent->value;
+    my $n = scalar(@fullStudentValue);  # number of student answers
+    if($n>1)
+    {
+      $student->context->setError("Does this equation have more than one unique solution?","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    # if the student has said no real solutions, ask them about it
+    if($student eq "no real solutions")
+    {
+      $student->context->setError("This equation does have some solutions- try factoring or using the quadratic formula","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    # check that the student has written x=
+    if ($student->type ne "Assignment" && $ans->{student_formula}->type ne "Assignment") {
+      $student->context->setError("Your entry should be written $var = $US$US$US","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    return $correct == $student;
+  }
+)->withPostFilter(sub {
+  my $ansHash = shift;
+  if ($ansHash->{score}) {
+    my ($cvar,$cfrac) = $ansHash->{correct_value}->value; # get
+    my ($svar,$sfrac) = $ansHash->{student_value}->value; # get
+    my $check = $cfrac->cmp->evaluate($sfrac->string); # do a
+     $ansHash->{score} = $check->{score};
+     $ansHash->{ans_message} = $check->{ans_message}; # and any
+   }
+     return $ansHash;
+     },
+     ),
+);
 
 ##############################################
 
