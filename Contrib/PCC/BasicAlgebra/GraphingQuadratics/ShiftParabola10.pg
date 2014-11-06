@@ -1,0 +1,201 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Identify graph of y=x^2+a, where a is a positive integer.
+#
+# Last edit by: Hughes 9/3/13, Carl Yao 08/20/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('quadratic','function','parabola','shift','graph')
+## DBCCSS('F.IF.7.a')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "pccTables.pl",
+  "parserRadioButtons.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+Context("Numeric");
+Context()->variables->add(y=>'Real');
+Context()->flags->set(showExtraParens=>0, reduceConstants=>0);
+Context()->noreduce("(-x)-y","(-x)+y");
+$refreshCachedImages=1;
+
+#This array stores value of a in y=x^2+a.
+#$a[0] is the correct graph. The others are used in wrong graphs.
+#$a[4] is used in the correct graph.
+@a=();
+$a[0] = list_random(1..5);
+$a[1] = -$a[0];
+$a[2] = $a[0];
+$a[3] = -$a[0];
+$a[4] = $a[0];
+
+$left = Compute("y");
+$right = Compute("x**2+$a[0]")->reduce;
+
+#for alternative display and title purposes
+@rightFunc = ();
+$rightFunc[0] = Compute("x**2+$a[0]")->reduce;
+$rightFunc[1] = Compute("x**2+$a[1]")->reduce;
+$rightFunc[2] = Compute("(x+$a[2])**2")->reduce;
+$rightFunc[3] = Compute("(x+$a[3])**2")->reduce;
+$rightFunc[4] = $rightFunc[0];
+
+Context("Point");
+Context()->parens->set("[" => {type => "Interval", close => "]"});
+Context()->parens->set("{" => {type => "Set", close => "}"});
+Context()->parens->set("<" => {type => "Vector", close => ">"});
+@vertex=();
+$vertex[0]=Compute("(0,$a[0])");
+$vertex[1]=Compute("(0,$a[1])");
+$vertex[2]=Compute("(-$a[2],0)");
+$vertex[3]=Compute("(-$a[3],0)");
+$vertex[4]=$vertex[0];
+
+Context("Numeric");
+Context()->variables->add(y=>'Real');
+Context()->flags->set(showExtraParens=>0, reduceConstants=>0);
+Context()->noreduce("(-x)-y","(-x)+y");
+
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+
+$scramble{4} = 4;
+$inverse{4} = 4;
+
+$xmin = -10;
+$xmax = -$xmin;
+$ymin = -10;
+$ymax = 10;
+
+#These two variables decide how many labels are on each axis.
+$xmark = 2;
+$ymark = 2;
+
+@gr=();
+
+#$gr[0] through $gr[3] are options; $gr[4] is used in solution.
+for ($i=0;$i<=4;$i++) {
+   $gr[$i] = init_graph($xmin,$ymin,$xmax,$ymax,
+   axes=>[0,0],
+   grid=>[($xmax-$xmin)/$xmark,($ymax-$ymin)/$ymark],
+   size=>[xPixels(),yPixels()]
+   );
+   $gr[$i]->lb('reset');
+
+   if ($i!=4) {
+      for ($j=-$xmax+$xmark;$j<$xmax;$j=$j+$xmark) {
+         $gr[$i]->lb( new Label($j,  -0.1, $j,'black','center','top'));
+      }
+   }
+
+      for ($j=$ymin+$ymark;$j<$ymax;$j=$j+$ymark) {
+         if (Real($j) == 0) {next;}
+         $gr[$i]->lb( new Label(0,  $j,' '.$j,'black','left','middle'));
+      }
+
+   $gr[$i]->lb( new Label($xmin, $ymax, ' '.$ALPHABET[$inverse{$i}], 'black', 'left', 'top')) unless ($i==4);
+
+   add_functions($gr[$i], "x**2 for x in <$xmin,$xmax> using color:black and weight:1");
+
+   if (($i==2) || ($i==3)) {
+      add_functions($gr[$i], "(x+$a[$i])**2 for x in <$xmin,$xmax> using color:red and weight:3");
+   }
+   else {
+      add_functions($gr[$i], "x**2+$a[$i] for x in <$xmin,$xmax> using color:red and weight:3");
+   }
+   push(@alt,"Graph $ALPHABET[$inverse{$i}]: This picture shows graphs of two parabolas. One parabola is y=x^2. The other parabola's vertex is $vertex[$i].");
+}
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$inverse{0}], # correct answer
+  order => ["A","B","C","D"],
+);
+
+##############################################
+
+BEGIN_PGML
+
+Choose the correct graph for the equation [`[$left]=[$right]`]. In each graph, the graph of [`y=x^{2}`] is in black, while the graph of [`[$left]=[$right]`] is in (thicker) red.
+
+[@EnlargeImageStatementPGML()@]** 
+
+    The correct graph is graph    
+    [@$radio->buttons()@]*
+
+END_PGML
+
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+$BCENTER
+\{ 
+LayoutTable([[image( insertGraph($gr[$scramble{0}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{0}]" title = "$alt[$scramble{0}]"'  ),
+image( insertGraph($gr[$scramble{1}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{1}]" title = "$alt[$scramble{1}]"'  ),
+],
+[image( insertGraph($gr[$scramble{2}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{2}]" title = "$alt[$scramble{2}]"'  ),
+image( insertGraph($gr[$scramble{3}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{3}]" title = "$alt[$scramble{3}]"'  )
+]], allcellcss => "padding:20pt;")
+
+\}
+$ECENTER
+$PAR
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################
+
+ANS( $radio->cmp() );
+
+##############################################
+
+$UpOrDown = $a[0]>0 ? "up" : "down";
+$aValue = $a[0];
+
+BEGIN_PGML_SOLUTION
+
+For [`y=x^{2}`], when [`x=0`], [`y=0`], and the point on the parabola is [`(0,0)`].
+
+For [`[$left]=[$right]`], when [`x=0`], [`y=[$aValue]`], and the point on the parabola is [`(0,[$aValue])`].
+
+This implies the graph of [`[$left]=[$right]`] is [`[$aValue]`] units [$UpOrDown] compared to the graph of [`y=x^{2}`].
+
+[@ $radio->correct_ans() @]** is the correct answer.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

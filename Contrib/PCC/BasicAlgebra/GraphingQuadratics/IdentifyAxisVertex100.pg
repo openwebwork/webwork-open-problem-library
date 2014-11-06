@@ -1,0 +1,172 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Identify the axis and vertex of y=ax^2+bx+c. Fractions are involved.
+#
+# Last edit by: Hughes 9/3/13, Carl Yao 08/21/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('quadratic','function','parabola','vertex','axis','fraction')
+## DBCCSS('F.IF.7.a','F.IF.8.a')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserImplicitPlane.pl",
+  "contextFraction.pl",
+  "parserAssignment.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+Context("Fraction-NoDecimals");
+parser::Assignment->Allow;
+Context()->{precedence}{Fraction} = 2.5;
+Context()->flags->set(reduceFractions=>0,
+                      allowMixedNumbers=>1,
+                      requirePureFractions=>1,
+                      showExtraParens=>0, 
+                      reduceConstants=>0,
+                      showMixedNumbers=>0,
+                      );
+Context()->{error}{msg}{"Mixed numbers are not allowed; you must use a pure fraction"} 
+  = "Mixed numbers are not allowed; you must use a pure fraction, for example you should enter 5/4 and not 1 1/4";
+
+Context()->noreduce("(-x)-y","(-x)+y");
+Context()->variables->are(x=>"Real",y=>"Real");
+
+$a = non_zero_random(-5,5,1);
+$b = $a*non_zero_random(-5,5,2);
+$c = non_zero_random(-5,5,1);
+
+$left = Compute("y");
+$right = Compute("$a*x**2+$b*x+$c")->reduce;
+
+$pxRaw = Fraction(-$b,2*$a);
+$px = $pxRaw->reduce;
+$pyRaw = $right->eval(x=>$px);
+$py = $pyRaw->reduce;
+
+$num = $b*-1;
+$den = 2*$a;
+
+
+##############################################
+
+BEGIN_PGML
+
+Find the axis of symmetry and vertex of the quadratic function [`[$left]=[$right]`]. Use fractions in your answers.
+
+    Axis of symmetry: [_____________]
+
+    Vertex: [_____________]
+
+END_PGML
+
+##############################################
+
+$axis = Compute("x=$px");
+
+ANS($axis->cmp->withPostFilter(sub {
+      my $ansHash = shift;
+      if ($ansHash->{score}) {
+        my ($cvar,$cfrac) = $ansHash->{correct_value}->value;
+        my ($svar,$sfrac) = $ansHash->{student_value}->value;
+        my $check = $cfrac->cmp(studentsMustReduceFractions => 1)->evaluate($sfrac->string);
+        $ansHash->{score} = $check->{score};
+        $ansHash->{ans_message} = $check->{ans_message};
+      }
+      return $ansHash;
+    }));
+
+Context("Fraction-NoDecimals");
+Context()->{precedence}{Fraction} = 2.5;
+Context()->flags->set(reduceFractions=>0,
+                      allowMixedNumbers=>1,
+                      requirePureFractions=>1,
+                      showExtraParens=>0, 
+                      reduceConstants=>0,
+                      );
+
+Context()->parens->set('('=>{type=>'Point'});
+$vertex = List("($px,$py)");
+ANS($vertex->cmp(
+      checker => sub {
+        my ($correct, $student, $ans, $nth, $value) = @_;
+        $student->context->setError("Your $nth $value contains an unreduced fraction","",undef,undef,$Value::CMP_WARNING)
+          if $student->{notReduced};
+        return 0 unless $correct == $student;
+        my $reduced = 1;
+        foreach $x ($student->value) {
+          if (Value::classMatch($x,'Fraction') && !$x->isReduced) {
+            $reduced = 0;
+            break;
+          }
+        }
+        $student->{notReduced} = 1 unless $reduced || $ans->{isPreview};
+        return $reduced;
+      }
+    )
+);
+
+Context()->texStrings;
+$s1 = ($px)**2;
+$s2 = $b*$px;
+$s2 = $s2>0 ? "+$s2" : "$s2";
+Context()->normalStrings;
+
+BEGIN_PGML_SOLUTION
+
+This quadratic function is given in standard form. Identify that:
+
+    [`` a=[$a],b=[$b],c=[$c] ``]
+
+To find the parabola's axis of symmetry, we use the formula [``x=-\frac{b}{2a}``]
+
+    [``
+\begin{aligned}
+  x &= -\frac{b}{2a} \\
+   &= -\frac{[$b]}{2([$a])} \\
+   &= [$px]
+\end{aligned}
+    ``]
+
+This parabola's axis of symmetry is the line [``x=[$px]``].
+
+Next, substitute [``x=[$px]``] into [``[$left]=[$right]``], and we have:
+
+    [``
+\begin{aligned}
+   y &= [$a]\left([$px]\right)^{2}+[$b]\left([$px]\right)+[$c] \\
+    &= [$a] \cdot [$s1] [$s2] + [$c] \\
+    &= [$py]
+\end{aligned}
+    ``]
+
+This parabola's vertex is at [``\left([$px],[$py]\right)``].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+
+
+

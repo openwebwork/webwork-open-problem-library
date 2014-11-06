@@ -1,0 +1,130 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Simplify the following expression
+#     a x^m
+#     -----
+#     b x^n
+#
+# We use a randomly-named variable (could be x, y, z, etc) from
+# PCCmacros.pl
+#
+# This problem chooes m and n to be POSITIVE, with n<m
+#
+# We choose a to be a multiple of b so that things work out nicely.
+#
+# Last edited: Hughes 9/6/13,  Carl Yao 6/28/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('exponent','simplify','fraction','divide')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "bizarroArithmetic.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedPolynomial-Strict");
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1});
+
+
+
+# m and n are the exponents
+$a=random(2,15,1);
+$c=(random(1.5,5.5,1)+0.5);
+$b=$a*$c;
+$m=random(3,20,1);
+$n=random(1,$m-1,1);
+
+# myvar is the variable- could be x, y, z, ..., anything in PCCmacros.pl
+$myvar = RandomVariableName(type=>'variable');
+Context()->variables->are($myvar=>'Real');
+
+# custom error message
+Context()->{error}{msg}{"A variable can appear only once in each term of a polynomial"}
+  = "Your answer must be fully simplified";
+
+# quick reduction check (if $m or $n is 1)
+$myvar1 = Formula("$a*$myvar^$m")->reduce;
+$myvar2 = Formula("$b*$myvar^$n")->reduce;
+$total = $m-$n;
+
+# answer will be a fraction
+$ans = Formula("$myvar^($total)/$c")->reduce;
+
+
+##############################################
+TEXT(beginproblem());
+
+BEGIN_PGML
+Use the properties of exponents to simplify the following
+   
+    [`\displaystyle\frac{[$myvar1]}{[$myvar2]}=`]  [___________]
+
+END_PGML
+
+$wrong=$m*$n;
+ANS($ans -> cmp(checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      Context()->flags->set(limits=>[0.95,1.05]);
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      Context()->flags->set(limits=>[0.25,0.4]);
+      Value->Error("Your answer is correct, but please simplify it further") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0);
+      return 1;
+}
+) ->
+  withPostFilter(AnswerHints(
+    [Compute("$myvar^($wrong)")] =>
+    "When dividing terms with the same base, you do not multiply the exponents.")));
+
+BEGIN_PGML_SOLUTION
+We _subtract_ the exponents as follows
+
+    [`\begin{aligned}
+           \displaystyle\frac{[$myvar1]}{[$myvar2]}&=\frac{[$myvar]^{[$m]-[$n]}}{[$c]}\\
+&=[$ans]
+       \end{aligned}`]
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

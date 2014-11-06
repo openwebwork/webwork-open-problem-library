@@ -1,0 +1,254 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Solve the system of linear equations
+#     a x + b y =e
+#     c x + d y = f
+# where only ONE of a, b, c, d is negative, and the rest will be positive integer values on the interval [1,5]
+#
+# The solution is, (x,y), where x and y are both integers on the interval
+# [-10,10].
+#
+# Last updated: Hughes, 6/16/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Lines', 'Equations')
+## KEYWORDS('linear', 'equation', 'solve', 'system', 'integer')
+## DBCCSS('8.EE.8','A-REI.3','A-REI.5')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+   "PGML.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Point");
+Context()->parens->set("[" => {type => "Interval", close => "]"});
+Context()->parens->set("{" => {type => "Set", close => "}"});
+Context()->parens->set("<" => {type => "Vector", close => ">"});
+
+#This approach guarantees integer solutions
+
+# start with the solution
+$x=random(-10,10,1);
+$y=random(-10,10,1);
+
+# set up the system
+#     a x + b y =e
+#     c x + d y = f
+# need to make sure that
+#     ad - bc != 0
+
+# initialize the variables
+$a=1;
+$c=1;
+$b=1;
+$d=1;
+
+#A slick way to remove the need for "$a==1 or $b==1 or $c==1 or $d==1" is:
+#$a=random(1.5,5.5,1)*random(-1,1,2)+0.5;
+#I suggest this because as a general philosophy we want to keep while loops like this as short as possible for processing efficiency
+
+while($a*$d -$c*$b == 0 ){
+# this bit ensures that we won't ever choose a=1
+# It is equivalent to using random(-5,5,1) and then checking to make sure a!=1; 
+$a=random(1.5,5.5,1)*random(-1,1,2)+0.5;
+if($a>0)
+{
+    # if $a>0 then allow $b to (possibly) be negative
+    $b=random(1.5,5.5,1)*random(-1,1,2)+0.5;
+}
+else
+{
+    # otherwise it must be positive
+    $b=random(1.5,5.5,1)+0.5;
+}
+if($a*$b>0)
+{
+    # if both $a and $b are positive, $c can be negative
+    $c=random(1.5,5.5,1)*random(-1,1,2)+0.5;
+}
+else
+{
+    # otherwise it must be positive
+    $c=random(1.5,5.5,1)+0.5;
+}
+if($a*$b*$c>0)
+{
+    # of $a, $b, and $c are positive, $d must be negative
+    $d=random(1.5,5.5,1)*(-1)+0.5;
+}
+else
+{
+    # otherwise it must be positive
+    $d=random(1.5,5.5,1)+0.5;
+}
+}
+
+# globally set the reductions one time
+# so that we can then merely call ->reduce;
+Context()->noreduce('(-x)-y','(-x)+y');
+
+$topLeft = Formula("$a*x+$b*y")->reduce;
+$e = $topLeft->eval(x=>$x,y=>$y);
+
+$botLeft = Formula("$c*x+$d*y")->reduce;
+$f = $botLeft->eval(x=>$x,y=>$y);
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no solution"=>{},
+  "no solutions"=>{alias=>'no solution'}, 
+  "none"=>{alias=>'no solution'}, 
+  "infinite number of solutions"=>{}, 
+  "infinite"=>{alias=>'infinite number of solutions'},
+  "infinite solutions"=>{alias=>'infinite number of solutions'});
+
+
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+Solve the following system of equations, using whichever method you wish.
+
+    [`\left\{\begin{aligned}
+  [$topLeft] & =  [$e] \\
+  [$botLeft] & =  [$f] 
+\end{aligned}\right.`]
+
+* If there is one solution, enter it as an ordered pair.
+* If there is no solution, enter *no solution*. Spelling counts.
+* If there is an infinite number of solutions, enter *infinite number of solutions*. Spelling counts.
+
+[_________________________________]{Compute("($x,$y)")}
+
+END_PGML
+
+$commonConclusion = "The solution to the system is [`($x,$y)`]. It is left as an exercise to check. Please also note that you may have solved this problem a different way.";
+
+# solution key
+if($a==-$c)
+{
+  #  ax + by = e
+  # -ax + dy = f
+  # should be solved by addition
+  $lhs=Formula("$b*y+$d*y")->reduce;
+  $lhs1=Formula("$a*x+$b*$y")->reduce;
+BEGIN_PGML_SOLUTION
+* Let's add the two equations, which will cancel the terms involving [`x`] and give [`[$lhs]=[$e]+[$f]`].
+* This gives [`y=[$y]`].
+* We find [`x`] using either equation - let's use the first one: [`[$lhs1]=[$e]`], so [`x=[$x]`].
+* [$commonConclusion]**
+END_PGML_SOLUTION
+}
+elsif($b==-$d)
+{
+  #  ax +  by = e
+  #  cx + -by = f
+  # should be solved by addition
+  $lhs=Formula("$a*x+$c*x")->reduce;
+  $lhs1=Formula("$a*($x)+($b)*(y)")->reduce;
+BEGIN_PGML_SOLUTION
+* Let's add the two equations, which will cancel the terms involving [`y`] and give [`[$lhs]=[$e]+([$f])`].
+* This gives [`x=[$x]`].
+* We find [`y`] using either equation - let's use the first one: [`[$lhs1]=[$e]`], so [`y=[$y]`].
+* [$commonConclusion]**
+END_PGML_SOLUTION
+}
+else
+{
+     if($a==$c)
+     {
+          # ax + by = e
+          # ax + dy = f
+          # should be solved using subtraction
+          $lhs=Formula("$b*y-$d*y")->reduce;
+          $lhs1=Formula("$a*x+$b*$y")->reduce;
+BEGIN_PGML_SOLUTION
+* We subtract the two equations, which will cancel the terms involving  [`x`] and give [`[$lhs]=[$e]-([$f])`].
+* This gives [`y=[$y]`].
+* We find [`x`] using either equation - let's use the first one: [`[$lhs1]=[$e]`], so [`x=[$x]`].
+* [$commonConclusion]**
+END_PGML_SOLUTION
+     }
+     elsif($b==$d)
+     {
+          # ax + by = e
+          # cx + by = f
+          # should be solved using subtraction
+          $lhs=Formula("$a*x-$c*x")->reduce;
+          $lhs1=Formula("$a*$x+$b*y")->reduce;
+BEGIN_PGML_SOLUTION
+* We subtract the two equations,  asdasd which will cancel the terms involving  [`y`] and give [`[$lhs]=[$e]-([$f])`].
+* This gives [`x=[$x]`].
+* We find [`y`] using either equation: [`[$lhs1]=[$e]`], so [`y=[$y]`].
+* [$commonConclusion]**
+END_PGML_SOLUTION
+     }
+     else
+     {
+          # otherwise use elimination
+
+          # multiply the first equation by $c
+          $s1=$c*$a;$s2=$c*$b;
+          $topleft=Formula("$s1*x+$s2*y")->reduce;
+          $topright=Compute($c*$e);
+
+          # multiply the second equation by $a
+          $s1=$a*$c;$s2=$a*$d;
+          $bottomleft=Formula("$s1*x+$s2*y")->reduce;
+          $bottomright=Compute($a*$f);
+
+          # subtract the equations and solve for y
+          $s1=$c*$b;$s2=$a*$d;
+          $lhs=Formula("$s1*y-$s2*y")->reduce;
+          $rhs=Compute($c*$e-$a*$f);
+          $lhs1=Formula("$a*x+$b*$y")->reduce;
+
+BEGIN_PGML_SOLUTION
+* Let's multiply the _first_ equation by [$c]* and the _second_ equation by [$a] which gives
+
+          [`\begin{aligned} [$topleft] &= [$topright]\\ 
+                           [$bottomleft] &=[$bottomright]
+           \end{aligned}`]
+
+* Subtracting these two equations gives [`[$lhs]=[$rhs]`], so [`y=[$y]`].
+* We can use either equation to find [`x`]; let's use the first one: [`[$lhs1]=[$e]`], so [`x=[$x]`].
+* [$commonConclusion]**
+END_PGML_SOLUTION
+     }
+}
+
+# BEGIN_HINT
+# $SPACE $SPACE $SPACE \(\scriptsize\bullet\) The solution is an ordered pair, so you'll write it in the form \((x,y)\)
+# $BR
+# $SPACE $SPACE $SPACE \(\scriptsize\bullet\) Both \(x\) and \(y\) are integers between \(-10\) and \(10\)
+# END_HINT
+
+# TEXT(PGML::Format2(<<'END_PGML_HINT'));
+# *Hint*
+# * The solution is an ordered pair, so you'll write it in the form [`(x,y)`]
+# * Both [`x`] and [`y`] are integers between [`-10`] and [`10`]
+# END_PGML_HINT
+
+##############################################
+
+ENDDOCUMENT();

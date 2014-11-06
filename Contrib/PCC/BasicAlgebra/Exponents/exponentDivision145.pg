@@ -1,0 +1,169 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Simplify the following expression
+#
+#    a x^m y^n + b x^p y^q  + c x^r y^s
+#    ----------------------------------
+#           d x^5 y^2 
+#
+#
+# We specify the answer first, and then just multiply it by d x^5 y^2
+# so that all the numbers work out nicely. Everything is integer.
+#
+# We make sure to choose m, p, r > 5 and n, q, s > 2
+#
+# Last edited: Hughes 9/6/13, Hughes 7/1/13, Yao 6/28/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('exponent','simplify','fraction','divide','polynomial','monomial')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "contextFraction.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->variables->are('x'=>'Real','y'=>'Real');
+
+# setup the answer: 
+
+#    a x^m y^n + b x^p y^q  + c x^r y^s
+#    ----------------------------------
+#           d x^5 y^2 
+#
+# We make sure to choose m > p > r > 5 and n > q > s > 2
+$a = non_zero_random(-13,13,1);
+$b=$a;
+$b = non_zero_random(-13,13,1) while($b==$a);
+$c=$b;
+$c = non_zero_random(-13,13,1) while($c==$b);
+
+# exponents for x
+$m = random(7,20,1);
+$p = random(6,$m-1,1);
+$r = random(5,$m-1,1);
+
+# exponents for y
+$n = random(5,20,1);
+$q = random(4,$n-1,1);
+$s = random(2,$n-1,1);
+
+# reduction check
+$ans = Formula("$a*x^$m*y^$n+$b*x^$p*y^$q+$c*x^$r*y^$s")->reduce->reduce;
+
+# multiply top and bottom by $d x y 
+$d = (random(1.5,9.5,1)+0.5)*random(-1,1,2);
+
+# setup the denominator: $d x^5 y^2 
+$poly2 = Formula("$d*x^5*y^2")->reduce->reduce;
+
+# for the numerator we have to multiply poly1 by poly2
+$poly1 = Formula("$d*$a*x^($m+5)*y^($n+2)+$d*$b*x^($p+5)*y^($q+2)+$d*$c*x^($r+5)*y^($s+2)")->reduce->reduce;
+
+Context("LimitedPolynomial-Strict");
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1});
+
+
+Context()->variables->are('x'=>'Real','y'=>'Real');
+$ans = Formula($ans);
+
+
+##############################################
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Simplify the following expression
+
+    [`\displaystyle\frac{[$poly1]}{[$poly2]}= `][________________________________]
+
+
+
+END_PGML
+
+ANS($ans -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      Context()->flags->set(limits=>[0.95,1.05]);
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      Context()->flags->set(limits=>[0.25,0.4]);
+      Value->Error("Your answer is correct, but please simplify it further") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0);
+      return 1;
+}
+)); 
+
+
+##############################################
+#Solution
+
+Context("Fraction"); 
+Context()->flags->set(reduceFractions=>0,reduceContstants=>0);
+Context()->variables->are('x'=>'Real','y'=>'Real');
+Context()->noreduce('(-x)-y','(-x)+y');
+#
+## solution step
+foreach my $i (0..$n) {$solnStep[$i] = 0};
+$solnStep[0] = Fraction($a*$d,$d);
+$solnStep[1] = Fraction($b*$d,$d);
+$solnStep[2] = Fraction($c*$d,$d);
+#
+$solnStep = Formula("$solnStep[0]*x^($m)*y^($n)+$solnStep[1]*x^($p)*y^($q)+$solnStep[2]*x^($r)*y^($s)");
+
+
+BEGIN_PGML_SOLUTION
+We divide each term by [`[$poly2]`] as follows
+
+    [`
+    \begin{aligned}
+    \displaystyle\frac{[$poly1]}{[$poly2]}  
+    & = \frac{[$d*$a]*x^{[$m+5]}y^{[$n+2]}}{[$d]x^5y^2}+\frac{[$d*$b]*x^{[$p+5]}y^{[$q+2]}}{[$d]x^5y^2}+\frac{[$d*$c]*x^{[$r+5]}y^{[$s+2]}}{[$d]x^5y^2}\\
+     & = [$solnStep]\\
+     & = [$ans]\\
+    \end{aligned}
+`]
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

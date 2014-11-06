@@ -1,0 +1,196 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a bar graph, find the mean and median of this group of data.
+#
+# Last edited by Carl Yao on 12/20/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('')
+## KEYWORDS('mean','median','application','bar graph','rounding')
+## DBCCSS('6.SP')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextPercent.pl",
+#  "contextFraction.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedNumeric");
+
+$numBars = 4;
+$maxLimit = 10;
+
+@scores = (1,2,3,4);
+@numStudents = ();
+$totalScore = 0;
+$totalStudents = 0;
+@oneByOne = ();
+$ordered = "";
+
+for my $i (0..$numBars-1) {
+   $numStudents[$i] = random(1,$maxLimit-1,1);
+   $totalStudents = $totalStudents+$numStudents[$i];
+   $totalScore = $totalScore+($i+1)*$numStudents[$i];
+   for my $j (0..$numStudents[$i]-1) {
+      $scores = $i+1;
+      $ordered = $ordered."$scores,";
+      push(@oneByOne,$scores);
+   }
+}
+chop($ordered);
+
+$meanNotRounded = $totalScore/$totalStudents;
+$mean = sprintf("%.2f",$meanNotRounded);
+
+if ($#oneByOne%2==0) {
+   $median = $oneByOne[$#oneByOne/2];
+} else {
+   $median = ($oneByOne[int($#oneByOne/2)]+$oneByOne[int($#oneByOne/2)+1])/2;
+}
+
+$yCover = $maxLimit;
+$ystep = $yCover/5;
+$xstep = 1;
+
+$xmin = -$xstep;         #The viewing window
+$xmax = $numBars+2*$xstep;
+$ymin = -$ystep;
+$ymax = $yCover+$ystep;
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[400,400]);
+$picture->lb('reset');
+
+$picture->moveTo(0,0);
+$picture->lineTo($xmax-$xstep/2, 0, black,3);
+$picture->moveTo(0,0);
+$picture->arrowTo(0, $ymax-$ystep/2, black,3);
+
+for my $i (0..$yCover/2) {
+   $picture->stamps( closed_circle(0,$i*($yCover/5),'blue') );
+   $mark = $i*($yCover/5);
+   $picture->lb( new Label(-$xstep/2,$i*($yCover/5),"$mark",'black','center','middle'));
+}
+
+$picture->lb( new Label($xmax-$xstep/3,-$ystep/4,"scores",'black','right','middle'));
+$picture->lb( new Label($xstep/4,$ymax-$ystep/3,"number of students",'black','left','middle'));
+
+$picture->new_color("darkred",   159, 64, 16);
+$picture->new_color("pink",255,0,127);
+$picture->new_color("darkblue",  100,100,255);
+$picture->new_color("darkgreen",   0, 86, 34);
+$picture->new_color("red",  255,0,0);
+@colors = ('darkred','pink','darkblue','darkgreen','red');
+
+$alt0 = "";
+for my $i (0..$numBars-1) {
+   $iPlusOne = $i+1;
+   $picture->lb( new Label(($i+1)*$xstep,-$ystep/4,
+         "$iPlusOne",$colors[$i],'center','middle'));
+   $picture->moveTo(($i+1-0.4)*$xstep,0);
+   $picture->lineTo(($i+1-0.4)*$xstep,$numStudents[$i],$colors[$i],2);
+   $picture->lineTo(($i+1+0.4)*$xstep,$numStudents[$i],$colors[$i],2);
+   $picture->lineTo(($i+1+0.4)*$xstep,0,$colors[$i],2);
+   $picture->fillRegion([ ($i+1)*$xstep,$numStudents[$i]/2,$colors[$i] ]);
+   $picture->lb( new Label(($i+1)*$xstep,$numStudents[$i]+$ystep/4,
+         "$numStudents[$i]",$colors[$i],'center','middle'));
+   $alt0 = $alt0."$numStudents[$i] students scored $iPlusOne, ";
+}
+chop($alt0);chop($alt0);
+$alt0 = $alt0.'.';
+$alt = "This is a bar graph about student scores in a quiz in a certain class. $alt0";
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+
+BEGIN_TEXT
+
+This bar graph shows the number of students who scored 1, 2, 3 or 4 in a certain quiz in a class. $PAR
+
+$BCENTER
+\{ image(insertGraph( $picture  ), tex_size=>400, height=>400, width=>400, extra_html_tags => 'alt = "$alt" title = "$alt"') \}
+$ECENTER
+$PAR
+
+END_TEXT
+BEGIN_PGML
+
+Find the mean and median of the class's score in this quiz. Round to two decimal places when needed.
+
+*Solution:* The mean score of this class was [___________]{$mean}, and the median score was [__________]{$median}.
+
+END_PGML
+
+##############################################
+
+$numStudentsOne = $numStudents[0];
+$numStudentsTwo = $numStudents[1];
+$numStudentsThree = $numStudents[2];
+$numStudentsFour = $numStudents[3];
+
+$output1 = ($meanNotRounded==$mean) ? "=$mean" : "\approx $meanNotRounded \approx $mean";
+
+if ($totalStudents%2==0) {
+   $mid1 = $oneByOne[int($#oneByOne/2)];
+   $mid2 = $oneByOne[int($#oneByOne/2)+1];
+   $output2 = "There are two numbers in the middle: `$mid1` and `$mid2`. The median is the mean of these two numbers: `\frac{$mid1+$mid2}{2}=$median`."
+} else {
+   $mid = $oneByOne[int($#oneByOne/2)];
+   $output2 = "The median is the number in the middle: `$mid`.";
+}
+
+BEGIN_PGML_SOLUTION
+
+By the bar graph, there is a total of [`[$numStudentsOne]+[$numStudentsTwo]+[$numStudentsThree]+[$numStudentsFour]=[$totalStudents] `] students in this class.
+
+####Find the mean  
+
+To find the mean score, we first add up all scores of this class. Since [`[$numStudentsOne]`] students scored [`1`], the total score of these [`[$numStudentsOne]`] students is [`[$numStudentsOne]\cdot 1 = [$numStudentsOne]`].
+
+Altogether, the total sum of all students' scores in this class is:
+
+    [`` [$numStudentsOne] \cdot 1 + [$numStudentsTwo] \cdot 2 + [$numStudentsThree] \cdot 3 + [$numStudentsFour] \cdot 4 = [$totalScore] ``]
+
+Now we can find the mean by dividing the score sum by the number of students:
+
+    [`` \text{mean} = \frac{[$totalScore]}{[$totalStudents]} [$output1] ``]
+
+*Solution:* The mean score of this class was [`[$mean]`].
+
+####Find the median  
+
+To find the median score, we first need to order all scores:
+
+    [`` [$ordered] ``]
+
+[$output2]
+
+*Solution:* The median score of this class was [`[$median]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

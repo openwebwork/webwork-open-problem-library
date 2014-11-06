@@ -1,0 +1,289 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a bar graph with two colors of bars, find the mean of two groups of data.
+#
+# Last edited by Carl Yao on 12/20/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('')
+## KEYWORDS('mean','application','bar graph')
+## DBCCSS('6.SP')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextPercent.pl",
+#  "contextFraction.pl",
+  "parserPopUp.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+sub drawSquare {
+   my ($x,$y,$color) = @_;
+   $xside = ($xmax-$xmin)/40;
+   $yside = ($ymax-$ymin)/40;
+   $picture->moveTo($x,$y);
+   $picture->lineTo($x, $y-$yside, $color, 1);
+   $picture->lineTo($x+$xside, $y-$yside, $color, 1);
+   $picture->lineTo($x+$xside, $y, $color, 1);
+   $picture->lineTo($x, $y, $color, 1);
+   $picture->fillRegion([ $x+$xside/2, $y-$yside/2, $color ]);
+}
+
+sub sortSB {
+   my $ref_array = shift;
+   my $num = @$ref_array;
+   for my $i (0..$num-2) {
+      for my $j ($i+1..$num-1) {
+         if (${$ref_array}[$i]>${$ref_array}[$j]) {
+            (${$ref_array}[$i],${$ref_array}[$j]) = (${$ref_array}[$j],${$ref_array}[$i]);
+         }
+      }
+   }
+}
+
+##############################################
+
+Context("LimitedNumeric");
+
+$numBars = 4;
+$maxLimit = 30;
+
+@terms = ("Fall","Winter","Spring","Summer");
+@numMale = ();
+@numFemale = ();
+
+do {
+
+   $totalMale = 0;
+   $totalFemale = 0;
+
+   for my $i (0..$numBars-1) {
+      $numMale[$i] = int($maxLimit/2)+random(-1,1,2)*random(1,int($maxLimit/3),1);
+      $numFemale[$i] = $maxLimit - $numMale[$i];
+
+      $totalMale = $totalMale+$numMale[$i];
+      $totalFemale = $totalFemale+$numFemale[$i];
+   }
+
+   $meanMale = $totalMale/$numBars;
+   $meanFemale = $totalFemale/$numBars;
+
+   @numMaleSorted = @numMale;
+   sortSB(~~@numMaleSorted);
+   @numFemaleSorted = @numFemale;
+   sortSB(~~@numFemaleSorted);
+
+   $orderedMale = "";
+   $orderedFemale = "";
+   for my $i (0..$numBars-1) {
+      $orderedMale = $orderedMale."`$numMaleSorted[$i]`, ";
+      $orderedFemale = $orderedFemale."`$numFemaleSorted[$i]`, ";
+   }
+   chop($orderedMale);chop($orderedMale);
+   chop($orderedFemale);chop($orderedFemale);
+
+   $medianMale = 
+      ($numMaleSorted[int($numBars/2)-1]+$numMaleSorted[int($numBars/2)])/2;
+   $medianFemale = 
+      ($numFemaleSorted[int($numBars/2)-1]+$numFemaleSorted[int($numBars/2)])/2;
+
+} until ( (($meanMale>$meanFemale) && ($medianMale<$medianFemale)) || (($meanMale<$meanFemale) && ($medianMale>$medianFemale)) );
+
+$popup = PopUp(["?", "mean", "median"], "mean");
+
+$yCover = $maxLimit;
+$ystep = $yCover/6;
+$xstep = 1;
+
+$xmin = -$xstep;         #The viewing window
+$xmax = $numBars+2*$xstep;
+$ymin = -$ystep;
+$ymax = $yCover+$ystep;
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[400,400]);
+$picture->lb('reset');
+
+$picture->moveTo(0,0);
+$picture->lineTo($xmax-$xstep/2, 0, 'black',3);
+$picture->moveTo(0,0);
+$picture->arrowTo(0, $ymax-$ystep/2, 'black',3);
+
+for my $i (0..$yCover/$ystep) {
+   $picture->stamps( closed_circle(0,$i*$ystep,'blue') );
+   $mark = $i*$ystep;
+   $picture->lb( new Label(-$xstep/2,$i*$ystep,"$mark",'black','center','middle'));
+}
+
+$picture->lb( new Label($xmax-$xstep/3,-$ystep/4,"terms",'black','right','middle'));
+$picture->lb( new Label($xstep/4,$ymax-$ystep/3,"number of students",'black','left','middle'));
+
+drawSquare($numBars-1,$ymax-$ystep/3,'red');
+$picture->lb( new Label($numBars-1+$xstep/3,$ymax-$ystep/3,"male students",'red','left','top'));
+drawSquare($numBars-1,$ymax-$ystep*2/3,'green');
+$picture->lb( new Label($numBars-1+$xstep/3,$ymax-$ystep*2/3,"female students",'green','left','top'));
+
+$alt = "This graph has two sets of bar graphs comparing male and female students in a certain class. ";
+for my $i (0..$numBars-1) {
+   $picture->lb( new Label(($i+1)*$xstep,-$ystep/4,
+         $terms[$i],'black','center','middle'));
+
+   $picture->moveTo(($i+1-0.4)*$xstep,0);
+   $picture->lineTo(($i+1-0.4)*$xstep,$numMale[$i],'red',1);
+   $picture->lineTo(($i+1)*$xstep,$numMale[$i],'red',1);
+   $picture->lineTo(($i+1)*$xstep,0,'red',1);
+   $picture->fillRegion([ ($i+1-0.2)*$xstep,$numMale[$i]/2,'red' ]);
+   $picture->lb( new Label(($i+1-0.2)*$xstep,$numMale[$i]+$ystep/4,
+         "$numMale[$i]",'red','center','middle'));
+
+   $picture->moveTo(($i+1+0.4)*$xstep,0);
+   $picture->lineTo(($i+1+0.4)*$xstep,$numFemale[$i],'green',1);
+   $picture->lineTo(($i+1)*$xstep,$numFemale[$i],'green',1);
+   $picture->lineTo(($i+1)*$xstep,0,'green',1);
+   $picture->fillRegion([ ($i+1+0.2)*$xstep,$numFemale[$i]/2,'green' ]);
+   $picture->lb( new Label(($i+1+0.2)*$xstep,$numFemale[$i]+$ystep/4,
+         "$numFemale[$i]",'green','center','middle'));
+
+   $alt = $alt."In $terms[$i] Term, this class had $numMale[$i] male students and $numFemale[$i] female students. ";
+}
+chop($alt);
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+
+BEGIN_TEXT
+
+This bar graph compares male and female student enrollment in a certain class at a community college in a certain school year. $PAR
+
+$BCENTER
+\{ image(insertGraph( $picture  ), tex_size=>400, height=>400, width=>400, extra_html_tags => 'alt = "$alt" title = "$alt"') \}
+$ECENTER
+$PAR
+
+END_TEXT
+BEGIN_PGML
+
+Answer the following questions.
+
+*Question 1:* In these [`4`] terms, the mean number of male students in this class was [__________]{$meanMale}.
+
+*Question 2:* In these [`4`] terms, the mean number of female students in this class was [__________]{$meanFemale}.
+
+*Question 3:* In these [`4`] terms, the median of male students in this class was [__________]{$medianMale}.
+
+*Question 4:* In these [`4`] terms, the median of female students in this class was [__________]{$medianFemale}.
+
+*Question 5:* If you want to know, in all [`4`] terms, there are more male or female students, should you compare the mean or median?
+
+    [@$popup->menu()@]*
+
+END_PGML
+
+##############################################
+
+ANS( $popup->cmp() );
+
+$midM1 = $numMaleSorted[$numBars/2-1];
+$midM2 = $numMaleSorted[$numBars/2];
+$outputM = "There are two numbers in the middle: `$midM1` and `$midM2`. The median is the mean of these two numbers: `\frac{$midM1+$midM2}{2}=$medianMale`.";
+
+$midF1 = $numFemaleSorted[$numBars/2-1];
+$midF2 = $numFemaleSorted[$numBars/2];
+$outputF = "There are two numbers in the middle: `$midF1` and `$midF2`. The median is the mean of these two numbers: `\frac{$midF1+$midF2}{2}=$medianFemale`.";
+
+if ($meanMale>$meanFemale) {
+   $output1 = "The mean of male students is bigger than that of female students, so more male students attended this class in all four terms. Notice that the median of female students is actually bigger than that of male students.";
+} else {
+      $output1 = "The mean of female students is bigger than that of male students, so more female students attended this class in all four terms. Notice that the median of male students is actually bigger than that of female students.";
+}
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+####Question 1
+
+To find the mean number of male students in this class, we first add up the number of male students in all [`4`] terms:
+
+    [`` [@$numMale[0]@] + [@$numMale[1]@] + [@$numMale[2]@] + [@$numMale[3]@] = [$totalMale] ``]
+
+Now we can find the mean by dividing the sum by the number of terms ([`4`]):
+
+    [`` \text{mean} = \frac{[$totalMale]}{4} = [$meanMale] ``]
+
+*Solution:* In these [`4`] terms, the mean number of male students in this class was [`[$meanMale]`].
+
+----
+
+####Question 2
+
+To find the mean number of female students in this class, we first add up the number of female students in all [`4`] terms:
+
+    [`` [@$numFemale[0]@] + [@$numFemale[1]@] + [@$numFemale[2]@] + [@$numFemale[3]@] = [$totalFemale] ``]
+
+Now we can find the mean by dividing the sum by the number of terms ([`4`]):
+
+    [`` \text{mean} = \frac{[$totalFemale]}{4} = [$meanFemale] ``]
+
+*Solution:* In these [`4`] terms, the mean number of female students in this class was [`[$meanFemale]`].
+
+----
+
+####Question 3  
+
+To find the median number of male students, we first need to order the number of male students in all [`4`] terms:
+
+    [$orderedMale]
+
+[$outputM]
+
+*Solution:* In these [`4`] terms, the median of male students in this class was [`[$medianMale]`].
+
+----
+
+####Question 4  
+
+To find the median number of female students, we first need to order the number of female students in all [`4`] terms:
+
+    [$orderedFemale]
+
+[$outputF]
+
+*Solution:* In these [`4`] terms, the median of female students in this class was [`[$medianFemale]`].
+
+----
+
+####Question 5  
+
+To compare the total number of male and female students in all [`4`] terms, we should compare the mean. The median is not accurate because some numbers were not considered; as a comparison, each number is used when the mean is calculated.
+
+[$output1]
+
+Don't think that the median is not useful. When there are outliers (very big or small numbers compared to most numbers in the group), the median is better than mean. That's why in newspapers, you will more than likely see "the median house price" than "the mean house price," etc.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

@@ -1,0 +1,207 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Line k's equation is given in y=Mx+B form. M is an integer.
+# Line ell is perpendicular to k, and a point on line ell is given.
+# Find line ell's equation.
+#
+# Last edited: Yao 9/12/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Linear Equations')
+## KEYWORDS('slope','linear','equation','point-slope','slope-intercept','fraction','perpendicular')
+## DBCCSS('8.F.3','A-CED')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserImplicitPlane.pl",
+  "parserAssignment.pl",
+  "PGcourse.pl",
+  "contextFraction.pl",
+);
+
+##############################################
+
+Context("Fraction");
+Context()->variables->are(x=>'Real', y=>'Real');
+Context()->noreduce('(-x)-y','(-x)+y','(-x)*y','x*(-y)','-n');
+
+$mm = random(2,6,1)*random(-1,1,2);
+$bm = non_zero_random(-5,5,1);
+
+$numN = 1;
+$denN = abs($mm);
+$mn = -Fraction($numN,$mm);
+do {$bn=non_zero_random(-5,5,1);} until ($bn!=$bm);
+
+$x1=$denN*non_zero_random(-3,3,1);
+$y1=$mn*$x1+$bn;
+
+$lineM = Compute("$mm*x+$bm")->reduce;
+$lineNSI = Compute("$mn*x+$bn")->reduce;
+$lineNPSLeft = Compute("y-$y1")->reduce;
+$lineNPSRight = Compute("$mn*(x-$x1)")->reduce;
+
+
+Context("ImplicitPlane");
+Context()->flags->set(showExtraParens=>0);
+Context()->variables->are(x=>'Real', y=>'Real');
+Context()->flags->set(showExtraParens=>0);
+
+Context()->texStrings;
+$absX1 = abs($x1);
+$absY1 = abs($y1);
+if (($x1>0) && ($y1>0)) {
+   $ansPSstringTeX = "y-$y1=$mn(x-$x1)"; 
+} elsif (($x1<0) && ($y1>0)) {
+   $ansPSstringTeX = "y-$y1=$mn(x+$absX1)"; 
+} elsif (($x1>0) && ($y1<0)) {
+   $ansPSstringTeX = "y+$absY1=$mn(x-$x1)"; 
+} else {
+   $ansPSstringTeX = "y+$absY1=$mn(x+$absX1)"; 
+}
+$ansSIstringTeX = "y=$mn x+$bn";
+Context()->normalStrings;
+$ansPSstring = "$lineNPSLeft=$lineNPSRight"; 
+
+$ansPS = ImplicitPlane($ansPSstring);
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y','(-x)*y','x*(-y)','-n');
+Context()->variables->are(x=>'Real', y=>'Real');
+Context()->flags->set(reduceConstants=>0);
+parser::Assignment->Allow;
+$ansSI=Compute("y=x+$bn")->reduce;
+$ansSI=$ansSI->substitute(x=>Formula("$mn x"));
+
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Line [`k`] has the equation [`y=[$lineM]`].
+
+Line [`\ell`] is perpendicular to line [`k`] and passes through the point [`([$x1],[$y1])`]. 
+
+Find an equation for [`\ell`] in both slope-intercept form and point-slope forms.
+
+    An equation for [`\ell`] in slope-intercept form is: [_______________]{$ansSI->cmp(correct_ans_latex_string => $ansSIstringTeX)}.
+
+    An equation for [`\ell`] in point-slope form is: [_______________].
+
+END_PGML
+
+##############################################
+
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(reduceConstantFormulas=>0);
+
+ANS($ansPS->cmp(correct_ans_latex_string => $ansPSstringTeX
+   ) -> withPostFilter(sub {
+      my $ansHash = shift;
+        my $student = $ansHash->{original_student_ans};
+        my @sides = split('=',"$student");
+
+      #if it's an implicit plane object, reset how student's answer is displayed:
+      if ($ansHash->{student_formula}->cmp_class eq "an Implicit line") {
+        $ansHash->{preview_text_string} = "$sides[0]=$sides[1]";
+        my $leftTex = Formula("$sides[0]")->TeX;
+        my $rightTex = Formula("$sides[1]")->TeX;
+        $ansHash->{preview_latex_string} = "$leftTex=$rightTex";
+        $ansHash->{student_ans} = $ansHash->{original_student_ans};
+      }
+
+      #if they have the line correct, then check each side to see if the sides are correct
+      if ($ansHash->{score}) {
+         if (Formula("y-$y1") != Formula("$sides[0]") and Formula("y-$y1") != Formula("$sides[1]")) {
+         $ansHash->{score} = 0;                 
+         $ansHash->{ans_message} = "This is an equation for the line, but it is not the point-slope equation that uses the given point"; 
+         }  
+      }
+      return $ansHash;
+    }));
+
+
+$s1 = -$mn*$x1;
+$absS1 = abs($s1);
+$s1Output = $s1>0 ? "+$s1" : "-$absS1";
+
+$absY1 = abs($y1);
+$y1Output = $y1>0 ? "+$absY1" : "-$absY1";
+
+BEGIN_PGML_SOLUTION
+
+When two lines are perpendicular, the product of their slopes is [`-1`]. It's given that line [`k`]'s slope is [`[$mm]`]. Assume line [`\ell`]'s slope is [`s`], and we have:
+
+    [``
+\begin{aligned}
+   [$mm]\cdot s &= -1 \\
+   \frac{[$mm]\cdot s}{[$mm]} &= \frac{-1}{[$mm]} \\
+   s &= [$mn]
+\end{aligned}
+    ``]
+
+We found that line [`\ell`]'s slope is [`[$mn]`]. 
+
+An easier method to find line [`\ell`]'s slope is to find the negative reciprocal of line [`k`]'s slope:
+
+1. Rewrite line [`k`]'s slope [`[$mm]`] as a fraction: [` \frac{[$mm]}{1} `]
+2. Flip the fraction: [` \frac{1}{[$mm]} `]
+3. Change the sign of the fraction: [` [$mn] `]
+
+Now we know line [`\ell`]'s slope, [`[$mn]`], and a point on it, [` ([$x1],[$y1]) `]. We substitute these numbers into the generic formula for a point-slope form equation of a line:
+
+    [``y-y_{1}=m(x-x_{1})``] 
+
+and we have:
+
+    [`
+\begin{aligned}
+   y-y_{1} &= m(x-x_{1}) \\
+   y-([$y1]) &= [$mn][x-([$x1])] \\
+   [$lineNPSLeft] &= [$lineNPSRight]
+\end{aligned}
+`]
+
+So the line has an equation in point-slope form: [`[$ansPSstringTeX] `].
+
+----
+
+The slope-intercept form of a line equation looks like [`y=mx+b`], where [`m`] is the slope and [`b`] is the [`y`]-intercept. We can take the point-slope form and solve for [`y`].
+
+    [``
+\begin{aligned}
+   [$lineNPSLeft] &= [$lineNPSRight]\\
+   [$lineNPSLeft] &= [$mn]x+\left([$mn]\right)([$x1*-1]) \\
+   [$lineNPSLeft] &= [$mn]x[$s1Output]\\
+   [$lineNPSLeft] \mathbf{{}[$y1Output]} &= [$mn]x[$s1Output]\mathbf{{}[$y1Output]}\\
+   y &= [$lineNSI] \\
+\end{aligned}
+    ``]
+
+So the line's equation in slope-intercept form is [`y=[$ansSIstringTeX]`].
+
+
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
