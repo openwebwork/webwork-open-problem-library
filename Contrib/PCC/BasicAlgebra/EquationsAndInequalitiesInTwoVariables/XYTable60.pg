@@ -1,0 +1,188 @@
+# WeBWorK problem written by Alex Jordan
+# Portland Community College
+#
+# Build a table of ordered pairs for a function y=mx+b, m a possibly negative fraction with a possibly large denominator.
+# 
+# Last updated: Jordan, 8/7/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Coordinate Geometry')
+## KEYWORDS('coordinates','linear equation')
+## DBCCSS('8.F.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "pccTables.pl",
+  "parserMultiAnswer.pl",
+  "contextFraction.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+Context("Fraction");
+Context()->variables->add(y=>'Real');
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->flags->set(showExtraParens=>0, reduceConstants=>0);
+
+$b = non_zero_random(-10,10,1);
+
+do {$m = Fraction(non_zero_random(-20,20,1),random(2,20,1))} until ($m->value)[1] != 1;
+
+$c = non_zero_random(-20,20);
+$left = Compute("y");
+$right = Compute("$m x+$b");
+
+@defaultAnswers = ();
+for my $i (0..4) {
+  $x[$i] = ($i-1)*($m->value)[1];
+  $y[$i] = $m*$x[$i]+$b;
+  push(@defaultAnswers,$x[$i]);
+  push(@defaultAnswers,$y[$i]);
+}
+
+$multians = MultiAnswer(@defaultAnswers)->with(
+  singleResult => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my @sxy = @{$student};
+      my @xs, @ys;
+     for my $k (0..4) 
+       {$xs[$k] = $sxy[2*$k];
+        $ys[$k] = $sxy[2*$k+1];}
+     #
+     #  Loop though the student answers
+     ##
+     for ($i = 0; $i <= 4; $i++) {
+       my $ith = Value::List->NameForNumber($i+1);
+       #
+       #  Check that the student's answers are Reals
+       #
+       Value->Error("Your $ith x-value is not a number") if ($xs[$i]->type ne "Number");
+       Value->Error("Your $ith y-value is not a number") if ($ys[$i]->type ne "Number");
+       #
+       #  Check that the point hasn't been given before
+       #
+       for ($j = 0, $used = 0; $j < $i; $j++) {
+         my $jth = Value::List->NameForNumber($j+1);
+         if ($xs[$j] == $xs[$i] and $ys[$j] == $ys[$i]) {
+           Value->Error("Your $ith row in the table is the same as your $jth row") unless $ansHash->{isPreview};
+           $used = 1; last;
+         }
+       }
+       #
+       #  If not already used, check that it satisfies the equation
+       #    and increase the score if so.
+       #
+       if (!$used) {
+         Value->Error("Your $ith row is not correct") unless $ansHash->{isPreview} or $left->eval(x=>$xs[$i],y=>$ys[$i]) == $right->eval(x=>$xs[$i],y=>$ys[$i]);
+         }
+       }
+     return 1;
+});
+
+
+
+##############################################
+
+BEGIN_PGML
+
+Make a table of solutions for the equation [`[$left]=[$right]`].
+
+END_PGML
+Context()->texStrings;
+BEGIN_TEXT
+
+\{ 
+DataTable([[{data=>"\(x\)",header=>"CH"},{data=>"\(y\)",header=>"CH"},],
+[$multians->ans_rule(8), $multians->ans_rule(8)],
+[$multians->ans_rule(8), $multians->ans_rule(8)],
+[$multians->ans_rule(8), $multians->ans_rule(8)],
+[$multians->ans_rule(8), $multians->ans_rule(8)],
+[$multians->ans_rule(8), $multians->ans_rule(8)],
+], allcellcss=>"border:1px solid;padding:4pt;text-align:center;", caption => "Values of \(x\) and \(y\) satisfying the equation \($left=$right\)", captioncss =>"padding:4pt; text-decoration:none;");
+\}  
+
+
+$PAR
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################
+
+ANS( $multians->cmp() ); 
+
+##############################################
+
+sub format_list {
+   return "" if !@_;
+   my $last = pop(@_);
+   return '\('.$last.'\)' if !@_;
+   return '\('.join('\), \(', @_) .'\) and \('. $last.'\)';
+}
+
+$xvals = format_list(@x);
+
+for my $i (0..4) {
+$ls[$i] = $left->substitute(x=>$x[$i]);
+$rs[$i] = $rs[$i] = $m->TeX."\left( $x[$i] \right) + $b";
+}
+
+$den = ($m->value)[1];
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+Since this equation has a fractional coefficient for \(x\) with denominator \($den\), it would be wise to choose our own \(x\)-values that are multiples of \($den\). Then when we use them to solve for \(y\), the denominator will be cleared, and we will not need to continue with fraction arithmetic. $PAR
+
+This solution will use the \(x\)-values $xvals. The choice to use these \(x\)-values is arbitrary, but they are small multiples of \($den\), which will make computation easier.
+
+One at a time, we substitute these \(x\)-values into the equation \($left=$right\), and solve for \(y\):
+
+\[\begin{aligned}
+$ls[0] = $rs[0] &\implies y=$y[0]\\
+$ls[1] = $rs[1] &\implies y=$y[1]\\
+$ls[2] = $rs[2] &\implies y=$y[2]\\
+$ls[3] = $rs[3] &\implies y=$y[3]\\
+$ls[4] = $rs[4] &\implies y=$y[4]\\
+\end{aligned}
+\]
+
+So the table may be completed as:
+
+\{ 
+DataTable([[{data=>"\(x\)",header=>"CH"},{data=>"\(y\)",header=>"CH"},],
+ ["\($x[0]\)","\($y[0]\)"],
+["\($x[1]\)","\($y[1]\)"],
+["\($x[2]\)","\($y[2]\)"],
+["\($x[3]\)","\($y[3]\)"],
+["\($x[4]\)","\($y[4]\)"],
+], allcellcss=>"border:1px solid;padding:4pt;text-align:center; width:60pt;", caption => "Values of \(x\) and \(y\) satisfying the equation \( $left=$right \)", captioncss =>"padding:4pt; text-decoration:none;");
+\}  
+
+
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
+
+

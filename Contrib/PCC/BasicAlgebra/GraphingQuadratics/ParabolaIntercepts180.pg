@@ -1,0 +1,182 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Find x-intercept(s) of y=ax^2+bx+c.
+# Quadratic formula must be used. There are no x-intercepts.
+#
+# Last edit by: Hughes 9/3/13, Carl Yao 08/21/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('quadratic','function','parabola','intercept')
+## DBCCSS('F.IF.7.a','F.IF.8.a')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserRadioButtons.pl",
+  "contextFraction.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+# Input is a number. If the square root of this number can be simplified, 
+# return 1. Otherwise, return 0.
+sub canSimplify {
+   $n = shift;
+   $p = 2;
+   while ($p**2<=$n) {
+      if ($n%($p**2)==0) {return 1;}
+      $p++;
+   }
+   return 0;
+}
+
+##############################################
+
+TEXT(beginproblem());
+Context("Numeric");
+Context()->variables->add(y => "Real");
+Context()->flags->set(
+                        reduceConstants=>0, 
+                        reduceConstantFunctions=>0, 
+                        formatStudentAnswer=>parsed,
+                      showExtraParens=>0,
+                      );
+Context()->noreduce("(-x)-y","(-x)+y");
+
+$a = non_zero_random(-10,10,1);
+do {$c = non_zero_random(-10,10,1);} until ($a*$c>0);
+
+do {$b = random(-10,10,1);} until (($b**2-4*$a*$c<0) && !(&canSimplify(4*$a*$c-$b**2)));
+
+$left = Compute("y");
+$right = Compute("$a*x**2+$b*x+$c")->reduce;
+
+$ansY = Point(0,$c);
+
+$b1 = -$b;
+$discriminant = -($b**2-4*$a*$c);
+$a1 = 2*$a;
+if ($a1<0) {
+   $a1=-$a1;
+   $neg = "-";
+   $a2 = 2*$a1;
+} else {
+   $neg = "";
+   $a2 = 2*$a1;
+}
+
+#Create a hash and its inverse that randomizes the order of the four choices.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+
+#Create 4 choices
+@choices=();
+
+$choices[$scramble{1}] = "\left($neg \frac{$b+\sqrt{$discriminant}}{$a1},0\right) \text{ and } \left($neg \frac{$b-\sqrt{$discriminant}}{$a1},0\right)";
+
+$choices[$scramble{2}] = "\left($neg \frac{$b1+\sqrt{$discriminant}}{$a1},0\right) \text{ and } \left($neg \frac{$b1-\sqrt{$discriminant}}{$a1},0\right)";
+
+$choices[$scramble{3}] = "\left($neg \frac{$b1+\sqrt{$discriminant}}{$a2},0\right) \text{ and } \left($neg \frac{$b1-\sqrt{$discriminant}}{$a2},0\right)";
+
+$choices[$scramble{0}] = "\text{This parabola doesn't have any } x \text{-intercept.}";
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$scramble{0}], # correct answer
+  order => ["A","B","C","D"],separator=>$BR.$SPACE.$SPACE.$SPACE
+);
+
+
+
+##############################################
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Find any \( x \)-intercept(s) for the quadratic equation \( $left=$right \). 
+$PAR
+$SPACE$SPACE$SPACE A: \( $choices[0] \)
+$PAR
+$SPACE$SPACE$SPACE B: \( $choices[1] \)
+$PAR
+$SPACE$SPACE$SPACE C: \( $choices[2] \)
+$PAR
+$SPACE$SPACE$SPACE D: \( $choices[3] \)
+$PAR
+$SPACE$SPACE$SPACE\{ $radio->buttons() \}
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################
+
+ANS( $radio->cmp() );
+
+$s1 = -$b;
+$dis = $b**2-4*$a*$c;
+$s2 = 2*$a;
+if ($s2>0) {
+   $output1 = "x &= \frac{$s1 \pm \sqrt{$dis}}{$s2}";
+} else {
+   $s3 = -$s2;
+   $output1 = "x &= -\frac{$s1 \pm \sqrt{$dis}}{$s3}";
+}
+
+$ans=$choices[$scramble{0}];
+
+
+BEGIN_PGML_SOLUTION
+
+To find a parabola's [`x`]-intercept, we substitute [`y=0`] into [`[$left]=[$right]`], and then solve for [`x`]:
+
+    [``
+\begin{aligned}[t]
+   y &= [$right] \\
+   0 &= [$right] \\
+\end{aligned}
+    ``]
+
+The polynomial cannot be factored, so we use the Quadratic Formula to solve this equation. 
+
+Identify that [`a=[$a],b=[$b],c=[$c]`]. We have:
+
+    [``
+\begin{aligned}[t]
+   x &= \frac{-b \pm \sqrt{b^{2}-4ac}}{2a} \\
+   x &= \frac{-([$b]) \pm \sqrt{([$b])^{2}-4([$a])([$c])}}{2([$a])} \\
+   [$output1]
+\end{aligned}
+    ``]
+
+Since we cannot square root a negative number, this parabola has no [`x`]-intercept.
+
+[@ $radio->correct_ans() @]** is the correct answer.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

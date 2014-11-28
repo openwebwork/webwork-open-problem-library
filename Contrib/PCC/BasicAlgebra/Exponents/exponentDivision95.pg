@@ -1,0 +1,141 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Simplify the following expression
+#     x^m y^k
+#     -------
+#     x^n y^p
+#
+# We use an INTEGER value for x and y on the interval [2,20], and
+#
+# This problem chooes m, n, k, p to be POSITIVE, with m>n and k>p
+#
+# Last edited: Hughes 9/6/13, Jordan 7/17/13; Carl Yao 6/28/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('exponent','simplify','fraction','divide')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "answerHints.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedPolynomial-Strict");
+
+
+# m and n are the exponents
+$mybase1=random(9,20,1);
+$m=random(5,20,1);
+$n=random(2,$m-2,1);
+
+$mybase2 = $mybase1;
+$mybase2=random(9,20,1) while($mybase2==$mybase1);
+$p=random(5,20,1);
+$k=random(2,$p-2,1);
+
+# myvar1, myvar2 are just place holders for this problem
+$var1 = "x";
+$var2 = "y";
+Context()->variables->are($var1=>'Real',$var2=>'Real');
+
+# custom error message
+Context()->{error}{msg}{"A variable can appear only once in each term of a polynomial"}
+  = "Your answer must be fully simplified";
+
+# quick reduction check (if $m, $n, $p or $k are 1)
+$myvar1 = Formula("$var1^$m")->reduce->substitute(x=>$mybase1);
+$myvar2 = Formula("$var1^$n")->reduce->substitute(x=>$mybase1);
+$myvar3 = Formula("$var2^$p")->reduce->substitute(x=>$mybase2);
+$myvar4 = Formula("$var2^$k")->reduce->substitute(x=>$mybase2);
+
+$total1 = $m-$n;
+$total2 = $p-$k;
+$ans = Formula("$var1^($total1)*$var2^($total2)")->reduce;
+
+Context("Numeric");                                   # since these problems have *numeric* bases
+Context()->flags->set(formatStudentAnswer=>'parsed'); # this line stops 9^3 being computed, and leaves it as 9^3
+Context()->operators->undefine('/','+','-');      # forbid operators in the answer
+Context()->flags->set(reduceConstants=>0);
+
+Context()->operators->set(
+     '^'  => {class => 'bizarro::BOP::power', isCommand=>1, perl=>undef},
+     '**' => {class => 'bizarro::BOP::power', isCommand=>1, perl=>undef},
+  );
+
+# need to do the substitution in NUMERIC context
+$myvar1 = $myvar1->substitute(x=>$mybase1);
+$myvar2 = $myvar2->substitute(x=>$mybase1);
+$myvar3 = $myvar3->substitute(y=>$mybase2);
+$myvar4 = $myvar4->substitute(y=>$mybase2);
+
+
+$ans = $ans->substitute(x=>$mybase1,y=>$mybase2);
+$ans = Formula("$ans");
+
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+Use the properties of exponents to simplify the following
+   
+    [`\displaystyle\frac{[$myvar1]\cdot[$myvar3]}{[$myvar2]\cdot[$myvar4]}=`] [__________________________________]
+
+END_PGML
+
+$wrong=$m*$n;
+ANS($ans -> cmp(
+  checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroPow=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      Value->Error("Your answer is correct, but please simplify it according to rules of exponents; for example, use 2^2 not 4") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroPow=>0);
+      return 1;
+}
+) ->
+  withPostFilter(AnswerHints(
+    [Compute("$mybase1^($wrong)")] =>
+    "When dividing terms with the same base, you do not multiply the exponents.")));
+
+
+BEGIN_PGML_SOLUTION
+We _subtract_ the exponents on each base as follows
+
+    [`\begin{aligned}
+           \displaystyle\frac{[$myvar1]\cdot[$myvar3]}{[$myvar2]\cdot[$myvar4]}&=[$mybase1]^{[$m]-[$n]}\cdot[$mybase2]^{[$p]-[$k]}\\
+                             &=[$ans]
+       \end{aligned}`]
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

@@ -1,0 +1,214 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a line's equation, graph the line by finding two points on it.
+# The line's equation looks like x+b=0.
+#
+# Last edited: Hughes 8/25/13, Jordan 8/18/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Lines')
+## KEYWORDS('coordinate','line','linear','equation','graph','fraction')
+## DBCCSS('8.EE.6','8.F.3','F-IF.7.a')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserRadioButtons.pl",
+  "pccTables.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+Context("Numeric");
+$refreshCachedImages=1;
+
+$m = 0;
+$b=non_zero_random(-5,5,1);
+@ar_mb = ([$m,$b],[$m+1,$b],[$m,-$b],[$m-1,$b],[$m,$b]);
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+
+$scramble{4} = 4;
+$inverse{4} = 4;
+
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([-5,5],[$b,$m*2+$b],centerOrigin=>1);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+# points that the line passes through
+$x1 = 0;
+$y1 = $m*$x1+$b;
+$x2 = 2;
+$y2 = $m*$x2+$b;
+
+
+for my $i (0..4) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (Real($j) == 0) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+   $gr[$i]->lb( new Label($min[0]+$marksep[0]/8, $max[1]-$marksep[1]/8, $ALPHABET[$inverse{$i}], 'black', 'left', 'top')) unless ($i==4);
+   if($i==0 or $i==4)
+   {
+      $gr[$i]->moveTo($b,$min[1]);
+      $gr[$i]->lineTo($b,$max[1],'blue',1);
+      push(@ypoints, $max[1]);
+      push(@ALTtags,"Graph $ALPHABET[$inverse{$i}]: graph of a line that goes through ($b,$min[0]) and ($b,$min[1])");
+   }
+   else
+   {
+       add_functions($gr[$i], "$ar_mb[$i][0]*x+$ar_mb[$i][1] for x in <$min[0],$max[0]> using color:blue and weight:1");
+       # calculate the ypoints (used in alt tags) 
+       push(@ypoints, $ar_mb[$i][0]*$x2+$ar_mb[$i][1]);
+       $ypoint1 = $ar_mb[$i][0]*$x1+$ar_mb[$i][1];
+       $ypoint2 = $ar_mb[$i][0]*$x2+$ar_mb[$i][1];
+       push(@ALTtags,"Graph $ALPHABET[$inverse{$i}]: graph of a line that goes through ($x1,$ypoint1) and ($x2,$ypoint2)");
+
+   }
+}
+
+
+
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$inverse{0}], # correct answer
+  order => ["A","B","C","D"],
+);
+
+
+##############################################
+
+BEGIN_PGML
+
+Choose the graph of the equation [` x+[$b*-1]=0`] in the coordinate system. You may like to complete the following table 
+to help you to find two points on the line; choose _any_ two values of [`x`] and find the corresponding values of [`y`].
+
+END_PGML
+
+BEGIN_TEXT
+$PAR
+$BCENTER
+\{ 
+DataTable([[{data=>"\(x\)-value",header=>"CH"},{data=>"\(y\)-value",header=>"CH"},{data=>"Ordered pairs",header=>"CH"},],
+["$SPACE","$SPACE","$SPACE"],
+["$SPACE","$SPACE","$SPACE"],
+], allcellcss=>"border:1px solid;padding:4pt;text-align:center;", caption =>" Values of \(x\) and \(y\) satisfying the equation \( x-$b=0 \) ", captioncss =>"padding:4pt; text-decoration:none;");
+\}
+
+$ECENTER
+$PAR
+END_TEXT
+
+BEGIN_PGML
+    The correct graph is graph    
+    [@$radio->buttons()@]*
+
+[@EnlargeImageStatementPGML@]**
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+\{ 
+LayoutTable([[image( insertGraph($gr[$scramble{0}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{0}]" title = "$ALTtags[$scramble{0}]"'  ),
+image( insertGraph($gr[$scramble{1}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{1}]" title = "$ALTtags[$scramble{1}]"'  ),
+],
+[image( insertGraph($gr[$scramble{2}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{2}]" title = "$ALTtags[$scramble{2}]"'  ),
+image( insertGraph($gr[$scramble{3}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{3}]" title = "$ALTtags[$scramble{3}]"'  )
+]], allcellcss => "padding:20pt;")
+
+\}
+$ECENTER
+$PAR
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################
+
+ANS( $radio->cmp() );
+
+
+Context("Point");
+Context()->parens->set("[" => {type => "Interval", close => "]"});
+Context()->parens->set("{" => {type => "Set", close => "}"});
+Context()->parens->set("<" => {type => "Vector", close => ">"});
+$pt1=Compute("($b,$min[1]/2)");
+$pt2=Compute("($b,$max[1]/2)");
+
+
+if ($m > 0) 
+{$p1vert = 'bottom';
+ $p2vert = 'bottom';
+ $p1hor = 'right';
+ $p2hor = 'right';}
+else {$p1vert = 'top';
+      $p2vert = 'bottom';
+      $p1hor = 'right';
+      $p2hor = 'left';};
+
+$gr[4]->stamps( closed_circle($b,$min[1]/2,'red') );
+$gr[4]->lb( new Label($b,$min[1]/2,"$pt1",'red',$p1hor,$p1vert));
+$gr[4]->stamps( closed_circle($b,$max[1]/2,'red') );
+$gr[4]->lb( new Label($b,$max[1]/2,"$pt2",'red',$p2hor,$p2vert));
+
+Context()->texStrings;
+
+BEGIN_SOLUTION
+
+We need two points to graph a line. The equation that we are given in this problem 
+specifies that \(x=$b\) for every value of \(y\). 
+$PAR
+This means that we must locate the line that is vertical- we can see the correct answer is \{ $radio->correct_ans() \}.
+$PAR
+$BCENTER
+\{ image( insertGraph($gr[4]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "graph of a line that goes through ($b,$min[1]/2) and ($b,$max[1]/2)" title = "graph of a line that goes through ($b,$min[1]/2) and ($b,$max[1]/2)"'  ) \}
+$ECENTER
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
+
+
+

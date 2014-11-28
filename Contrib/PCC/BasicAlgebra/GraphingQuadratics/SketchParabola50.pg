@@ -1,0 +1,346 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# First find axis and vertex of y= ax^2+bx+c, a=1 or -1,
+# where b,c are non-zero real numbers.
+# Then, find intercepts of the parabola.
+# Finally, identify the graph of this parabola.
+# This polynomial can NOT be factored. Decimals are used.
+#
+# Last edit by: Hughes 9/3/13, Carl Yao 08/23/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('quadratic','function','parabola','intercept','graph')
+## DBCCSS('F.IF.7.a')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "pccTables.pl",
+  "parserRadioButtons.pl",
+  "PCCgraphMacros.pl",
+  "parserImplicitPlane.pl",
+  "parserPopUp.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+Context("Numeric");
+Context()->variables->add(y=>'Real');
+Context()->flags->set(showExtraParens=>0, reduceConstants=>0);
+Context()->noreduce("(-x)-y","(-x)+y");
+
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+#Store values for 5 graphs. 
+#a[0], b[0], c[0] are used in the correct graph.
+#a[4], b[4], c[4] are used in the solution. 
+@a=();@b=();@c=();
+
+$a[0] = random(-1,1,2);
+$b[0] = non_zero_random(-4,4,1);
+do {
+   $c[0] = non_zero_random(-8,8,1);
+   $discriminant = ($b[0])**2-4*$a[0]*$c[0];
+} until ( ($discriminant>0) && (int(sqrt($discriminant))!=sqrt($discriminant)));
+
+$x1 = (-$b[0]+sqrt($discriminant))/(2*$a[0]);
+$x2 = (-$b[0]-sqrt($discriminant))/(2*$a[0]);
+
+$x1Show = sprintf "%.2f", $x1;
+$x2Show = sprintf "%.2f", $x2;
+
+$a[1]= $a[0];
+$b[1]= -$b[0];
+$c[1]= $c[0];
+
+$a[2]= $a[0];
+$b[2]= -$a[0]*($x1+($x2+random(1,3,1)));
+$c[2]= $a[0]*$x1*($x2+random(1,3,1));
+
+$a[3]= $a[0];
+$b[3]= -$a[0]*(($x1+random(-3,-1,1))+$x2);
+$c[3]= $a[0]*($x1+random(-3,-1,1))*$x2;
+
+$a[4]= $a[0];
+$b[4]= $b[0];
+$c[4]= $c[0];
+
+$UpOrDown = $a[0]>0 ? "up" : "down";
+$popup = PopUp(['?', 'up', 
+                     'down',
+                     ], $UpOrDown);
+
+$left = Compute("y");
+$right = Compute("$a[0]*x**2+$b[0]*x+$c[0]")->reduce;
+
+#for alternative display and title purposes
+@rightFunc = ();
+@vertex=();
+@yIntercept=();
+@extraPoint = ();
+@extraPointX = ();
+@extraPointY = ();
+for my $i (0..4) {
+   $rightFunc[$i] = Compute("$a[$i]*x**2+$b[$i]*x+$c[$i]")->reduce;
+   my $xVertex = -$b[$i]/(2*$a[$i]);
+   my $yVertex = $rightFunc[$i]->eval(x=>$xVertex);
+   $vertex[$i]=Point($xVertex,$yVertex);
+   $yIntercept[$i]=Point(0,$c[$i]);
+
+   @temp = $vertex[$i]->value;
+   $extraPointX[$i] = $temp[0]+1;
+   $extraPointY[$i] = $rightFunc[$i]->eval(x=>$extraPointX[$i]);
+   $extraPoint[$i] = Compute("($extraPointX[$i],$extraPointY[$i])");
+}
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+$scramble{4} = 4;
+$inverse{4} = 4;
+
+$xmin = -20;
+$xmax = -$xmin;
+$ymin = -20;
+$ymax = 20;
+
+#These two variables decide how many labels are on each axis.
+$xmark = 4;
+$ymark = 4;
+
+@gr=();
+
+#$gr[0] through $gr[3] are options.
+for ($i=0;$i<=4;$i++) {
+   $gr[$i] = init_graph($xmin,$ymin,$xmax,$ymax,
+   axes=>[0,0],
+   grid=>[($xmax-$xmin)/$xmark,($ymax-$ymin)/$ymark],
+   size=>[xPixels(),yPixels()]
+   );
+   $gr[$i]->lb('reset');
+
+      for ($j=-$xmax+$xmark;$j<$xmax;$j=$j+$xmark) {
+         $gr[$i]->lb( new Label($j,  -0.1, $j,'black','center','top'));
+      }
+
+      for ($j=$ymin+$ymark;$j<$ymax;$j=$j+$ymark) {
+         if (Real($j) == 0) {next;}
+         $gr[$i]->lb( new Label(0,  $j,' '.$j,'black','left','middle'));
+      }
+
+   $gr[$i]->lb( new Label($xmin, $ymax, ' '.$ALPHABET[$inverse{$i}], 'black', 'left', 'top')) unless ($i==4);
+
+   add_functions($gr[$i], "$rightFunc[$i] for x in <$xmin,$xmax> using color:red and weight:1");
+
+   if($i==4)
+   {
+      push(@alt,"Graph $ALPHABET[$inverse{0}]: This picture shows the graph of a parabola. Its vertex is at $vertex[$i], and it passes through the point $extraPoint[$i]. Its y-intercept is $yIntercept[$i].");
+   }
+   else
+   {
+push(@alt,"Graph $ALPHABET[$inverse{$i}]: This picture shows a parabola's graph. This parabola's vertex is $vertex[$i], and passes the point $extraPoint[$i]. Its y-intercept is $yIntercept[$i].");
+   }
+}
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$inverse{0}], # correct answer
+  order => ["A","B","C","D"],
+);
+
+Context("Point");
+Context()->parens->set("[" => {type => "Interval", close => "]"});
+Context()->parens->set("{" => {type => "Set", close => "}"});
+Context()->parens->set("<" => {type => "Vector", close => ">"});
+$xVertex = -$b[0]/(2*$a[0]);
+$yVertex = $right->eval(x=>$xVertex);
+$vertexCorrect = Point($xVertex,$yVertex);
+$yInt = Point(0,$right->eval(x=>0));
+$xInt = List(Point($x1,0),Point($x2,0));
+
+Context("ImplicitPlane");
+Context()->flags->set(showExtraParens=>0);
+Context()->variables->are(x=>"Real");
+$axis = ImplicitPlane("x=$xVertex");
+
+##############################################
+
+BEGIN_PGML
+
+Answer the following questions for the parabola [`[$left]=[$right]`]. Then, choose the correct graph.
+
+Use decimals when needed.
+
+    This parabola opens up or down? [@$popup->menu()@]*
+
+    The parabola's axis of symmetry is [__________________]
+
+    The parabola's vertex is at [__________________]
+
+    The parabola's [`y`]-intercept is at [__________________]
+
+    The parabola's [`x`]-intercept(s) is/are [__________________] (Use a comma to separate [`x`]-intercepts if needed. If the parabola doesn't have any [`x`]-intercept, type *DNE*, meaning "does not exist.")
+
+With the above information, choose the correct graph for [`[$left]=[$right]`].
+
+[@EnlargeImageStatementPGML()@]** 
+
+    The correct graph is graph    
+    [@$radio->buttons()@]*
+
+END_PGML
+$showPartialCorrectAnswers = 1;
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+$BCENTER
+\{ 
+
+LayoutTable([[image( insertGraph($gr[$scramble{0}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{0}]" title = "$alt[$scramble{0}]"'  ),
+image( insertGraph($gr[$scramble{1}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{1}]" title = "$alt[$scramble{1}]"'  ),
+],
+[image( insertGraph($gr[$scramble{2}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{2}]" title = "$alt[$scramble{2}]"'  ),
+image( insertGraph($gr[$scramble{3}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{3}]" title = "$alt[$scramble{3}]"'  )
+]], allcellcss => "padding:20pt;")
+
+\}
+$ECENTER
+$PAR
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################
+
+ANS( $popup->cmp() );
+ANS( $axis->cmp() );
+ANS( $vertexCorrect->cmp() );
+ANS( $yInt->cmp() );
+ANS( $xInt->cmp() );
+ANS( $radio->cmp() );
+
+##############################################
+
+$aVal = $a[0]; 
+$bVal = $b[0]; 
+$cVal = $c[0];
+
+$aPosNeg = $aVal>0 ? "a>0" : "a<0";
+$FaceUpDown = $aVal>0 ? "up" : "down";
+
+$right1 = $right;
+$right1 =~ s/x/($xVertex)/g;
+$right1 =~ s/~~*//g;
+$right2 = Compute("-$a[0]*x**2-$b[0]*x-$c[0]")->reduce;
+
+$gr[4]->stamps( closed_circle($xVertex,$yVertex,'blue') );
+$gr[4]->stamps( closed_circle(0,$cVal,'blue') );
+$gr[4]->stamps( closed_circle($x1,0,'blue') );
+$gr[4]->stamps( closed_circle($x2,0,'blue') );
+$gr[4]->moveTo( $xVertex,$ymin );
+$gr[4]->lineTo( $xVertex,$ymax,'red',2,'dashed');
+
+$s1 = -$b[0];
+$s2 = 2*$a[0];
+$s3 = sqrt($discriminant);
+
+$answerAlt = $alt[$scramble{4}];
+$answerGraph = $gr[$scramble{4}];
+
+
+BEGIN_PGML_SOLUTION
+
+The parabola's equation is in standard form [` [$left] = [$right] `]. Identify that [`a= [$aVal] ,b= [$bVal] ,c= [$cVal]`].
+
+###up or down:  
+
+Since [` [$aPosNeg] `], the parabola opens [$FaceUpDown].
+
+###axis:  
+
+We will find the parabola's axis by the axis formula:
+
+    [`
+\begin{aligned}
+  x &= -\frac{b}{2a} \\
+   &= -\frac{ [$bVal] }{2( [$aVal] )} \\
+   &=  [$xVertex] 
+\end{aligned}
+`]
+
+###vertex:  
+
+To find the parabola's vertex, we substitute [`x= [$xVertex]`] into the parabola's equation, and we have:
+
+    [`
+\begin{aligned}
+  y &=  [$right]  \\
+   &=  [$right1]  \\
+   &=  [$yVertex] 
+\end{aligned}
+`]
+
+The parabola's vertex is [`\left( [$xVertex] , [$yVertex] \right)`].
+
+###[`y`]-intercept:  
+
+To find the parabola's [`y`]-intercept, we substitute [`x=0`] into [`[$left] = [$right]`], and we have [`y= [$cVal]`]. The parabola's [`y`]-intercept is [`[$yInt]`].
+
+###[`x`]-intercept(s):  
+
+To find a parabola's [`x`]-intercepts, we substitute in \(y=0\). In this problem, the polynomial cannot be factored, so we use the Quadratic Formula. 
+
+Identify that [`a=[@$a[0]@]`], [`b=[@$b[0]@]`], [`c=[@$c[0]@]`]. We have:
+
+    [`
+\begin{aligned}[t]
+   x &= \frac{-b \pm \sqrt{b^{2}-4ac}}{2a} \\
+   x &= \frac{-([@$b[0]@]) \pm \sqrt{([@$b[0]@])^{2}-4([@$a[0]@])([@$c[0]@])}}{2([@$a[0]@])} \\
+   x &= \frac{[$s1] \pm \sqrt{[$discriminant]}}{[$s2]} \\
+   x &\approx \frac{[$s1] + [$s3]}{[$s2]} & \text{or} && x &\approx \frac{[$s1] - [$s3]}{[$s2]} \\
+   x & \approx [$x1Show] & \text{or} && x &\approx [$x2Show]
+\end{aligned}
+    `]
+
+The parabola has two [`x`]-intercepts, at approximately [`([$x1Show],0)`] and [`([$x2Show],0)`].
+
+###graph:  
+
+Finally, with all the above information, we can sketch the parabola's graph. [@ $radio->correct_ans() @] is the correct answer.
+
+>>[@ image( insertGraph($answerGraph), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$answerAlt' title = '$answerAlt'"  )@]*<<
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

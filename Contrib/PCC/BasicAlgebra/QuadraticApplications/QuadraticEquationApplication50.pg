@@ -1,0 +1,236 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a certain length of fence and the area of a rectangle, find the
+# rectangle's dimensions. Only 3 sides are needed.
+#
+# Last edit by: Jordan 9/9/13; Carl Yao 08/26/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('quadratic','equation','application')
+## DBCCSS('F.IF.7.a','F.IF.4','A-CED.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "parserNumberWithUnits.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+Context("Numeric");
+Context()->variables->add(w => 'Real');
+Context()->flags->set(showExtraParens=>0, reduceConstants=>0);
+Context()->noreduce("(-x)-y","(-x)+y");
+
+
+do {
+   $width = random(100,150,10);
+   $length = random(200,300,10);
+   $area = $width*$length;
+   $fence = 2*$width+$length;
+
+   $a = 2;
+   $b = -$fence;
+   $c = $area;
+   $discriminant = $b**2-4*$a*$c;
+} until ($discriminant!=0);
+$width1 = (-$b+sqrt($discriminant))/(2*$a);
+$width2 = (-$b-sqrt($discriminant))/(2*$a);
+
+$length1 = $fence-2*$width1;
+$length2 = $fence-2*$width2;
+
+@answers = ($width1,$length1,$width2,$length2);
+
+$multians = MultiAnswer( @answers )->with(
+  singleResult => 0, allowBlankAnswers=>1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my @sxy = @{$student};
+
+     if (($width1==$sxy[0]) && ($length1==$sxy[1])) {
+        if (($width2==$sxy[2]) && ($length2==$sxy[3])) {
+           return [1,1,1,1];
+        } else {
+           return [1,1,0,0];
+        }
+     } elsif (($width2==$sxy[0]) && ($length2==$sxy[1])) {
+        if (($width1==$sxy[2]) && ($length1==$sxy[3])) {
+           return [1,1,1,1];
+        } else {
+           return [1,1,0,0];
+        }
+     } elsif (($width1==$sxy[2]) && ($length1==$sxy[3])) {
+        if (($width2==$sxy[0]) && ($length2==$sxy[1])) {
+           return [1,1,1,1];
+        } else {
+           return [0,0,1,1];
+        }
+     } elsif (($width2==$sxy[2]) && ($length2==$sxy[3])) {
+        if (($width1==$sxy[0]) && ($length1==$sxy[1])) {
+           return [1,1,1,1];
+        } else {
+           return [0,0,1,1];
+        }
+     } else {
+       return [0,0,0,0];
+     }
+});
+
+##############################################
+
+BEGIN_PGML
+
+You will build a rectangular sheep pen next to a river. There is no need to build a fence along the river, so you only need to build three sides. 
+
+You have a total of [`[$fence]`] feet of fence to use, and the area of the pen must be [`[$area]`] square feet. Find the dimensions of the pen.
+
+There should be two solutions:
+
+END_PGML
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+$SPACE $PSACE $SPACE When the width is \{$multians->ans_rule(8)\} feet, the length is \{$multians->ans_rule(8)\} feet.
+$PAR
+$SPACE $PSACE $SPACE When the width is \{$multians->ans_rule(8)\} feet, the length is \{$multians->ans_rule(8)\} feet.
+$PAR
+END_TEXT
+Context()->normalStrings;
+##############################################
+ANS( $multians->cmp() ); 
+
+
+##############################################
+#Build a diagram picture.
+$xmin = 0;         #The viewing window
+$xmax = 20;
+$ymin = 0;
+$ymax = 20;
+
+$base = 15;
+$height = 10;
+
+@x = (($xmax-$base)/2,($xmax+$base)/2);
+@y = (($ymax-$height)/2,($ymax+$height)/2);
+
+$cornersize = min(($x[1]-$x[0]),($y[1]-$y[0]))/10;
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[400,400]);
+
+$picture->lb( new Label(($x[0]+$x[1])/2, $y[0]-0.5,"length: ($fence-2w) ft",'black','center','middle'));
+$picture->lb( new Label($x[1]+1,($y[0]+$y[1])/2,"width: w ft",'black','right','middle'));
+$picture->lb( new Label(($x[0]+$x[1])/2,$y[1]+1,"RIVER",'black','center','middle'));
+
+$picture->new_color("lightblue", 214,230,244); # RGB
+$picture->new_color("darkblue",  100,100,255); 
+
+$picture->moveTo($x[0],$y[0]);
+$picture->lineTo($x[1],$y[0], darkblue,3);
+$picture->lineTo($x[1],$y[1], darkblue,3); 
+$picture->lineTo($x[0],$y[1], darkblue,3);
+$picture->lineTo($x[0],$y[0], darkblue,3);
+
+$picture->moveTo($xmin,$y[1]);
+$picture->lineTo($xmax,$y[1], darkblue,3);
+
+$picture->fillRegion([($xmax+$xmin)/2,$ymax-(($ymin+$ymax)/20),"lightblue"]);
+
+
+##############################################
+
+$s1 = -$b;
+$s2 = $b**2-4*$a*$c;
+$s3 = 2*$a;
+$s4 = sqrt($s2);
+$s5 = ($s1-$s4)/$s3;
+$s6 = $fence-2*$s5;
+$s7 = ($s1+$s4)/$s3;
+$s8 = $fence-2*$s7;
+
+$alt = "The graph shows a 3-sided rectangular fence built next to a river. The height is w feet long, and the base is $fence-2w feet long.";
+
+BEGIN_PGML_SOLUTION
+
+Drawing a diagram should help us set up a function for the area of the pen.
+
+    [@ image(insertGraph( $picture  ), tex_size=>800, height=>400, width=>400, extra_html_tags=>"alt = '$alt' title = '$alt'" ) @]*
+
+Let the width be [`w`] ft, and the length be [`l`] ft. Since there are only three sides of the fence, we have:
+
+    [``
+\begin{aligned}[t]
+l+2w &= [$fence] \\
+l    &= [$fence]-2w
+\end{aligned}
+    ``]
+
+If the pen's width is [`w`] feet, then its length is [`([$fence]-2w)`] feet. Since the area is given, we can write and solve an equation:
+
+    [``
+\begin{aligned}[t]
+   w([$fence]-2w) &= [$area] \\
+   -2w^{2}+[$fence]w - [$area] &=0 \\
+   (-1) \cdot (-2w^{2}+[$fence]w - [$area]) &= (-1) \cdot 0 \\
+   2w^{2}-[$fence]w+[$area] &= 0
+\end{aligned}
+    ``]
+
+When numbers are big, we use the Quadratic Formula to solve this equation.
+
+Identify that [`a=[$a],b=[$b],c=[$c]`].
+
+    [``
+\begin{aligned}[t]
+   w &= \frac{-b \pm \sqrt{b^{2}-4ac}}{2a} \\
+   w &= \frac{-([$b]) \pm \sqrt{([$b])^{2}-4([$a])([$c])}}{2([$a])} \\
+   w &= \frac{[$s1] \pm \sqrt{[$s2]}}{[$s3]} \\
+   w &= \frac{[$s1] \pm [$s4]}{[$s3]} \\
+   w &= \frac{[$s1] + [$s4]}{[$s3]} &\text{or} &&w&= \frac{[$s1] - [$s4]}{[$s3]} \\
+   w&=[$s7] &\text{or} && w&= [$s5]
+\end{aligned}
+    ``]
+
+Recall that the length is [`([$fence]-2w)`] feet, where [`w`] is the width.
+
+If the width is [`[$s7]`] feet, the length would be [`[$fence]-2 \cdot [$width] = [$s8]`] feet. This is one solution.
+
+If the width is [`[$s5]`] feet, the length would be [`[$fence]-2 \cdot [$s5] = [$s6]`] feet. This is another solution.
+
+So there are two possible solutions.
+
+The rectangle's length is [`[$s8]`] feet, and its width is [`[$s7]`] feet. 
+
+Or the length is [`[$s6]`] feet, and its width is [`[$s5]`] feet.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

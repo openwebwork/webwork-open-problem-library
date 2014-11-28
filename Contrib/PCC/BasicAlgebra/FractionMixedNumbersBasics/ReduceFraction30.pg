@@ -1,0 +1,212 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Reduce an improper fraction. Denominators are small. There are two primes in the common divisor.
+#
+# Last edited: Carl Yao 8/28/13, Jordan 6/18/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Middle School')
+## DBchapter('Fractions')
+## DBsection('')
+## KEYWORDS('improper','fraction','reduce')
+## DBCCSS('4.NF.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+
+# Input is a number and a reference to an array. 
+# The prime factorization of the number is stored in the array.
+sub primeFactor {
+   my ($n,$ra_factors) = @_;
+   my $prime=2;
+   while (1) {
+      while ($n%$prime==0) {
+         $ra_factors->[scalar @$ra_factors] = $prime;
+         $n=$n/$prime;
+      }
+      if ($n==1) {return;}
+      $prime = &nextPrime($prime);
+   }
+}
+
+# Input 1 is a reference to an array with a number's prime factorization.
+# Output is all prime factors connected by ' \cdot '.
+sub primeFactorOutput {
+   my $ra_factors = shift;
+   $line1Output = "";
+   foreach $item ( @$ra_factors ) {$line1Output .= "$item".' \cdot ';}
+   $line1Output =~ s/ \cdot $//;
+   return $line1Output;
+}
+
+#Input are references to two arrays of prime factors.
+#The first output is a fraction with common factors cancelled out.
+#The second output is 0 if nothing is crossed out, 1 if something is anything is crossed out.
+sub afterCancel {
+   my $ra_factors1 = shift;
+   my $ra_factors2 = shift;
+   $numOutput = "";
+   $denOutput = "";
+   $changed = 0;
+   $item1 = shift @$ra_factors1;
+   $item2 = shift @$ra_factors2;
+   $big = 100000;
+   while (($item1!=$big) || ($item2!=$big)) {
+      if ($item1 == $item2) {
+         $changed = 1;
+         $item1 = shift @$ra_factors1;
+         if (!(defined $item1)) {$item1=$big;}
+         $item2 = shift @$ra_factors2;
+         if (!(defined $item2)) {$item2=$big;}
+      } elsif ($item1 < $item2) {
+         $numOutput .= "$item1".' \cdot ';
+         $item1 = shift @$ra_factors1;
+         if (!(defined $item1)) {$item1=$big;}
+      } else {
+         $denOutput .= "$item2".' \cdot ';
+         $item2 = shift @$ra_factors2;
+         if (!(defined $item2)) {$item2=$big;}
+      }
+   }
+   $numOutput =~ s/ \cdot $//;
+   $denOutput =~ s/ \cdot $//;
+
+   if ($numOutput eq "") {$numOutput = "1"};
+   if ($denOutput eq "") {$denOutput = "1"};
+
+   return ("\frac{$numOutput}{$denOutput}",$changed);
+}
+
+####################################################
+
+#Make a new LimitedFraction context with different flag settings for how the answer will be handled. This context should require that pure fractions (non-mixed numbers) be entered, and that for display purposes, fractions should be displayed as improper rather than mixed.
+Context("LimitedFraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+
+#Create a non-reducible fraction as the answer.
+$num = random(8,12,1);
+do {$den = random(2,7,1);} until (gcd($num,$den)==1);
+$frac = Fraction($num,$den);
+
+#Create two prime number factors, to be multiplied into the answer to create the fraction to be reduced.
+$factor1 = list_random(2,3,5,7);
+do {$factor2 = list_random(2,3,5,7);} until ($factor2!=$factor1);
+
+if ($factor1 > $factor2) {
+   $temp = $factor1;
+   $factor1 = $factor2;
+   $factor2 = $temp;
+}
+
+$num1 = $num*$factor1*$factor2;
+$den1 = $den*$factor1*$factor2;
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Reduce the fraction [`` \frac{[$num1]}{[$den1]} ``]. Leave the result as an improper fraction, not a mixed number.
+
+    [_______]{$frac} 
+
+END_PGML
+
+##############################################
+
+$num2 = $num1/$factor1;
+$den2 = $den1/$factor1;
+
+@numPrimeArray1 = ();
+@denPrimeArray1 = ();
+&primeFactor($num1,~~@numPrimeArray1);
+&primeFactor($den1,~~@denPrimeArray1);
+
+$primeNum = &primeFactorOutput(~~@numPrimeArray1);
+$primeDen = &primeFactorOutput(~~@denPrimeArray1);
+($output1,$changed) = &afterCancel(~~@numPrimeArray1,~~@denPrimeArray1);
+if ($output1 eq "\frac{$num}{$den}") {
+   $output1 = "";
+} else {
+   $output1 = "&=".$output1."\\";
+}
+
+BEGIN_PGML_SOLUTION
+
+There are at least two methods to reduce the fraction [`` \frac{[$num1]}{[$den1]} ``].
+
+####Method 1:####   
+We find a number that divides into both the numerator [`[$num1]`], and the denominator [`[$den1]`].
+
+Check the first few prime numbers one by one: [`2, 3, 5, 7, \ldots`] 
+
+In this case, [`[$factor1]`] divides into both the numerator and denominator of [`` \frac{[$num1]}{[$den1]} ``]. We divide [`[$factor1]`] into both numbers, and we have:
+
+    [`` \begin{aligned}\frac{[$num1]}{[$den1]} &= \frac{[$num1] \div [$factor1]}{[$den1]\div [$factor1]}\\ &= \frac{[$num2]}{[$den2]} \end{aligned}``]
+
+Next, check again whether any prime number divides into both the numerator and denominator. We need to keep trying until no prime numbers divide into both numbers. In this problem, [`[$factor2]`] divides into both the numerator and denominator for [`` \frac{[$num2]}{[$den2]} ``]. We divide [`[$factor2]`] into both numbers, and we have:
+
+    [`` \begin{aligned}\frac{[$num2]}{[$den2]} &= \frac{[$num2] \div [$factor2]}{[$den2]\div [$factor2]}\\& = \frac{[$num]}{[$den]} \end{aligned}``]
+
+Finally, we have: [`` \frac{[$num1]}{[$den1]} = \frac{[$num]}{[$den]} ``]
+
+####Method 2:####  
+A second method to reduce fraction is to prime factor both the numerator and the denominator, and then cancel out factors in pairs: one from the numerator and one from the denominator.
+
+    [``
+\begin{aligned}[t]
+   \frac{[$num1]}{[$den1]} &= \frac{[$primeNum]}{[$primeDen]} \\
+                           [$output1]
+                           &= \frac{[$num]}{[$den]}
+\end{aligned}
+    ``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+
+
+

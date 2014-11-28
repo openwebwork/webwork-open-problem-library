@@ -1,0 +1,129 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Simplify the following expression
+#     x^m
+#     ---
+#     x^n
+#
+# We use an INTEGER value for x on the interval [2,20]
+#
+# This problem chooes m and n to be POSITIVE, with m>n
+#
+# Last edited: Jordan 7/17/13; Carl Yao 6/28/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('exponent','simplify','fraction','divide')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextLimitedPolynomial.pl",
+  "answerHints.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedPolynomial-Strict");
+
+# m and n are the exponents
+$mybase=random(9,20,1);
+$m=random(10,20,1);
+$n=random(2,$m-2,1);
+
+# myvar is the variable- could be x, y, z, ..., anything in PCCmacros.pl
+$myvar = "x";
+
+# custom error message
+Context()->{error}{msg}{"A variable can appear only once in each term of a polynomial"}
+  = "Your answer must be fully simplified";
+
+# quick reduction check (if $m or $n is 1)
+$myvar1 = Formula("$myvar^$m")->reduce->substitute(x=>$mybase);
+$myvar2 = Formula("$myvar^$n")->reduce->substitute(x=>$mybase);
+$total = $m-$n;
+
+$ans = Formula("$myvar^($total)")->reduce;
+
+
+Context("Numeric");                                   # since these problems have *numeric* bases
+
+Context()->operators->set(
+     '^'  => {class => 'bizarro::BOP::power', isCommand=>1, perl=>undef},
+     '**' => {class => 'bizarro::BOP::power', isCommand=>1, perl=>undef},
+  );
+
+  Context()->{cmpDefaults}{Formula}{checker} = sub {
+    my ($correct,$student,$ans) = @_;
+    return 0 if $ans->{isPreview} || $correct != $student;
+    $student = $ans->{student_formula};
+    $correct = $correct->{original_formula} if defined $correct->{original_formula};
+    Context()->flags->set(bizarroPow=> 1);
+    delete $correct->{test_values}, $student->{test_values};
+    my $OK = ($correct == $student); # check if equal when ^ is replace by bizarro ^
+    Context()->flags->set(bizarroPow=> 0);
+    Value::Error("Please only simplify according to the rules of exponents; for example, write 2^2 instead of 4") unless $OK;
+    return $OK;
+  };
+
+
+Context()->flags->set(formatStudentAnswer=>'parsed'); # this line stops 9^3 being computed, and leaves it as 9^3
+Context()->operators->undefine('*','/','+','-');      # forbid operators in the answer
+Context()->flags->set(reduceConstants=>0);
+
+# need to do the substitution in NUMERIC context
+$myvar1 = $myvar1->substitute(x=>$mybase);
+$myvar2 = $myvar2->substitute(x=>$mybase);
+
+$ans = $ans->substitute(x=>$mybase);
+$ans = Formula("$ans");
+
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+Use the properties of exponents to simplify the following
+   
+    [`\displaystyle\frac{[$myvar1]}{[$myvar2]}=`] [____________]
+
+END_PGML
+
+
+$wrong=$m*$n;
+ANS($ans -> cmp() ->
+  withPostFilter(AnswerHints(
+    [Compute("$mybase^($wrong)")] =>
+    "When dividing terms with the same base, you do not multiply the exponents.")));
+
+
+BEGIN_PGML_SOLUTION
+We _subtract_ the exponents as follows
+
+    [`\begin{aligned}
+           \frac{[$mybase]^{[$m]}}{[$mybase]^{[$n]}}&=[$mybase]^{[$m]-[$n]}\\
+                             &=[$ans]
+       \end{aligned}`]
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

@@ -1,0 +1,365 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Solve a system equation by graphing. Student will choose the right graph.
+# Both equations are given in standard form.
+# These two lines are parallel.
+#
+# Last edit by: Jordan 9/24/13; Carl Yao 09/21/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Systems of Equations and Inequalities')
+## DBsection('Systems of Linear Equations')
+## KEYWORDS('system','equation','graph','parallel','no solution')
+## DBCCSS('8.EE.8','A.REI.6')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserRadioButtons.pl",
+  "contextFraction.pl",
+  "PCCgraphMacros.pl",
+  "pccTables.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+
+$refreshCachedImages=1;
+Context("Point");
+  Context()->strings->add("no solution"=>{},
+    "no solutions"=>{alias=>'no solution'}, 
+    "none"=>{alias=>'no solution'}, 
+    "infinitely many solutions"=>{},
+    "infinitely many"=>{alias=>'infinitely many solutions'}, 
+    "infinite"=>{alias=>'infinitely many solutions'}, 
+    "infinite number of solutions"=>{alias=>'infinitely many solutions'}, 
+    "infinite solutions"=>{alias=>'infinitely many solutions'}
+  );
+
+$intersection = Compute("no solution");
+
+Context("Fraction");
+Context()->variables->add(y => "Real");
+Context()->noreduce("(-x)-y","(-x)+y");
+
+#These two arrays store the coordinates of the intersections.
+#For this problem, ($x[0],$y[0]) and ($x[1],$y[1]) are empty as the 
+#lines are parallel. ($x[2],$y[2]) and ($x[3],$y[3]) are points for 
+#wrong solutions.
+@x=();
+@y=();
+
+# This array stores the y-intercepts of lines.
+# b[0][0] and b[0][1] are y-intercepts of lines in the correct graph.
+# b[i][0] and b[i][1] are y-intercepts of lines in wrong graphs.
+# b[4][0] and b[4][1] are used in solution.
+@b=([],[],[],[],[]); 
+
+# This array stores the slopes of lines.
+# m[0][0] and m[0][1] are slopes of lines in the correct graph.
+# m[i][0] and m[i][1] are slopes of lines in wrong graphs.
+# m[4][0] and m[4][1] are used in solution.
+@m=([],[],[],[],[]);
+
+#Set wrong solutions in graph 2 and 3
+$x[2]=non_zero_random(-5,5,1);
+$y[2]=non_zero_random(-5,5,1);
+do {$b[2][0]=random(-9,9,1);} until ($b[2][0]!=$y[2]);
+do {$b[2][1]=random(-9,9,1);} until (abs($b[2][1]-$b[2][0])>2 && ($b[2][1]!=$y[2]) && ($b[2][1]!=$$b[2][0]));
+$m[2][0] = Fraction($y[2]-$b[2][0],$x[2])->reduce;
+$m[2][1] = Fraction($y[2]-$b[2][1],$x[2])->reduce;
+
+$x[3] = -$x[2];
+$y[3] = $y[2];
+$b[3][0]=$b[2][0];
+$b[3][1]=$b[2][1];
+$m[3][0] = Fraction($y[3]-$b[3][0],$x[3])->reduce;
+$m[3][1] = Fraction($y[3]-$b[3][1],$x[3])->reduce;
+
+#Set correct solution in graph 0 and 4 (solution graph)
+$b[0][0] = $b[2][0];
+$b[0][1] = $b[2][1];
+$m[0][0] = $m[2][0];
+$m[0][1] = $m[2][0];
+
+$b[4][0] = $b[2][0];
+$b[4][1] = $b[2][1];
+$m[4][0] = $m[2][0];
+$m[4][1] = $m[2][0];
+
+#Dump out rise and run of slope in correct graph
+@temp = $m[0][1]->value;
+$m1Rise = $temp[0];
+$m1Run = $temp[1];
+
+#Set incorrect solution in graph 1
+$b[1][0] = $b[2][0];
+$b[1][1] = $b[2][1];
+$m[1][0] = $m[2][1];
+$m[1][1] = $m[2][1];
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+
+$scramble{4} = 4;
+$inverse{4} = 4;
+
+#for alternative display and title purposes
+@alt=();
+for my $i (0..1) {
+   $alt[$i]="Graph $ALPHABET[$inverse{$i}]: This picture shows graphs of two lines. The first line's slope is $m[$i][0] and its y-intercept is $b[$i][0]. The second line's slope is $m[$i][1] and its y-intercept is $b[$i][1]. They don't have an intersection.";
+}
+for my $i (2..3) {
+   $alt[$i]="Graph $ALPHABET[$inverse{$i}]: This picture shows graphs of two lines. The first line's slope is $m[$i][0] and its y-intercept is $b[$i][0]. The second line's slope is $m[$i][1] and its y-intercept is $b[$i][1]. Their intersection is ($x[$i],$y[$i]).";
+}
+$alt[4]="This picture shows graphs of two lines. The first line's slope is $m[4][0] and its y-intercept is $b[4][0]. The second line's slope is $m[4][1] and its y-intercept is $b[4][1]. They don't have an intersection.";
+
+$xmin = -10;
+$xmax = -$xmin;
+$ymin = -10;
+$ymax = -$ymin;
+
+#These two variables decide how many labels are on each axis.
+$xmark = ceil($xmax/10);
+$ymark = ceil($ymax/10);
+
+@gr=();
+
+#$gr[0] through $gr[3] are options; $gr[4] is used in solution.
+for ($i=0;$i<=4;$i++) {
+   $gr[$i] = init_graph($xmin,$ymin,$xmax,$ymax,
+   axes=>[0,0],
+   grid=>[$xmax-$xmin,$ymax-$ymin],
+   size=>[xPixels(),yPixels()]
+   );
+   $gr[$i]->lb('reset');
+   for ($j=-$xmax+$xmark;$j<$xmax;$j=$j+$xmark) {
+      $gr[$i]->lb( new Label($j,  -0.1, $j,'black','center','top'));
+   }
+   for ($j=-$ymax+$ymark;$j<$ymax;$j=$j+$ymark) {
+      if (Real($j) == 0) {next;}
+      $gr[$i]->lb( new Label(0,  $j,' '.$j,'black','left','middle'));
+   }
+   $gr[$i]->lb( new Label($xmin, $ymax, ' '.$ALPHABET[$inverse{$i}], 'black', 'left', 'top')) unless ($i==4);
+   add_functions($gr[$i], "$m[$i][0]*x+$b[$i][0] for x in <$xmin,$xmax> using color:red and weight:1");
+   add_functions($gr[$i], "$m[$i][1]*x+$b[$i][1] for x in <$xmin,$xmax> using color:blue and weight:1");
+}
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$inverse{0}], # correct answer
+  order => ["A","B","C","D"],
+);
+
+#The first equation's coefficients must be multiples of the second equation's.
+$multiple = random(2,4,1);
+
+#Create two equations
+if ($m1Rise>0) {
+   $xCoef0 = $multiple*$m1Rise;
+   $yCoef0 = $multiple*(-$m1Run);
+   $right0 = $multiple*(-$b[0][0])*$m1Run;
+
+   $xCoef1 = $m1Rise;
+   $yCoef1 = -$m1Run;
+   $right1 = -$b[0][1]*$m1Run;
+} else {
+   $xCoef0 = $multiple*(-$m1Rise);
+   $yCoef0 = $multiple*$m1Run;
+   $right0 = $multiple*$b[0][0]*$m1Run;
+
+   $xCoef1 = -$m1Rise;
+   $yCoef1 = $m1Run;
+   $right1 = $b[0][1]*$m1Run;
+}
+$func0 = Compute("$xCoef0*x+$yCoef0*y")->reduce;
+$func1 = Compute("$xCoef1*x+$yCoef1*y")->reduce;
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Solve the system of equations by graphing. Choose the graph that represents the two given line equations, and then enter the solution. 
+
+    [``
+  \left\{\begin{aligned}
+  [$func0] &= [$right0]\\
+  [$func1] &= [$right1] \\
+\end{aligned}
+  \right.
+    ``]
+
+[@EnlargeImageStatementPGML()@]** 
+
+    The correct graph is graph    
+    [@$radio->buttons()@]*
+
+The solution of this system, written as an ordered pair, is [_______________].
+
+    (If these two lines don't intersect, type *no solution*.  
+    If these two lines overlap each other, type *infinitely many solutions*.)
+
+
+END_PGML
+
+BEGIN_TEXT
+$PAR
+$BCENTER
+\{ 
+LayoutTable([[image( insertGraph($gr[$scramble{0}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{0}]" title = "$alt[$scramble{0}]"'  ),
+image( insertGraph($gr[$scramble{1}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{1}]" title = "$alt[$scramble{1}]"'  ),
+],
+[image( insertGraph($gr[$scramble{2}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{2}]" title = "$alt[$scramble{2}]"'  ),
+image( insertGraph($gr[$scramble{3}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{3}]" title = "$alt[$scramble{3}]"'  )
+]], allcellcss => "padding:20pt;")
+
+\}
+$ECENTER
+$PAR
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################
+
+ANS( $radio->cmp() );
+ANS( $intersection->cmp(typeMatch=>Formula("(0,1)"), cmp_class=>"Point") );
+
+#Graph slope triangles in the first line.
+$numTriangles = 5;
+$xCor=-$numTriangles*$m1Run;
+$yCor=$b[0][0]-$numTriangles*$m1Rise;
+$gr[4]->moveTo($xCor,$yCor);
+for my $i (0..2*$numTriangles-1) {
+   $xCor += $m1Run;
+   $gr[4]->lineTo($xCor,$yCor,'red',2);
+   $yCor += $m1Rise;
+   $gr[4]->lineTo($xCor,$yCor,'red',2);
+}
+
+#Graph slope triangle in the second line.
+$numTriangles = 5;
+$xCor=-$numTriangles*$m1Run;
+$yCor=$b[0][1]-$numTriangles*$m1Rise;
+$gr[4]->moveTo($xCor,$yCor);
+for my $i (0..2*$numTriangles-1) {
+   $xCor += $m1Run;
+   $gr[4]->lineTo($xCor,$yCor,'blue',2);
+   $yCor += $m1Rise;
+   $gr[4]->lineTo($xCor,$yCor,'blue',2);
+}
+
+# for the purpose of showing how to change the first equation
+# from standard form to slope-intercept form
+$func0si = Compute("$m[0][0]*x+ $b[0][0]")->reduce;
+$output01 = $xCoef0==1 ? "-x" : "-$xCoef0 x";
+
+if ($right0==0) {
+   $right01 = "";
+   $output03 = "";
+   $output04 = "";
+} else {
+   $right01 = $right0>0 ? "+$right0" : "$right0";
+   $output03 = "+ (-1) \cdot ($right0)";
+   $output04 = "+ \frac{$right0}{$yCoef0}";
+}
+
+if ($yCoef0==1) {$output02 = "";}
+elsif ($yCoef0==-1) {
+   $output02 = "-y &= $output01 $right01 \\ 
+               (-1)\cdot(-y) &= (-1) \cdot ($output01) $output03 \\";
+} else {
+   $output02 = "$yCoef0 y &= $output01 $right01 \\
+               \frac{$yCoef0 y}{$yCoef0} &= \frac{$output01}{$yCoef0} $output04 \\";
+}
+
+# for the purpose of showing how to change the second equation
+# from standard form to slope-intercept form
+$func1si = Compute("$m[0][1]*x+ $b[0][1]")->reduce;
+$output11 = $xCoef1==1 ? "-x" : "-$xCoef1 x";
+
+if ($right1==0) {
+   $right11 = "";
+   $output13 = "";
+   $output14 = "";
+} else {
+   $right11 = $right1>0 ? "+$right1" : "$right1";
+   $output13 = "+ (-1) \cdot ($right1)";
+   $output14 = "+ \frac{$right1}{$yCoef1}";
+}
+
+if ($yCoef1==1) {$output12 = "";}
+elsif ($yCoef1==-1) {
+   $output12 = "-y &= $output11 $right11 \\ 
+               (-1)\cdot(-y) &= (-1) \cdot ($output11) $output13 \\";
+} else {
+   $output12 = "$yCoef1 y &= $output11 $right11 \\
+               \frac{$yCoef1 y}{$yCoef1} &= \frac{$output11}{$yCoef1} $output14 \\";
+}
+
+
+Context()->texStrings;
+BEGIN_SOLUTION
+$PAR
+To solve a system of linear equations by graphing, one way is to first graph each line's \(y\)-intercept, and then draw slope triangles until we find the intersection. If we use a method where we connect two points using a straightedge, slight inaccuracies in the placement of the straightedge can lead to very inaccurate solutions.
+$PAR
+For this problem, both equations are given in standard form. To accurately graph them, we can rewrite them in slope-intercept form.
+$PAR
+Here is how to rewrite the first equation in slope-intercept form:
+$PAR
+\[\begin{aligned}
+   $func0 &= $right0 \\
+   $func0 \mathbf{$output01} &= $right0 \mathbf{$output01} \\
+   $output02
+   y &= $func0si
+\end{aligned}
+\]
+$PAR
+Here is how to rewrite the second equation in slope-intercept form:
+$PAR
+\[\begin{aligned}
+   $func1 &= $right1 \\
+   $func1 \mathbf{$output11} &= $right1 \mathbf{$output11} \\
+   $output12
+   y &= $func1si
+\end{aligned}
+\]
+$PAR
+Now we can graph both lines by using slope triangles. 
+
+$BCENTER
+\{ image( insertGraph($gr[4]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$alt[$scramble{4}]" title = "$alt[$scramble{4}]"'  ) \}
+$ECENTER
+Since these two lines are parallel, there is no solution to this system of equations. \{ $radio->correct_ans() \} is the correct answer.
+$PAR
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
