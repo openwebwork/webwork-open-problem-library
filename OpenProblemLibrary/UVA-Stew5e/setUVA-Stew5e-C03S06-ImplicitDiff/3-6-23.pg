@@ -4,14 +4,14 @@
 
 ##Tagged by YJ
 
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Differentiation)
 ## DBsection(Implicit differentiation)
 ## Date(5/26/2005)
 ## Institution(UVA)
 ## Author(Jeff Holt)
-## MLT(xy_powers_slope_new)
+## MLT(xy_poly_slope_at_point)
+## MO(1)
 ## Level(3)
 ## TitleText1('Calculus: Early Transcendentals')
 ## AuthorText1('Stewart')
@@ -25,44 +25,116 @@
 ## Problem2('')
 ## KEYWORDS('calculus', 'differentiation')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();
 
-loadMacros("PG.pl",
-           "PGbasicmacros.pl",
-           "PGchoicemacros.pl",
-           "PGanswermacros.pl",
-"PGauxiliaryFunctions.pl");
+loadMacros(
+	'PGstandard.pl',
+	'MathObjects.pl',
+	'contextFraction.pl',
+	'PGcourse.pl'
+);
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 0;
 
-$a = random(1,4,1);
-$b = random(1,4,1);
-$c = random(1,4,1);
-$d = random(1,4,1);
-$x1 = random(1,4,1);
-$y1 = random(1,4,1);
-$f = $a*($y1**(4)) + $b*($x1**(2))*($y1**(2)) + $c*($y1)*($x1**(4)) - $d*($y1);
-$num = $d - 4*$a*($y1**(3)) - 2*$b*$y1*($x1**(2)) - $c*($x1**(4));
-$denom = 2*$b*$x1*($y1**(2)) + 4*$c*$y1*($x1**(3));
+Context('Numeric')->variables->are(
+	x => 'Real',
+	y => 'Real'
+);
+Context()->flags->set(
+	reduceConstants => 0,
+	reduceConstantFunctions => 0
+);
+Context()->noreduce('(-x)-y');
 
-while ( $denom == 0 ) {
-$x1 = random(1,4,1);
-$y1 = random(1,4,1);
-$denom = 2*$b*$x1*($y1**(2)) + 4*$c*$y1*($x1**(3));
-}
+do {
+	$a = random(1, 5);
+	$b = random(1, 5);
+	$c = random(1, 5);
+	$d = random(1, 5);
+	$x1 = random(1, 4);
+	$y1 = random(1, 4);
+	$F = Formula(
+		"$a*y^4 + $b*x^2*y^2
+		+ $c*y*x^4 - $d*y"
+	)->reduce;
+} until (
+	gcd($a, gcd($b, gcd($c, $d))) == 1
+	and
+	abs( $F->D('x')->eval(
+		x => $x1, y => $y1
+	) ) < 500
+	and
+	abs( $F->D('y')->eval(
+		x => $x1, y => $y1
+	) ) < 500
+);
+$k = $F->eval(x => $x1, y => $y1);
 
-$xp =  $num/$denom;
+$Fx1 = $F->D('x')->eval(x => $x1, y => $y1);
+$Fy1 = $F->D('y')->eval(x => $x1, y => $y1);
 
-# Present the text.
-TEXT(EV2(<<EOT));
-Regard \(y\) as the independent variable and \(x\) as the dependent variable 
-and find the slope of the tangent line to the curve
-\[ $a y^4 + $b x^2 y^2 + $c y x^4 - $d y = $f \]
-at the point \( ($x1, $y1) \). $BR
-\{ &ans_rule(50) \}
-EOT
+$fa = 4*$a; $tb = 2*$b; $fc = 4*$c;
+$Fx = Formula(
+	"$tb*x*y^2 + $fc*y*x^3"
+)->reduce;
+$Fx1_s = $Fx->substitute(x => $x1, y => $y1);
+$mFy = Formula(
+	"$d - $fa*y^3 - $tb*x^2*y - $c*x^4"
+)->reduce;
+$mFy1_s = $mFy->substitute(x => $x1, y => $y1);
 
-ANS(num_cmp($xp));
+Context('Fraction');
+$slope = Fraction(-$Fy1, $Fx1)->reduce;
 
-ENDDOCUMENT();        # This should be the last executable line in the problem.
+Context()->texStrings;
+BEGIN_TEXT
+Regarding \( y \) as the independent variable and
+\( x \) as the dependent variable, find the slope
+of the tangent line to the curve \( $F = $k \) at
+the point \( ($x1, $y1) \).
+$BR $BR
+The slope of the tangent line to the curve at the
+point \( ($x1, $y1) \) is \{ ans_rule(8) \}.
+END_TEXT
+Context()->normalStrings;
+
+ANS($slope->cmp);
+
+$cs = ( $c == 1 ? '' : $c );
+
+Context()->texStrings;
+$simp = ( gcd($Fx1, $Fy2) == 1
+	? ''
+	: "=" . $slope
+);
+BEGIN_SOLUTION
+Differentiating with respect to \( y \)
+(as \( y \) is to be regarded as the
+independent variable) gives
+\[
+$fa y^3 + $tb x y^2 \, \frac{dx}{dy}
++ $tb x^2 y + $fc y x^3 \, \frac{dx}{dy}
++ $cs x^4 - $d = 0,
+\]
+or
+\[
+($Fx) \, \frac{dx}{dy} = $mFy,
+\]
+and therefore
+\[
+\frac{dx}{dy} = \frac{$mFy}{$Fx}.
+\]
+Hence, the slope of the tangent line to the
+curve at the point \( ($x1, $y1) \) (where
+\( y \) is regarded as a function of \( x \))
+is equal to
+\[
+\frac{dx}{dy} = \frac{$mFy1_s}{$Fx1_s}
+\textstyle
+= - \frac{$Fy1}{$Fx1}
+$simp.
+\]
+END_SOLUTION
+
+ENDDOCUMENT();
