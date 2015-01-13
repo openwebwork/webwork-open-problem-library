@@ -1,0 +1,174 @@
+#########################################################
+# DESCRIPTION
+## DBsubject('Statistics')
+## DBchapter('Hypothesis tests')
+## DBsection('Two sample t-test')
+## level(4)
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "unionTables.pl",
+  "RserveClient.pl",
+  "PGcourse.pl",
+  "answerCustom.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+## GENERATE THE DATA 
+
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+## fix the name of the downloadable data files
+rserve_eval("filename <- file.path(tempdir(), 'BloodPressureAfter_${studentLogin}.csv')");
+
+my @remote_file1 = rserve_eval('
+# this is to create the "AFTER TREATMENT" data (for treat and control group)
+SBPafterDRUG <- round(rnorm(n=100, mean=120, sd=12), 1)
+SBPafterCONTROL <- round(rnorm(n=100, mean=145, sd=12), 1)
+# this is the AFTER DATA
+BloodPressureAfter <- as.data.frame(cbind(SBPafterDRUG, SBPafterCONTROL))
+colnames(BloodPressureAfter) <- c("SBPafterDRUG", "SBPafterCONTROL")
+write.csv(BloodPressureAfter, filename, row.names = FALSE)
+filename
+');
+my $local_file1 = rserve_get_file($remote_file1[0]);
+$local_url1 = $local_file1;
+$local_url1 =~ s|$tempDirectory|$tempURL|;
+
+
+rserve_eval("set.seed($seed)");
+## fix the name of the downloadable data files
+rserve_eval("filename <- file.path(tempdir(), 'BloodPressureBefore_${studentLogin}.csv')");
+
+my @remote_file2 = rserve_eval('
+## this is to create the "BEFORE TREATMENT" data (for treat and control group)
+SBPbeforeDRUG <- round(rnorm(n=100, mean=155, sd=12), 1)
+SBPbeforeCONTROL <- round(rnorm(n=100, mean=155, sd=12), 1)
+# this is the BEFORE DATA
+BloodPressureBefore <- as.data.frame(cbind(SBPbeforeDRUG,
+SBPbeforeCONTROL))
+colnames(BloodPressureBefore) <- c("SBPbeforeDRUG", "SBPbeforeCONTROL")
+write.csv(BloodPressureBefore, filename, row.names = FALSE)
+filename
+');
+my $local_file2 = rserve_get_file($remote_file2[0]);
+$local_url2 = $local_file2;
+$local_url2 =~ s|$tempDirectory|$tempURL|;
+
+
+rserve_eval("set.seed($seed)");
+@data = rserve_eval('
+# this is to create the "AFTER TREATMENT" data (for treat and control group)
+SBPafterDRUG <- round(rnorm(n=100, mean=120, sd=12), 1)
+SBPafterCONTROL <- round(rnorm(n=100, mean=145, sd=12), 1)
+c(round(t.test(SBPafterDRUG, SBPafterCONTROL, var.eq=T)$p.value, 4),
+round(t.test(SBPafterDRUG, SBPafterCONTROL, var.eq=F)$p.value, 4))
+');
+
+
+$q2mc = new_multiple_choice();
+$q2mc -> qa(
+"Do you believe the assumptions for carrying out a parametric hypothesis test for the equality of means are met?",
+"YES, assumptions are approximately met."
+);
+$q2mc -> extra(
+"NO, we cannot work with these assumptions."
+);
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+This assignment will be submitted in two parts. Some answers will be submitted directly to the online homework system, and these questions will include a note saying $BBOLD WebWorkiR $EBOLD at the start. Other questions will be submitted on paper, in class. These questions will include a note saying $BBOLD On-Paper $EBOLD at the start.
+$PAR
+
+A study looked at the use of a drug thought to decrease systolic blood pressure (SBP). Researchers recruited 200 people with elevated bold pressure into their study, and randomly assigned half to receive the drug and the other half were placed on a placebo. Before treatment began, systolic blood pressure was measured for all individuals. This information can be found in the $BBOLD BloodPressureBefore.csv $EBOLD dataset $BBOLD (\{ htmlLink($local_url2, "Download the csv file here") \})  $EBOLD. The columns of the data contain the SBP for each group. After receiving the treatment for a period of 4 months, SBP was measured again. This information can be found in the $BBOLD BloodPressureAfter.csv $EBOLD dataset $BBOLD (\{ htmlLink($local_url1, "Download the csv file here") \})  $EBOLD. Again, each group is presented in a column of the data. Individual rows form the Before and After data sets correspond to the same individual. That is, the individual in row 1 of the before data is the same individual that appears in row 1 of the after data. Use these to answer the following.
+$BR
+For parts (a) - (e), use only the $BBOLD BloodPressureAfter.csv $EBOLD data.
+
+$BR
+$BR
+$BBOLD Part (a) (On-Paper) $EBOLD
+Make a plot to visually examine if there appears to be any decrease in SBP for the drug group relative to the control group. Make sure to comment on the plot.
+$BR
+$BR
+$BBOLD Part (b) (WebWorkiR) $EBOLD
+\{ $q2mc -> print_q() \}
+$BR
+\{ $q2mc -> print_a() \}
+$BR
+$BR
+$BBOLD Part (c) (WebWorkiR) $EBOLD
+Regardless of your answer to part (c), conduct the appropriate parametric hypothesis test, and report the P-value for the test, as a decimal rounded to 4 decimal places.
+\{ ans_rule(7) \}
+$BR
+$BR
+$BBOLD Part (d) (On-Paper) $EBOLD
+Write an interpretation of the P-value from this test. That is, the P-value is a probability. What is the P-value the probability of?
+$BR
+$BR
+$BBOLD Part (e) (On-Paper) $EBOLD
+Report and interpret a 95% confidence interval for the difference in mean SBP for the two groups. What can you say about the equality of means based on this interval?
+$BR
+$BR
+As noted earlier, the researchers may wish to use the baseline measurements (the SBP Before treatment) in their analysis in some way. We will now also make use of the $BBOLD BloodPressureBefore.csv $EBOLD data. Recall that the rows in the Before and the After data correspond to the same individuals.
+$BR
+$BR
+$BBOLD Part (f) (On-Paper) $EBOLD
+There is more than one way to make use of the baseline measurements (contained in the BloodPressureBefore.csv file). Try a few different ways of incorporating these into your analysis. Make sure to clearly state how you are using these measurements in each method you try, as well as include any relevant summaries/output. Clearly explaining HOW you have used the baseline measurements is more important than any numeric answers you may provide.
+$BR
+$BR
+$BBOLD Part (g) (On-Paper) $EBOLD
+You may have tried a few different approaches in part (f). Based on what you did in part (f), or any other analysis you may have conducted, what do you believe the treatment effect to be? Is there any evidence of a placebo effect?
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( radio_cmp( $q2mc -> correct_ans() ) );
+ANS(custom_list_cmp(List(@data), sub {
+    my ($correct,$student,$ans) = @_;
+    return 0 unless scalar(@{$student}) == 1;
+    my $sx = $student->[0];
+    ((grep {abs($sx - $_) < 0.0002} @{$correct}) ? scalar(@{$correct}) : 0)
+}));
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+Context()->{format}{number} = "%.4f";
+BEGIN_SOLUTION
+$BBOLD Part (a) $EBOLD
+Answer submitted ON-PAPER.
+$BR
+$BBOLD Part (b) $EBOLD
+The answer is YES.
+$BR
+$BBOLD Part (c) $EBOLD
+Either the two-sample t-test with equality of variances assumed or the t-test without this assumption may be performed. In the first instance the P-value is $data[0], in the second the P-value is $data[1].
+$BR
+$BBOLD Part (d) - Part (g) $EBOLD
+These questions are submitted on paper.
+
+END_SOLUTION
+ENDDOCUMENT();
