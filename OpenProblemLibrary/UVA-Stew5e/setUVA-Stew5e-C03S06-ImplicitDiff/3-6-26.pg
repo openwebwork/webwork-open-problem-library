@@ -4,7 +4,6 @@
 
 ##Tagged by YJ
 
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Differentiation)
 ## DBsection(Implicit differentiation)
@@ -13,6 +12,7 @@
 ## Author(Jeff Holt)
 ## MLT(xy_powers_tangent_m_b)
 ## Level(3)
+## MO(1)
 ## TitleText1('Calculus: Early Transcendentals')
 ## AuthorText1('Stewart')
 ## EditionText1('5')
@@ -25,45 +25,155 @@
 ## Problem2('')
 ## KEYWORDS('calculus', 'differentiation')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGauxiliaryFunctions.pl"
+	'PGstandard.pl',
+	'MathObjects.pl',
+	'contextFraction.pl'
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
-$a = random(4,6,1);
-$b = random(1,3,1);
-$c = $a**2;
-$d = $b**2;
-$x1 = random(-3,-1,1);
-$y1 = $b*((1 - ($x1**(2))/($a**(2)) )**(1/2));
-$m1 = (-1*($d)*$x1)/(($c)*$y1);
+sub rs {
+	my ($n, $d, $r) = @_;
+	my $p = 1;
+	foreach ( 1 .. int(sqrt($r)) ) {
+		$p = $_ if ($r % $_**2 == 0);
+	}
+	return ( reduce($n * $p, $d), $r / $p**2 )
+}
 
-$num = ($a*$b)**2 - ($x1*$b)**2;
+do {
+	$a = random(2, 9);
+	$a2 = $a**2;
+	$b = random(2, 9);
+	$b2 = $b**2;
+} until (
+	$a2 - $b2
+);
 
-TEXT(EV2(<<EOT));
-Find the equation of the tangent line to the curve (an ellipse)
- \( \frac{x^2}{$c} + \frac{y^2}{$d} = 1 \)
-at the point \( ( $x1 , \frac{1}{$a}\sqrt{$num} ) \).
-The equation of this tangent line can be written in the form \( y = mx+b \)
-where \( m \) is: \{ans_rule(30) \}
-$BR
-EOT
-$ans = $m1;
-ANS(num_cmp($ans));
+$s = list_random('+', '-');
+$sx = list_random('', '-');
+$sy = list_random('', '-');
+$sm = ( $sx eq $sy
+	? ( $s eq '+' ? '-' : '' )
+	: ( $s eq '+' ? '' : '-' )
+);
+($iarticle, $curve) = ( $s eq '+'
+	? ('an', 'ellipse')
+	: ('a', 'hyperbola')
+);
+$axo = ( $s eq '+'
+	? non_zero_random(1, $a - 1)
+	: non_zero_random($a + 1, 2 * $a)
+);
+$xo = $sx . $axo;
 
-TEXT(EV2(<<EOT));
-and  where \( b \) is: \{ans_rule(30) \}
-$BR
-EOT
-$ans = $y1 -$m1*$x1;
-ANS(num_cmp($ans));
+Context('Fraction');
+($ayo_n, $ayo_d, $ayo_r) = rs( $b, $a, 
+	( $s eq '+'
+		? $a**2 - $xo**2
+		: $xo**2 - $a**2
+	)
+);
+$surd = ( $ayo_r == 1 ? '' : "sqrt($ayo_r)" );
+$ayo_rat = Fraction($ayo_n, $ayo_d)->reduce;
+$yo_rat = Fraction(
+	( $sy eq '' ? $ayo_n : -$ayo_n),
+	$ayo_d
+)->reduce;
 
-ENDDOCUMENT();        # This should be the last executable line in the problem.
+$amo_rat = Fraction(
+	$b2 * $axo * $ayo_d,
+	$a2 * $ayo_n * $ayo_r
+)->reduce;
+$mo_rat = ( $sm eq ''
+	? $amo_rat
+	: -$amo_rat
+)->reduce;
+
+$bo_rat = ($yo_rat - $mo_rat * $xo)->reduce;
+$abo_rat = abs($bo_rat);
+
+Context('Numeric')->flags->set(
+	formatStudentAnswer => parsed,
+	reduceConstants => 0,
+	reduceConstantFunctions => 0
+);
+$yo = Formula("$sy ($ayo_rat) $surd");
+$mo = Formula("$sm ($amo_rat) $surd");
+$bo = Formula(
+	( $bo_rat > 0 ? '' : '-' )
+	. "($abo_rat) $surd"
+);
+
+@answers = (
+	$mo->cmp,
+	$bo->cmp
+);
+
+Context()->texStrings;
+BEGIN_TEXT
+Find an equation of the tangent line to the curve
+\[ \frac{x^2}{$a2} $s \frac{y^2}{$b2} = 1 \]
+(${iarticle} ${curve}) at the point \( ($xo , $yo) \).
+$BR $BR
+An equation of this tangent line to the ${curve} at
+the given point is \( y = mx + b \), where $BR
+\( m = \) \{ ans_rule(10) \} and
+\( b = \) \{ ans_rule(10) \}.
+END_TEXT
+Context()->normalStrings;
+
+ANS(@answers);
+
+($a2r, $b2r) = reduce($a2, $b2);
+$a2r_s = ( $a2r == 1 ? '' : $a2r );
+$b2r_s = ( $b2r == 1 ? '' : $b2r );
+$ops = ( $s eq '+' ? '-' : '' );
+$dydx_simp = ( gcd($a, $b) == 1
+	? ''
+	: "$ops \frac{$b2r_s x}{$a2r_s y}"
+);
+
+$point_slope = Formula(
+	"$yo"
+	. ( $mo > 0 ? '+' : '-' )
+	. $amo_rat . $surd . '(x'
+	. ( $xo > 0 ? '-' : '+' )
+	. "$axo)"
+);
+$slope_intercept = Formula(
+	"$mo x "
+	. ( $bo > 0 ? '+' : '-' )
+	. $abo_rat . $surd
+);
+
+Context()->texStrings;
+BEGIN_SOLUTION
+Differentiating implicitly with respect to
+\( x \) gives
+\[
+\frac{2x}{$a2} $s \frac{2y}{$b2} \, \frac{dy}{dx} = 0,
+\]
+or
+\[
+\frac{dy}{dx} = $ops \frac{$b2 x}{$a2 y} $dydx_simp.
+\]
+At the given point, \( x = $xo \) and \( y = $yo \),
+and so
+\[
+\frac{dy}{dx} = $ops \frac{$b2r_s \left( $xo \right)}
+{$a2r_s \left( $yo \, \right)} = \textstyle $mo.
+\]
+Therefore, the tangent line to the ${curve} at the
+given point is defined by \( y = $point_slope \),
+or \( y = $slope_intercept \).
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("The curve may be an ellipse or a hyperbola.");
+
+ENDDOCUMENT();

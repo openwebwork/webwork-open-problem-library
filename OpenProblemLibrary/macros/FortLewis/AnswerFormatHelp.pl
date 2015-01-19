@@ -139,7 +139,7 @@ if (!$customstring) { $helpstring = "help (angles)"; } else { $helpstring = $cus
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpAngles()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -187,7 +187,7 @@ if (!$customstring) { $helpstring = "help (decimals)"; } else { $helpstring = $c
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpDecimals()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -234,7 +234,7 @@ if (!$customstring) { $helpstring = "help (equations)"; } else { $helpstring = $
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpEquations()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -279,7 +279,7 @@ if (!$customstring) { $helpstring = "help (exponents)"; } else { $helpstring = $
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpExponents()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -341,7 +341,7 @@ if (!$customstring) { $helpstring = "help (formulas)"; } else { $helpstring = $c
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpFormulas()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -396,7 +396,7 @@ if (!$customstring) { $helpstring = "help (fractions)"; } else { $helpstring = $
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpFractions()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -443,7 +443,7 @@ if (!$customstring) { $helpstring = "help (inequalities)"; } else { $helpstring 
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpInequalities()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -495,7 +495,7 @@ if (!$customstring) { $helpstring = "help (intervals)"; } else { $helpstring = $
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpIntervals()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -545,7 +545,7 @@ if (!$customstring) { $helpstring = "help (limits)"; } else { $helpstring = $cus
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpLimits()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -609,7 +609,7 @@ if (!$customstring) { $helpstring = "help (logarithms)"; } else { $helpstring = 
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpLogarithms()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -660,7 +660,7 @@ if (!$customstring) { $helpstring = "help (numbers)"; } else { $helpstring = $cu
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpNumbers()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -707,7 +707,7 @@ if (!$customstring) { $helpstring = "help (points)"; } else { $helpstring = $cus
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpPoints()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -751,7 +751,7 @@ if (!$customstring) { $helpstring = "help (units)"; } else { $helpstring = $cust
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpUnits()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -801,7 +801,7 @@ if (!$customstring) { $helpstring = "help (vectors)"; } else { $helpstring = $cu
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpVectors()';");
-} else { return; }
+} else { return $helpstring; }
 
 
 
@@ -845,7 +845,7 @@ if (!$customstring) { $helpstring = "help (syntax)"; } else { $helpstring = $cus
 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='openhelpSyntax()';");
-} else { return; }
+} else { return $helpstring; }
 
 }
 

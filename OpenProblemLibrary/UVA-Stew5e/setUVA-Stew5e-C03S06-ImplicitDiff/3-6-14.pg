@@ -4,15 +4,13 @@
 
 ##Tagged by YJ
 
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Differentiation)
 ## DBsection(Implicit differentiation)
 ## Date(5/26/2005)
 ## Institution(UVA)
 ## Author(Jeff Holt)
-## MLT(xy_square_root_slope)
-## MLTleader(1)
+## MLT(xy_alg_slope_at_pt)
 ## Level(4)
 ## TitleText1('Calculus: Early Transcendentals')
 ## AuthorText1('Stewart')
@@ -26,39 +24,116 @@
 ## Problem2('')
 ## KEYWORDS('calculus', 'differentiation')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();
 
-loadMacros("PG.pl",
-           "PGbasicmacros.pl",
-           "PGanswermacros.pl",
-"PGauxiliaryFunctions.pl");
+loadMacros(
+	'PGstandard.pl',
+	'MathObjects.pl',
+	'contextFraction.pl'
+);
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 0;
 
-$a=   random(1,4);
-$b=   random(1,4);
-$c=   random(1,4);
+sub rs {
+       my $q = shift;
+       my $r = 1;
+       foreach ( 1 .. int(sqrt($q)) ) {
+               $r = $_ if ($q % $_**2 == 0)
+       }
+       my $s = $q / $r**2;
+       my $rs = ( $r == 1
+               ? ''
+               : $r
+       ) . ( $s == 1
+               ? ''
+               : "sqrt($s)"
+       );
+       return Formula( $rs
+               ? $rs
+               : '1'
+       );
+}
+
 do {
-  $x1 = random(1,8);
-  $y1 = random(1,8);
-  $denom = $c*$c*$a-($b*$b-$c*$c*$b)*$x1*$x1*$y1*$y1;
-} until ($denom != 0);
+	$a = random(1, 9);
+	$b = random(1, 9);
+	$c = random(1, 9);
+	$xo = non_zero_random(-5, 5);
+	$yo = non_zero_random(-5, 5);
+	$qo = $a + $b*($xo*$yo)**2;
+} until (
+	gcd($a, $b) == 1
+	and gcd($b, $c) == 1
+	and $yo % $xo
+	and sqrt($qo) - int(sqrt($qo))
+);
 
-$d = sqrt($a + $b*($x1**(2))*($y1**(2))) - $c*($x1)*($y1);
+Context('Numeric')->variables->are(
+	x => 'Real',
+	y => 'Real'
+);
+Context()->flags->set(
+	reduceConstantFunctions => 0
+);
 
-$func = nicestring([1, -$c], ["\sqrt{$a + $b x^2 y^2}",'xy']);
+$s = Formula("sqrt($a + $b*x^2*y^2)")->reduce;
+$so = rs($qo);
+$p = Formula("$c*x*y")->reduce;
+$po = $p->eval(x => $xo, y => $yo);
 
-# Present the text.
-TEXT(EV2(<<EOT));
+Context('Fraction');
+$dydxo = Fraction(-$yo, $xo)->reduce;
+
+$mo = Real($dydxo);
+
+Context()->texStrings;
+BEGIN_TEXT
 Find the slope of the tangent line to the curve
-\[ $func = !{$d} \]
-at the point \( ( $x1,$y1 ) \). 
-$BR
-$BR
-Slope = \{ &ans_rule(50) \}
-EOT
+\( $s - $p = $so - $po \)
+at the point \( ($xo, $yo) \).
+$BR $BR
+The slope of the tangent line to the curve at
+the point \( ($xo, $yo) \) is \{ ans_rule(5) \}.
+END_TEXT
+Context()->normalStrings;
 
-ANS(num_cmp("-$y1/$x1"));
+ANS($mo->cmp(
+	correct_ans_latex_string => $dydxo->TeX
+	)
+);
 
-ENDDOCUMENT();        # This should be the last executable line in the problem.
+Context()->texStrings;
+BEGIN_SOLUTION
+Differentiating implicitly with respect
+to \( x \) gives
+\[
+\frac{$b xy}{$s}
+\left( y + x \, \frac{dy}{dx} \right) - $c
+\left( y + x \, \frac{dy}{dx} \right) = 0,
+\]
+or (multiplying by \( $s \))
+\[
+$b x y^2 + $b x^2 y \, \frac{dy}{dx} -
+$c y $s - $c x $s \, \frac{dy}{dx} = 0.
+\]
+So
+\[
+x \left( $b xy - $c $s \right) \, \frac{dy}{dx}
+= -y \left( $b xy - $c $s \right),
+\]
+and therefore
+\[
+\frac{dy}{dx} = - \frac y x,
+\]
+provided \( $b x y \ne $c $s \).
+Hence, the slope of the line tangent to
+the given curve at the point \( ($xo, $yo) \)
+is
+\[
+\frac{dy}{dx} \Bigg|_{(x, y) = ($xo, $yo)} =
+$dydxo.
+\]
+END_SOLUTION
+
+ENDDOCUMENT();
