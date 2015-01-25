@@ -8,7 +8,8 @@
 ## DBchapter(Techniques of integration)
 ## DBsection(Substitution (without trigonometric functions))
 ## Institution(ASU)
-## MLT(Sub_direct)
+## MLT(affine_indefinite)
+## MO(1)
 ## Level(2)
 ## TitleText1('Calculus: Early Transcendentals')
 ## AuthorText1('Rogawski')
@@ -22,14 +23,13 @@
 ## Problem2('5 15 16 56')
 ## KEYWORDS('integral' 'substitution','integrals', 'substitution', 'substitution rule','Calculus', 'Riemann Integral')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGauxiliaryFunctions.pl"
+	'PGstandard.pl',
+	'MathObjects.pl',
+	'contextFraction.pl',
+	'parserFormulaUpToConstant.pl'
 );
 
 TEXT(beginproblem());
@@ -37,21 +37,46 @@ $showPartialCorrectAnswers = 1;
 
 $a = random(2,9,1);
 $b = random(2,7,1);
-$c = random(1,13,1);
-$power = 1 - $a;
-$coeff1 = 1 / $power;
-$coeff2 = $b;
-$funct = "$coeff1 * $coeff2 * (t + $c)^$power";
+$c = non_zero_random(-13, 13);
 
-TEXT(EV2(<<EOT));
+$am1 = $a - 1;
 
-Evaluate the indefinite integral.
-$BR \[ \int \frac{$b}{(t + $c)^$a} dt \]
-$BR $BR \{ans_rule( 30) \}
-$BR
-EOT
+Context('Fraction');
+$coeff = Fraction(-$b, $am1)->reduce;
 
-$ans = $funct;
-ANS(fun_cmp($ans, mode=>"antider", vars=>"t"));
+Context('Numeric')->variables->are(
+	t => [ 'Real', limits => [ -$c-0.1, -$c + 0.1 ] ]
+);
+Context()->flags->set(
+	reduceConstants => 0
+);
+$l = Formula("t + $c")->reduce;
+$f = Formula("$b / ($l)^($a)")->reduce;
+$F = FormulaUpToConstant(
+	( $coeff > 0 ? '' : '-' )
+	. ( ($coeff)**2 == 1 ? '' : abs($coeff) )
+	.  "($l)^(-$am1)"
+);
 
-ENDDOCUMENT();        # This should be the last executable line in the problem.
+Context()->texStrings;
+BEGIN_TEXT
+Evaluate the following indefinite integral.
+$BR $BR
+\( \displaystyle \int $f \, dt = \)
+\{ans_rule() \}
+END_TEXT
+Context()->normalStrings;
+
+ANS($F->cmp);
+
+Context()->texStrings;
+BEGIN_SOLUTION
+Integrating by inspection gives
+\[
+\int $f \, dt
+= \frac{$b}{-$am1} ($l)^{-$am1} + C
+\textstyle = $F.
+\]
+END_SOLUTION
+
+ENDDOCUMENT();
