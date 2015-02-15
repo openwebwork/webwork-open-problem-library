@@ -314,10 +314,11 @@ sub xPower{
 ################################
 
 sub PolyString{
+
 my  ($xref,%options) = @_;
 my  @local_x = @{$xref};
 
-my ($order, $var, $string);
+my ($order, $var, $exponentVar, $string);
 
 if (defined ($options{'order'})) {
     $order = $options{'order'};
@@ -346,7 +347,7 @@ $string = "$local_x[0]".$var.'^{'.xPower(0,$#local_x,$order).$exponentVar.'}';
    for my $i (1..$#local_x) {
      $string = $string.'+'."$local_x[$i]".$var.'^{'.xPower($i,$#local_x,$order).$exponentVar.'}';
    }
-   return $string;
+return $string;
 }  
 
 ###############################
@@ -588,6 +589,16 @@ sub PolyTerms{
 	};
         
 	return @terms;
+}
+
+###############################
+# Name: PolySub
+sub PolySub{
+my  ($xref,$yref,%options) = @_;
+my  @local_x = @{$xref};
+my  @local_y = @{$yref};
+foreach my $y (@local_y) { $y = $y * -1; }
+return PolyAdd(\@local_x, \@local_y, %options);
 }
 
 
