@@ -1,0 +1,218 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Decide whether a graph represents a function.
+# There are two graphs. One is a function, the other is not.
+#
+# Last update: Jordan 9/15/13; Carl Yao 09/13/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Function')
+## DBsection('Domain and Range')
+## KEYWORDS('function','domain','range','graph')
+## DBCCSS('8.F','F-IF')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+  "PGchoicemacros.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+$refreshCachedImages=1;
+
+
+#Decide whether each graphs shows a function or non-function.
+@ALT=();
+@isFunction=();
+@functions=([],[],[],[]);
+@radio=();
+for my $i (0..1) {
+  $isFunction[$i]=random(0,1,1);
+  if ($i==1) {do {$isFunction[$i]=random(0,1,1);} until ($isFunction[$i]!=$isFunction[$i-1]);}
+  if ($isFunction[$i]==1) {
+     $a=non_zero_random(-2,2,1);
+     $h=random(-3,3,1);
+     $k=random(-3,3,1);
+     $xfunc[$i] = sub { my $t = shift();
+                        return cos($t)/(1+cos($t+pi/2))/2+$h; };
+     $yfunc[$i] = sub { my $t = shift();
+                        return $a*(sin($t)/(1+cos($t+pi/2))/2+1/4)+$k; };
+     $functions[$i][0]=Compute("$a*(x-$h)**2+$k");
+     $functions[$i][1]=$functions[$i][0];
+     $upOrDown = $a>0 ? "up" : "down";
+     $graphNum = $i+1;
+     $ALT[$i]="Graph $graphNum: This is a graph of a parabola opening $upOrDown.";
+  } else {
+     $d=2;#non_zero_random(-2,2,2);
+     $b=random(-3,3,1);
+     $c=random(-3,3,1);
+     $xfunc[$i] = sub { my $t = shift();
+                        return (-cos($t)/(1+cos($t))/2+1/4)/$d-$b; };
+     $yfunc[$i] = sub { my $t = shift();
+                        return sin($t)/(1+cos($t))/2+$c; };
+     $functions[$i][0]=Compute("sqrt($d*(x+$b))+$c");
+     $functions[$i][1]=Compute("-sqrt($d*(x+$b))+$c");
+     $leftOrRight = $d>0 ? "right" : "left";
+     $graphNum = $i+1;
+     $ALT[$i]="Graph $graphNum: This is a graph of a parabola opening to the $leftOrRight.";
+  }
+
+   $isFunctionText = $isFunction[$i] ? "Yes" : "No";
+   $radio[$i] = new_multiple_choice();
+   $graphNum = $i+1;
+   $radio[$i]->qa("Does the relationship in Graph $graphNum represent [`y`] as a function of [`x`]?", "$isFunctionText");
+   $radio[$i]->makeLast("Yes","No");
+}
+
+for my $i (2..3) {
+   $xfunc[$i] = $xfunc[$i-2];
+   $yfunc[$i] = $yfunc[$i-2];
+   for my $j (0..1) {
+      $functions[$i][$j] = $functions[$i-2][$j];
+   }
+   $ALT[$i]=$ALT[$i-2];
+}
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$h+1, $h-1,$b+1, $b-1],[$k+1, $k-1,$c, $c+1, $c-1],centerOrigin=>1);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+@gr=();
+
+for my $i (0..3) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+
+  for my $j (0..1) {
+     $fn[$i] = new Fun( $xfunc[$i], $yfunc[$i], $gr[$i] );
+     $fn[$i] -> domain(0,6.2832);
+  }
+
+}
+
+$ALT0 = $ALT[0];
+$ALT1 = $ALT[1];
+
+##############################################
+
+BEGIN_PGML
+
+The following graphs show two relationships.
+
+[@EnlargeImageStatementPGML()@]**
+
+Decide whether each graph represents [`y`] as a function of [`x`].
+
+[@$radio[0]->print_q()@]**
+[@$radio[0]->print_a()@]*
+
+>>### Graph 1 ###  <<
+
+>>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT0' title = '$ALT0'")@]*<<
+
+
+[@$radio[1]->print_q()@]**
+[@$radio[1]->print_a()@]*
+
+>>### Graph 2 ###  <<
+
+>>[@image(insertGraph($gr[1]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT1' title = '$ALT1'")@]*<<
+
+END_PGML
+
+##############################################
+
+$showPartialCorrectAnswers = 0;
+
+ANS( radio_cmp( $radio[0]->correct_ans() ) );
+ANS( radio_cmp( $radio[1]->correct_ans() ) );
+
+#######################################################
+
+for my $i (2..3) {
+   if ($isFunction[$i-2]==1) {
+      for my $j (-1..1) {
+         $gr[$i]->moveTo($h+$j,$min[1]);
+         $gr[$i]->lineTo($h+$j,$max[1],'red',2,'dashed');
+         $gr[$i]->stamps( closed_circle($h+$j,$functions[$i][1]->eval(x=>($h+$j)),'blue') );
+      }
+      $ALT[$i] .= " No vertical line crosses it more than once.";
+   } else {
+      $gr[$i]->moveTo(1/$d-$b,$min[1]);
+      $gr[$i]->lineTo(1/$d-$b,$max[1],'red',2,'dashed');
+      $x1 = 1/$d-$b;
+      $y1 = $c+1;
+      $gr[$i]->stamps( closed_circle($x1,$y1,'blue') );
+      $x2 = 1/$d-$b;
+      $y2 = $functions[$i][1]->eval(x=>$x2);
+      $gr[$i]->stamps( closed_circle($x2,$y2,'blue') );
+      $ALT[$i] .= " A vertical line crosses it at more than one point.";
+   }
+}
+
+$graph1Output1 = $isFunction[0] ? "passed" : "did not pass";
+$graph2Output1 = $isFunction[1] ? "passed" : "did not pass";
+$graph1Output2 = $isFunction[0] ? "represents" : "does not represent";
+$graph2Output2 = $isFunction[1] ? "represents" : "does not represent";
+
+#####################################################
+
+$ALT2 = $ALT[2];
+$ALT3 = $ALT[3];
+
+BEGIN_PGML_SOLUTION
+
+If a graph represents [`y`] as a function of [`x`], it has to pass the vertical line test. 
+
+Graph 1 [$graph1Output1] the test, and thus it [$graph1Output2] [`y`] as a function of [`x`].
+
+>>###Graph 1 ###  <<
+
+>>[@image(insertGraph($gr[2]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT2' title = '$ALT2'") @]*<<
+
+
+Graph 2 [$graph2Output1] the test, and thus it [$graph2Output2] [`y`] as a function of [`x`].
+
+>>###Graph 2 ###  <<
+
+>>[@image(insertGraph($gr[3]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT3' title = '$ALT3'") @]*<<
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();

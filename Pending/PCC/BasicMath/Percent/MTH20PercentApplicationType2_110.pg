@@ -1,0 +1,209 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a pie chart with number breakdown, find how much percent a piece represents.
+#
+# Last edited by Carl Yao on 12/21/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Fractions')
+## KEYWORDS('percent','graph','application','pie chart')
+## DBCCSS('7.RP.3','6.RP.3c')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextPercent.pl",
+  "PGgraphmacros.pl",
+  "PGcourse.pl",
+#  "contextFraction.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+
+Context("LimitedNumeric");
+
+$whole = random(350,1950,100);
+$perBeatles=random(20,36,2);
+$perRolling=random(16,26,2);
+$perFour=random(10,20,2);
+$perMichael=random(10,20,2);
+$perOther=100-$perBeatles-$perRolling-$perFour-$perMichael;
+$decBeatles=$perBeatles/100;
+$decRolling=$perRolling/100;
+$decFour=$perFour/100;
+$decMichael=$perMichael/100;
+$decOther=$perOther/100;
+
+$beatles = $decBeatles*$whole;
+$rolling = $decRolling*$whole;
+$four = $decFour*$whole;
+$michael = $decMichael*$whole;
+$other = $decOther*$whole;
+
+Context("LimitedPercent-strict");
+Context()->flags->set(
+   trimTrailingZeros => 1,
+   decimalPlaces => 0,
+   tolerance => .005,
+);
+$perMichaelP = Compute("$perMichael %");
+
+@artistsP = (0,$perBeatles,$perRolling,$perFour,$perMichael,$perOther);
+@artistsN = (0,$beatles,$rolling,$four,$michael,$other);
+
+$numParts = 5;
+$scale = 2;
+$downshift = -0.4;
+$radius = 1;
+$gr = init_graph(-$scale,-$scale,$scale,$scale,
+size=>[400,400]
+);
+
+$title = "Collection of Signatures from Different Artists";
+$gr->lb( new Label(0, $scale/1.5,$title,'black','center','middle'));
+
+$xfunc = sub { my $t = shift();
+    return $radius*cos($t); };
+$yfunc = sub { my $t = shift();
+    return $radius*sin($t)+$downshift; };
+$circle = new Fun( $xfunc, $yfunc, $gr );
+$circle->domain(0,6.2832);
+
+$gr->new_color("color0", 250,250,210);
+$gr->new_color("color1", 255,255,0);
+$gr->new_color("color2", 255,218,185);
+$gr->new_color("color3", 200,230,100);
+$gr->new_color("color4", 220,220,220);
+@color=("color0","color1","color2","color3","color4");
+
+@legend=("Beatles","Rolling Stone","Four Seasons","Michael Jackson","others");
+
+@perCumulative = ();
+$perCumulative[0] = 0;
+$perTemp=0;
+
+for my $i (1..$numParts) {
+   $perTemp = $perTemp + $artistsP[$i]/100;
+   $perCumulative[$i] = $perTemp;
+}
+
+for my $i (0..$numParts-1) {
+   $end0x = $radius*cos($perCumulative[$i]*2*pi);
+   $end0y = $radius*sin($perCumulative[$i]*2*pi)+$downshift;
+   $end1x = $radius*cos($perCumulative[$i+1]*2*pi);
+   $end1y = $radius*sin($perCumulative[$i+1]*2*pi)+$downshift;
+   $end2x = $radius/2*cos(($perCumulative[$i]+$perCumulative[$i+1])*pi);
+   $end2y = $radius/2*sin(($perCumulative[$i]+$perCumulative[$i+1])*pi)+$downshift;
+   $end3x = 1.4*$radius*cos(($perCumulative[$i]+$perCumulative[$i+1])*pi);
+   $end3y = 1.4*$radius*sin(($perCumulative[$i]+$perCumulative[$i+1])*pi)+$downshift;
+
+   $gr->moveTo(0,0+$downshift);
+   $gr->lineTo($end0x,$end0y,'blue',1);
+   $gr->moveTo(0,0+$downshift);
+   $gr->lineTo($end1x,$end1y,'blue',1);
+   $gr->fillRegion([$end2x,$end2y,$color[$i]]);
+
+   $gr->lb( new Label($end2x, $end2y,"$artistsN[$i+1]",'black','center','middle'));
+   $gr->lb( new Label($end3x, $end3y,$legend[$i],'black','center','middle'));
+}
+
+$alt = "This is a pie chart about a collection of artist signatures. The collection has $artistsN[1] $legend[0] signatures, $artistsN[2] $legend[1] signatures, $artistsN[3] $legend[2] signatures, $artistsN[4] $legend[3] signatures and $artistsN[5] other signatures.";
+
+##############################################
+
+BEGIN_PGML
+
+>>[@image( insertGraph($gr), width=>400, 
+    height=>400, tex_size=>800, extra_html_tags => "alt = '$alt' title = '$alt'")@]*<<
+
+The pie chart represents a collector's collection of signatures from various artists. Answer the following question with a percent.
+
+Michael Jackson's signatures make up [__________]{$perMichaelP} of all the collector's signatures.
+
+END_PGML
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+By the pie chart, the collector has a total of [`[$beatles]+[$rolling]+[$four]+[$michael]+[$other]=[$whole]`] signatures.
+
+Now this problem can be boiled down to this question: [`[$michael]`] is what percent of [`[$whole]`]? We will show multiple methods to solve this problem.
+
+####Method 1  
+
+We will use proportion to solve this problem.
+
+Assume [`[$michael]`] is [`x%`] of [` [$whole] `], so "[`x`] out of [`100`]" corresponds to "[`[$michael]`] out of [`[$whole]`]".
+
+We will write and solve the proportion:
+
+    [``
+\begin{aligned}[t]
+   \frac{x}{100} &= \frac{[$michael]}{[$whole]} \\
+   [$whole]x &= [$michael] \cdot 100 \\
+   [$whole]x &= [$michael*100] \\
+   \frac{[$whole]x}{[$whole]} &= \frac{[$michael*100]}{[$whole]} \\
+   x &= [$perMichael]
+\end{aligned}
+    ``]
+
+*Solution:* Michael Jackson's signatures make up [`[$perMichael]%`] of all the collector's signatures.
+
+####Method 2  
+
+We will use the percentage formula to solve this problem.
+
+This translation from English to may  should help you remember the percentage formula.
+
+    [` 2 \text{ is } 50% \text{ of } 4 \Longleftrightarrow 2 = 0.5 \cdot 4 `]
+
+Assume [`[$michael]`] is [`x`] (as a percent) of [` [$whole] `]. We have:
+
+    [``
+\begin{aligned}
+  [$michael] &= x \cdot [$whole] \\
+  \frac{[$michael]}{[$whole]} &= \frac{x \cdot [$whole]}{[$whole]} \\  
+  [$perMichael/100] &= x\\
+  x &= [$perMichael]%
+\end{aligned}
+    ``]
+
+*Solution:* Michael Jackson's signatures make up [`[$perMichael]%`] of all the collector's signatures.
+
+####Method 3  
+
+In the sentence "[`[$michael]`] is what percent of [` [$whole] `],"
+
+* [`[$michael]`] is the *percentage*,
+* "what percent" is the *rate*,
+* [` [$whole] `] is the *base* (following the word "of").
+
+By the formula [` \text{rate} = \frac{\text{percentage}}{\text{base}} `], we do a division to solve the problem:
+
+    [`` \text{rate} = \frac{\text{percentage}}{\text{base}} = \frac{[$michael]}{[$whole]} = [$perMichael/100] = [$perMichael]% ``]
+
+*Solution:* Michael Jackson's signatures make up [`[$perMichael]%`] of all the collector's signatures.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
