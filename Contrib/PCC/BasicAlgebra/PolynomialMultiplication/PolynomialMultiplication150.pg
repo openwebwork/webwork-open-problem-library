@@ -1,0 +1,153 @@
+# WeBWorK problem written by Chris Hughes
+# Portland Community College
+#
+# Template:
+# Find product of the two binomials
+#
+#    (x^n+a)(x^n+b)
+#
+#
+# a and b are integers on the interval [1,10], and $b!=$a
+# 
+# Last updated: Carl Yao, 7/04/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('exponent','multiply','polynomial','binomial','FOIL')
+## DBCCSS('A-APR.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+$constant = 3.14159+2.71828;  #value repeated below
+###Code to alter LimitedPolynomial to allow n as an exponent
+package my::BOP::power;
+our @ISA = qw(LimitedPolynomial::BOP Parser::BOP::power);
+
+sub checkPolynomial {
+  my $self = shift;
+  my ($l,$r) = ($self->{lop},$self->{rop});
+  $self->Error("You can only raise a variable to a power in a polynomial")
+    unless $l->class eq 'Variable';
+  $self->Error("Exponents must be constant in a polynomial")
+    unless LimitedPolynomial::isConstant($r);
+  my $n = Parser::Evaluate($r);
+  $r->Error($$Value::context->{error}{message}) if $$Value::context->{error}{flag};
+  $n = $n->value;
+  $self->Error("Exponents must be positive integers in a polynomial")
+    unless $n > 0 && ($n == int($n) or $n/(3.14159+2.71828) == int($n/(3.14159+2.71828)));
+  LimitedPolynomial::markPowers($l);
+  $self->{exponents} = $l->{exponents}; delete $l->{exponents};
+  foreach my $i (@{$self->{exponents}}) {$i = $n if $i}
+  $self->{isPower} = 1;
+  return 1;
+}
+
+sub checkStrict {
+  my $self = shift;
+  $self->Error("You can only use powers of a variable in a polynomial");
+}
+
+package main;
+###End code to allow n as an exponent
+
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+$var = RandomVariableName(type=>'variable');
+Context()->variables->are($var=>'Real',n => ['Real', limits=>[1,20], resolution=>1]);
+
+# setup the first binomial: (x+$a)
+$a = random(1,10,1);
+@poly1array = (1,$a);
+
+# setup the binomial: (x+$b)
+$b=$a;
+$b = random(1,10,1) while($b==$a);
+@poly2array = (1,$b);
+
+# reduction check
+$poly1 = Formula(PolyString(~~@poly1array,order=>descending,var=>$var,exponentVar=>n))->reduce->reduce;
+$poly2 = Formula(PolyString(~~@poly2array,order=>descending,var=>$var,exponentVar=>n))->reduce->reduce;
+
+# for the solution
+
+$ans = Formula(PolyMult(~~@poly1array,~~@poly2array,output=>simplified,var=>$var,exponentVar=>n))->reduce->reduce;
+
+$soln1 = Formula(PolyMult(~~@poly1array,~~@poly2array,output=>unsimplified,var=>$var,exponentVar=>n))->reduce->reduce;
+
+
+Context("Numeric");
+Context()->constants->add(n => $constant);
+Context()->variables->are($var=>'Real');
+@coefficients = PolyMult(~~@poly1array,~~@poly2array,output=>array);
+$commonMistake = Formula("$coefficients[0] $var^2 n + $coefficients[1] $var^n + $coefficients[2]");
+
+
+Context("LimitedPolynomial")->flags->set(singlePowers=>1);
+Context()->constants->add(n => $constant);
+Context()->operators->set(
+     '**' => {class => 'my::BOP::power'},
+     '^' => {class => 'my::BOP::power'},
+  );
+
+
+Context()->variables->are($var=>'Real');
+$ans = Compute("$ans");
+
+
+##############################################
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Find the product of the two *bi*nomials; assume that [`n`] is a positive integer.
+
+    [`\left([$poly1]\right)\left([$poly2]\right)= `][________________________________]
+
+Important note: you'll have to be careful with grouping parenthesis in this problem; for example, you should use [$var]^(2n) and not [$var]^2n.
+END_PGML
+
+
+ANS($ans->cmp()->withPostFilter(AnswerHints( 
+  $commonMistake => ["$var$CARET 2n means ($var$CARET 2)*n, not $var$CARET(2n)", checkTypes=>0, replaceMessage=>1], 
+)));
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+We use the FOIL technique- *F*irst *O*utside *I*nside *L*ast
+
+    [`
+      \begin{aligned}
+              \left([$poly1]\right)([$poly2])&=[$soln1]\\
+                                &=[$ans]
+      \end{aligned}
+    `]
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

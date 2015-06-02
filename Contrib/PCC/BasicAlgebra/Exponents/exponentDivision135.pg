@@ -1,0 +1,158 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Simplify the following expression
+#
+#    g*a x^n ( bx + d ) + g*b x^m ( ex + f)
+#    -------------------------------------
+#                g x^n
+#
+# We choose m<n
+#
+# Last edited: Hughes 9/6/13, Carl Yao 6/28/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('exponent','simplify','fraction','divide','polynomial','monomial')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+$var = RandomVariableName(type=>'variable');
+Context()->variables->are($var=>'Real');
+
+# setup the answer: 
+#    g*a x^n ( bx + c ) + g*d x^m ( ex + f)
+#    -------------------------------------
+#                g x^m
+
+$a = non_zero_random(-13,13,1);
+$b=$a;
+$b = non_zero_random(-13,13,1) while($b==$a);
+$c=$b;
+$c = non_zero_random(-13,13,1) while($c==$b);
+$d=$c;
+$d = non_zero_random(-13,13,1) while($d==$c);
+$e=$d;
+$e = non_zero_random(-13,13,1) while($e==$d);
+$f=$e;
+$f = non_zero_random(-13,13,1) while($f==$e);
+
+# g is the multiplier
+$g = (random(1.5,5.5,1)+0.5)*random(-1,1,2);
+
+$n = random(4,20,1);
+$m = random(3,$n-1,1);
+
+# setup the numerator
+$poly1 = Formula("$g*$a*$var^$n*($b*$var+$c)+$g*$d*$var^$m*($e*$var+$f)")->reduce;
+
+# setup the denominator: $g x^m
+$poly2 = Formula("$g*$var^$m")->reduce;
+
+# for the solution: multiply the first part of the numerator a x^(n-m) ( bx + c )
+# step 1
+$numerator = Formula("$a*$var^($n-$m)*($b*$var+$c)+$d*($e*$var+$f)")->reduce;
+
+# step 2
+foreach my $i (0..$n-$m) {$poly1array[$i] = 0};
+$poly1array[0]=$a;
+@poly2array = ($b,$c);
+
+$soln1 = Formula(PolyMult(~~@poly1array,~~@poly2array,output=>simplified,var=>$var))->reduce->reduce;
+
+# multiply the second part of the numerator d ( ex + f )
+@poly3array = ($d*$e,$d*$f);
+$soln2 = Formula(PolyString(~~@poly3array,order=>descending,var=>$var))->reduce->reduce;
+
+# for the answer
+@ans1 = PolyMult(~~@poly1array,~~@poly2array);
+$ans2 = Formula(PolyAdd(~~@ans1,~~@poly3array,output=>simplified,var=>$var))->reduce->reduce;
+$ans = Formula("$ans2")->reduce;
+
+Context("LimitedPolynomial-Strict");
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1});
+
+
+Context()->variables->are($var=>'Real');
+$ans = Formula($ans);
+
+
+##############################################
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Simplify the following expression
+
+    [`\displaystyle\frac{[$poly1]}{[$poly2]}= `][________________________________]
+
+END_PGML
+
+ANS($ans -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      Context()->flags->set(limits=>[0.95,1.05]);
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      Context()->flags->set(limits=>[0.25,0.4]);
+      Value->Error("Your answer is correct, but please simplify it further") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0);
+      return 1;
+}
+)); 
+
+BEGIN_PGML_SOLUTION
+We divide each term by [`[$poly2]`] as follows
+
+    [`
+     \begin{aligned}
+    \displaystyle\frac{[$poly1]}{[$poly2]} & = [$numerator]\\
+                                          & = [$soln1]+\left([$soln2]\right)\\
+                                          & = [$ans]
+     \end{aligned}
+`]
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

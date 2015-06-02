@@ -1,0 +1,178 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Give a function's graph, find values of f(a); find f(   )=b. Graph is a parabola.
+#
+# Last update: Carl Yao 04/14/2014
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Function')
+## DBsection()
+## KEYWORDS('function','graph')
+## DBCCSS('8.F','F-IF')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "parserAssignment.pl",
+  "answerHints.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+$var = "x";
+
+$refreshCachedImages=1;
+Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0, formatStudentAnswer=>parsed);
+
+parser::Assignment->Allow;
+
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+    Context()->operators->redefine('or',using=>',',from=>'Numeric');
+    Context()->operators->set(
+      ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+      'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+    );
+    Context()->lists->set(List => {separator => " or "});
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  );
+
+Context()->noreduce('(-x)-y','(-x)+y');
+
+
+$xMin = -4;
+$xMax = -$xMin;
+$yMin = -4;
+$yMax = -$yMin;
+
+$a = random(-1,1,2);
+$c = $a>0 ? $yMin+1 : $yMax-1;
+$b = random(-2,2,1);
+
+$func = Compute("$a*(x-$b)**2+$c")->reduce;
+
+#($p0x,$p0y) will be used in f($p0x)=?
+#($p1x,$p1y) and ($p2x,$p2y) will be used in f(?)=$p2y
+$p0x = $b+random(-1,1,2)*random(1,2,1);
+$p1x = abs($p0x-$b)==1 ? $b+random(-1,1,2)*2 : $b+random(-1,1,2)*1;
+$p2x = ($p1x-$b)>0 ? $b-($p1x-$b) : $b+($b-$p1x);
+
+$p0y = $a*($p0x-$b)**2+$c;
+$p1y = $a*($p1x-$b)**2+$c;
+$p2y = $p1y;
+
+$ansList = List($p1x,$p2x);
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$xMin,$xMax],[$yMin,$yMax],centerOrigin=>1);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+for my $i (0..2) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+
+   add_functions($gr[$i], "$a*(x-$b)**2+$c for x in [$min[0],$max[0]] using color:blue and weight:2");
+}
+
+$ALT0 = "graph of a parabola passing through the points ($p0x,$p0y), ($p1x,$p1y) and ($p2x,$p2y)";
+
+#the graph used in solution to find f(x)=?
+$gr[1]->stamps( closed_circle($p0x,$p0y,'red') );
+$gr[1]->lb( new Label($p0x+$marksep[1]/8,$p0y+$marksep[1]/8,"($p0x,$p0y)",'red','left','bottom'));
+$gr[1]->moveTo($p0x,$min[1]);
+$gr[1]->lineTo($p0x,$max[1],'red',2,'dashed');
+$ALT1 = "This is the graph of aparabola passing through the points ($p0x,$p0y), ($p1x,$p1y) and ($p2x,$p2y). A dashed vertical line x=$p0x intersects the parabola at ($p0x,$p0y).";
+
+#the graph used in solution to find f(?)=$p1y
+$gr[2]->stamps( closed_circle($p1x,$p1y,'red') );
+$gr[2]->lb( new Label($p1x,$p1y+$marksep[1]/8,"($p1x,$p1y)",'red','center','bottom'));
+$gr[2]->stamps( closed_circle($p2x,$p2y,'red') );
+$gr[2]->lb( new Label($p2x,$p2y+$marksep[1]/8,"($p2x,$p2y)",'red','center','bottom'));
+$gr[2]->moveTo($min[0],$p1y);
+$gr[2]->lineTo($max[0],$p1y,'red',2,'dashed');
+$ALT2 = "This is the graph of a parabola passing through the points ($p0x,$p0y), ($p1x,$p1y) and ($p2x,$p2y). A dashed horizontal line y=$p1y intersects the parabola at ($p1x,$p1y) and ($p2x,$p2y).";
+
+$xeqansList = List(Formula("x=$p1x"),Formula("x=$p2x"));
+
+
+##############################################
+Context("LimitedNumeric");
+BEGIN_PGML
+
+The graph of function [`f`] is shown below.
+
+[@EnlargeImageStatementPGML()@]**
+
+
+>>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT0' title = '$ALT0'") @]*<<
+
+Use the given graph of [`f`]. If there is more than one answer to a question, you can use commas and the word "or". When solving an equation for the variable [`x`], your answer should be in the form "x=[$US][$US][$US]".
+
+    a. Evaluate [``f([$p0x])``].  
+    [``f([$p0x])={}``][_________]
+
+    a. Solve [``f(x)=[$p1y]``].  
+    [_______________________]
+
+END_PGML
+
+ANS(Compute($p0y)->cmp);
+ANS($xeqansList->cmp(list_checker => ~~&radicalListCheck));
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+To evaluate [`f([$p0x])`], we understand that we have been given an [`x`]-value of [`[$p0x]`]. On the graph, we draw a dotted vertical line at [`x=[$p0x]`], and it intersects the function's graph at [`([$p0x],[$p0y])`]. This implies [`f([$p0x])=[$p0y]`]. See the graph below.
+
+>>[@image(insertGraph($gr[1]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT1' title = '$ALT1'") @]*<<
+
+To solve [`f(x)=[$p1y]`], we understand that we have been given a [`y`]-value of [`[$p1y]`]. On the graph, we draw a dotted horizontal line at [`y=[$p1y]`], and it intersects the function's graph at [`([$p1x],[$p1y])`] and [`([$p2x],[$p2y])`]. This implies [`f([$p1x])=[$p1y]`] and [`f([$p2x])=[$p2y]`]. See the graph below.
+
+>>[@image(insertGraph($gr[2]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT2' title = '$ALT2'") @]*<<
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();

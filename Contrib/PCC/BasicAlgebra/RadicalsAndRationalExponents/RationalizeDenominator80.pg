@@ -1,0 +1,287 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Rationalize denominator. Radical can be simplified first.
+# Problem is like 2/sqrt(50)
+#
+# Last edited: Jordan 9/8/13; Carl Yao 8/31/13,
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Exponents and Radicals')
+## KEYWORDS('simplify','radical','square root','rationalize','denominator')
+## DBCCSS('8.EE')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+ 
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "contextLimitedRadical.pl",
+  "PGcourse.pl",
+);
+
+######################################
+
+TEXT(beginproblem());
+Context("Numeric");
+
+do {
+$out = list_random(2,3,4,5,6);
+$in = list_random(2,3,5,6,7);
+$rad = $out**2*$in;
+$den = $out*$in;
+$num = random(2,10,1);
+} until ((gcd($num,$out)!=1)&&($num%$out!=0));
+
+if (gcd($num,$out)==1) {
+   $reduced1 = 0;
+   $num1 = $num;
+   $out1 = $out;
+} else {
+   $reduced1 = 1;
+   $num1 = $num/gcd($num,$out);
+   $out1 = $out/gcd($num,$out);
+}
+
+if (gcd($num1,$in)==1) {
+   $reduced2 = 0;
+   $num2 = $num1;
+   $in2 = $in;
+} else {
+   $reduced2 = 1;
+   $num2 = $num1/gcd($num1,$in);
+   $in2 = $in/gcd($num1,$in);
+}
+
+$numAns = $num2;
+$denAns = $out1*$in2;
+
+Context("LimitedRadical");
+$sqrt1 = Formula("sqrt($rad)");
+
+if (($numAns==1)&&($denAns==1)) {$ans = Formula("sqrt($in)");}
+elsif (($numAns==1)&&($denAns!=1)) {$ans = Formula("sqrt($in)/$denAns");}
+elsif (($numAns!=1)&&($denAns==1)) {$ans = Formula("$numAns*sqrt($in)");}
+else {$ans = Formula("$numAns*sqrt($in)/$denAns");}
+
+Context()->{error}{msg}{"You must simplify your answer further"} 
+  = "Either your answer is not fully simplified or it has an irrational denominator";
+
+
+##########################################
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+
+# Input is a number. Output is the prime factorization of the number
+# saved in an array, returned as a reference to the array.
+sub primeFactor {
+   my $n = shift;
+   @factors = ();
+   my $prime=2;
+   while (1) {
+      while ($n%$prime==0) {
+         $factors[scalar @factors] = $prime;
+         $n=$n/$prime;
+      }
+      if ($n==1) {return ~~@factors;}
+      $prime = &nextPrime($prime);
+   }
+}
+
+# Input 1 is a reference to an array with a number's prime factorization.
+# Output is all prime factors connected by ' \cdot '.
+sub line1 {
+   my $ra_factors = shift;
+   $line1Output = "";
+   foreach $item ( @$ra_factors ) {$line1Output .= "$item".' \cdot ';}
+   $line1Output =~ s/ \cdot $//;
+   return $line1Output;
+}
+
+# Input is the output of &line1() and the degree of the radical. 
+# $returnLine2 is the next step of simplifying the radical. 
+# For example, if input is "2 \cdot 2 \cdot 2 \cdot 3 \cdot 5", 
+# $degree=3, (meaning cube root), 
+# $returnLine2 is 2 sqrt[3]{3 \cdot 5}.
+# $returnLine3 is the final step of simplifying the radical.
+# In the above example, $returnLine3 is 2 sqrt[3]{15}.
+sub line2 {
+   my $line = shift;
+   my $degree = shift;
+   my $line2Output = "";
+   my @facs = split(/ \cdot /, $line);
+   my $size = 0+@facs;
+   my $i=0;
+   $outsideString = "";
+   $insideString = "";
+   $outsideNumber = 1;
+   $insideNumber = 1;
+   while ($i<$size) {
+      my $item = $facs[$i];
+      my $out = 1;
+      for (my $j=$i; $j<$i+$degree; $j++) {
+         if ($facs[$j]!=$item) {$out = 0;}
+      }
+      if ($out==0) {
+         $insideNumber *= $facs[$i];
+         $insideString .= "$facs[$i]".' \cdot ';
+         $i++;
+      }
+      else {
+         $outsideNumber *= $facs[$i];
+         $outsideString .= "$facs[$i]".' \cdot ';
+         $i=$i+$degree;
+      }
+   }
+   $outsideString =~ s/ \cdot $//;
+   $insideString =~ s/ \cdot $//;
+
+   $returnLine2 = "";
+   if ($insideString eq "") {$returnLine2 = $outsideString;}
+   elsif ($degree==2) {$returnLine2 = 
+        $outsideString.' \sqrt{'."$insideString".'}';}
+   else {$returnLine2 = 
+        $outsideString.' \sqrt['."$degree".']{'."$insideString".'}';}
+
+   $returnLine3 = "";
+   if ($returnLine2 !~ /\cdot/) {$returnLine3 = "";}
+   elsif ($degree==2) {$returnLine3 =
+        $outsideNumber.' \sqrt{'."$insideNumber".'}';}
+   else {$returnLine3 = 
+        $outsideNumber.' \sqrt['."$degree".']{'."$insideNumber".'}';}
+
+   return ($returnLine2,$returnLine3);
+}
+
+#####################################################
+
+BEGIN_PGML
+
+Rationalize the denominator. Use *sqrt()* for the square root symbol. For example: [`\sqrt{2} =`]  *sqrt(2)*.
+
+    [`` \frac{[$num]}{[$sqrt1]} = ``] [_____________]{$ans}
+
+END_PGML
+
+############################################################
+
+
+#Output of simplifying $radicand1
+$line1Center = &line1(&primeFactor($rad));
+$output11 = '&= \sqrt{'.$line1Center.'} ';
+($line2Center, $line3Center) = &line2($line1Center,2);
+$output12 = '&='.$line2Center;
+$output13 = "&";
+if ($line3Center ne "") {$output13 = '&='.$line3Center;}
+
+if ($out1==1) {
+   $out1="";
+   $out1dot = "";
+} else {
+   $out1dot = "$out1 \cdot";
+}
+
+if ($reduced1) {
+   $output2 = "&= \frac{$num1}{$out1 \sqrt{$in}}";
+} else {
+   $output2 = "";
+}
+
+if ($num1==1) {
+   $output3 = "&= \frac{\sqrt{$in}}{$out1dot $in} \\";
+} else {
+   $output3 = "&= \frac{$num1 \sqrt{$in}}{$out1dot $in} \\";
+}
+
+if (!($reduced2)) {
+   $output4 = "";
+} else {
+   $output4 = "&= \frac{$num2 \sqrt{$in}}{$out1dot $in2} \\";
+}
+
+if ($numAns==1) {$numOutput = "";}
+else {$numOutput = "$numAns";}
+
+if (($num2==$numAns) && ($in2==$denAns)) {
+   $output5 = "";
+} else {
+   $output5 = "&= \frac{$numOutput \sqrt{$in}}{$denAns}";
+}
+
+BEGIN_PGML_SOLUTION
+
+We need to legally remove the radical [`[$sqrt1]`] from the denominator.
+
+Let's simplify the radical first:
+
+    [``
+\begin{aligned}
+   [$sqrt1] [$output11] \\
+            [$output12] \\
+            [$output13] 
+\end{aligned}
+    ``]
+
+Now the problem becomes:
+
+    [`` \frac{[$num]}{[$sqrt1]} = \frac{[$num]}{[$out] \sqrt{[$in]}} ``]
+
+To remove the radical from the denominator, we will use this property:
+
+    [`` \sqrt{x} \cdot \sqrt{x} = x ``]
+
+In this case, we have:
+
+    [`` \sqrt{[$in]} \cdot \sqrt{[$in]} = [$in] ``]
+
+So we multiply both the numerator and denominator by [` \sqrt{[$in]} `]. 
+
+The full process is:
+
+    [``
+\begin{aligned}[t]
+   \frac{[$num]}{[$sqrt1]}
+      &= \frac{[$num]}{[$out] \sqrt{[$in]}} \\
+      [$output2]\\
+      [$output2] \cdot\frac{\sqrt{[$in]}}{\sqrt{[$in]}}\\
+      &= \frac{[$num1] \cdot \sqrt{[$in]}}{[$out1] \sqrt{[$in]} \cdot \sqrt{[$in]}} \\
+      [$output3]
+      [$output4]
+      [$output5]
+\end{aligned}
+    ``]
+
+END_PGML_SOLUTION
+
+######################################
+   
+
+ENDDOCUMENT();

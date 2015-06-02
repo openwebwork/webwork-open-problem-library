@@ -5,9 +5,13 @@
 ## Tagged by cmd6a 5/3/06
 
 ## DBsubject(Linear algebra)
-## DBchapter(Inner products)
-## DBsection(Orthogonal and orthonormal sets)
-## Institution('Rochester')
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(July 2013)
+## Institution(Rochester and Hope College)
+## Author(Paul Pearson)
+## Level(3)
+## MO(1)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
@@ -17,23 +21,21 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl"
+"PGstandard.pl",
+"MathObjects.pl",
+"PGcourse.pl",
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
-$case = random(5,10,5);
+Context('Matrix');
+Context()->flags->set(
+  tolerance => 0.001,
+  tolType => "absolute",
+);
 
-$U = new Matrix(2,2);
+$case = random(5,10,5);
 
 if ($case==5) {
 	$u[1][1] = random(1,2,1);
@@ -47,10 +49,11 @@ $u[1][1] = $u[1][1] * random(-1,1,2);
 $u[2][1] = $u[2][1] * random(-1,1,2);
 $u[1][2] = - $u[2][1]; 
 $u[2][2] = $u[1][1]; 
-$U -> assign(1,1,$u[1][1]);
-$U -> assign(1,2,$u[1][2]);
-$U -> assign(2,1,$u[2][1]);
-$U -> assign(2,2,$u[2][2]);
+
+$U = Matrix([
+[ $u[1][1], $u[1][2] ],
+[ $u[2][1], $u[2][2] ],
+]);
 
 $eig1 = $case * non_zero_random(-5,-1,1) * random(0,1,1);
 if ($eig1 == 0) { 
@@ -59,39 +62,46 @@ if ($eig1 == 0) {
 	$eig2 = 0;
 }
 
-$E = new Matrix(2,2);
-$E -> assign(1,1,$eig1);
-$E -> assign(1,2,0);
-$E -> assign(2,1,0);
-$E -> assign(2,2,$eig2);
+$E = Matrix([
+[$eig1, 0],
+[0, $eig2],
+]);
 
-$U_lr = $U->decompose_LR();
-$I = $U_lr->invert_LR();
+$I = $U->inverse;
 
 $A = $U * $E * $I;
 
+$lambda[1] = Compute("$eig1");
+$lambda[2] = Compute("$eig2");
+
+$basis[1] = Matrix([ [$u[1][1]/sqrt($case)], [$u[2][1]/sqrt($case)] ]);
+$basis[2] = Matrix([ [$u[1][2]/sqrt($case)], [$u[2][2]/sqrt($case)] ]);
+
+Context()->texStrings;
 BEGIN_TEXT
-
-Find the eigenvalues and associated unit eigenvectors of the (symmetric) matrix 
+Find the eigenvalues \( \lambda_1 < \lambda_2 \) and associated unit eigenvectors \( \vec{u}_1, \vec{u}_2 \) of the symmetric matrix 
+\[ A = $A. \]
 $BR
-\(A= \{ display_matrix_mm($A) \} \)
+The smaller eigenvalue \( \lambda_1 = \) \{ $lambda[1]->ans_rule(10) \} 
+has associated unit eigenvector \( \vec{u}_1 = \) \{ $basis[1]->ans_array(15) \}.
 $BR
-\{ mbox( 'smaller eigenvalue = ', ans_rule(10) , ',' ) \} 
 $BR
-\{mbox( 'associated unit eigenvector = ', ans_array(2,1,10), ',' ) \}
+The larger eigenvalue \( \lambda_2 = \) \{ $lambda[2]->ans_rule(10) \} 
+has associated unit eigenvector \( \vec{u}_2 = \) \{ $basis[2]->ans_array(15) \}.
 $BR
-\{ mbox( 'larger eigenvalue = ', ans_rule(10), ',' ) \}
-$BR
-\{mbox( 'associated unit eigenvector = ', ans_array(2,1,10), '.' ) \}
-$BR
-The above eigenvectors form an orthonormal eigenbasis for \(A\). 
-
+Note: The eigenvectors above form an orthonormal eigenbasis for \(A\). 
 END_TEXT
+Context()->normalStrings;
 
-ANS(num_cmp($eig1));
-ANS(basis_cmp([[$u[1][1]/sqrt($case), $u[2][1]/sqrt($case)]], 'mode'=>'unit', 'help'=>'verbose'));
-ANS(num_cmp($eig2));
-ANS(basis_cmp([[$u[1][2]/sqrt($case), $u[2][2]/sqrt($case)]], 'mode'=>'unit', 'help'=>'verbose'));
+foreach my $i (1..2) {
 
-ENDDOCUMENT();       # This should be the last executable line in the problem.
+ANS($lambda[$i]->cmp);
+ANS($basis[$i]->cmp(checker=>sub {
+  my ( $correct, $student, $ansHash ) = @_;
+  return (($student == $correct) or ($student == -1*$correct));
+}));
 
+}
+
+COMMENT('MathObject version.  One of the eigenvalues is zero and the other is nonzero.');
+ENDDOCUMENT();

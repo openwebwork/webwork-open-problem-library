@@ -22,10 +22,12 @@ loadMacros(
 
 
 ## DBsubject(Calculus - multivariable)
-## DBchapter(Partial derivatives)
-## DBsection(Functions of Several Variables)
+## DBchapter(Concepts for multivariable functions)
+## DBsection(Traces, contours, and level sets)
 ## Institution(University of Michigan)
 ## Author(Gavin LaRose)
+## Level(2)
+## MO(1)
 ## TitleText1('Calculus')
 ## AuthorText1('Hughes-Hallett')
 ## EditionText1('5')
@@ -62,80 +64,161 @@ Context()->variables->set(
 );
 
 $cxz = Compute( "1/(e^($bsq+1))" );
-$xz = ImplicitEquation( "(x-$a)^2 + z^2 = 1" )->reduce();
+# $xz = ImplicitEquation( "(x-$a)^2 + z^2 = 1" )->reduce();
+$xz = Formula( "(x-$a)^2 + z^2" )->reduce();
+$cxzval = Compute("1");
+
 $cyz = Compute( "1/(e^($asq+1))" );
-$yz = ImplicitEquation( "(y-$b)^2 + z^2 = 1" )->reduce();
+# $yz = ImplicitEquation( "(y-$b)^2 + z^2 = 1" )->reduce();
+$yz = Formula( "(y-$b)^2 + z^2" )->reduce();
+$cyzval = Compute("1");
+
 $cxy = Compute( "1/(e^(1))" );
-$xy = ImplicitEquation( "(x-$a)^2 + (y-$b)^2 = 1" )->reduce();
+# $xy = ImplicitEquation( "(x-$a)^2 + (y-$b)^2 = 1" )->reduce();
+$xy = Formula( "(x-$a)^2 + (y-$b)^2" )->reduce();
+$cxyval = Compute("1");
 
-$xzAns = MultiAnswer( $cxz, $xz )->with(
+$xzAns = MultiAnswer( $cxz, $xz, $cxzval )->with(
     singleResult => 0,
     allowBlankAnswers => 1,
     checkTypes => 0,
     checker => sub {
         my ( $correct, $student, $self ) = @_;
-        my ( $cstu, $eqstu ) = @{$student};
-        my ( $cans, $eqans ) = @{$correct};
-	my @ret = (0,0);
+        my ( $cstu, $eqstu, $eqcstu ) = @{$student};
+        my ( $cans, $eqans, $eqcans ) = @{$correct};
+	my @ret = (0,0,0);
+
+	## type checking
 	$cstu = Real($cstu) if ( $cstu ne "" );
-	if ( ref($cstu) eq ref($cans) && $cstu > Compute(0) &&
-	     $cstu < Compute("1/e^($bsq)") ) {
+	## allow equation to be entered in either order
+	if ( ref($eqstu) eq ref($eqcans) && ref($eqcstu) eq ref($eqans) ) {
+	    $tmp = $eqstu;
+	    $eqstu = $eqcstu;
+	    $eqcstu = $tmp;
+	}
+	$eqstu  = Formula( $eqstu );
+	$eqcstu = Formula( $eqcstu );
+
+	## check the value of c
+	if ( $cans->typeMatch($cstu) && $cstu > Compute(0) &&
+	     $cstu <= Compute("1/e^($bsq)") ) {
 	    $ret[0] = 1;
 	}
-	if ( ref($cstu) eq ref($cans) && $eqstu ) {
-	    my $eq = ImplicitEquation( "(x-$a)^2 + z^2 = -ln($cstu) - $bsq" );
-	    $eqstu = ImplicitEquation( $eqstu );
-	    $ret[1] = ( $eq == $eqstu ) ? 1 : 0;
+
+	## check by first making sure that any constant term is combined
+	##    on the "right-hand" side of the equation, and then that the
+	##    functional form and constant are both correct
+	if ( defined($eqstu) && defined($eqcstu) ) {
+	    $diff = $eqstu - $eqans;
+	    $diffDx2 = $diff->D('x')->D('x');
+	    $diffDz2 = $diff->D('z')->D('z');
+	    ## if this is to be correct, the difference must be a constant
+	    if ( Formula(0) == $diffDx2 && Formula(0) == $diffDz2 ) {
+		$eqcstu = $eqcstu - $diff;
+		$eqstu  = $eqstu - $diff;
+		$eqcans = $ret[0] ? (-log($cstu) - $bsq) : 0;
+		$ret[1] = ( $eqans == $eqstu );
+		$ret[2] = $ret[0] && ( Formula($eqcans) == $eqcstu );
+	    }
 	}
 
 	return [ @ret ];
     }
 );
-$yzAns = MultiAnswer( $cyz, $yz )->with(
+
+$yzAns = MultiAnswer( $cyz, $yz, $cyzval )->with(
     singleResult => 0,
     allowBlankAnswers => 1,
     checkTypes => 0,
     checker => sub {
         my ( $correct, $student, $self ) = @_;
-        my ( $cstu, $eqstu ) = @{$student};
-        my ( $cans, $eqans ) = @{$correct};
-	my @ret = (0,0);
+        my ( $cstu, $eqstu, $eqcstu ) = @{$student};
+        my ( $cans, $eqans, $eqcans ) = @{$correct};
+	my @ret = (0,0,0);
+
+	## type checking
 	$cstu = Real($cstu) if ( $cstu ne "" );
-	if ( ref($cstu) eq ref($cans) && $cstu > Compute("0") &&
-	     $cstu < Compute("1/e^($asq)") ) {
+	## allow equation to be entered in either order
+	if ( $eqcans->typeMatch( $eqstu ) && $eqans->typeMatch($eqcstu) ) {
+	    $tmp = $eqstu;
+	    $eqstu = $eqcstu;
+	    $eqcstu = $tmp;
+	}
+	$eqstu  = Formula( $eqstu );
+	$eqcstu = Formula( $eqcstu );
+
+	## check the value of c
+	if ( $cans->typeMatch( $cstu ) && $cstu > Compute(0) &&
+	     $cstu <= Compute("1/e^($asq)") ) {
 	    $ret[0] = 1;
 	}
-	if ( ref($cstu) eq ref($cans) && $eqstu ) {
-	    my $eq = ImplicitEquation( "(y-$b)^2 + z^2 = -ln($cstu) - $asq" );
-	    $eqstu = ImplicitEquation( $eqstu );
-	    $ret[1] = ( $eq == $eqstu ) ? 1 : 0;
+	## check by first making sure that any constant term is combined
+	##    on the "right-hand" side of the equation, and then that the
+	##    functional form and constant are both correct
+	if ( defined($eqstu) && defined($eqcstu) ) {
+	    $diff = $eqstu - $eqans;
+	    $diffDy2 = $diff->D('y')->D('y');
+	    $diffDz2 = $diff->D('z')->D('z');
+	    ## if this is to be correct, the difference must be a constant
+	    if ( Formula(0) == $diffDy2 && Formula(0) == $diffDz2 ) {
+		$eqcstu = $eqcstu - $diff;
+		$eqstu  = $eqstu - $diff;
+		$eqcans = $ret[0] ? -log($cstu) - $asq : 0;
+		$ret[1] = ( $eqans == $eqstu );
+		$ret[2] = $ret[0] && ( Formula($eqcans) == $eqcstu );
+	    }
 	}
-	return [ @ret ];
-    }
-);
-$xyAns = MultiAnswer( $cxy, $xy )->with(
-    singleResult => 0,
-    allowBlankAnswers => 1,
-    checkTypes => 0,
-    checker => sub {
-        my ( $correct, $student, $self ) = @_;
-        my ( $cstu, $eqstu ) = @{$student};
-        my ( $cans, $eqans ) = @{$correct};
-	my @ret = (0,0);
-	$cstu = Real($cstu) if ( $cstu ne "" );
-	if ( ref($cstu) eq ref($cans) && $cstu > Compute(0) &&
-	     $cstu < Compute("1") ) {
-	    $ret[0] = 1;
-	}
-	if ( ref($cstu) eq ref($cans) && $eqstu ) {
-	    my $eq = ImplicitEquation( "(x-$a)^2 + (y-$b)^2 = -ln($cstu)" );
-	    $eqstu = ImplicitEquation( $eqstu );
-	    $ret[1] = ( $eq == $eqstu ) ? 1 : 0;
-	}
+
 	return [ @ret ];
     }
 );
 
+$xyAns = MultiAnswer( $cxy, $xy, $cxyval )->with(
+    singleResult => 0,
+    allowBlankAnswers => 1,
+    checkTypes => 0,
+    checker => sub {
+        my ( $correct, $student, $self ) = @_;
+        my ( $cstu, $eqstu, $eqcstu ) = @{$student};
+        my ( $cans, $eqans, $eqcans ) = @{$correct};
+	my @ret = (0,0,0);
+
+	## type checking
+	$cstu = Real($cstu) if ( $cstu ne "" );
+	## allow equation to be entered in either order
+	if ( $eqcans->typeMatch( $eqstu ) && $eqans->typeMatch($eqcstu) ) {
+	    $tmp = $eqstu;
+	    $eqstu = $eqcstu;
+	    $eqcstu = $tmp;
+	}
+	$eqstu  = Formula( $eqstu );
+	$eqcstu = Formula( $eqcstu );
+
+	## check the value of c
+	if ( $cans->typeMatch( $cstu ) && $cstu > Compute(0) &&
+	     $cstu <= Compute("1") ) {
+	    $ret[0] = 1;
+	}
+	## check by first making sure that any constant term is combined
+	##    on the "right-hand" side of the equation, and then that the
+	##    functional form and constant are both correct
+	if ( defined($eqstu) && defined($eqcstu) ) {
+	    $diff = $eqstu - $eqans;
+	    $diffDx2 = $diff->D('x')->D('x');
+	    $diffDy2 = $diff->D('y')->D('y');
+	    ## if this is to be correct, the difference must be a constant
+	    if ( Formula(0) == $diffDx2 && Formula(0) == $diffDy2 ) {
+		$eqcstu = $eqcstu - $diff;
+		$eqstu  = $eqstu - $diff;
+		$eqcans = $ret[0] ? -log($cstu): 0;
+		$ret[1] = ( $eqans == $eqstu );
+		$ret[2] = $ret[0] && ( Formula($eqcans) == $eqcstu );
+	    }
+	}
+
+	return [ @ret ];
+    }
+);
 
 Context()->texStrings;
 TEXT(beginproblem());
@@ -165,9 +248,10 @@ Pick a level surface that intersects the \(xz\)-plane.  What is your
 value of \(c\)? $BR
 \( c = \) \{ $xzAns->ans_rule(15) \}
 $BR
-Write the equation for the intersection:
+Write the equation for the intersection, as an expression set equal
+to a constant:
 $BR
-\{ $xzAns->ans_rule(35) \}
+\{ $xzAns->ans_rule(30) \} = \{ $xzAns->ans_rule(10) \}
 
 $PAR
 ${BBOLD}(c)$EBOLD
@@ -176,9 +260,10 @@ value of \(c\) (which might be different from that you used in
 ${BBOLD}(a)$EBOLD? $BR
 \( c = \) \{ $yzAns->ans_rule(15) \}
 $BR
-Write the equation for the intersection:
+Write the equation for the intersection, as an expression set equal
+to a constant:
 $BR
-\{ $yzAns->ans_rule(35) \}
+\{ $yzAns->ans_rule(30) \} = \{ $yzAns->ans_rule(10) \}
 
 $PAR
 ${BBOLD}(d)$EBOLD
@@ -186,9 +271,10 @@ Pick a level surface that intersects the \(xy\)-plane.  What is your
 value of \(c\)? $BR
 \( c = \) \{ $xyAns->ans_rule(15) \}
 $BR
-Write the equation for the intersection:
+Write the equation for the intersection, as an expression set equal
+to a constant:
 $BR
-\{ $xyAns->ans_rule(35) \}
+\{ $xyAns->ans_rule(30) \} = \{ $xyAns->ans_rule(10) \}
 
 END_TEXT
 Context()->normalStrings;
@@ -197,6 +283,8 @@ ANS(Interval( "(0,1]" )->cmp() );
 ANS($xzAns->cmp() );
 ANS($yzAns->cmp() );
 ANS($xyAns->cmp() );
+
+$ex = Compute( "(x - $a)^2 + (y - $b)^2 + z^2" )->reduce();
 
 $xzLHS = Compute( "(x - $a)^2 + z^2" )->reduce();
 $yzLHS = Compute( "(y - $b)^2 + z^2" )->reduce();
@@ -228,7 +316,7 @@ $PAR
 ${BBOLD}(b)$EBOLD
 In the \(xz\)-plane, \(y=0\), so the intersections of the level
 surfaces with the plane are circles,
-\( $xzLHS = -\ln(c) $mbsq \).  Thus we must have \(c < e^{-$bsq}\),
+\( $xzLHS = -\ln(c) $mbsq \).  Thus we must have \(c \le e^{-$bsq}\),
 for example, \(c = $c1\), for which the intersection of the level
 curve with the \(xz\)-plane is
 \[ $xzLHS = 1. \]
@@ -237,7 +325,7 @@ $PAR
 ${BBOLD}(c)$EBOLD
 Similarly, in the \(yz\)-plane, \(x=0\), so the intersections of the level
 surfaces with the plane are circles,
-\( $yzLHS = -\ln(c) $masq \).  Thus we must have \(c < $c2\),
+\( $yzLHS = -\ln(c) $masq \).  Thus we must have \(c \le $c2\),
 for example, \(c = e^{-$asqp1}\), for which the intersection of the level
 curve with the \(xz\)-plane is
 \[ $yzLHS = 1. \]
@@ -246,7 +334,7 @@ $PAR
 ${BBOLD}(d)$EBOLD
 Finally, in the \(xz\)-plane, \(z=0\), so the intersections of the level
 surfaces with the plane are circles,
-\( $xyLHS = -\ln(c) \).  Thus we must have \(c < 1\),
+\( $xyLHS = -\ln(c) \).  Thus we must have \(c \le 1\),
 for example, \(c = e^{-1}\), for which the intersection of the level
 curve with the \(xz\)-plane is
 \[ $xyLHS = 1. \]

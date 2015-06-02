@@ -1,0 +1,183 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Solve the following quadratic equation
+#
+#       (ax+b)^2 =0
+#
+# Last updated: Hughes 8/9/13
+# ENDDESCRIPTION
+
+## DBCCSS('A-REI.4.b')
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('equations', 'Simplification')
+## KEYWORDS('solve','quadratic','equation','factor','fraction')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+loadMacros(
+     "PGstandard.pl",
+     "MathObjects.pl",
+     "parserAssignment.pl",
+     "answerHints.pl",
+     "PGML.pl",
+     "contextFraction.pl",
+     "parserOneOf.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+
+$var = "x";
+$a=2;
+$b=$a;
+$c=$a;
+$d=$a;
+
+while(gcd($a,$b)!=1 or gcd($c,$d)!=1 or (abs($a*$c)+abs($b*$c+$a*$d)+abs($b*$d))>100)
+{
+    $a = random(2,10,1);
+    $b = non_zero_random(-10,10,1);
+    $c = $a;
+    $d = $b;
+}
+
+$questionFormula = Formula("$a*$c*$var^2+($b*$c+$a*$d)*$var+($b*$d)")->reduce;
+$questionFormula1 = Formula("($a*$var+$b)($c*$var+$d)")->reduce;
+
+Context("LimitedFraction")->flags->set(
+                        reduceFractions => 0,
+                        showMixedNumbers=>0,
+                        showExtraParens=>0 );
+parser::Assignment->Allow;
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+Context()->operators->redefine('or',using=>',',from=>'Numeric');
+Context()->operators->set(
+  ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+  'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+);
+Context()->lists->set(List => {separator => " or "});
+Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
+  = "Please simplify your answer further";
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  );
+
+$frac1 = Fraction(-$b,$a);
+$frac2 = Fraction(-$d,$c);
+# $ans = Compute("$var = $frac1, $var = $frac2");
+#$ans = OneOf(Compute("$var = $frac1"),Compute("$var = $frac1, $var = $frac2"));
+$ans = Compute("$var = $frac1");
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+Solve the quadratic equation
+
+    [` [$questionFormula]=0`]
+
+    [__________________________]
+
+* Enter multiple answers separated by commas, such as [`x=1,x=-1`]
+* Enter solutions such as [`\frac{1+\sqrt{3}}{2}`] using *(1+sqrt(3))/2* and note
+the grouping parentheses
+* If there are no real solutions, enter *no real solutions*
+END_PGML
+
+##############################################
+
+ANS($ans->cmp(
+  checker => sub {
+    my ($correct,$student,$ans) = @_;
+    # count the number of student answers
+    my $fullStudent = $ans->{student_formula};
+    my @fullStudentValue = $fullStudent->value;
+    my $n = scalar(@fullStudentValue);  # number of student answers
+    if($n>1)
+    {
+      $student->context->setError("Does this equation have more than one unique solution?","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    # if the student has said no real solutions, ask them about it
+    if($student eq "no real solutions")
+    {
+      $student->context->setError("This equation does have some solutions- try factoring or using the quadratic formula","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    # check that the student has written x=
+    if ($student->type ne "Assignment" && $ans->{student_formula}->type ne "Assignment") {
+      $student->context->setError("Your entry should be written $var = $US$US$US","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    return $correct == $student;
+  }
+)->withPostFilter(sub {
+  my $ansHash = shift;
+  if ($ansHash->{score}) {
+    my ($cvar,$cfrac) = $ansHash->{correct_value}->value; # get
+    my ($svar,$sfrac) = $ansHash->{student_value}->value; # get
+    my $check = $cfrac->cmp->evaluate($sfrac->string); # do a
+     $ansHash->{score} = $check->{score};
+     $ansHash->{ans_message} = $check->{ans_message}; # and any
+   }
+     return $ansHash;
+     },
+     ),
+);
+    
+##############################################
+
+$A = $a*$c;
+$B = $b*$c+$a*$d;
+$C = $b*$d;
+
+BEGIN_PGML_SOLUTION
+We can solve this equation either by _factoring_ or by using the _quadratic formula_. 
+We will demonstrate both.
+
+#### Factoring
+
+    [`
+       \begin{aligned}
+                 [$questionFormula]=0 &\Rightarrow [$questionFormula1]=0 \\
+                                    & \Rightarrow [$ans]
+       \end{aligned}
+    `]
+
+#### The Quadratic Formula
+
+We can also solve the equation using the quadratic formula
+
+    [`
+        \begin{aligned}
+            [$var]  & = \frac{-b\pm\sqrt{b^2-4ac}}{2a}\\
+                    & = \frac{[$B*-1]\pm\sqrt{[$B**2]-[$A*$C*4]}}{[$A*2]}\\
+                    & = \frac{[$B*-1]\pm\sqrt{[$B**2-$A*$C*4]}}{[$A*2]}
+        \end{aligned}
+    `]
+
+so [`[$ans]`] as before.
+
+In this problem there is just *one*, _repeated_ solution. 
+
+The solution can be checked by substituting it into the original equation- this is left as an exercise.
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();

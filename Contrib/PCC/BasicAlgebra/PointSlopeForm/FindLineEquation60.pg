@@ -1,0 +1,183 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a line's slope and a point on the line, find the line's equation in 
+# both slope-intercept and point-slope form. Slope is a negative fraction. 
+# Y-intercept is # positive or negative.
+#
+# Last edited: Jordan 8/30/13; Yao 7/8/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Linear Equations')
+## KEYWORDS('slope','linear','equation','point-slope','slope-intercept','fraction')
+## DBCCSS('8.F.3','A-CED')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserImplicitPlane.pl",
+  "parserAssignment.pl",
+  "contextFraction.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Fraction");
+Context()->noreduce('(-x)-y','(-x)+y','(-x)*y','x*(-y)','-n');
+
+$num = random(1,9,1);
+$den = random(2,9,1);
+while (gcd($num,$den)!=1) {$den = random(2,9,1);}
+
+$m= -Fraction($num,$den);
+$b=non_zero_random(-5,5,1);
+
+$x1=$den*non_zero_random(-3,3,1);
+$y1=$m*$x1+$b;
+
+Context("ImplicitPlane");
+Context()->flags->set(showExtraParens=>0);
+Context()->variables->are(x=>'Real', y=>'Real');
+Context()->flags->set(showExtraParens=>0);
+
+Context()->texStrings;
+$absX1 = abs($x1);
+$absY1 = abs($y1);
+if (($x1>0) && ($y1>0)) {
+   $ansPSstringTeX = "y-$y1=$m(x-$x1)"; 
+} elsif (($x1<0) && ($y1>0)) {
+   $ansPSstringTeX = "y-$y1=$m(x+$absX1)"; 
+} elsif (($x1>0) && ($y1<0)) {
+   $ansPSstringTeX = "y+$absY1=$m(x-$x1)"; 
+} else {
+   $ansPSstringTeX = "y+$absY1=$m(x+$absX1)"; 
+}
+
+if ($b>0) {$ansSIstringTeX = "y=$m x+$b";}
+else {
+   $absB = abs($b);
+   $ansSIstringTeX = "y=$m x-$absB";
+}
+Context()->normalStrings;
+$ansPSstring = "y-$y1=$m(x-$x1)"; 
+
+$ansPS = ImplicitPlane($ansPSstring);
+
+Context("Numeric");
+Context()->variables->are(x=>'Real', y=>'Real');
+Context()->flags->set(reduceConstants=>0);
+parser::Assignment->Allow;
+$ansSI=Compute("y=x+$b")->reduce;
+$ansSI=$ansSI->substitute(x=>Formula("$m x"));
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+A line's slope is [``[$m]``]. The line passes through the point [`([$x1],[$y1])`]. Find an equation for this line in both slope-intercept form and point-slope form.
+
+    An equation for this line in slope-intercept form is: [_______________]{$ansSI->cmp(correct_ans_latex_string => $ansSIstringTeX)}.
+
+    An equation for this line in point-slope form is: [_______________].
+
+END_PGML
+
+##############################################
+
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(reduceConstantFormulas=>0);
+
+ANS($ansPS->cmp(correct_ans_latex_string => $ansPSstring
+   ) -> withPostFilter(sub {
+      my $ansHash = shift;
+        my $student = $ansHash->{original_student_ans};
+        my @sides = split('=',"$student");
+
+      #if it's an implicit plane object, reset how student's answer is displayed:
+      if ($ansHash->{student_formula}->cmp_class eq "an Implicit line") {
+        $ansHash->{preview_text_string} = "$sides[0]=$sides[1]";
+        my $leftTex = Formula("$sides[0]")->TeX;
+        my $rightTex = Formula("$sides[1]")->TeX;
+        $ansHash->{preview_latex_string} = "$leftTex=$rightTex";
+        $ansHash->{student_ans} = $ansHash->{original_student_ans};
+      }
+
+      #if they have the line correct, then check each side to see if the sides are correct
+      if ($ansHash->{score}) {
+         if (Formula("y-$y1") != Formula("$sides[0]") and Formula("y-$y1") != Formula("$sides[1]")) {
+         $ansHash->{score} = 0;                 
+         $ansHash->{ans_message} = "This is an equation for the line, but it is not the point-slope equation that uses the given point"; 
+         }  
+      }
+      return $ansHash;
+    }));
+
+
+
+$s2 = -$m;
+$s1 = $s2*$x1;
+$left1 = Compute("y-$y1")->reduce;
+$right1 = Compute("x-$x1")->reduce;
+
+$absY1 = abs($y1);
+$y1Output = $y1>0 ? "+$y1" : "-$absY1";
+
+BEGIN_PGML_SOLUTION
+
+It's easier to find the point-slope form first, since we have been given a _point_ on the line and the _slope_ of the line. The generic formula for the point-slope form is:
+
+    [`y-y_{1}=m(x-x_{1})`] 
+
+where [`m`] is the slope and [` (x_{1},y_{1}) `] is a point on the line. We have been given that [``m=[$m]``] and that the line passes through the point [` ([$x1],[$y1]) `]. We substitute these numbers into the formula, and we have:
+
+    [`
+\begin{aligned}
+   y-y_{1} &= m(x-x_{1}) \\
+   y-([$y1]) &= [$m][x-([$x1])] \\
+   [$left1] &= [$m]([$right1])
+\end{aligned}
+`]
+
+So the line has an equation in point-slope form: [``[$left1] = [$m]([$right1]) ``].
+
+----
+
+The slope-intercept form of a line equation looks like [``y=mx+b``], where [``m``] is the slope and [`b`] is the [`y`]-intercept. We can take the point-slope form and solve for [`y`].
+
+    [`
+\begin{aligned}
+   [$left1] &= [$m]([$right1])\\
+   [$left1] &= [$m]x+[$s2]([$x1])\\
+   [$left1] &= [$m]x+[$s1]\\
+   [$left1]\mathbf{{}[$y1Output]} &= [$m]x+[$s1]\mathbf{{}[$y1Output]}\\
+   y &= [$m]x+[$b]\\
+\end{aligned}
+`]
+
+So the line's equation in slope-intercept form is [``y=[$m]x+[$b]``].
+
+
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

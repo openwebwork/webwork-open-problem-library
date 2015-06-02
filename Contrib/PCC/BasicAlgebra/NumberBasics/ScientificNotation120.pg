@@ -1,0 +1,180 @@
+# WeBWorK problem written by Chris Hughes
+# Portland Community College
+#
+# Template:
+#
+#  Simplify the following expression, writing your answer in scientific notation
+#
+#       (a x 10^b)^c
+#
+#  We choose a INTEGER on [1,10],
+#            b INTEGER on [2,10]
+#            c INTEGER on [2,4]
+# 
+# Last updated: Jordan 8/4/13;  Carl Yao, 7/03/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Exponents and Radicals')
+## KEYWORDS('exponent','scientific','notation','negative')
+## DBCCSS('8.EE.1','8.EE.3','8.EE.4')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "answerHints.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+#       (a x 10^b)^c
+#
+#  We choose a INTEGER on [1,10],
+#            b INTEGER on [2,10]
+#            c INTEGER on [2,4]
+
+$a = random(2,5,1);
+$b = random(2,10,1);
+$c = random(2,4,1);
+
+# power
+$p = Real(($a*(10**$b))**$c);
+
+$arg = floor(log($p)/log(10));
+$mantissa = $p/(10**$arg);
+
+$t = -log($mantissa/($a**$c))/log(10);
+
+$aux = $a**$c/10**($t);
+
+
+
+package my::BOP::multiply;
+our @ISA = ('Parser::BOP::multiply');
+
+sub TeX {
+     my $self = shift;
+     return '{'.$self->{lop}->TeX.'\mathbin{\times}'.$self->{rop}->TeX.'}';
+   }
+
+sub _eval {
+  my $self = shift;
+  my $context = $self->context;
+  my ($a,$b) = @_;
+  if ($context->flag("bizarroMul")) {
+    if ($b <= 0) {$self->Error("Scientific notation has a positive number here")}
+    else {return $a+CORE::log($b)}
+  } else {
+    return $a * $b;
+  }
+}
+
+sub call {(shift)->_eval(@_)}
+
+package main;
+
+Context("LimitedNumeric");
+Context()->variables->are();
+Context()->operators->redefine('*');
+Context()->operators->redefine(' *');
+Context()->operators->redefine('* ');
+Context()->operators->redefine('**');
+Context()->operators->redefine('^');
+Context()->parens->redefine('(');
+Context()->parens->redefine('[');
+Context()->flags->set(reduceConstants=>0, formatStudentAnswer=>'parsed');
+Context()->noreduce("x*n");
+
+Context()->operators->set(
+     '*' => {class => 'my::BOP::multiply', isCommand => 1},  # override *
+     '* ' => {class => 'my::BOP::multiply', isCommand => 1},  # override *
+     ' *' => {class => 'my::BOP::multiply', isCommand => 1},  # override *
+     '**' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},  # override **
+     '^' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},  # override ^
+);
+
+
+$prec = Context()->operators->get('*')->{precedence};
+Context()->operators->add(
+     'x' => {
+        class => 'my::BOP::multiply',
+        isCommand => 1,
+        precedence => $prec,
+        associativity => 'left',
+        type => 'bin',
+        string => ' x ',
+        TeX => '\mathbin{\times}',
+     }
+   );
+
+
+
+
+# answer
+
+$ans = Formula("$mantissa*10^$arg");
+
+##############################################
+TEXT(beginproblem());
+
+BEGIN_PGML
+Simplify the following expression, writing your answer in scientific notation.
+
+     [`([$a]\times 10^{[$b]})^{[$c]}=`][__________________]
+
+END_PGML
+
+$showPartialCorrectAnswers = 1;
+
+ANS($ans->cmp(checker =>
+sub {
+    my ($correct,$student,$ans) = @_;
+    return 0 if $ans->{isPreview} || $correct != $student;
+    $student = $ans->{student_formula};
+    $correct = $correct->{original_formula} if defined $correct->{original_formula};
+    $student = Formula("$student"); $correct = Formula("$correct"); #ensure both are Formula objects
+    Context()->flags->set(bizarroMul => 1,bizarroPow => 1); 
+    delete $correct->{test_values}, $student->{test_values};
+    my $OK = (($correct == $student) or ($student == $correct)); 
+    Context()->flags->set(bizarroMul => 0, bizarroPow => 0);
+    Value::Error("This is the same as the given number, but it is not in scientific notation") unless $OK;
+    return $OK;
+  }
+));
+##############################################
+
+
+$solnString = '';
+$solnString = '\\        & = [$aux]\times10^{[$t]}\times 10^{[$b*$c]}\\ &=[$aux]\times 10^{[$b*$c+$t]}' if ($a**$c != $mantissa);
+
+BEGIN_PGML_SOLUTION
+
+Remember that [`[$a]\times 10^{[$b]}`] represents multiplication, so we are allowed to use
+the rule of exponents that says [`(ab)^m=a^mb^m`]
+
+    [`
+           \begin{aligned}
+              ([$a]\times 10^{[$b]})^{[$c]}&= [$a]^{[$c]} \times 10^{[$b]\cdot[$c]}\\
+                                                         & = [$a**$c]\times 10^{[$b*$c]}[$solnString]**
+           \end{aligned}
+    `]
+END_PGML_SOLUTION
+##############################################
+
+
+ENDDOCUMENT();

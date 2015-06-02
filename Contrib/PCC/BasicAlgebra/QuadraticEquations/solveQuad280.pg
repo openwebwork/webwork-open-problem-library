@@ -1,0 +1,171 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Solve the following quadratic equation
+#
+#       ac x^2 + bd = - (ad + bc) x 
+#
+# i.e 
+#
+#       ac x^2 + (ad + bc) x + bd  = 0
+# 
+# This equation factors nicely
+#
+#       (ax + b)(cx + d) = 0
+#
+# If you need to use the square root symbol, 
+# as in x=sqrt{17}, type it like: *sqrt(17)*
+#
+# a = 1,  c != 1
+#
+# b and d are both positive.
+#
+# Last updated: Hughes 8/20/13
+#
+# ENDDESCRIPTION
+
+## DBCCSS('A-REI.4.b')
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('equations', 'Simplification')
+## KEYWORDS('solve','quadratic','equation','factor','zero product principle')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+      "PGstandard.pl",
+      "MathObjects.pl",
+      "parserAssignment.pl",
+      "answerHints.pl",
+      "PGML.pl",
+     "contextFraction.pl",
+    ,
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+
+$var = "x";
+$a = 1;
+$b = 0;
+$c = random(2,10,1);
+$d = $c;
+$d = non_zero_random(-10,10,1)while(gcd($c,$d)!=1);
+$complete = Formula("$a*$c*$var^2+($a*$d+$b*$c)*$var+$b*$d")->reduce->reduce;
+$lhs = Formula("$a*$c*$var^2")->reduce->reduce;
+$rhs = Formula("-($a*$d+$b*$c)*$var")->reduce->reduce;
+$step = Formula("($a$var+$b)($c$var+$d)")->reduce;
+
+Context("LimitedFraction")->flags->set(
+            reduceFractions => 0,
+            showMixedNumbers=>0,
+            showExtraParens=>0);
+
+parser::Assignment->Allow;
+
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+Context()->operators->redefine('or',using=>',',from=>'Numeric');
+Context()->operators->set(
+      ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+      'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+    );
+Context()->lists->set(List => {separator => " or "});
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  );
+Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
+  = "Please simplify your answer further";
+
+
+
+$soln1 = Fraction(-$b,1);
+$soln2 = Fraction(-$d,$c);
+$ans = Compute("$var = $soln1, $var = $soln2");
+
+TEXT(beginproblem());
+BEGIN_PGML
+Solve the quadratic equation
+
+     [` [$lhs] = [$rhs] `]
+  
+     [____________________]
+
+* Enter multiple answers separated by commas, such as [`x=1,x=-1`]
+* If you need to use the square root symbol, 
+as in [`x=\sqrt{17}`], type it using: *sqrt(17)*
+* If there are no real solutions, enter *no real solutions*
+END_PGML
+
+$showPartialCorrectAnswers = 1;
+ANS($ans->cmp(
+  entry_type => "a solution",
+  checker => sub {
+    my ($correct,$student,$ans,$nth,$value) = @_;
+    if ($correct->type eq "Assignment") {
+      my ($svar,$sfrac) = $student->value; # get the variable and fraction
+      #return 0 unless Value::classMatch($sfrac,'Fraction') && $sfrac->isReduced;
+      if(Value::classMatch($sfrac,'Fraction'))
+      {
+        return 0 unless $sfrac->isReduced;
+      }
+    }
+    return $correct == $student;
+  },
+  extra => sub {
+    my ($student,$ansHash,$nth,$value) = @_;
+    if($student eq "no real solutions")
+    {
+         $student->context->setError("This equation does have some solutions- try using the square root method","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+         return;
+    }
+    if ($student->type ne "Assignment" && $ansHash->{student_formula}->type ne "Assignment") {
+      $student->context->setError("Your $nth solution should be written $var = $US$US$US","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    my ($svar,$sfrac) = $student->value; # get the variable and fraction
+    if (Value::classMatch($sfrac,'Fraction') && !$sfrac->isReduced) {
+      $student->context->setError("Your $nth $value is not reduced","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    return Value::Real->typeMatch($student);
+  }
+)->withPostFilter(AnswerHints(
+  ["$var=$a","$var=-$a"] => "Are you sure you have all the solutions?",
+  [$a,-$a] => ["Your solution is a correct one, but you should write $var = $US$US$US<br>Are you sure you have all the solutions?",replaceMessage=>1],
+  ["$a,-$a","-$a,$a"] => ["Your solutions are correct, but you should write $var = $US$US$US",replaceMessage=>1],
+)));
+
+BEGIN_PGML_SOLUTION
+There are a few ways to solve quadratic equations- the easiest way to solve this particular 
+type of problem is to use the _zero product principle_. 
+
+    [`
+        \begin{aligned}
+                [$lhs] = [$rhs] &\Rightarrow [$complete]=0\\
+                                &\Rightarrow [$step]=0\\
+                                &\Rightarrow [$var]=[$soln1]\text{ or } [$var]=[$soln2]\\
+        \end{aligned}
+    `]
+
+Note that _all_ quadratic equations have *two* (possibly repeated) solutions; in this problem both solutions are real. Each solution can be checked by substituting it into the original equation- this is left as an exercise.
+
+You might have solved the equation using the Quadratic Formula- the final 
+result is the same.
+END_PGML_SOLUTION
+
+##############################################
+ENDDOCUMENT();

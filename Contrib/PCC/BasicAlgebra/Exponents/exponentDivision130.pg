@@ -1,0 +1,163 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Simplify the following expression
+#
+#    a x^n + b x^ m + c x^p + d x^k
+#    -----------------------------
+#           e x^4
+#
+#
+# We specify the answer first, and then just multiply it by c
+# so that all the numbers work out nicely. Everything is integer.
+#
+# Last edited: Hughes 9/6/13, Hughes, 7/1/13, Yao 6/28/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('exponent','simplify','fraction','divide','polynomial','monomial')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "contextFraction.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+$var = RandomVariableName(type=>'variable');
+Context()->variables->are($var=>'Real');
+
+# setup the answer: $a x^n + $b x^m + $c x^p
+$a = non_zero_random(-13,13,1);
+$n = random(7,20,1);
+$m = random(6,$n-1,1);
+$p = random(5,$m-1,1);
+$k = random(4,$p-1,1);
+
+$b = non_zero_random(-13,13,1);
+$c = non_zero_random(-13,13,1);
+$d = non_zero_random(-13,13,1);
+
+foreach my $i (0..$n) {$poly1array[$i] = 0};
+$poly1array[0] = $a;
+$poly1array[$n-$m] = $b;
+$poly1array[$n-$p] = $c;
+$poly1array[$n-$k] = $d;
+
+# multiply top and bottom by $e x^4
+$e = (random(1.5,9.5,1)+0.5)*random(-1,1,2);
+
+# setup the denominator: $e
+@poly2array = ($e,0,0,0,0);
+
+# reduction check
+$ans = Formula(PolyString(~~@poly1array,order=>descending,var=>$var))->reduce->reduce;
+$poly2 = Formula(PolyString(~~@poly2array,order=>descending,var=>$var))->reduce->reduce;
+
+# for the numerator we have to multiply poly1 by poly2
+$poly1 = Formula(PolyMult(~~@poly1array,~~@poly2array,output=>simplified,var=>$var))->reduce->reduce;
+
+Context("LimitedPolynomial-Strict");
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1});
+
+
+Context()->variables->are($var=>'Real');
+$ans = Formula($ans);
+
+
+##############################################
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Simplify the following expression
+
+    [`\displaystyle\frac{[$poly1]}{[$poly2]}= `][________________________________]
+
+END_PGML
+
+ANS($ans -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      Context()->flags->set(limits=>[0.95,1.05]);
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      Context()->flags->set(limits=>[0.25,0.4]);
+      Value->Error("Your answer is correct, but please simplify it further") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0);
+      return 1;
+}
+)); 
+
+
+##############################################
+#Solution
+
+Context("Fraction"); 
+Context()->flags->set(reduceFractions=>0,reduceContstants=>0);
+Context()->variables->are($var=>'Real');
+Context()->noreduce('(-x)-y','(-x)+y');
+#
+## solution step
+foreach my $i (0..$n) {$solnStep[$i] = 0};
+$solnStep[$n-$n] = Fraction($a*$e,$e);
+$solnStep[$n-$m] = Fraction($b*$e,$e);
+$solnStep[$n-$p] = Fraction($c*$e,$e);
+$solnStep[$n-$k] = Fraction($d*$e,$e);
+$solnStep = Formula("$solnStep[$n-$n] $var**$n+$solnStep[$n-$m] $var**$m+$solnStep[$n-$p] $var**$p+$solnStep[$n-$k] $var**$k");
+
+
+BEGIN_PGML_SOLUTION
+We divide each term by [`[$poly2]`] as follows
+
+    [`
+    \begin{aligned}
+    \displaystyle\frac{[$poly1]}{[$poly2]} & =\frac{[$a*$e][$var]^{[$n+4]}}{[$e][$var]^{4}}
+    +\frac{[$b*$e][$var]^{[$m+4]}}{[$e][$var]^{4}}  
+    +\frac{[$c*$e][$var]^{[$p+4]}}{[$e][$var]^{4}} 
+    +\frac{[$d*$e][$var]^{[$k+4]}}{[$e][$var]^{4}}  \\
+                    & = [$solnStep]\\
+                    & = [$ans]
+    \end{aligned}
+`]
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

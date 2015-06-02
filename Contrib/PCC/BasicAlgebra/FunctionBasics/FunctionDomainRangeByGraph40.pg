@@ -1,0 +1,241 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Give a function's graph, find its domain and range.
+# Function is a piece of parabola.
+#
+# Last update: Jordan 9/15/13; Carl Yao 09/13/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Function')
+## DBsection('Domain and Range')
+## KEYWORDS('function','domain','range','graph')
+## DBCCSS('8.F','F-IF')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+$refreshCachedImages=1;
+
+$a = random(-1,1,2);
+$h = random(-2,2,1);
+$k = random(-3,3,1);
+$func = Compute("$a*(x-$h)**2+$k")->reduce;
+
+$domainLowX = random(-5,$h-1,1);
+$domainLowY = $func->eval(x=>$domainLowX);
+
+do {$domainHighX = random($h+1,5,1);} until (($domainHighX+$domainLowX)/2 != $h);
+$domainHighY = $func->eval(x=>$domainHighX);
+
+$leftOpen = random(0,1,1);
+$rightOpen = random(0,1,1);
+if ($leftOpen) {
+   $leftOpenClose = "open";
+   $leftInclusive = "not included";
+} else {
+   $leftOpenClose = "closed";
+   $leftInclusive = "included";
+}
+if ($rightOpen) {
+   $rightOpenClose = "open";
+   $rightInclusive = "not included";
+} else {
+   $rightOpenClose = "closed";
+   $rightInclusive = "included";
+}
+
+if ($a>0) {
+   $rangeLowX = $h;
+   $rangeLowY = $k;
+   $rangeHighX = $domainLowY>$domainHighY ? $domainLowX : $domainHighX;
+   $rangeHighY = max($domainLowY,$domainHighY);
+   $bottomOpenClose = "closed";
+   $bottomInclusive = "included";
+   $topOpenClose = $domainLowY>$domainHighY ? $leftOpenClose : $rightOpenClose;
+   $topInclusive = $domainLowY>$domainHighY ? $leftInclusive : $rightInclusive;
+} else {
+   $rangeLowX = $domainLowY>$domainHighY ? $domainHighX : $domainLowX;
+   $rangeLowY = min($domainLowY,$domainHighY);
+   $rangeHighX = $h;
+   $rangeHighY = $k;
+   $bottomOpenClose = $domainLowY>$domainHighY ? $rightOpenClose : $leftOpenClose;
+   $bottomInclusive = $domainLowY>$domainHighY ? $rightInclusive : $leftInclusive;
+   $topOpenClose = "closed";
+   $topInclusive = "included";
+}
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$domainLowX,$domainHighX],[$rangeLowY,$rangeHighY,$k]);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+  $gr = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+
+  if ($a>0) {$pos1 = 'top'; $pos2 = 'bottom'; $sign = 1;}
+  else {$pos1 = 'bottom'; $pos2 = 'top'; $sign = -1;}
+
+  $gr->stamps( closed_circle($h,$k,'blue') );
+
+  $gr->lb( new Label($h,$k-$sign*$marksep[1]/8,"($h,$k)", 'blue','center',$pos1));
+  $gr->lb( new Label($domainLowX,$domainLowY+$sign*$marksep[1]/8,"($domainLowX,$domainLowY)", 'blue','center',$pos2));
+  $gr->lb( new Label($domainHighX,$domainHighY+$sign*$marksep[1]/8,"($domainHighX,$domainHighY)", 'blue','center',$pos2));
+
+$upDown = ($a < 0) ? 'up' : 'down';
+$downUp = ($a < 0) ? 'down' : 'up';
+
+$ALT = "A graph of a curve beginning at ($domainLowX,$domainLowY), curving $upDown and flattening at ($h,$k), and curving back $downUp to ($domainHighX,$domainHighY)";
+
+
+Context("Interval");
+if (($leftOpen==1) && ($rightOpen==1)) {
+   $intDomain = Compute("($domainLowX,$domainHighX)");
+   if ($a>0) {$intRange = Compute("[$k,$rangeHighY)");}
+   else {$intRange = Compute("($rangeLowY,$k]");}
+   add_functions($gr, "$a*(x-$h)**2+$k for x in ($domainLowX,$domainHighX) using color:blue and weight:2");
+} elsif (($leftOpen==0) && ($rightOpen==1)) {
+   $intDomain = Compute("[$domainLowX,$domainHighX)");
+
+   if (($a>0)&&($domainLowY>$domainHighY)) {
+      $intRange = Compute("[$k,$rangeHighY]");}
+   if (($a>0)&&($domainLowY<$domainHighY)) {
+      $intRange = Compute("[$k,$rangeHighY)");}
+   if (($a<0)&&($domainLowY>$domainHighY)) {
+      $intRange = Compute("($rangeLowY,$k]");}
+   if (($a<0)&&($domainLowY<$domainHighY)) {
+      $intRange = Compute("[$rangeLowY,$k]");}
+
+   add_functions($gr, "$a*(x-$h)**2+$k for x in [$domainLowX,$domainHighX) using color:blue and weight:2");
+} elsif (($leftOpen==1) && ($rightOpen==0)) {
+   $intDomain = Compute("($domainLowX,$domainHighX]");
+
+   if (($a>0)&&($domainLowY>$domainHighY)) {
+      $intRange = Compute("[$k,$rangeHighY)");}
+   if (($a>0)&&($domainLowY<$domainHighY)) {
+      $intRange = Compute("[$k,$rangeHighY]");}
+   if (($a<0)&&($domainLowY>$domainHighY)) {
+      $intRange = Compute("[$rangeLowY,$k]");}
+   if (($a<0)&&($domainLowY<$domainHighY)) {
+      $intRange = Compute("($rangeLowY,$k]");}
+
+   add_functions($gr, "$a*(x-$h)**2+$k for x in ($domainLowX,$domainHighX] using color:blue and weight:2");
+} else {
+   $intDomain = Compute("[$domainLowX,$domainHighX]");
+   if ($a>0) {$intRange = Compute("[$k,$rangeHighY]");}
+   else {$intRange = Compute("[$rangeLowY,$k]");}
+   add_functions($gr, "$a*(x-$h)**2+$k for x in [$domainLowX,$domainHighX] using color:blue and weight:2");
+}
+
+
+##############################################
+Context("LimitedNumeric");
+BEGIN_PGML
+
+A function's graph is shown below. 
+
+[@EnlargeImageStatementPGML()@]**
+
+
+>>[@image(insertGraph($gr), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
+
+Use interval notation to answer the following questions.
+
+    The domain of this function is [___________]{$intDomain}.
+
+    The range of this function is [___________]{$intRange}.
+
+END_PGML
+##############################################
+
+if ($a>0) {
+
+BEGIN_PGML_SOLUTION
+
+First, let's find the domain of this function. A function's domain is the collection of all its valid inputs. These are the [`x`] values for which we could use the graph to find an output.
+
+The end-point on the left side is [`([$domainLowX],[$domainLowY])`]. This point is [$leftOpenClose], so the value [`[$domainLowX]`] is [$leftInclusive] in the domain.
+
+The end-point on the right side is [`([$domainHighX],[$domainHighY])`]. This point is [$rightOpenClose], so the value [`[$domainHighX]`] is [$rightInclusive] in the domain.
+
+Any [`x`]-value in between [`[$domainLowX]`] and [`[$domainHighX]`] is a valid input. So the domain of the function is [`[$intDomain]`].
+
+----
+
+Next, let's find the range of this function. A function's range is the collection of possible outputs. These are the [`y`]-values of all of the points that we see shaded on the segment.
+
+The end-point at the bottom is the parabola's vertex [`([$h],[$k])`]. The value [`[$k]`] is included in the range.
+
+The end-point on the top is [`([$rangeHighX],[$rangeHighY])`]. This point is [$topOpenClose], so the value [`[$rangeHighY]`] is [$topInclusive] in the range.
+
+So the range of the function is [`[$intRange]`].
+
+END_PGML_SOLUTION
+
+} else {
+
+BEGIN_PGML_SOLUTION
+
+First, let's find the domain of this function. A function's domain is the collection of all its valid inputs. These are the [`x`] values for which we could use the graph to find an output.
+
+The end-point on the left side is [`([$domainLowX],[$domainLowY])`]. This point is [$leftOpenClose], so the value [`[$domainLowX]`] is [$leftInclusive] in the domain.
+
+The end-point on the right side is [`([$domainHighX],[$domainHighY])`]. This point is [$rightOpenClose], so the value [`[$domainHighX]`] is [$rightInclusive] in the domain.
+
+Any [`x`]-value in between [`[$domainLowX]`] and [`[$domainHighX]`] is a valid input. So the domain of the function is [`[$intDomain]`].
+
+----
+
+Next, let's find the range of this function. A function's range is the collection of possible outputs. These are the [`y`]-values of all of the points that we see shaded on the segment.
+
+The end-point at the bottom is [`([$rangeLowX],[$rangeLowY])`]. This point is [$bottomOpenClose], so the value [`[$rangeLowY]`] is [$bottomInclusive] in the range.
+
+The end-point on the top is the parabola's vertex [`([$h],[$k])`]. The value [`[$k]`] is included in the range.
+
+So the range of the function is [`[$intRange]`].
+
+END_PGML_SOLUTION
+
+}
+
+
+
+
+ENDDOCUMENT();

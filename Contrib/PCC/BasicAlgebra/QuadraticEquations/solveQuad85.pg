@@ -1,0 +1,164 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Solve the following quadratic equation
+#
+#       (ax + b)^2 = c^2
+#
+# If you need to use the square root symbol, 
+# as in x=sqrt{17}, type it like: *sqrt(17)*
+#
+# The solutions are
+#
+#   c-b      -c-b
+#   --- ,     --- 
+#    a         a
+#
+# Last updated: Hughes 8/4/13
+# ENDDESCRIPTION
+
+## DBCCSS('A-REI.4.b')
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('equations', 'Simplification')
+## KEYWORDS('solve','quadratic','equation','square root','fraction','subtract','divide')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+loadMacros(
+     "PGstandard.pl",
+     "MathObjects.pl",
+     "parserAssignment.pl",
+     "answerHints.pl",
+     "PGML.pl",
+     "contextFraction.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedFraction")->flags->set(reduceFractions => 0,showMixedNumbers=>0,showExtraParens=>0);
+parser::Assignment->Allow;
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+Context()->operators->redefine('or',using=>',',from=>'Numeric');
+Context()->operators->set(
+  ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+  'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+);
+Context()->lists->set(List => {separator => " or "});
+Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
+  = "Please simplify your answer further";
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  );
+
+$var = "x";
+
+# b needs to be even
+$b = random(2,10,2);
+
+# c can be either odd or even, but can't be equal to $b
+$c = $b;
+$c = random(3,12,1) while($c==$b);
+
+# choose a based on c being odd or even
+if(2*round($c/2)==$c)
+{
+    # c is even so choose a to be odd
+    $a = 2*abs($c-$b);
+    $a = random(3,11,2) while(gcd(abs($c-$b),$a)>1 or gcd(abs(-$c-$b),$a)>1 );
+}
+else
+{
+    # c is odd, so choose a to be even
+    $a = 2*abs($c-$b);
+    $a = random(2,12,2) while(gcd(abs($c-$b),$a)>1 or gcd(abs(-$c-$b),$a)>1 );
+}
+$soln1 = Fraction(-$c-$b,$a);
+$soln2 = Fraction($c-$b,$a);
+$ans = Compute("$var = $soln1, $var = $soln2");
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+Solve the quadratic equation
+
+    [` \left([$a][$var]+[$b]\right)^2 = [$c**2] `]
+
+    [______________________]
+
+* Enter multiple answers separated by commas, such as [`x=1,x=-1`]
+* If you need to use the square root symbol, 
+as in [`x=\sqrt{17}`], type it using: *sqrt(17)*
+* If there are no real solutions, enter *no real solutions*
+END_PGML
+
+##############################################
+
+$showPartialCorrectAnswers = 1;
+ANS($ans->cmp(
+  entry_type => "a solution",
+  checker => sub {
+    my ($correct,$student,$ans,$nth,$value) = @_;
+    if ($correct->type eq "Assignment") {
+      my ($svar,$sfrac) = $student->value; # get the variable and fraction
+      return 0 unless Value::classMatch($sfrac,'Fraction') && $sfrac->isReduced;
+    }
+    return $correct == $student;
+  },
+  extra => sub {
+    my ($student,$ansHash,$nth,$value) = @_;
+    if($student eq "no real solutions")
+    {
+         $student->context->setError("This equation does have some solutions- try using the square root method","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+         return;
+    }
+    if ($student->type ne "Assignment" && $ansHash->{student_formula}->type ne "Assignment") {
+      $student->context->setError("Your $nth solution should be written $var = $US$US$US","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    my ($svar,$sfrac) = $student->value; # get the variable and fraction
+    if (Value::classMatch($sfrac,'Fraction') && !$sfrac->isReduced) {
+      $student->context->setError("Your $nth $value is not reduced","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    return Value::Real->typeMatch($student);
+  }
+)->withPostFilter(AnswerHints(
+  ["$var=$soln1","$var=$soln2"] => "Are you sure you have all the solutions?",
+  [$soln1,$soln2] => ["Your solution is a correct one, but you should write $var = $US$US$US<br>Are you sure you have all the solutions?",replaceMessage=>1],
+  ["$soln1,$soln2","$soln1,$soln2"] => ["Your solutions are correct, but you should write $var = $US$US$US",replaceMessage=>1],
+)));
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+There are a few ways to solve quadratic equations- the easiest way to solve this particular 
+type of problem is to use the _square root method_. 
+
+    [`
+       \begin{aligned}
+               \left([$a][$var]+[$b]\right)^2 = [$c**2] & \Rightarrow [$a][$var]+[$b]=[$c*-1]\text{ or }[$a][$var]+[$b]=[$c]\\
+               & \Rightarrow [$a][$var]=[$c*-1-$b]\text{ or }[$a][$var]=[$c-$b]\\
+                                    & \Rightarrow [$var]=[$soln1]\text{ or } [$var]=[$soln2]\\
+       \end{aligned}
+    `]
+
+Note that _all_ quadratic equations have *two* (possibly repeated) solutions; in this problem both solutions are real. Each solution can be checked by substituting it into the original equation- this is left as an exercise.
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();

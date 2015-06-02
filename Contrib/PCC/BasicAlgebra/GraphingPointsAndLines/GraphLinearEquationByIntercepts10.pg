@@ -1,0 +1,226 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a line's equation, graph the line.
+# The line's equation looks like Ax+By=C. Intercepts only involve integers.
+# x-intercept and y-intercept are both positive.
+# A!=1, B!=1.
+#
+# Last edited: Jordan 8/18/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Lines')
+## KEYWORDS('coordinate','line','linear','equation','graph','intercept')
+## DBCCSS('8.EE.6','8.F.3','F-IF.7.a')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserRadioButtons.pl",
+  "pccTables.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+Context("Numeric");
+$refreshCachedImages=1;
+
+$a = random(2,6,1);
+do {$b = random(2,6,1);} until ($a!=$b);
+$c = random(1,3,1)*lcm($a,$b);
+
+$m = -$a/$b;
+$yInt = $c/$b;
+$xInt = $c/$a;
+@ar_mb = ([$m,$yInt],[$m,-$yInt],[-$m,$yInt],[-$m,-$yInt],[$m,$yInt]);
+@xInts = (-$yInt/$m, $yInt/$m, $yInt/$m, -$yInt/$m, -$yInt/$m);
+
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+
+$scramble{4} = 4;
+$inverse{4} = 4;
+
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([0,$yInt/$m],[0,$yInt],centerOrigin=>1);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+for my $i (0..4) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (Real($j) == 0) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+   $gr[$i]->lb( new Label($min[0]+$marksep[0]/8, $max[1]-$marksep[1]/8, $ALPHABET[$inverse{$i}], 'black', 'left', 'top')) unless ($i==4);
+   add_functions($gr[$i], "$ar_mb[$i][0]*x+$ar_mb[$i][1] for x in <$min[0],$max[0]> using color:blue and weight:1");
+
+   $ALTtags[$i]="Graph $ALPHABET[$inverse{$i}]: graph of a line crossing the x-axis at $xInts[$i] and the y-axis at $ar_mb[$i][1]";
+}
+
+pop(@ALTtags);
+push(@ALTtags,"graph of a line crossing the x-axis at $xInts[4] and the y-axis at $ar_mb[4][1]");
+
+
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$inverse{0}], # correct answer
+  order => ["A","B","C","D"],
+);
+
+##############################################
+
+BEGIN_PGML
+
+First find the [`x`]-intercept and [`y`]-intercept of the line with equation [`[$a] x + [$b] y =[$c] `]. Then use your results to graph the line on your own graph paper. Once you have done this, choose the correct graph from the options below. *Warning:* if you skip the step where you graph the line yourself on paper, you are not learning and practicing what you are supposed to be learning and practicing.
+
+[@EnlargeImageStatementPGML@]**
+
+    The correct graph is graph    
+    [@$radio->buttons()@]*
+
+END_PGML
+BEGIN_TEXT
+
+$BCENTER
+\{ 
+LayoutTable([[image( insertGraph($gr[$scramble{0}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{0}]" title = "$ALTtags[$scramble{0}]"'  ),
+image( insertGraph($gr[$scramble{1}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{1}]" title = "$ALTtags[$scramble{1}]"'  ),
+],
+[image( insertGraph($gr[$scramble{2}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{2}]" title = "$ALTtags[$scramble{2}]"'  ),
+image( insertGraph($gr[$scramble{3}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{3}]" title = "$ALTtags[$scramble{3}]"'  )
+]], allcellcss => "padding:20pt;")
+
+\}
+$ECENTER
+$PAR
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################
+
+ANS( $radio->cmp() );
+
+$x1 = 0;
+$y1 = $c/$b;
+$x2 = $c/$a;
+$y2 = 0;
+
+Context("Point");
+Context()->parens->set("[" => {type => "Interval", close => "]"});
+Context()->parens->set("{" => {type => "Set", close => "}"});
+Context()->parens->set("<" => {type => "Vector", close => ">"});
+$pt1=Compute("($x1,$y1)");
+$pt2=Compute("($x2,$y2)");
+
+
+if ($m > 0) 
+{$p1vert = 'bottom';
+ $p2vert = 'bottom';
+ $p1hor = 'right';
+ $p2hor = 'right';}
+else {$p1vert = 'top';
+      $p2vert = 'bottom';
+      $p1hor = 'right';
+      $p2hor = 'left';};
+
+$gr[4]->stamps( closed_circle($x1,$y1,'red') );
+$gr[4]->lb( new Label($x1,$y1,"$pt1",'red',$p1hor,$p1vert));
+$gr[4]->stamps( closed_circle($x2,$y2,'red') );
+$gr[4]->lb( new Label($x2,$y2,"$pt2",'red',$p2hor,$p2vert));
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+A line's \(y\)-intercept is on the \(y\)-axis, implying the intercept's \(x\)-value must be \(0\). To find a line's \(y\)-intercept, we substitute in \(x=0\). In this problem we have:
+
+\[
+\begin{aligned}
+  $a x + $b y &= $c \\
+  $a \cdot 0 + $b y &= $c \\
+  $b y &= $c \\
+  \frac{$b y}{$b} &= \frac{$c}{$b} \\
+   y & =  $yInt \\
+\end{aligned}
+\]
+
+
+This line's \(y\)-intercept is \( (0,$yInt) \).
+$PAR 
+Next, a line's \(x\)-intercept is on the \(x\)-axis, implying the intercept's \(y\)-value must be \(0\). To find a line's \(x\)-intercept, we substitute in \(y=0\). In this problem we have:
+
+\[
+\begin{aligned}
+ $a x + $b y &= $c \\
+ $a x + $b \cdot 0 &= $c \\
+ $a x &= $c \\
+ \frac{$a x}{$a} &= \frac{$c}{$a} \\
+ x & =  $xInt \\
+\end{aligned}
+\]
+
+This line's \(x\)-intercept is \( ($xInt,0) \).
+$PAR
+We have:
+$PAR
+$BCENTER
+\{ 
+DataTable([[{data=>"",header=>"CH"},{data=>"\(x\)-value",header=>"CH"},{data=>"\(y\)-value",header=>"CH"},{data=>"Location",header=>"CH"},],
+["\(y\)-intercept","\(0\)","\($yInt\)","\( (0,$yInt) \)"],
+["\(x\)-intercept","\($xInt\)","\(0\)","\( ($xInt,0) \)"],
+], allcellcss=>"border:1px solid;padding:4pt;text-align:center;", caption => "\(x\)-intercept and \(y\)-intercept of the line \( $a x + $b y = $c \)", captioncss =>"padding:4pt; text-decoration:none;");
+\}
+
+$ECENTER
+$PAR
+Locating these two points in the coordinate system, we can see the correct answer is \{ $radio->correct_ans() \}.
+$PAR
+$BCENTER
+\{ image( insertGraph($gr[4]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[4]" title = "$ALTtags[4]"'  ) \}
+$ECENTER
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

@@ -1,0 +1,127 @@
+# WeBWorK problem written by Chris Hughes, 2013
+# Portland Community College
+#
+# Template:
+# Simplify the following expression
+#     x^m y^k
+#     -------
+#     x^n y^p
+#
+# This problem chooes m, n, k, p to be POSITIVE, with m>n and k>p
+#
+# Last edited: Hughes 9/6/13, Carl Yao 6/28/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('exponent','simplify','fraction','divide')
+## DBCCSS('8.EE.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedPolynomial-Strict");
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1});
+
+
+# m and n are the exponents of x
+$m=random(10,200,10);
+$n=random(2,$m-1,1);
+
+# p and k are the exponents of y
+$p=random(10,20,10);
+$k=random(2,$p-1,1);
+
+$var1 = "x";
+$var2 = 'y';
+Context()->variables->are($var1=>'Real',$var2=>'Real');
+
+# custom error message
+Context()->{error}{msg}{"A variable can appear only once in each term of a polynomial"}
+  = "Your answer must be fully simplified";
+
+# quick reduction check (if $m, $n, $p or $k are 1)
+$myvar1 = Formula("$var1^$m")->reduce;
+$myvar2 = Formula("$var1^$n")->reduce;
+$myvar3 = Formula("$var2^$p")->reduce;
+$myvar4 = Formula("$var2^$k")->reduce;
+
+$total1 = $m-$n;
+$total2 = $p-$k;
+$ans = Formula("$var1^($total1)*$var2^($total2)");
+
+$var1=Formula("$var1");
+$var2=Formula("$var2");
+
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+Use the properties of exponents to simplify the following
+   
+    [`\displaystyle\frac{[$myvar1]\cdot[$myvar3]}{[$myvar2]\cdot[$myvar4]}=`]
+[__________________________________]
+
+END_PGML
+
+ANS($ans -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      Context()->flags->set(limits=>[0.95,1.05]);
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      Context()->flags->set(limits=>[0.25,0.4]);
+      Value->Error("Your answer is correct, but please simplify it further") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0);
+      return 1;
+}
+)); 
+
+
+
+BEGIN_PGML_SOLUTION
+We _subtract_ the exponents on each base as follows
+
+    [`\begin{aligned}
+           \frac{[$var1]^{[$m]}\cdot[$var2]^{[$p]}}{[$var1]^{[$n]}\cdot[$var2]^{[$k]}}&=[$var1]^{[$m]-[$n]}\cdot[$var2]^{[$p]-[$k]}\\
+                             &=[$var1]^{[$total1]}\cdot [$var2]^{[$total2]}
+       \end{aligned}`]
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

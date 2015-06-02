@@ -1,0 +1,115 @@
+# WeBWorK problem written by Alex Jordan
+# Portland Community College
+#
+# 
+# Factor an integer of the form 2^m q^2.
+#
+# 
+#
+# ENDDESCRIPTION
+
+## DBsubject('Number theory')
+## DBchapter('Divisibility')
+## DBsection('Prime factorization')
+## KEYWORDS('prime factors')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("LimitedNumeric");
+Context()->operators->redefine('*');
+Context()->operators->redefine(' *');
+Context()->operators->redefine('* ');
+Context()->operators->redefine('**');
+Context()->operators->redefine('^');
+Context()->parens->redefine('(');
+Context()->flags->set(reduceConstants=>0, formatStudentAnswer=>'parsed');
+
+Context()->operators->set(
+     '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},  # override *
+     '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},  # override *
+     ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},  # override *
+     '**' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},  # override **
+     '^' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},  # override ^
+);
+
+
+
+@oneDprimes = (2,3,5,7);
+@twoDprimes = (11,13,17,19);
+
+$p = 2;
+$q = $oneDprimes[random(1,3,1)];
+
+$m = random(3,6,1);
+
+$n = $p**$m*$q**2;
+
+$nlongString = '';
+for my $i (1..$m) {$nlongString = $nlongString."$p*";};
+
+$nlongString = $nlongString."$q*$q";
+
+##############################################
+
+BEGIN_PGML
+
+Find the prime factorization of [`[$n]`].
+
+    [`[$n]={}`][___________]
+
+
+END_PGML
+
+ANS(Formula("$p**$m*$q**2")->cmp(checker =>
+sub {
+    my ($correct,$student,$ans) = @_;
+    return 0 if $ans->{isPreview} || $correct != $student;
+    $student = $ans->{student_formula};
+    $correct = $correct->{original_formula} if defined $correct->{original_formula};
+    $student = Formula("$student"); $correct = Formula("$correct"); #ensure both are Formula objects
+    Context()->flags->set(bizarroMul => 1,bizarroPow => 1); 
+    delete $correct->{test_values}, $student->{test_values};
+    my $OK = (($correct == $student) or ($student == $correct) or (Formula("$nlongString") == $student) or ($student == Formula("$nlongString"))); 
+    Context()->flags->set(bizarroMul => 0, bizarroPow => 0);
+    Value::Error("Your answer is not fully factored and simplified") unless $OK;
+    return $OK;
+  }
+));
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+After checking to see if small prime numbers divide [`[$n]`], we find that [`[$p]`] is one divisor. In fact, we can keep dividing out [`[$p]`] until we have that [`[$n]=[$p]^[$m][$q*$q]`]. 
+
+The factor [`[$q*$q]`] is still not prime, since [`[$q]`] divides it. We now have that [`[$n]=[$p]^[$m][$q]^2`] is a prime factorization of [`[$n]`].
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();

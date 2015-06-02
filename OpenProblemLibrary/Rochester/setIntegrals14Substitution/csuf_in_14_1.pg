@@ -8,7 +8,9 @@
 ## DBchapter(Techniques of integration)
 ## DBsection(Substitution (without trigonometric functions))
 ## Institution(Rochester)
-## MLT(Sub_indirect)
+## MLT(affine_definite)
+## MO(1)
+## MLTleader(1)
 ## Level(2)
 ## TitleText1('Calculus: Early Transcendentals')
 ## AuthorText1('Rogawski')
@@ -17,51 +19,86 @@
 ## Problem1('35')
 ## KEYWORDS('integral' 'substitution' 'trig')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();
 
-loadMacros("PG.pl",
-           "PGbasicmacros.pl",
-           "PGchoicemacros.pl",
-           "PGanswermacros.pl",
-"PGauxiliaryFunctions.pl");
+loadMacros(
+	'PGstandard.pl',
+	'MathObjects.pl',
+	'contextFraction.pl'
+);
+
+sub str {
+        my $x = shift;
+        return ( $x > 0 ? '' : '-' )
+        . ( ($x)**2 == 1 ? '' : abs($x) )
+}
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
-$srga = random(1,5,2);
-$srgb = random($srga+2,9,2);
+do {
+	$a = list_random(-1, 1) * random(3, 9);
+	$b = non_zero_random(-9, 9);
+	$c = non_zero_random(-5, 5);
+} until (
+	gcd($a, $b) == 1 and
+	($a > 0 or $a * $b < 0)
+	and (2*$c)**2 - ($a)**2
+);
+$y0 = random(1, 5);
+$y0s = ($y0)**2;
+$y1 = random($y0 + 1, 9);
+$y1s = ($y1)**2;
 
-$ga = $srga**2;
-$gb = $srgb**2;
+Context('Fraction');
+$x0 = Fraction($y0**2 - $b, $a)->reduce;
+$x1 = Fraction($y1**2 - $b, $a)->reduce;
+$coeff = Fraction(2*$c, $a)->reduce;
+$du_coeff = Fraction(1, $a)->reduce;
+$Iu_coeff = Fraction($c, $a)->reduce;
+$D = Fraction("$coeff*$y1 - $coeff*$y0")->reduce;
 
-$a = ($ga - 1)/4;
-$b = ($gb - 1)/4; 
+Context('Numeric')->variables->are(
+	x => 'Real'
+);
+Context()->flags->set(
+	reduceConstants => 0,
+	reduceConstantFunctions => 0
+);
+$l = Formula("$a*x + $b")->reduce;
 
+$f = Formula("$c/sqrt($l)");
+
+Context()->texStrings;
 BEGIN_TEXT
-
-Evaluate the integral.
-$BR
-\( \displaystyle \int_{$a}^{$b}  \frac{dx}{\sqrt{4 x + 1}} = \) \{ans_rule(40)\}. 
-
+Evaluate the definite integral.
+$BR $BR
+\( \displaystyle \int_{$x0}^{$x1} $f \, dx = \)
+\{ ans_rule() \}
 END_TEXT
+Context()->normalStrings;
 
-$ans = ($srgb - $srga)/2; 
-ANS(num_cmp($ans ));
+ANS($D->cmp);
 
-SOLUTION(EV3(<<'EOF'));
-$SOL $BR
-Make the substitution \(u=4 x+1\), then \(du = 4 dx\), and 
-\(\displaystyle \frac{1}{4} du = dx\). 
-$BR $BR 
-Change the limits of integration: the lower limit becomes \(4\cdot $a + 1 = $ga\), and the upper limit becomes \(4\cdot $b + 1 = $gb\). Then 
-$BR $BR 
-\( \displaystyle \int_{$a}^{$b}  \frac{dx}{\sqrt{4 x + 1}} = 
-\frac{1}{4} \int_{$ga}^{$gb} \frac{du}{\sqrt{u}} = 
-\frac{1}{4} \int_{$ga}^{$gb} u^{-1/2} du = 
-\frac{1}{4} \left. \frac{u^{1/2}}{1/2} \right|_{$ga}^{$gb} = 
-\left. \frac{1}{2} \sqrt{u} \right|_{$ga}^{$gb} =
-\frac{1}{2} (\sqrt{$gb} - \sqrt{$ga}) = \frac{1}{2}($srgb - $srga) = $ans \)
+Context()->texStrings;
+BEGIN_SOLUTION
+Let \( u = $l \); then \( du = $a \, dx \),
+or \( $du_coeff \, du = dx \). To change
+the limits of integration, observe that if 
+\( x = $x0 \) then \( u = $y0s \), and if
+\( x = $x1 \) then \( u = $y1s \).
+Hence
+\[
+\begin{aligned}
+\int_{$x0}^{$x1} $f \, dx \>
+&= \{ str($Iu_coeff) \}
+\int_{$y0s}^{$y1s} \frac{du}{\sqrt{u}}
+= $coeff \sqrt{u} \; \Bigg \vert_{$y0s}^{$y1s} \\
+&= $coeff \bigl( \sqrt{$y1s} - \sqrt{$y0s} \bigr) \\
+&= $coeff ($y1 - $y0) \\
+&= $D.
+\end{aligned}
+\]
+END_SOLUTION
 
-EOF
-
-ENDDOCUMENT();        # This should be the last executable line in the problem.
+ENDDOCUMENT();

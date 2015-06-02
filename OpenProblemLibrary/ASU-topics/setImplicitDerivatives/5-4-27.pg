@@ -4,13 +4,13 @@
 
 ## Tagged by XW
 
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Differentiation)
 ## DBsection(Implicit differentiation)
 ## Institution(ASU)
-## MLT(xy_powers_tangent_new)
-## Level(4)
+## MLT(xy_poly_tangent_equation)
+## MO(1)
+## Level(3)
 ## TitleText1('Calculus: Early Transcendentals')
 ## AuthorText1('Stewart')
 ## EditionText1('5')
@@ -26,39 +26,95 @@
 DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGauxiliaryFunctions.pl"
+	'PGstandard.pl',
+	'MathObjects.pl',
+	'contextFraction.pl',
+	'parserImplicitPlane.pl'
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
-$x0 = non_zero_random(-2,2,1);
-$y0 = random(-2,2,1);
-$a = random(2,6,1);
-$b = random(2,4,1);
-$c = $b*$x0 - $a*$x0*$y0;
-$m = ($b - $a*$y0)/($a*$x0);
+Context('Numeric')->variables->are(
+	x => 'Real',
+	y => 'Real'
+);
+Context()->noreduce('(-x)-y', '(-x)+y');
+do {
+	$a = random(2, 9);
+	$b = list_random(-1, 1)*random(2, 9);
+	$x0 = non_zero_random(-2, 2);
+	$y0 = non_zero_random(-2, 2);
+	$P = Formula("$a*x*y + $b*x");
+	$c = $P->eval(x => $x0, y => $y0);
+	$F = ($P - $c)->reduce;
+	$Fx = $F->D('x')->reduce;
+	$Fy = $F->D('y')->reduce;
+	$Fx0 = $Fx->eval(x => $x0, y => $y0);
+	$Fy0 = $Fy->eval(x => $x0, y => $y0);
+} until (
+	gcd($a, $b) == 1
+	and $Fx0 % $Fy0
+);
 
-TEXT(EV2(<<EOT));
+$dydx = (-$Fx/$Fy)->reduce;
+$F_sub_x0 = $F->substitute(x => $x0)->reduce;
 
-Find the equation for the line tangent
+$P0 = Point($x0, $y0);
+$n0 = Vector( (reduce($Fy0, $Fx0))[1, 0] );
+
+$delta_x = Formula("x - $x0")->reduce;
+$delta_y = Formula("y - $y0")->reduce;
+
+Context('Fraction');
+$m0 = Fraction(-$Fx0, $Fy0)->reduce;
+
+Context('ImplicitPlane')->variables->are(
+	x => 'Real',
+	y => 'Real'
+);
+$tan_line = ImplicitPlane(
+	Point($P0),
+	Vector($n0)
+);
+
+Context()->texStrings;
+BEGIN_TEXT
+Find an equation of the line tangent
 to the graph of the equation
+\( $F = 0 \) at the point where
+\( x = $x0 \).
+$BR $BR
+\{ ans_rule(15) \} is an
+\{ helpLink(equation) \}
+of the tangent line to the
+curve at the point where
+\( x = $x0 \).
+END_TEXT
+Context()->normalStrings;
+
+ANS($tan_line->cmp);
+
+Context()->texStrings;
+BEGIN_SOLUTION
+Differentiating implicitly with respect
+to \( x \) gives
 \[
-    $a x y - $b x ? {$c} = 0
+$a y + $a x \, \frac{dy}{dx} ? {$b} = 0,
+\qquad \text{or} \qquad
+\frac{dy}{dx} = $dydx.
 \]
-at the point \(x = $x0\).
-$BR
-$BR
-Tangent Line: \(y = \) \{ans_rule(20) \}
-$BR
-
-EOT
-
-$ans = "$m*(x-($x0)) + ($y0)";
-ANS(fun_cmp($ans, vars=>"x"));
+If \( x = $x0 \) and \( $F = 0 \),
+then \( $F_sub_x0 = 0 \),
+and hence \( y = $y0 \).
+Therefore, the tangent line to the curve
+at the point where \( x = $x0 \)
+(and \( y = $y0 \)) has slope
+\[
+\frac{dy}{dx} = $m0,
+\]
+and equation \( $delta_y = $m0 ($delta_x) \),
+or \( $tan_line \).
+END_SOLUTION
 
 ENDDOCUMENT();

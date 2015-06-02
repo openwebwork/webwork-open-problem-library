@@ -1,0 +1,233 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a line graph, find the percent of increase of a stock.
+#
+# Last edited by Carl Yao on 12/20/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('')
+## KEYWORDS('percent','graph','application','line graph','rounding')
+## DBCCSS('7.RP.3','6.RP.3c')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextPercent.pl",
+  "contextCurrency.pl",
+#  "contextFraction.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("LimitedNumeric");
+
+$numPoints = 5;
+$maxLimit = 2;
+
+@days = ("Nov. 1","Nov. 2","Nov. 3","Nov. 4","Nov. 5");
+@price = (0,0,0,0,0);
+@priceC = ();
+
+do {
+   $startPrice = 1+random(-1,1,2)*random(1,50,1)/100;
+   $price[0] = $startPrice;
+   for my $i (1..$numPoints-1) {
+      $price[$i] = $price[$i-1]+random(-1,1,2)*random(1,50,1)/100;
+   }
+   $out = 0;
+   for my $i (1..$numPoints-1) {
+      if (($price[$i]>=$maxLimit) || ($price[$i]<=0)) {
+         $out = 1;
+      }
+   }
+   $decNotRounded = abs(($price[$numPoints-1]-$price[0])/$price[0]);
+   $dec = sprintf("%.4f",$decNotRounded);
+   $per = $dec*100;
+} until ( ($out==0) && ($decNotRounded!=$dec) );
+
+Context("Currency");
+for my $i (0..$numPoints-1) {
+   $priceC[$i] = Currency($price[$i]);
+}
+Context("LimitedNumeric");
+
+Context("LimitedPercent-strict");
+Context()->flags->set(
+   trimTrailingZeros => 1,
+   decimalPlaces => 2,
+   tolerance => .00005,
+);
+$perP = Compute("$per %");
+
+Context("LimitedNumeric");
+
+$yCover = $maxLimit;
+$ystep = $yCover/4;
+$xCover = 5;
+$xstep = 1;
+
+$xmin = -$xstep;         #The viewing window
+$xmax = $xCover + 2*$xstep;
+$ymin = -$ystep/2;
+$ymax = $yCover + $ystep;
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[400,400]);
+$picture->lb('reset');
+
+$picture->moveTo(0,0);
+$picture->lineTo($xmax-$xstep, 0, black,3);
+$picture->moveTo(0,0);
+$picture->arrowTo(0, $ymax-$ystep/2, black,3);
+
+for my $i (0..4) {
+   $picture->stamps( closed_circle(0,$i*($maxLimit/4),'blue') );
+   $mark = $i*($maxLimit/4);
+   Context("Currency");
+   $mark = Currency($mark);
+   $picture->lb( new Label(-$xstep/2,$i*($maxLimit/4),"$mark",'black','center','middle'));
+   Context("LimitedNumeric");
+}
+
+$picture->lb( new Label($xmax-$xstep,-$ystep/4,"days",'black','center','middle'));
+$picture->lb( new Label($xstep/4,$ymax-$ystep/3,"stock price in dollars",'black','left','middle'));
+
+$picture->moveTo($xstep,$price[0]);
+$alt = "This is a line graph about a stock's price change over $numPoints days. ";
+for my $i (0..$numPoints-1) {
+   $picture->lb( new Label(($i+1)*$xstep,-$ystep/(2*(4-2*($i%2))),
+         "$days[$i]",'black','center','middle'));
+   $picture->lineTo(($i+1)*$xstep,$price[$i],'red',1);
+   $picture->stamps( closed_circle(($i+1)*$xstep,$price[$i],'blue') );
+   $picture->lb( new Label(($i+1)*$xstep,$price[$i]+$ystep/4,
+         "$priceC[$i]",'black','center','middle'));
+   $alt = $alt."On $days[$i], the stock's price was $priceC[$i]. ";
+}
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+
+$day1 = $days[0];
+$dayLast = $days[$numPoints-1];
+
+BEGIN_TEXT
+
+This line graph shows a certain stock's price change over a few days. $PAR
+
+$BCENTER
+\{ image(insertGraph( $picture  ), tex_size=>400, height=>400, width=>400, extra_html_tags => 'alt = "$alt" title = "$alt"') \}
+$ECENTER
+$PAR
+
+END_TEXT
+BEGIN_PGML
+
+From [$day1] to [$dayLast], what is the stock price's percentage change?
+
+Fill in the blank with a percent. Round your percent to two decimal places, like [`12.34%`].
+
+*Solution:* From [$day1] to [$dayLast], the stock price's percentage change was approximately [_________]{$perP}. 
+
+END_PGML
+
+##############################################
+
+$day1Price = $price[0];
+$dayLastPrice = $price[$numPoints-1];
+$change = abs($dayLastPrice-$day1Price);
+
+Context("Currency");
+$day1PriceC = Currency($day1Price);
+$dayLastPriceC = Currency($dayLastPrice);
+$changeC = Currency($change);
+Context("LimitedNumeric");
+
+$s1 = $dayLastPrice/$day1Price;
+$s2 = $s1*100;
+$s3 = $per + 100;
+
+BEGIN_PGML_SOLUTION
+
+To calculate the percentage increase/decrease, first we find the amount of decrease/decrease, and then we find this increase/decrease is what percent of the original value.
+
+In this problem, the stock's price was [`[$day1PriceC]`] on [$day1], and the price changed to [`[$dayLastPriceC]`] on [$dayLast]. Their difference was [`[$dayLastPriceC]-[$day1PriceC]=[$dayLastPriceC-$day1PriceC]`], so the amount of change was [`[$changeC]`].
+
+Next, we need to find: [`[$changeC]`] is what percent of the original value, [`[$day1PriceC]`].
+
+####Method 1  
+
+We will use proportion to solve this problem.
+
+Assume [`[$change]`] is [`x%`] of [` [$day1Price] `], so "[`x`] out of [`100`]" corresponds to "[`[$change]`] out of [`[$day1Price]`]".
+
+We will write and solve the proportion:
+
+    [``
+\begin{aligned}[t]
+   \frac{x}{100} &= \frac{[$change]}{[$day1Price]} \\
+   [$day1Price]x &= [$change] \cdot 100 \\
+   [$day1Price]x &= [$change*100] \\
+   \frac{[$day1Price]x}{[$day1Price]} &= \frac{[$change*100]}{[$day1Price]} \\
+   x &\approx [$decNotRounded] \\
+   x &\approx [$per]
+\end{aligned}
+    ``]
+
+*Solution:* From [$day1] to [$dayLast], the percentage change in the stock's value was approximately [`[$per]%`].
+
+####Method 2  
+
+We will use the percentage formula to solve this problem.
+
+This translation from English to may  should help you remember the percentage formula.
+
+    [` 2 \text{ is } 50% \text{ of } 4 \Longleftrightarrow 2 = 0.5 \cdot 4 `]
+
+Let the change [`[$change]`] be [`x`] (as a percent) of [`[$day1Price]`]. That means:
+
+    [`
+\begin{aligned}
+  [$change]   &= x \cdot [$day1Price] \\
+  \frac{[$change]}{[$day1Price]} &= \frac{x \cdot [$day1Price]}{[$day1Price]} \\
+  [$decNotRounded] &\approx x \\
+  [$dec]       & \approx  x \\
+  [$per]%       & \approx  x \\
+\end{aligned}
+`]
+
+*Solution:* From [$day1] to [$dayLast], the percentage change in the stock's value was approximately [`[$per]%`].
+
+####Method 3  
+
+We first divide the "new number" by the "original number":
+
+    [`` \frac{[$dayLastPrice]}{[$day1Price]} \approx [$s1] \approx [$s3]% ``]
+
+So the new number is approximately [`[$s3]%`] of the original number, implying the percentage change was approximately [` [$s3]% - 100% = [$per]% `].
+
+*Solution:* From [$day1] to [$dayLast], the percentage change in the stock's value was approximately [`[$per]%`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
