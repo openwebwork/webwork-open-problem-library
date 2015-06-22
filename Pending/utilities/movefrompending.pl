@@ -50,6 +50,10 @@ sub procfile {
 		#system("git rm $fdir/$fn") or die "Cannot remove file $fdir/$fn ";
 		print `git rm $fdir/$fn`;
 		print "$fn REJECTED $tags->{Status}\n";
+		for my $res (@{$tags->{resources}}) {
+			print `git rm $dirprefix/Pending/$reldir/$res`;
+			print "Removed $reldir/$res\n";
+		}
 
 	}
 	if($tags->{Status} =~ /^[aA]$/) { #accept
