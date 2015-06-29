@@ -11,8 +11,8 @@ my $rejectfile = "Pending/NotAccepted";
 
 do {
 	print "Usage: contrib2pending.pl path/to/main/directory\n";
-	print "       which has subdirectories of Contrib, Pending, etc.";
-	print "       It is best if the path is absolute.";
+	print "       which has subdirectories of Contrib, Pending, etc.\n";
+	print "       It is best if the path is absolute.\n";
 	exit;
 } unless scalar(@ARGV);
 
