@@ -45,9 +45,6 @@ check the individual files for details.
     unionProblem.pl       Implements the table around the main text of
 			  the problem.  (Obsolete.)
     
-    unionTables.pl	  Functions for creating tables and side-by-side
-			  text.
-
     unionMessages.pl      Defines variables that hold standard
 			  messages like how to enter "infinity", or
 			  other such remarks.  This way they can be
