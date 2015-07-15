@@ -48,9 +48,6 @@ check the individual files for details.
     unionTables.pl	  Functions for creating tables and side-by-side
 			  text.
 
-    unionLists.pl	  Functions for creating UL and OL lists in
-			  HTML, and corresponding lists in TeX mode.
-
     unionMessages.pl      Defines variables that hold standard
 			  messages like how to enter "infinity", or
 			  other such remarks.  This way they can be
