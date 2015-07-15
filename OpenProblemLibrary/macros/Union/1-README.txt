@@ -177,9 +177,6 @@ check the individual files for details.
 
   MATCH-LIST ROUTINES:
 
-    alignedChoice.pl	  A match-list subclass that uses tables to
-			  create its question list.
-
     imageChoice.pl	  A match-list subclass that matches images
 			  against the questions.  The images are
 			  displayed in a table where you can specify
