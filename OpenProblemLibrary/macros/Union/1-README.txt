@@ -31,10 +31,6 @@ check the individual files for details.
     PGunion.pl            Simply includes a number of the other files
                           that make most of the union utilities available.
 
-    PGcourse.pl           Empty, but allows course-by-course customization
-                          of problems.  Should be loaded by all
-                          problems as the LAST macro file loaded.
-
     PGstandard.pl         Just contains a bunch of loadMacros() calls
 			  in order to make it easier to load the
 			  standard ones without having to remember
