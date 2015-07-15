@@ -70,9 +70,6 @@ check the individual files for details.
     unionImage.pl	  Implements an easier interface to including
 			  images in your problems.
 
-    LiveGraphics3D.pl	  Functions for including the LiveGraphics3D
-			  Java applet into your problems.  (See below.)
-
     altPlotMacros.pl	  Some alternatives to the standard plot macros
 			  that allows more sophisticated functions to
 			  be called during graph creation.
@@ -244,23 +241,3 @@ check the individual files for details.
 			  other universities.
 
 
-A NOTE ABOUT LIVEGRAPHICS3D:
-
-LiveGraphics3D.pl requires the LiveGraphics3D applet to be available.
-LiveGraphics3D.pl can be obtained from 
-
-    http://wwwvis.informatik.uni-stuttgart.de/~kraus/LiveGraphics3D/
-
-and is freely-distributable for non-commercial use.  Put the live.jar
-file in your webwork2/htdocs/applets directory (you might need to
-create one if it isn't there already), or in your course's
-html/applets directory (again, it may need to be created).
-
-Currently, LiveGraphics3D.pl only lets you load pre-created .m files,
-but I have plans for a future class that will generate the Grpahics3D
-object on the fly, just as 2D graphics are available now.  The
-LiveGraphics3D format does allow for the file to include parameters
-that are part of the applet call, so a single file can be used to
-generate a different surface in a family of surfaces for each student,
-for example.  There is also the possibility of interactive objects,
-but I haven't experimented with these.
