@@ -47,7 +47,7 @@ sub procfile {
 		print REJ "$reldir/$fn\n";
 		close REJ;
 		# remove file
-		#system("git rm $fdir/$fn") or die "Cannot remove file $fdir/$fn ";
+		#system("git -f rm $fdir/$fn") or die "Cannot remove file $fdir/$fn ";
 		print `git rm $fdir/$fn`;
 		print "$fn REJECTED $tags->{Status}\n";
 		for my $res (@{$tags->{resources}}) {
