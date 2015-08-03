@@ -64,9 +64,12 @@ sub procfile {
 		#print "B: $dirprefix OpenProblemLibrary $reldir $fn\n";
 		$tags->settag('Status', 0, 1);
 		$tags->write();
-		print `git mv $dirprefix/Pending/$reldir/$fn $dirprefix/OpenProblemLibrary/$reldir/$fn`;
+		my $escfn = $fn;
+		$escfn =~ s/\(/\\(/g;
+		$escfn =~ s/\)/\\)/g;
+		print `git mv $dirprefix/Pending/$reldir/$escfn $dirprefix/OpenProblemLibrary/$reldir/$escfn`;
 		for my $res (@{$tags->{resources}}) {
-			print `git mv $dirprefix/Pending/$reldir/$res $dirprefix/OpenProblemLibrary/$reldir/$res`;
+			print `git mv "$dirprefix/Pending/$reldir/$res" "$dirprefix/OpenProblemLibrary/$reldir/$res"`;
 			print "Moved $reldir/$res\n";
 		}
 
