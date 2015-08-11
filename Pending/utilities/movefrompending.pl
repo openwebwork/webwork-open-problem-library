@@ -49,10 +49,10 @@ sub procfile {
 		# remove file
 		#system("git -f rm $fdir/$fn") or die "Cannot remove file $fdir/$fn ";
 		print "Doing rm $fdir/$fn\n";
-		print `git rm -f $fdir/$fn`;
+		print `git rm -f '$fdir/$fn'`;
 		#print "$fn REJECTED $tags->{Status}\n";
 		for my $res (@{$tags->{resources}}) {
-			print `git rm -f $dirprefix/Pending/$reldir/$res`;
+			print `git rm -f '$dirprefix/Pending/$reldir/$res'`;
 			print "Removed $reldir/$res\n";
 		}
 
@@ -69,9 +69,9 @@ sub procfile {
 		$escfn =~ s/\(/\\(/g;
 		$escfn =~ s/\)/\\)/g;
 		print "Doing mv $dirprefix/Pending/$reldir/$escfn $dirprefix/OpenProblemLibrary/$reldir/$escfn\n";
-		print `git mv $dirprefix/Pending/$reldir/$escfn $dirprefix/OpenProblemLibrary/$reldir/$escfn`;
+		print `git mv '$dirprefix/Pending/$reldir/$escfn' '$dirprefix/OpenProblemLibrary/$reldir/$escfn'`;
 		for my $res (@{$tags->{resources}}) {
-			print `git mv "$dirprefix/Pending/$reldir/$res" "$dirprefix/OpenProblemLibrary/$reldir/$res"`;
+			print `git mv '$dirprefix/Pending/$reldir/$res' '$dirprefix/OpenProblemLibrary/$reldir/$res'`;
 			print "Moved $reldir/$res\n";
 		}
 
