@@ -1,0 +1,152 @@
+##DESCRIPTION
+#
+# File Created: 7/10/2008
+# Last Modified: 7/10/2008
+# Problem Author: Darwyn Cook
+# WeBWorK Entry: 
+# Location: Alfred University
+#
+##ENDDESCRIPTION
+
+##
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Limits and continuity)
+## DBsection(Definitions and existence (conceptual))
+## Date(7/10/2008)
+## Institution(Alfred University)
+## Author(Darwyn Cook)
+## Level(3)
+## TitleText1('Calculus: with Early Transcendentals')
+## AuthorText1('Anton')
+## EditionText1('8')
+## Section1('2.4')
+## Problem1('')
+## KEYWORDS('limits' 'epsilon' 'delta' 'rigorous')
+
+DOCUMENT();
+loadMacros("PG.pl",
+           "PGbasicmacros.pl",
+           "PGchoicemacros.pl",
+           "PGnumericalmacros.pl",
+           "PGauxiliaryFunctions.pl",
+           "PGanswermacros.pl",
+           "MathObjects.pl"
+           );
+
+# define function to be evaluated
+
+$a= random(14,18,.1);
+$b= random(2,20,.1);
+$c = random(2,40,.1);
+$x0=random(1,5,0.001);
+$epsilon = random(.0001,.0009,.0001);
+
+$m = Real("2*$a*$x0+$b");
+
+#$delta = Real("(-(2*$a*$x0+$b)+sqrt((2*$a*$x0+$b)^2+4*$a*$epsilon))/(2*$a)")->with(tolType=>'absolute', tolerance=>'.000001');
+$delta = Real("abs($epsilon/$m)")->with(tolType=>'absolute',tolerance=>'.000001');
+$function = FEQ(" ${a}x^2+${b}x +$c ");
+$f = sub {
+        my $x = shift;
+        $a*$x*$x + $b*$x +$c;
+};
+
+#  Calculate the cubic spline approximation
+$llimit = -5; $rlimit = 5;
+my $num_of_intervals = 500;  # number of interpolation points
+my $deltax =  ($rlimit-$llimit)/($num_of_intervals);
+my (@x_values, @y_values);
+foreach my $i (0..$num_of_intervals) {
+        my $x = $llimit + $deltax*$i;
+        my $y = &$f($x);
+        push(@x_values, $x); push(@y_values,$y);
+}
+
+($t_ref, $a_ref, $b_ref, $c_ref, $d_ref) = create_cubic_spline (~~@x_values, ~~@y_values);
+
+$f_approx = cubic_spline(~~@x_values, ~~@y_values);
+
+
+
+
+HEADER_TEXT(javaScript_cubic_spline(~~@x_values,~~@y_values, name => 'func2', llimit => -3, rlimit => 3) );
+
+TEXT(beginproblem());
+
+# A warning that we are using javaScript
+TEXT(M3("",
+"\begin{rawhtml}
+<NOSCRIPT> This problem requires that Java Script be enabled </NOSCRIPT> \end{rawhtml}
+",
+"<NOSCRIPT> This problem requires that Java Script be enabled </NOSCRIPT>"
+));
+
+Context()->texStrings;
+BEGIN_TEXT
+Below is an "oracle" function. An oracle function is a function presented interactively.
+When you type in an \(x\) value, and press the --f--\(>\) button and
+the value \(f(x)\) appears in the right hand window.  There are three lines, so you can easily calculate
+three different values of the function at one time.
+
+$PAR
+Find the largest \(\delta\) so that \(\vert f(x)-f($x0)\vert <$epsilon\) when \(\vert x-$x0\vert < \delta\).
+$BR
+\(\delta = \)\{ans_rule(20) \} 
+$PAR
+Note:  Your answer must be within \(0.000001\) of the correct answer.
+END_TEXT
+
+BEGIN_HINT
+$BR
+$BR
+$BBOLD HINT $EBOLD
+$BR
+Use this oracle function to determine \(f($x0)\). Use the oracle function to determine the input values that give you exactly the tolerance required.
+END_HINT
+
+BEGIN_SOLUTION
+$BR
+$BR
+$BBOLD SOLUTION $EBOLD
+$BR
+\($delta\) is the correct solution because \(f($x0+$delta) = f($x0)+$epsilon\), or at least to the required number of decimal places.
+END_SOLUTION
+Context()->normalStrings;
+ANS($delta->cmp());  
+
+HEADER_TEXT(<<EOF);
+<SCRIPT LANGUAGE="JavaScript">
+<!-- Begin
+function func(x) {
+        return $a*x*x + $b*x + $c
+}
+-->
+</SCRIPT>
+EOF
+
+$javaScript2 = begintable(3) .
+               MODES(HTML =>q{<TR>
+                                        <TH>x</TH><TH></TH><TH>f(x)</TH>
+                                        <TR>},
+                                        TeX => "x & \(\rightarrow\) & f(x)\\"
+                                ) .
+                                row(MODES(HTML => qq{<INPUT TYPE="text"   NAME="Input"  Value = "$x0" Size="16">}, TeX => '\fbox{Enter \(x\)}' ),
+                                    MODES(HTML => qq{<INPUT TYPE="button" VALUE="---f-->" 
+                        OnClick="this.form.Output.value=func(this.form.Input.value);">}, TeX => '\(\rightarrow\)'    ),
+                    MODES(HTML => qq{<INPUT TYPE="text"   NAME="Output"   Size="30">}, TeX => 'result: \(f(x)\)')
+                                ) .
+                                row(MODES(HTML => qq{<INPUT TYPE="text"   NAME="Input2"  Value = "$x0" Size="16">}, TeX => '\fbox{Enter \(x\)}' ),
+                                    MODES(HTML => qq{<INPUT TYPE="button" VALUE="---f-->" 
+                        OnClick="this.form.Output2.value=func(this.form.Input2.value);">}, TeX => '\(\rightarrow\)'    ),
+                    MODES(HTML => qq{<INPUT TYPE="text"   NAME="Output2"   Size="30">}, TeX => 'result: \(f(x)\)')
+                                ) .
+                                row(MODES(HTML => qq{<INPUT TYPE="text"   NAME="Input3"  Value = "$x0" Size="16">}, TeX => '\fbox{Enter \(x\)}' ),
+                                    MODES(HTML => qq{<INPUT TYPE="button" VALUE="---f-->" 
+                        OnClick="this.form.Output3.value=func(this.form.Input3.value);">}, TeX => '\(\rightarrow\)'    ),
+                    MODES(HTML => qq{<INPUT TYPE="text"   NAME="Output3"   Size="30">}, TeX => 'result: \(f(x)\)')
+                                ) . endtable();
+
+TEXT($javaScript2);     
+
+ENDDOCUMENT;
