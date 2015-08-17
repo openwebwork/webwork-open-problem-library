@@ -69,7 +69,7 @@ sub procfile {
 		my $escfn = $fn;
 		$escfn =~ s/\(/\\(/g;
 		$escfn =~ s/\)/\\)/g;
-		print "Doing mv $dirprefix/Pending/$reldir/$escfn $dirprefix/OpenProblemLibrary/$reldir/$escfn\n";
+		#print "Doing mv $dirprefix/Pending/$reldir/$escfn $dirprefix/OpenProblemLibrary/$reldir/$escfn\n";
 		print `git mv '$dirprefix/Pending/$reldir/$escfn' '$dirprefix/OpenProblemLibrary/$reldir/$escfn'`;
 		for my $res (@{$tags->{resources}}) {
 			print `git mv '$dirprefix/Pending/$reldir/$res' '$dirprefix/OpenProblemLibrary/$reldir/$res'`;
