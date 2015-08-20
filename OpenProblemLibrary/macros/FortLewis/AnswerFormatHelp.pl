@@ -476,6 +476,7 @@ OpenWindow.document.write("<li><font color='#222255'>Unions of intervals:</font>
 OpenWindow.document.write("<li><font color='#222255'>Empty intervals:</font> If the answer is the empty set, you can specify that by using braces with nothing inside: <code> { }</code> <br /> <br /></li>")
 OpenWindow.document.write("<li><font color='#222255'>Special symbols:</font> You can use <code>R</code> as a shorthand for all real numbers.  So, it is equivalent to entering <code>(-Inf, Inf)</code>.  <br /> <br /></li>")
 OpenWindow.document.write("<li><font color='#222255'>Set notation: </font> You can use set difference notation.  So, for all real numbers except 3, you can use <code>R-{3}</code> or <code>(-Inf, 3)U(3,Inf)</code> since they are the same.  Similarly, <code>[1,10)-{3,4}</code> is the same as <code>[1,3)U(3,4)U(4,10)</code>.  <br /> <br /></li>")
+OpenWindow.document.write("<li><font color='#222255'>One point intervals: </font> When an interval contains only one point, enter it as a one point set such as <code>{3}</code> or as a closed interval such as <code>[3,3]</code>.<br /> <br /></li>")
 OpenWindow.document.write("</ul>")
 OpenWindow.document.write("</body>")
 OpenWindow.document.write("</html>")
