@@ -8,14 +8,15 @@ use WeBWorK::Utils::Tags;
 
 my $rejectfile = "Pending/NotAccepted";
 
-do {
-	print "Usage: movefrompending.pl path/to/main/directory\n";
-	print "       which has subdirectories of Contrib, Pending, etc.";
-	print "       It is best to use an absolute path.";
-	exit;
-} unless scalar(@ARGV);
+#do {
+#	print "Usage: movefrompending.pl path/to/main/directory\n";
+#	print "       which has subdirectories of Contrib, Pending, etc.";
+#	print "       It is best to use an absolute path.";
+#	exit;
+#} unless scalar(@ARGV);
 
-my $topdir = $ARGV[0];
+my $topdir = '/home/jj/webwork/OPL-git/webwork-open-problem-library';
+$topdir = $ARGV[0] if scalar(@ARGV);
 opendir TOPDIR, $topdir or die "cannot read directory $topdir: $!";
 my @allsubs = readdir TOPDIR;
 closedir TOPDIR;
@@ -47,11 +48,12 @@ sub procfile {
 		print REJ "$reldir/$fn\n";
 		close REJ;
 		# remove file
-		#system("git rm $fdir/$fn") or die "Cannot remove file $fdir/$fn ";
-		print `git rm $fdir/$fn`;
-		print "$fn REJECTED $tags->{Status}\n";
+		#system("git -f rm $fdir/$fn") or die "Cannot remove file $fdir/$fn ";
+		print "Doing rm $fdir/$fn\n";
+		print `git rm -f '$fdir/$fn'`;
+		#print "$fn REJECTED $tags->{Status}\n";
 		for my $res (@{$tags->{resources}}) {
-			print `git rm $dirprefix/Pending/$reldir/$res`;
+			print `git rm -f '$dirprefix/Pending/$reldir/$res'`;
 			print "Removed $reldir/$res\n";
 		}
 
@@ -64,9 +66,13 @@ sub procfile {
 		#print "B: $dirprefix OpenProblemLibrary $reldir $fn\n";
 		$tags->settag('Status', 0, 1);
 		$tags->write();
-		print `git mv $dirprefix/Pending/$reldir/$fn $dirprefix/OpenProblemLibrary/$reldir/$fn`;
+		my $escfn = $fn;
+		$escfn =~ s/\(/\\(/g;
+		$escfn =~ s/\)/\\)/g;
+		#print "Doing mv $dirprefix/Pending/$reldir/$escfn $dirprefix/OpenProblemLibrary/$reldir/$escfn\n";
+		print `git mv '$dirprefix/Pending/$reldir/$escfn' '$dirprefix/OpenProblemLibrary/$reldir/$escfn'`;
 		for my $res (@{$tags->{resources}}) {
-			print `git mv $dirprefix/Pending/$reldir/$res $dirprefix/OpenProblemLibrary/$reldir/$res`;
+			print `git mv '$dirprefix/Pending/$reldir/$res' '$dirprefix/OpenProblemLibrary/$reldir/$res'`;
 			print "Moved $reldir/$res\n";
 		}
 
@@ -75,7 +81,7 @@ sub procfile {
 		#print "$dirprefix/OpenProblemLibrary/$reldir \n";
 	}
 	if($tags->{Status} =~ /^[nN]$/) { # needs resources, just print a message
-		print "$fdir/$fn is missing a resource\n";
+		#print "$fdir/$fn is missing a resource\n";
 	}
 	#print "Got $fn and $fdir\n";
 }
