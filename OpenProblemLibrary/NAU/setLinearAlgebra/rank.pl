@@ -3,7 +3,7 @@
 
 sub rank {
    Context('Fraction');
-   $R = rref(apply_fraction_to_matrix_entries(shift));
+   my $R = rref(apply_fraction_to_matrix_entries(shift));
    Context('Matrix');
    my ($row,$col) = $R->dimensions;
    my ($r,$c) = (1,1);
