@@ -30,9 +30,9 @@ sub yScreen{400;} #number of ver pixels used on screen
 
 sub TeXscalar{400;} #400=>image is at 40.0% in hardcopy
 
-sub EnlargeImageStatementPGML{'If you would like to enlarge the graph or make numbers and letters easier to read, you may click on it to open it in a new window. You may then enlarge that window with your mouse. To further enlarge the image, use your browser\'s zoom capabilities. On a PC this is usually *ctrl shift +* (and zooming out is *ctrl -*). On an Apple computer this is usually *apple shift +* (and zooming out is *apple -*).';}
+sub EnlargeImageStatementPGML{MODES(TeX => '', Latex2HTML => '', HTML => 'If you would like to enlarge the graph or make numbers and letters easier to read, you may click on it to open it in a new window. You may then enlarge that window with your mouse. To further enlarge the image, use your browser\'s zoom capabilities. On a PC this is usually *ctrl shift +* (and zooming out is *ctrl -*). On an Apple computer this is usually *apple shift +* (and zooming out is *apple -*).');};
 
-sub EnlargeImageStatement{'If you would like to enlarge the graph or make numbers and letters easier to read, you may click on it to open it in a new window. You may then enlarge that window with your mouse. To further enlarge the image, use your browser\'s zoom capabilities. On a PC this is usually $BBOLD ctrl shift +$EBOLD (and zooming out is $BBOLD ctrl -$EBOLD). On an Apple computer this is usually $BBOLD apple shift +$EBOLD (and zooming out is $BBOLD apple -$EBOLD).';}
+sub EnlargeImageStatement{MODES(TeX => '', Latex2HTML => '', HTML => 'If you would like to enlarge the graph or make numbers and letters easier to read, you may click on it to open it in a new window. You may then enlarge that window with your mouse. To further enlarge the image, use your browser\'s zoom capabilities. On a PC this is usually $BBOLD ctrl shift +$EBOLD (and zooming out is $BBOLD ctrl -$EBOLD). On an Apple computer this is usually $BBOLD apple shift +$EBOLD (and zooming out is $BBOLD apple -$EBOLD).');};
 
 ###############################
 #Name: NiceGraphParameters

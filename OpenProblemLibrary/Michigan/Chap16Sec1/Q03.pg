@@ -39,7 +39,7 @@ loadMacros(
 "MathObjects.pl",
 "PGgraphmacros.pl",
 # "parserNumberWithUnits.pl",
-# "parserFormulaWithUnits.pl", 
+# "parserFormulaWithUnits.pl",
 # "parserFormulaUpToConstant.pl",
 # "PGcourse.pl",
 );
@@ -89,7 +89,12 @@ $z1 = $z0 + $dz;  $z2 = $z1 + $dz;  $z3 = $z2 + $dz;  $z4 = $z3 + $dz;
 $sum1 = "$z1+$z1+$z2+$z1+$z3+$z3+$z2+$z3+$z4";
 $sum2 = "$z0+$z0+$z0+$z0+$z1+$z2+$z0+$z2+$z3";
 
-if ( $dz > 0 ) {
+$ze1 = $z0 - $dz;
+$ze2 = $z4 + $dz;
+$sum1 = "$ze1 + $ze1 + $ze1 + $ze1 + $z1 + $z1 + $ze1 + $z1 + $z3";
+$sum2 = "$z1 + $z2 + $z3 + $z2 + $z3 + $z4 + $z3 + $z4 + $ze2";
+
+if ( $dz < 0 ) {
     $oversum = $sum1;
     $undersum = $sum2;
 } else {
@@ -101,11 +106,14 @@ $underval = Compute( $undersum );
 $over = Compute( "($oversum)*2*2" );
 $under = Compute( "($undersum)*2*2");
 
+## allow answers between this and the over/under.
+$tol = ($over - $under)/2;
+$overTest = Compute( "($oversum)*2*2 - $tol" )->with( tolType=>'absolute', tolerance=>($tol+1) );
+$underTest = Compute( "($undersum)*2*2 + $tol" )->with( tolType=>'absolute', tolerance=>($tol+1) );
+
 Context()->texStrings;
 TEXT(beginproblem());
 BEGIN_TEXT
-$ftxt
-$PAR
 
 The figure below shows contours of \( g(x,y) \) on the region
 \( R \), with \( $x0 \le x\le $x1 \) and \( $y0 \le y\le $y1 \).
@@ -127,19 +135,29 @@ Underestimate = \{ $under->ans_rule( 55 ) \}
 END_TEXT
 Context()->normalStrings;
 
-ANS($over->cmp( tolerance=>.075 ) );
-ANS($under->cmp( tolerance=>.21 ) );
+# ANS($over->cmp( tolerance=>.075 ) );
+# ANS($under->cmp( tolerance=>.21 ) );
+ANS( $over->cmp( checker=>sub {
+    my ( $c, $s, $a ) = @_;
+    return ( $c == $s || ( $c > $s && ( $c - $tol - 1) <= $s ) );
+} ) );
+ANS( $under->cmp( checker=>sub {
+    my ( $c, $s, $a ) = @_;
+    return ( $c == $s || ( $c < $s && ( $c + $tol - 1) >= $s ) );
+} ) );
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR SOLUTION $PAR
 
-There are nine squares. Using the largest value of \(g\) in each square
-for the overestimate and the smallest value for the underestimate, we have
+There are nine squares. Using the largest value of \(g\) in each square,
+assuming that the largest value may be one larger than the largest contour
+value seen (if the contour doesn't seem to cross a corner of the square),
+we have
 \[
 \hbox{Over } \approx ($oversum)\Delta x \Delta y = ($overval)(2)(2) = $over,
 \]
-and
+and similarly, for an underestimate,
 \[
 \hbox{Under }\approx ($undersum)\Delta x \Delta y = ($underval)(2)(2) = $under.
 \]

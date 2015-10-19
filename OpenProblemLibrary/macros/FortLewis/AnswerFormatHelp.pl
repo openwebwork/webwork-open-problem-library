@@ -138,7 +138,7 @@ $angleHelpExists = 1;
 if (!$customstring) { $helpstring = "help (angles)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpAngles()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpAngles()';");
 } else { return $helpstring; }
 
 
@@ -186,7 +186,7 @@ $decimalHelpExists = 1;
 if (!$customstring) { $helpstring = "help (decimals)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpDecimals()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpDecimals()';");
 } else { return $helpstring; }
 
 
@@ -233,7 +233,7 @@ $equationHelpExists = 1;
 if (!$customstring) { $helpstring = "help (equations)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpEquations()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpEquations()';");
 } else { return $helpstring; }
 
 
@@ -278,7 +278,7 @@ $exponentHelpExists = 1;
 if (!$customstring) { $helpstring = "help (exponents)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpExponents()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpExponents()';");
 } else { return $helpstring; }
 
 
@@ -340,7 +340,7 @@ END_HEADER_TEXT
 if (!$customstring) { $helpstring = "help (formulas)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpFormulas()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpFormulas()';");
 } else { return $helpstring; }
 
 
@@ -395,7 +395,7 @@ $fractionHelpExists = 1;
 if (!$customstring) { $helpstring = "help (fractions)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpFractions()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpFractions()';");
 } else { return $helpstring; }
 
 
@@ -442,7 +442,7 @@ $inequalitiesHelpExists = 1;
 if (!$customstring) { $helpstring = "help (inequalities)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpInequalities()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpInequalities()';");
 } else { return $helpstring; }
 
 
@@ -476,6 +476,7 @@ OpenWindow.document.write("<li><font color='#222255'>Unions of intervals:</font>
 OpenWindow.document.write("<li><font color='#222255'>Empty intervals:</font> If the answer is the empty set, you can specify that by using braces with nothing inside: <code> { }</code> <br /> <br /></li>")
 OpenWindow.document.write("<li><font color='#222255'>Special symbols:</font> You can use <code>R</code> as a shorthand for all real numbers.  So, it is equivalent to entering <code>(-Inf, Inf)</code>.  <br /> <br /></li>")
 OpenWindow.document.write("<li><font color='#222255'>Set notation: </font> You can use set difference notation.  So, for all real numbers except 3, you can use <code>R-{3}</code> or <code>(-Inf, 3)U(3,Inf)</code> since they are the same.  Similarly, <code>[1,10)-{3,4}</code> is the same as <code>[1,3)U(3,4)U(4,10)</code>.  <br /> <br /></li>")
+OpenWindow.document.write("<li><font color='#222255'>One point intervals: </font> When an interval contains only one point, enter it as a one point set such as <code>{3}</code> or as a closed interval such as <code>[3,3]</code>.<br /> <br /></li>")
 OpenWindow.document.write("</ul>")
 OpenWindow.document.write("</body>")
 OpenWindow.document.write("</html>")
@@ -494,7 +495,7 @@ $intervalHelpExists = 1;
 if (!$customstring) { $helpstring = "help (intervals)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpIntervals()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpIntervals()';");
 } else { return $helpstring; }
 
 
@@ -544,7 +545,7 @@ $limitsHelpExists = 1;
 if (!$customstring) { $helpstring = "help (limits)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpLimits()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpLimits()';");
 } else { return $helpstring; }
 
 
@@ -608,7 +609,7 @@ $logarithmsHelpExists = 1;
 if (!$customstring) { $helpstring = "help (logarithms)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpLogarithms()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpLogarithms()';");
 } else { return $helpstring; }
 
 
@@ -659,7 +660,7 @@ END_HEADER_TEXT
 if (!$customstring) { $helpstring = "help (numbers)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpNumbers()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpNumbers()';");
 } else { return $helpstring; }
 
 
@@ -706,7 +707,7 @@ $pointsHelpExists = 1;
 if (!$customstring) { $helpstring = "help (points)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpPoints()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpPoints()';");
 } else { return $helpstring; }
 
 
@@ -750,7 +751,7 @@ $unitsHelpExists = 1;
 if (!$customstring) { $helpstring = "help (units)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpUnits()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpUnits()';");
 } else { return $helpstring; }
 
 
@@ -800,7 +801,7 @@ $vectorsHelpExists = 1;
 if (!$customstring) { $helpstring = "help (vectors)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpVectors()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpVectors()';");
 } else { return $helpstring; }
 
 
@@ -844,7 +845,7 @@ $syntaxHelpExists = 1;
 if (!$customstring) { $helpstring = "help (syntax)"; } else { $helpstring = $customstring; }
 
 if ($main::displayMode ne "TeX") { 
-    return htmlLink( "#", "$helpstring","onClick='openhelpSyntax()';");
+    return htmlLink( "#", "$helpstring","onClick='return openhelpSyntax()';");
 } else { return $helpstring; }
 
 }
