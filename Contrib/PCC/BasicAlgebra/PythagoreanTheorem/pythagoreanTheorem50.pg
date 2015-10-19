@@ -1,0 +1,342 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Use Pythagorean Theorem to find missing length in a right triangle. 
+# The unknown side is one leg.
+# Answer is a radical, which can be simplified. The right angle could be at any corner.
+#
+# Last edited by Carl Yao on 8/8/15
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Problem Solving with Equations')
+## KEYWORDS('Pythagorean','right triangle','radical')
+## DBCCSS('4.MD.3')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextLimitedRadical.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+sub canBeSimplified {
+   my $num = shift;
+   if ($num!=int($num)) {return 0};
+   my @squares = (4,9,16,25,36,49,64,81,100);
+   for(my $index=0;$index<=$#squares;$index++){
+      if (($num % $squares[$index]==0) && (sqrt($num)!=int(sqrt($num))) ) {
+         return 1;
+      }
+   }
+   return 0;
+}
+
+sub simplify {
+   my $inS = shift;
+   my $outS = 1;
+   my @squares = (4,9,16,25,36,49,64,81,100);
+   for(my $index=0;$index<=$#squares;$index++){
+      if ($inS % $squares[$index]==0) {
+         $outS = $outS * sqrt($squares[$index]);
+         $inS = $inS / $squares[$index];
+         $index--;
+      }
+   }
+   return ($inS, $outS);
+}
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+
+# Input is a number. Output is the prime factorization of the number
+# saved in an array, returned as a reference to the array.
+sub primeFactor {
+   my $n = shift;
+   @factors = ();
+   my $prime=2;
+   while (1) {
+      while ($n%$prime==0) {
+         $factors[scalar @factors] = $prime;
+         $n=$n/$prime;
+      }
+      if ($n==1) {return ~~@factors;}
+      $prime = &nextPrime($prime);
+   }
+}
+
+# Input 1 is a reference to an array with a number's prime factorization.
+# Output is all prime factors connected by ' \cdot '.
+sub line1 {
+   my $ra_factors = shift;
+   $line1Output = "";
+   foreach $item ( @$ra_factors ) {$line1Output .= "$item".' \cdot ';}
+   $line1Output =~ s/ \cdot $//;
+   return $line1Output;
+}
+
+# Input is the output of &line1() and the degree of the radical. 
+# $returnLine2 is the next step of simplifying the radical. 
+# For example, if input is "2 \cdot 2 \cdot 2 \cdot 3 \cdot 5", 
+# $degree=3, (meaning cube root), 
+# $returnLine2 is 2 sqrt[3]{3 \cdot 5}.
+# $returnLine3 is the final step of simplifying the radical.
+# In the above example, $returnLine3 is 2 sqrt[3]{15}.
+sub line2 {
+   my $line = shift;
+   my $degree = shift;
+   my $line2Output = "";
+   my @facs = split(/ \cdot /, $line);
+   my $size = 0+@facs;
+   my $i=0;
+   $outsideString = "";
+   $insideString = "";
+   $outsideNumber = 1;
+   $insideNumber = 1;
+   while ($i<$size) {
+      my $item = $facs[$i];
+      my $out = 1;
+      for (my $j=$i; $j<$i+$degree; $j++) {
+         if ($facs[$j]!=$item) {$out = 0;}
+      }
+      if ($out==0) {
+         $insideNumber *= $facs[$i];
+         $insideString .= "$facs[$i]".' \cdot ';
+         $i++;
+      }
+      else {
+         $outsideNumber *= $facs[$i];
+         $outsideString .= "$facs[$i]".' \cdot ';
+         $i=$i+$degree;
+      }
+   }
+   $outsideString =~ s/ \cdot $//;
+   $insideString =~ s/ \cdot $//;
+
+   $returnLine2 = "";
+   if ($insideString eq "") {$returnLine2 = $outsideString;}
+   elsif ($degree==2) {$returnLine2 = 
+        $outsideString.' \sqrt{'."$insideString".'}';}
+   else {$returnLine2 = 
+        $outsideString.' \sqrt['."$degree".']{'."$insideString".'}';}
+
+   $returnLine3 = "";
+   if ($returnLine2 !~ /\cdot/) {$returnLine3 = "";}
+   elsif ($degree==2) {$returnLine3 =
+        $outsideNumber.' \sqrt{'."$insideNumber".'}';}
+   else {$returnLine3 = 
+        $outsideNumber.' \sqrt['."$degree".']{'."$insideNumber".'}';}
+
+   return ($returnLine2,$returnLine3);
+}
+
+##############################################
+
+Context("Numeric");
+
+do {
+   $height = random(2,16,1);
+   $hypotenuse = random($height+1,18,1);
+   $baseSquared = $hypotenuse**2-$height**2;
+} until (canBeSimplified($baseSquared));
+$base = sqrt($baseSquared);
+
+($in, $out) = simplify($baseSquared);
+
+Context("LimitedRadical");
+$ans = Formula("$out*sqrt($in)");
+Context("Numeric");
+
+$xmin = 0;         #The viewing window
+$xmax = 20;
+$ymin = 0;
+$ymax = 20;
+
+
+#$corner's value decides the location of the right angle. 
+#(0,1,2,3) implies (bottom left,top left,top right,bottom right). 
+$corner = list_random(0..3);
+
+if (($corner==0)||($corner==2)) {
+   @x = (($xmax-$base)/2,($xmax+$base)/2);
+   @y = (($ymax-$height)/2,($ymax+$height)/2);
+} else {
+   @y = (($xmax-$base)/2,($xmax+$base)/2);
+   @x = (($ymax-$height)/2,($ymax+$height)/2);
+}
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[400,400]);
+
+$labelAdjust = 0.5;
+
+@labelAx = ($x[0],$x[1],$x[1],$x[0]);
+@labelAy = ($y[1]+$labelAdjust,$y[1]+$labelAdjust,$y[0]-$labelAdjust,$y[0]-$labelAdjust);
+
+@labelBx = ($x[1],$x[0],$x[0],$x[1]);
+@labelBy = ($y[0]-$labelAdjust,$y[0]-$labelAdjust,$y[1]+$labelAdjust,$y[1]+$labelAdjust);
+
+@labelCx = ($x[0],$x[0],$x[1],$x[1]);
+@labelCy = ($y[0]-$labelAdjust,$y[1]+$labelAdjust,$y[1]+$labelAdjust,$y[0]-$labelAdjust);
+
+
+$picture->lb( new Label($labelAx[$corner], $labelAy[$corner],"A",'black','center','middle'));
+$picture->lb( new Label($labelBx[$corner], $labelBy[$corner],"B",'black','center','middle'));
+$picture->lb( new Label($labelCx[$corner], $labelCy[$corner],"C",'black','center','middle'));
+
+@labelBaseX=(($x[0]+$x[1])/2,$x[0]-$labelAdjust,($x[0]+$x[1])/2,$x[1]+$labelAdjust);
+@labelBaseY=($y[0]-$labelAdjust,($y[0]+$y[1])/2,$y[1]+$labelAdjust,($y[0]+$y[1])/2);
+@labelHeightX=($x[0]-$labelAdjust,($x[0]+$x[1])/2,$x[1]+$labelAdjust,($x[0]+$x[1])/2);
+@labelHeightY=(($y[0]+$y[1])/2,$y[1]+$labelAdjust,($y[0]+$y[1])/2,$y[0]-$labelAdjust);
+@labelHypotenuseX=(($x[0]+$x[1])/2+$labelAdjust,($x[0]+$x[1])/2+$labelAdjust,($x[0]+$x[1])/2-$labelAdjust,($x[0]+$x[1])/2-$labelAdjust);
+@labelHypotenuseY=(($y[0]+$y[1])/2+$labelAdjust,($y[0]+$y[1])/2-$labelAdjust,($y[0]+$y[1])/2-$labelAdjust,($y[0]+$y[1])/2+$labelAdjust);
+
+
+$picture->lb( new Label($labelBaseX[$corner], $labelBaseY[$corner],'x','black','center','middle'));
+
+$picture->lb( new Label($labelHeightX[$corner],$labelHeightY[$corner],$height,'black','center','middle'));
+
+$picture->lb( new Label($labelHypotenuseX[$corner],$labelHypotenuseY[$corner],$hypotenuse,'black','center','middle'));
+
+$picture->new_color("lightblue", 200,200,255); # RGB
+$picture->new_color("darkblue",  100,100,255); 
+
+@ax=(0,1,1,0);
+@ay=(1,1,0,0);
+@bx=(1,0,0,1);
+@by=(0,0,1,1);
+@cx=(0,0,1,1);
+@cy=(0,1,1,0);
+
+
+$picture->moveTo($x[$ax[$corner]],$y[$ay[$corner]]);
+$picture->lineTo($x[$bx[$corner]],$y[$by[$corner]], darkblue,3);
+$picture->lineTo($x[$cx[$corner]],$y[$cy[$corner]], darkblue,3);
+$picture->lineTo($x[$ax[$corner]],$y[$ay[$corner]], darkblue,3);
+
+
+$cornersize = 0.5;
+
+@rightSymbol1x=($x[0],$x[0]+$cornersize,$x[1]-$cornersize,$x[1]);
+@rightSymbol1y=($y[0]+$cornersize,$y[1],$y[1],$y[0]+$cornersize);
+@rightSymbol2x=($x[0]+$cornersize,$x[0]+$cornersize,$x[1]-$cornersize,$x[1]-$cornersize);
+@rightSymbol2y=($y[0]+$cornersize,$y[1]-$cornersize,$y[1]-$cornersize,$y[0]+$cornersize);
+@rightSymbol3x=($x[0]+$cornersize,$x[0],$x[1],$x[1]-$cornersize);
+@rightSymbol3y=($y[0],$y[1]-$cornersize,$y[1]-$cornersize,$y[0]);
+
+$picture->moveTo($rightSymbol1x[$corner],$rightSymbol1y[$corner]);
+$picture->lineTo($rightSymbol2x[$corner],$rightSymbol2y[$corner], darkblue,3);
+$picture->lineTo($rightSymbol3x[$corner],$rightSymbol3y[$corner], darkblue,3);
+
+@positions=('bottom left','top left','top right','bottom right');
+if ($corner==0) {
+   $aPosition = $positions[1];
+   $bPosition = $positions[3];
+   $cPosition = $positions[0];
+} elsif ($corner==1) {
+   $aPosition = $positions[2];
+   $bPosition = $positions[0];
+   $cPosition = $positions[1];
+} elsif ($corner==2) {
+   $aPosition = $positions[3];
+   $bPosition = $positions[1];
+   $cPosition = $positions[2];
+} else {
+   $aPosition = $positions[0];
+   $bPosition = $positions[2];
+   $cPosition = $positions[3];
+}
+
+$text = "This is a right triangle. Right angle C is at the $cPosition corner of the picture. Acute angle A is at the $aPosition, and acute angle B is at the $bPosition. The length of the side facing Angle A is x (unknown); the length of the side facing Angle B is $height; the length of the side facing Angle C is $hypotenuse.";
+
+##############################################
+$refreshCachedImages = 1;
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+[@EnlargeImageStatementPGML()@]**
+
+>>[@image(insertGraph($picture), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$text' title = '$text'") @]*<<
+
+
+Find the value of [`x`]. Your answer should be a radical in simplified form. For example, [`\sqrt{8}`] should be simplified into [`2\sqrt{2}`].
+
+Use *sqrt()* to represent the square root symbol. For example, if the answer is [`2\sqrt{2}`], you should type in *2sqrt(2)* or *2\*sqrt(2)*.
+
+    [` x={}`][_____________]{$ans}
+
+END_PGML
+
+##############################################
+
+
+#Output of simplifying $hypotenuseSquared.
+$line1Center = &line1(&primeFactor($baseSquared));
+$output11 = '&= \sqrt{'.$line1Center.'} ';
+($line2Center, $line3Center) = &line2($line1Center,2);
+$output12 = '&='.$line2Center;
+$output13 = "&";
+if ($line3Center ne "") {$output13 = '&='.$line3Center;}
+
+BEGIN_PGML_SOLUTION
+
+By the Pythagorean Theorem, we have:
+
+    [``
+\begin{aligned}
+  x^{2}+[$height]^{2} &= [$hypotenuse]^{2} \\
+  x^{2}+ [$height**2] &= [$hypotenuse**2] \\
+  x^{2}+ [$height**2] \mathbf{{}-[$height**2]} &= [$hypotenuse**2] \mathbf{{}-[$height**2]} \\
+  x^{2} &=[$hypotenuse**2-$height**2] \\
+  x &= \sqrt{[$baseSquared]} \\
+\end{aligned}
+    ``]
+
+Next, we need to simplify the radical. To simplify [`[$baseSquared]`], first prime factor it, and then "take out" any repeated factors from within the square root:
+
+    [``
+\begin{aligned}[t]
+   [$baseSquared] [$output11] \\
+            [$output12] \\
+            [$output13]
+\end{aligned}
+    ``]
+
+The length of the missing leg is [`[$ans]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
