@@ -1,0 +1,286 @@
+## DBsubject('Statistics')
+## DBchapter('Simple linear regression')
+## DBsection('Hypothesis tests') 
+## Level(5)
+## Author('Jonathan Baik')
+## Date('2014/03/12')
+## Institution('University of British Columbia')
+## TitleText1('No Text')
+## EditionText1('?')
+## AuthorText1('?')
+## Section1('?')
+## Problem1('?')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "PGgraphmacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "unionTables.pl",
+  "parserPopUp.pl",
+  "RserveClient.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context->("Numeric");
+
+# Prepare question:
+
+#####
+# Some setup in R
+#####
+rserve_start();
+
+# Generate data
+rserve_eval('logE2 <- c(rnorm(123,3.35,0.08), rnorm(159,3.4,0.08), rnorm(180,3.52,0.08), rnorm(36,3.88,0.09)); 1+1;');
+rserve_eval('caff <- c(runif(123,0,100), runif(159,101,250), runif(180,21,499), runif(36,500,999)); 1+1;');
+
+# Fit model
+rserve_eval('model1 <- aov(logE2~caff); 1+1;');
+rserve_eval('summary1 <- anova(model1); 1+1;');
+
+# Get the coefficients
+rserve_eval('alpha <- as.numeric(round(model1$coef[1],4)); 1+1;');
+rserve_eval('beta <- as.numeric(round(model1$coef[2],6)); 1+1;');
+
+$alpha = join ", ", rserve_eval("alpha");
+$beta = join ", ", rserve_eval("beta");
+
+# Plot for question text
+$file = rserve_start_plot('png');
+rserve_eval("plot(caff, logE2, main='Log Estradiol Level Against Daily Caffeine Intake', xlab='Caffeine intake (mg/day)', ylab='Log estradiol level (log of mg/ml)')");
+$qu_fig_path = rserve_finish_plot($file);
+$qu_fig = image($qu_fig_path, width=>400, height=>400);
+
+# For part a
+$a_caff = join ", ", rserve_eval("as.numeric(round(caff[200],2))");
+$a_e2 = join ", ", rserve_eval("as.numeric(round(logE2[200],2))");
+$ans_a = join ", ", rserve_eval("as.numeric(round(logE2[200],2) - (alpha+beta*round(caff[200],2)))");
+$sol_a = join ", ", rserve_eval("round(as.numeric(round(logE2[200],2) - (alpha+beta*round(caff[200],2))), 4)");
+
+# For part b
+$b_df1 = join ", ", rserve_eval('as.numeric(summary1$Df[1])');
+$b_df2 = join ", ", rserve_eval('as.numeric(summary1$Df[2])');
+$b_df3 = $b_df1 + $b_df2;
+$b_ss1 = join ", ", rserve_eval('as.numeric(round(summary1$Sum[1], 3))');
+$b_ss2 = join ", ", rserve_eval('as.numeric(round(summary1$Sum[2], 3))');
+$b_ss3 = join ", ", rserve_eval('as.numeric(round(summary1$Sum[1], 3) + round(summary1$Sum[2], 3))');
+
+$ans_b1 = join ", ", rserve_eval('as.numeric(round(summary1$Sum[1], 3))');
+$ans_b2 = join ", ", rserve_eval('as.numeric(round(summary1$Sum[2], 3)/summary1$Df[2])');
+
+# For part c
+rserve_eval('f <- as.numeric(round(summary1$Sum[1],3)/(round(summary1$Sum[2],3)/summary1$Df[2]))');
+$ans_c = join ", ", rserve_eval('f');
+$sol_c = join ", ", rserve_eval('round(f, 3)');
+
+# For part d
+$pvalue = join ", ", rserve_eval('as.numeric(pf(f, df1=1, df2=496, lower.tail=FALSE))');
+
+rserve_finish();
+
+#####
+# R Finish
+#####
+
+# Question text
+$qu_txt = "
+How, if at all, does caffeine intake affect hormone levels in women? Lucero$BITALIC et al.$EITALIC (2001) report a study involving a sample of 498 women from the general population aged between 36 and 45. The women each completed a questionnaire, including items on caffeine intake, and provided a blood sample collected during the early phase of the menstrual cycle. We focus here on the level of estradiol \(\left( E_{2}\right)\), and how that may depend on daily caffeine intake (in mg per day). Suppose the scatter plot of the logarithm of the estradiol level \(\left( Y\right) \) against daily caffeine intake \(\left( X\right) \) appeared as below:
+$BR
+$BR
+$qu_fig
+$BR
+$BR
+A linear regression model fitted to the above scatter plot is
+$BR
+$BR
+$BCENTER
+\[
+Y = $alpha + $beta X
+\]
+$ECENTER
+$BR
+$BR
+
+Jennifer Lucero, Bernard L. Harlow, Robert L. Barbieri, Patrick Sluss, Daniel W. Cramer (2001): Early follicular phase hormone levels in relation to patterns of alcohol, tobacco, and coffee use.$BITALIC Fertility and Sterility$EITALIC$BBOLD 76$EBOLD, Issue 4, 723--729.
+";
+
+# Part a
+$qu_a = "
+Suppose one of the subjects reported a daily caffeine intake of $a_caff mg/day and had a recorded log\(\left(E_{2}\right)\) level of $a_e2. Compute the residual for this observation, to two decimal places.
+";
+
+# Part b
+$qu_b = "
+Suppose the ANOVA table for the regression is as below:
+$BR
+$BR
+$BCENTER
+\[
+\begin{array}{c c c c c}
+\text{Source} & \text{DoF} & \text{SS} & MS & F \\ \hline
+\text{Caffeine} & & $b_ss1 & \text{(i)} & \\
+\text{Error} & & $b_ss2 & \text{(ii)} & \\ \hline
+\text{Total} & & $b_ss3 & &
+\end{array}
+\]
+$ECENTER
+$BR
+$BR
+Provide the missing entries, to two decimal places.
+";
+
+# Part c
+$qu_c = "
+Based on the above information, we wish to test the null hypothesis that log\(\left( E_{2}\right)\) level does not depend linearly on daily caffeine intake. Provide the test statistic that would appear in the ANOVA table, to two decimal places.
+";
+
+# Part d
+$qu_d = "
+If testing at the 1$PERCENT significance level, would you reject or not reject the null hypothesis that log \(E_{2}\) level does not depend linearly on daily caffeine intake?
+";
+
+$mc_d = new_multiple_choice();
+if($pvalue < 0.01) {
+    $mc_d->qa(
+        $qu_d,
+        "Reject"
+    );
+    $mc_d->extra(
+        "Not reject"
+    );
+} else {
+    $mc_d->qa(
+        $qu_d,
+        "Not reject"
+    );
+    $mc_d->extra(
+        "Reject"
+    );
+}
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+$qu_txt
+
+$BR
+$BR
+
+$BBOLD Part a) $EBOLD
+$BR
+$qu_a
+$BR
+\{ ans_rule(12) \}
+$BR
+$BR
+
+$BBOLD Part b) $EBOLD
+$BR
+$qu_b
+$BR
+\( \text{(i)} \): \{ ans_rule(12) \}     \( \text{(ii)} \): \{ ans_rule(12) \}
+$BR
+$BR
+
+$BBOLD Part c) $EBOLD
+$BR
+$qu_c
+$BR
+\{ ans_rule(12) \}
+$BR
+$BR
+
+$BBOLD Part d) $EBOLD
+$BR
+\{ $mc_d->print_q() \}
+$BR
+\{ $mc_d->print_a() \}
+$BR
+$BR
+
+END_TEXT
+
+#######
+ANS( num_cmp($ans_a, tol=> 0.01, tolType=>"absolute") );
+ANS( num_cmp($ans_b1, tol=> 0.01, tolType=>"absolute") );
+ANS( num_cmp($ans_b2, tol=> 0.01, tolType=>"absolute") );
+ANS( num_cmp($ans_c, tol=> 0.01, tolType=>"absolute") );
+ANS( radio_cmp($mc_d->correct_ans()) );
+
+##############################################################
+#
+#  Solution
+#
+
+Context()->texStrings;
+Context()->{format}{number} = "%.2f";
+
+BEGIN_SOLUTION
+
+$BR
+$BBOLD Part a) $EBOLD
+$BR
+$BR
+We find the difference between the observed and
+expected to be \($a_e2 - ($alpha + $beta \times $a_caff) = $sol_a\). 
+$BR
+$BR
+
+$BBOLD Part b) $EBOLD
+$BR
+$BR
+The missing degrees of freedom are 1 and 496 respectively, making
+the missing mean square values $b_ss1 and $b_ss2/496.
+$BR
+$BR
+
+$BBOLD Part c) $EBOLD
+$BR
+$BR
+The F statistic is found via \(\frac{$b_ss1}{$b_ss2/496}\).
+$BR
+$BR
+
+$BBOLD Part d) $EBOLD
+$BR
+$BR
+The P-value can be calculated in R using the F statistic found in part c and the $BITALIC pf $EITALIC function:
+
+$BR
+$BR
+$BITALIC pf($sol_c, df1=1, df2=496, lower.tail=FALSE) $EITALIC
+$BR
+$BR
+
+If this value is less than 0.01, we reject the hypothesis that \(log(E_{2})\) level does not depend linearly on daily caffeine intake.
+
+END_SOLUTION
+
+ENDDOCUMENT();
