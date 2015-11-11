@@ -1,0 +1,385 @@
+## DBsubject('Statistics')
+## DBchapter('Hypothesis Testing')
+## DBsection('Two-way ANOVA')
+## Level(5)
+## Author('Jonathan Baik')
+## Date('2014/03/07')
+## Institution('University of British Columbia')
+## TitleText1('No Text')
+## EditionText1('?')
+## AuthorText1('?')
+## Section1('?')
+## Problem1('?')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "unionTables.pl",
+  "RserveClient.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context->("Numeric");
+
+# Some setup in R
+rserve_start();
+
+# Testing
+# rserve_eval("set.seed(1)");
+
+rserve_eval("Dd <- abs(round(rnorm(5,26.69,0.46),1));1+1");
+rserve_eval("Dc <- abs(round(rnorm(5,26.75,0.51),1));1+1");
+rserve_eval("Dt <- abs(round(rnorm(5,28.81,0.8),1));1+1");
+rserve_eval("EBd <- abs(round(rnorm(5,29.09,0.48),1));1+1");
+rserve_eval("EBm <- abs(round(rnorm(5,28.78,0.48),1));1+1");
+rserve_eval("EBt <- abs(round(rnorm(5,29.9,0.55),1));1+1");
+rserve_eval("diam <- c(Dd,Dc,Dt,EBd,EBm,EBt);1+1");
+rserve_eval("company <- as.factor(rep(c('Domino','Eagle Boys'),c(15,15)));1+1");
+rserve_eval("crust <- as.factor(rep(rep(c('Deep','Mid/Classic','Thin'),c(5,5,5)),2));1+1");
+rserve_eval("model1 <- aov(diam ~company*crust);1+1");
+rserve_eval("summary1 <- anova(model1);1+1");
+
+# For the table
+@Dd = rserve_eval("sprintf('%.1f', Dd)");
+@Dc = rserve_eval("sprintf('%.1f', Dc)");
+@Dt = rserve_eval("sprintf('%.1f', Dt)");
+@EBd = rserve_eval("sprintf('%.1f', EBd)");
+@EBm = rserve_eval("sprintf('%.1f', EBm)");
+@EBt = rserve_eval("sprintf('%.1f', EBt)");
+
+# Answers to part b
+$ans_b_i = join ", ", rserve_eval('as.numeric(summary1$Sum[1])');
+$ans_b_ii = join ", ",  rserve_eval('as.numeric(summary1$F[3])');
+
+# Answer to part c
+rserve_eval('pvals <- summary1$P[1:3]');
+rserve_eval('sig <- pvals<0.05');
+rserve_eval('if(sig[1]==TRUE & sig[2]==TRUE & sig[3]==TRUE) { pick_c <- 0 }');
+rserve_eval('if(sig[1]==TRUE & sig[2]==TRUE & sig[3]==FALSE) { pick_c <- 1 }');
+rserve_eval('if(sig[1]==TRUE & sig[2]==FALSE & sig[3]==FALSE) { pick_c <- 2 }');
+rserve_eval('if(sig[1]==FALSE & sig[2]==TRUE & sig[3]==TRUE) { pick_c <- 3 }');
+rserve_eval('if(sig[1]==FALSE & sig[2]==TRUE & sig[3]==FALSE) { pick_c <- 4 }');
+rserve_eval('if(sig[1]==FALSE & sig[2]==FALSE & sig[3]==TRUE) { pick_c <- 5 }');
+rserve_eval('if(sig[1]==FALSE & sig[2]==FALSE & sig[3]==FALSE) { pick_c <- 6 }');
+
+$pick_c = join ", ", rserve_eval("pick_c");
+
+# Answer to part d
+rserve_eval('if(sig[1]==FALSE) { pick_d = 4 } else { pick_d = 3 }');
+
+$pick_d = join ", ", rserve_eval("pick_d");
+
+# For the plot in the answer
+$file = rserve_start_plot('png');
+
+rserve_eval("interaction.plot(crust, company, diam, xlab='Crust type', trace.label='Company', ylab='Mean diameter (cm)'); 1+1;");
+
+$filepath = rserve_finish_plot($file);
+
+rserve_finish();
+
+# Part a
+$qu_a = "which graphical method would best illustrate main effects and possible interactions? Create such a plot for your data using the command $BITALIC interaction.plot$EITALIC in R.";
+$ans_a = "A plot of means";
+$fake1a = "Two histograms";
+$fake2a = "A bar chart";
+$fake3a = "A stem-and-leaf plot";
+$fake4a = "A pie chart";
+
+$mc_a = new_multiple_choice();
+$mc_a->qa(
+  $qu_a,
+  $ans_a
+);
+$mc_a->extra(
+$fake1a, $fake2a, $fake3a, $fake4a
+);
+
+# Part c
+$qu_c = "Based on the analysis above, which model would you select for the pizza diameters?";
+@ans_c = (
+"\(y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \epsilon\)",
+"\(y_{ijk} = \mu + \alpha_i + \beta_j + \epsilon\)",
+"\(y_{ijk} = \mu + \alpha_i + \epsilon\)",
+"\(y_{ijk} = \mu + \beta_j + (\alpha\beta)_{ij} + \epsilon\)",
+"\(y_{ijk} = \mu + \beta_j + \epsilon\)",
+"\(y_{ijk} = \mu + (\alpha\beta)_{ij} + \epsilon\)",
+"\(y_{ijk} = \mu + \epsilon\)"
+);
+
+# Get the correct answer for c
+$mc_c = new_multiple_choice();
+$mc_c->qa(
+  $qu_c,
+  $ans_c[$pick_c]
+);
+$mc_c->makeLast(
+@ans_c[0], @ans_c[1], @ans_c[2], @ans_c[3], @ans_c[4], @ans_c[5], @ans_c[6]
+);
+
+# ADD CODE HERE
+
+# Part d
+$qu_d = "Do the data allow us to determine the truth of the claim made on Eagle Boys' website? Select the best answer from the following:";
+@ans_d = (
+"Yes, since clearly the Eagle Boys' pizzas are bigger than those from Domino's.",
+"Yes, since the analysis shows that Eagle Boys' pizzas are at least a slice bigger than those from Domino's.",
+"No, since there is no evidence that the Eagle Boys' pizzas are bigger than those from Domino's.",
+"No, since there is no way to quantify what 'a whole slice larger' means.",
+"Both (c) and (d)."
+);
+
+$mc_d = new_multiple_choice();
+$mc_d->qa(
+  $qu_d,
+  $ans_d[$pick_d]
+);
+$mc_d->makeLast(
+@ans_d[0], @ans_d[1], @ans_d[2], @ans_d[3], @ans_d[4]
+);
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+
+BEGIN_TEXT
+For some time Eagle Boys pizza chain in Australia has claimed that its pizzas are generally larger than those of Domino's, the biggest pizza chain in the country. For example, advertising material on the company website (http://www.eagleboys.com.au) in 2012 proclaimed "Eagle Boys pizzas have been found to be on average a whole slice larger than Domino's pizzas". To investigate, a group of students in a university Statistics class purchased five "12 inch" pizzas of each of three crust types (deep pan, classic/mid and thin) from both Eagle Boys and Domino's, and measured the diameters of each (in cm). Suppose the data were as given below:
+
+$BR
+$BR
+
+$BCENTER
+
+\(
+\begin{array}{c c}
+& \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \text{Company } \\
+\text{Crust type} & 
+\begin{array}{c | c c}
+& \text{Domino's} & \text{Eagle Boys} \\ \hline
+\text{Deep pan} & @Dd[0],\: @Dd[1],\: @Dd[2],\: @Dd[3],\: @Dd[4] & @EBd[0],\: @EBd[1],\: @EBd[2],\: @EBd[3],\: @EBd[4] \\
+\text{Classic/Mid} & @Dc[0],\: @Dc[1],\: @Dc[2],\: @Dc[3],\: @Dc[4] & @EBm[0],\: @EBm[1],\: @EBm[2],\: @EBm[3],\: @EBm[4] \\
+\text{Thin} & @Dt[0],\: @Dt[1],\: @Dt[2],\: @Dt[3],\: @Dt[4] & @EBt[0],\: @EBt[1],\: @EBt[2],\: @EBt[3],\: @EBt[4]\\
+\end{array}
+\end{array}
+\)
+
+$ECENTER
+
+$BR
+$BR
+
+$BBOLD Part a) $EBOLD
+$BR
+\{ $mc_a->print_q() \}
+$BR
+\{ $mc_a->print_a() \}
+
+$BR
+$BR
+
+$BBOLD Part b) $EBOLD
+$BR
+The most general model for the data assumes that the diameter of the \(k\)th pizza of type \(j\) from company \(i\) is
+$BR
+$BR
+$BCENTER
+\(
+y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \epsilon
+\)
+$ECENTER
+$BR
+$BR
+in which \(\mu\) is the expected value of \(\bar{y}\), the overall mean across all the data, \(\alpha_i\) is the effect of the \(i\)th company, \(i=1,2\), \(\beta_j\) is the effect of the \(j\)th crust type, \(j=1,2,3\), \((\alpha\beta)_{ij}\) is the company-crust interaction effect, and \(\epsilon\) is an independent error, assumed to be from the \(N(0,\sigma)\) distribution for some \(\sigma\).
+$BR
+$BR
+Fit the above model to your data using R. Hence, compute the ANOVA table below, providing the requested values (i) and (ii) to 3 decimal places:
+$BR
+$BR
+$BCENTER
+
+\(
+\begin{array}{ccc}
+\text{Source} & \text{SS} & \text{dof} & \text{MS} & \text{F} \\ \hline
+\text{Company} & \text{(i)} & 1 & & \\
+\text{Crust type} & & 2 & & \\
+\text{Interaction} & & 2 & & \text{(ii)} \\
+\text{Error} & & & & \\ \hline
+\text{Total} & & & &
+\end{array}
+\)
+
+$ECENTER
+$BR
+$BR
+
+Value for \(\text{(i)}\) 
+$BR
+\{ ans_rule(12) \}
+$BR
+$BR
+Value for \(\text{(ii)}\) 
+$BR
+\{ ans_rule(12) \} 
+
+$BR
+$BR
+
+$BBOLD Part c) $EBOLD
+$BR
+\{ $mc_c->print_q() \}
+$BR
+\{ $mc_c->print_a() \}
+
+$BR
+$BR
+
+$BBOLD Part d) $EBOLD
+$BR
+\{ $mc_d->print_q() \}
+$BR
+\{ $mc_d->print_a() \}
+
+$BR
+$BR
+
+END_TEXT
+
+#######
+
+ANS( radio_cmp($mc_a->correct_ans()) );
+ANS( num_cmp($ans_b_i, tol=> 0.01, tolType=>"absolute") );
+ANS( num_cmp($ans_b_ii, tol=> 0.01, tolType=>"absolute") );
+ANS( radio_cmp($mc_c->correct_ans()) );
+ANS( radio_cmp($mc_d->correct_ans()) );
+
+
+##############################################################
+#
+#  Solution
+#
+
+Context()->texStrings;
+Context()->{format}{number} = "%.2f";
+
+BEGIN_SOLUTION
+
+We must first set up the data in R. We show one way to do this:
+$BR
+$BR
+$BITALIC
+Dd <- c(@Dd[0], @Dd[1], @Dd[2], @Dd[3], @Dd[4]) $BR
+Dc <- c(@Dc[0], @Dc[1], @Dc[2], @Dc[3], @Dc[4]) $BR
+Dt <- c(@Dt[0], @Dt[1], @Dt[2], @Dt[3], @Dt[4]) $BR
+EBd <- c(@EBd[0], @EBd[1], @EBd[2], @EBd[3], @EBd[4]) $BR
+EBm <- c(@EBm[0], @EBm[1], @EBm[2], @EBm[3], @EBm[4]) $BR
+EBt <- c(@EBt[0], @EBt[1], @EBt[2], @EBt[3], @EBt[4]) $BR
+diam <- c(Dd, Dc, Dt, EBd, EBm, EBt) $BR
+company <- as.factor(rep(c('Domino','Eagle Boys'),c(15,15))) $BR
+crust <- as.factor(rep(rep(c('Deep','Mid/Classic','Thin'),c(5,5,5)),2)) $BR
+model1 <- aov(diam ~company*crust) $BR
+summary1 <- anova(model1)
+$EITALIC
+$BR
+$BR
+From the above object the relevant statistics can be extracted as follows:
+$BR
+$BR
+$BITALIC
+summary1\{$DOLLAR\}Df $BR
+summary1\{$DOLLAR\}Sum $BR
+summary1\{$DOLLAR\}Mean $BR
+summary1\{$DOLLAR\}F
+$EITALIC
+$BR
+$BR
+The above give the degrees of freedom, the sums of squares, the mean squares and the F statistic repectively. All of these are vectors, so for example, the error SS is taken via
+$BR
+$BR
+$BITALIC
+summary1\{$DOLLAR\}Sum[4]
+$EITALIC
+$BR
+$BR
+The plot of means can be constructed via
+$BR
+$BR
+$BITALIC
+interaction.plot(crust, company, diam, xlab="Crust type", trace.label="Company", ylab="Mean diameter (cm)")
+$EITALIC
+$BR
+$BR
+
+$BBOLD Part a) $EBOLD
+$BR
+$BR
+The plot of means (also known as the interaction plot) best illustrates the main effects and possible interactions.
+
+$BR
+$BR
+\{image($filepath, width=>400, height=>400)\}
+$BR
+$BR
+
+We can neither assume nor ignore interaction based on the above plot alone.
+
+$BR
+$BR
+
+$BBOLD Part b) $EBOLD
+$BR
+$BR
+
+The required values are $BITALIC summary1\{$DOLLAR\}Sum[1] $EITALIC and $BITALIC summary1\{$DOLLAR\}F[3] $EITALIC.
+
+$BR
+$BR
+
+$BBOLD Part c) $EBOLD
+$BR
+$BR
+
+If all entries in $BITALIC summary1\{$DOLLAR\}P $EITALIC are < 0.05 we would adopt (A) as given. If only $BITALIC summary1\{$DOLLAR\}P[3] $EITALIC > 0.05, then model (B) is selected, and so on ...
+
+$BR
+$BR
+
+$BBOLD Part d) $EBOLD
+$BR
+$BR
+
+Unless $BITALIC summary1\{$DOLLAR\}P[1] $EITALIC > 0.05 the best answer is (D). Otherwise (E) is most reasonable.
+
+$BR
+$BR
+
+$BR
+$BR
+
+The scenario is taken from Dunn, P.K. (2012): Assessing claims made by a pizza chain. Journal of Statistics Education 20, No.1.
+
+END_SOLUTION
+
+ENDDOCUMENT();

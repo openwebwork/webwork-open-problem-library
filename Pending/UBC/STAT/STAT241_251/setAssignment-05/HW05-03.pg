@@ -1,0 +1,338 @@
+ #DESCRIPTION
+##  A problem to compute probability associated with a continuous uniform random variable.
+##ENDDESCRIPTION
+
+
+## DBsubject(Statistics)
+## DBchapter(Variance)
+## DBsection(2 Sample t and ANOVA)
+## Date(11/15/2012)
+## Institution(UBC)
+## Author(Michael Lindstrom)
+## MO(1)
+## KEYWORDS('Linear models', 'Simple linear regression', 'outliers', 'behaviour of regression line with additional outliers', 'identify behaviour of regression line following the addition of an outlier' )
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+"unionTables.pl",
+  "RserveClient.pl"
+);
+
+#######
+
+TEXT(beginproblem());
+
+Context("Numeric");
+
+$ver = random(0, 3, 1);
+
+rserve_start();
+
+if ($ver==0)
+{
+rserve_eval("x <- c(1100, 1700, 2300, 2700, 3200, 3500, 4000, 4600, 5200, 5600, 6100)");
+}
+if ($ver==1)
+{
+rserve_eval("x <- c(1100, 1400, 1700, 2300, 2700, 3200, 3500, 4000, 4600, 5200, 5600,6100)");
+}
+if ($ver==2)
+{
+rserve_eval("x <- c(1100, 1400, 1700, 2300, 2700, 3200, 3500, 4000, 4300, 4600, 4900,5200,6100)");
+}
+if ($ver==3)
+{
+rserve_eval("x <- c(1100, 1400, 1700, 2000, 2300, 2700, 3200, 3500, 4000, 4300, 4600,5200,6100)");
+}
+@X = rserve_eval("x");
+rserve_eval("err <- rnorm(length(x), 0, 8)");
+rserve_eval("y <- -5.30 + 0.05*x + err");
+rserve_eval("y <- round(y,2)");
+@Y = rserve_eval("y");
+@meanx = rserve_eval("meanx <- mean(x)");
+@meany = rserve_eval("meany <- mean(y)");
+@sumx2 = rserve_eval("sumx2 <- sum(x^2)");
+@sumxy = rserve_eval("sumxy <- sum(x*y)");
+rserve_eval("n <- length(x)");
+rserve_eval("regr1 <- lm(y~x); 1+1;");
+rserve_eval("summary1 <- summary(regr1); 1+1");
+rserve_eval("dof <- n-2");
+@dof = rserve_eval("dof");
+
+@estInt = rserve_eval("round(summary1[[4]][[1]], 3)");
+@estSlope = rserve_eval("round(summary1[[4]][[2]], 3)");
+@estSlVar = rserve_eval("round(summary1[[4]][[4]], 6)");
+@estT = rserve_eval("round(summary1[[4]][[6]], 3)");
+
+@tco = rserve_eval("qt ( c(0.975), df=dof, lower.tail=TRUE)");
+@tco995 = rserve_eval("qt ( c(0.995), df=dof, lower.tail=TRUE)");
+@tco005 = rserve_eval("qt ( c(0.005), df=dof, lower.tail=TRUE)");
+
+$file = rserve_start_plot('png');
+
+rserve_eval("plot(x,y, xlab='Engine running speed (rpm)', ylab = 'Horsepower (bhp)', main='Car Engine Horsepower against Engine Running Speed'); 1+1;");
+
+$filepath = rserve_finish_plot($file);
+
+rserve_finish();
+
+#Problem
+
+$meanx = sprintf("%.4f", join ", ", @meanx);
+$meany = sprintf("%.4f", join ", ", @meany);
+$sumx2 = sprintf("%.4f", join ", ", @sumx2);
+$sumxy = sprintf("%.4f", join ", ", @sumxy);
+
+$dof = join ", ", @dof;
+
+$n = $dof+2;
+
+#@X = join " ", @X;
+#@Y = join " ", @Y;
+
+unshift(@X, "rpm");
+unshift(@Y, "Horsepower (bhp)");
+
+# a)
+
+$slope = join ", ", @estSlope;
+$inter = join ", ", @estInt;
+
+# b)
+
+$bans = sprintf("%.3f", $inter + $slope*2400);
+
+# c)
+
+$cans = sprintf("%.3f", 100*$slope);
+
+# d)
+
+$tco = join ", ", @tco;
+
+$estSlVar = join ", ", @estSlVar;
+
+$estSlVar = sprintf("%.6f", $estSlVar);
+
+$low = sprintf("%.3f", $slope - $tco*$estSlVar);
+$high = sprintf("%.3f", $slope + $tco*$estSlVar);
+
+$tcod = sprintf("%.3f", $tco);
+
+# e)
+
+$mce = new_multiple_choice();
+$mce -> qa( "Without extending beyond the existing range of speed values or changing the number of observations, we would expect that increasing the variance of the rpm speeds at which the horsepower levels were found would make the confidence interval in (d)" , "narrower.");
+$mce -> extra("wider.", "either wider or narrower depending on the values chosen.", "unchanged.");
+
+# f)
+
+$fans = sprintf("%.3f", $slope/($estSlVar));
+
+# g)
+
+$gdist1 = "Since the observed test statistic falls in either the upper or lower 1/2 percentiles of the t distribution with \( $dof \) degrees of freedom, we cannot reject the null hypothesis that the horsepower does not depend linearly on rpm.";
+
+$gdist2 = "Since the observed test statistic does not fall in either the upper or lower 1/2 percentiles of the t distribution with \( $dof \) degrees of freedom, we can reject the null hypothesis that the horsepower does not depend linearly on rpm.";
+
+$gdist3 = "Since the observed test statistic does not fall in either the upper or lower 1 percentiles of the t distribution with \( $dof \) degrees of freedom, we cannot reject the null hypothesis that the horsepower does not depend linearly on rpm.";
+
+$tco995 = join ", ", @tco995;
+$tco005 = join ", ", @tco005;
+
+$tcod995 = sprintf("%.3f", $tco995);
+$tcod005 = sprintf("%.3f", $tco005);
+
+if(($fans > $tco995) || ($fans < $tco005))
+{
+$gdist4 = "Since the observed test statistic does not fall in either the upper or lower 1/2 percentiles of the t distribution with \( $dof \) degrees of freedom, we cannot reject the null hypothesis that the horsepower does not depend linearly on rpm.";
+
+$gans = "Since the observed test statistic falls in either the upper or lower 1/2 percentiles of the t distribution with \( $dof \) degrees of freedom, we can reject the null hypothesis that the horsepower does not depend linearly on rpm.";
+}
+else
+{
+
+$gans = "Since the observed test statistic does not fall in either the upper or lower 1/2 percentiles of the t distribution with \( $dof \) degrees of freedom, we cannot reject the null hypothesis that the horsepower does not depend linearly on rpm.";
+
+$gdist4 = "Since the observed test statistic falls in either the upper or lower 1/2 percentiles of the t distribution with \( $dof \) degrees of freedom, we can reject the null hypothesis that the horsepower does not depend linearly on rpm.";
+
+}
+
+$mcg = new_multiple_choice();
+$mcg -> qa( "Assuming the test is at the 1$PERCENT significance level, what would you conclude from the above hypothesis test?" , $gans);
+$mcg -> extra($gdist1, $gdist2, $gdist3, $gdist4);
+
+#######
+# Problem Text
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+$PAR
+$PAR
+
+The horsepower (Y, in bhp) of a motor car engine was measured at a chosen set of values of running speed (X, in rpm). The data are given below (the first row is the running speed in rpm and the second row is the horsepower in bhp):
+
+\{ 
+BeginTable(border=>1, tex_border=>"1pt", spacing=>0, padding=>4).
+AlignedRow( [@X], align=>LEFT, separation=>0).
+AlignedRow( [@Y], align=>LEFT, separation=>0).
+EndTable()
+\}
+
+The mean and sum of squares of the rpm are \( $meanx \) rpm and \( $sumx2 \) rpm \(^2\) respectively; the mean of the horsepower values is \( $meany \) bhp and the sum of the products of the two variables is \( $sumxy \) rpm bhp. A scatterplot displaying the data is shown below:
+
+$BR $BR
+
+\{image($filepath, width=>400, height=>400)\}
+$BR $BR
+
+Please provide answers to the following to 3 decimals places where appropriate:
+
+$BR $BR
+
+$BBOLD Part a) $EBOLD
+$BR $BR
+Compute the regression line for these data, and provide your estimates of the slope and intercept parameters. Please round intermediate results to 6 decimal places. 
+$BR $BR
+Slope: \{ ans_rule(6) \}
+$BR $BR
+Intercept: \{ ans_rule(6) \}
+
+$BR $BR
+$BBOLD Note:  For sub-parts below, use the slope and intercept values in Part a, corrected to 3 decimal places to calculate answers by hand using a scientific calculator. $EBOLD
+$BR $BR
+$BBOLD Part b) $EBOLD
+$BR $BR
+Based on the regression model, what level of horsepower would you expect the engine to produce if running at \( 2400 \) rpm?
+$BR $BR
+Answer: \{ ans_rule(6) \}
+
+
+$BR $BR
+$BBOLD Part c) $EBOLD
+$BR $BR
+Assuming the model you have fitted, if increase the running speed by \( 100 \) rpm, what would you expect the change in horsepower to be?
+$BR $BR
+Answer: \{ ans_rule(6) \}
+
+$BR $BR
+$BBOLD Part d) $EBOLD
+$BR $BR
+The standard error of the estimate of the slope coefficient was found to be \( $estSlVar \). Provide a 95$PERCENT confidence interval for the true underlying slope.
+$BR $BR
+Confidence interval: ( \{ ans_rule(6) \}, \{ ans_rule(6) \} )
+
+$BR $BR
+$BBOLD Part e) $EBOLD
+$BR $BR
+\{ $mce->print_q() \}
+$BR
+\{ $mce->print_a() \}
+
+$BR $BR
+$BBOLD Part f) $EBOLD
+$BR $BR
+If testing the null hypothesis that horsepower does not depend linearly on rpm, what would be your test statistic? (For this part, you are to calculate the test statistic by hand using appropriate values from the answers you provided in part (a) accurate to 3 decimal places, and values given to you in part (d).)
+$BR $BR
+Answer: \{ ans_rule(6) \}
+
+$BR $BR
+$BBOLD Part g) $EBOLD
+$BR $BR
+\{ $mcg->print_q() \}
+$BR
+\{ $mcg->print_a() \}
+
+
+END_TEXT
+
+#######
+
+$showPartialCorrectAnswers = 1;
+
+ANS(  Real($slope)->cmp(tolerance=>0.01, tolType=>'absolute') );
+ANS(  Real($inter)->cmp(tolerance=>0.01, tolType=>'absolute') );
+
+ANS(  Real($bans)->cmp(tolerance=>0.2, tolType=>'absolute') );
+
+ANS(  Real($cans)->cmp(tolerance=>0.01, tolType=>'absolute') );
+
+ANS(  Real($low)->cmp(tolerance=>0.01, tolType=>'absolute') );
+ANS(  Real($high)->cmp(tolerance=>0.01, tolType=>'absolute') );
+
+ANS(  radio_cmp($mce->correct_ans()) );
+
+ANS(  Real($fans)->cmp(tolerance=>0.01, tolType=>'absolute') );
+
+ANS(  radio_cmp($mcg->correct_ans()) );
+
+##############################################################
+#
+#  Solution
+#
+
+Context()->texStrings;
+
+BEGIN_SOLUTION
+$BR
+$BR
+$BBOLD Part a) $EBOLD
+$BR
+The slope term is
+$BR
+\( \hat{\beta}_1 = \frac{n \sum_i x_i y_i - \sum_i x_i \sum_i y_i}{n \sum_i x_i^2 - (\sum_i x_i)^2} = $slope \)
+$BR
+and the intercept is
+$BR
+\( \hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x} = $inter. \)
+$BR
+$BR
+$BBOLD Part b) $EBOLD
+$BR
+The fitted value at rpm 2400 is given by \( \hat{\beta}_0 + \hat{\beta}_1 (2400) = $bans. \)
+$BR
+$BR
+$BBOLD Part c) $EBOLD
+$BR
+The predicted increase will be \( 100 \hat{\beta}_1 = $cans. \)
+$BR
+$BR
+$BBOLD Part d) $EBOLD
+$BR
+We will use \( SE(\hat{\beta}_1) \), the estimated standard deviation of \( \hat{\beta}_1 \), given here as \( $estSlVar \). The relevent percentile on the t distribution is \( t_{$n-2} (0.975) = $tcod \) and the confidence interval is therefore
+$BR
+\( \hat{\beta}_1 \pm ($tcod)($estSlVar) = ($low, $high). \)
+$BR
+$BR
+$BBOLD Part e) $EBOLD
+The answer is "narrower" since the variance of \( \hat{\beta}_1 \) is inversely proportional to the variance of the rpm values chosen.
+$BR
+$BR
+$BBOLD Part f) $EBOLD
+The test statistic is
+$BR
+\( \frac{\hat{\beta}_1}{SE(\hat{\beta}_1)} = $fans. \)
+$BR
+$BR
+$BBOLD Part g) $EBOLD
+If the test statistic falls above \( t_{$n-2}(0.995) = $tcod995 \) (or, much less likely, below \( t_{$n-2}(0.005) = $tcod005 \) ), the answer is
+$BR
+"Since the observed test statistic falls in either the upper or lower 1/2 percentiles of the t distribution with \( $dof \) degrees of freedom, we can reject the null hypothesis that the horsepower does not depend linearly on rpm;"
+$BR
+otherwise, far less likely, the response is 
+$BR
+"Since the observed test statistic does not fall in either the upper or lower 1/2 percentiles of the t distribution with \( $dof \) degrees of freedom, we cannot reject the null hypothesis that the horsepower does not depend linearly on rpm."
+
+END_SOLUTION
+
+
+ENDDOCUMENT();
