@@ -21,7 +21,7 @@ loadMacros(
 "PGchoicemacros.pl",
 "PGanswermacros.pl",
 "PGauxiliaryFunctions.pl",
-"Parser.pl",
+"MathObjects.pl",
 "parserMultiAnswer.pl",
 "PGasu.pl"
 );
@@ -29,6 +29,8 @@ loadMacros(
 TEXT(beginproblem()) ;
 $showPartialCorrectAnswers = 0;
 install_problem_grader(~~&std_problem_grader);
+
+Context('Numeric');
 
 $a= non_zero_random(-4,4);
 $b= non_zero_random(-4,4);
@@ -43,32 +45,52 @@ $n = random(1,4);
 $n1=$n+1;
 $m = random(2,4);
 $m1= $m+1;
+
+
+Context()->variables->add(A=>'Parameter');
+Context()->variables->add(C=>'Parameter');
+
 if    ($c==$b-$k) {$Fxy = "not exact"}
-else          {$Fxy = "A*(($a/$m1) x^{$m1}+${b}x y + (${d}/$n1)y^${n1})+C"}
+else  {
+  $Fxy = "A*(($a/$m1) x^{$m1}+${b}x y + (${d}/$n1)y^${n1})+C"
+}
+
+Context()->variables->add('y'=>'Real');
+Context()->strings->add('not exact' => {});
 
 $num = nicestring([-$a, -$b], ["x^{$m}", 'y']);
 $ypow = "y^{$n}";
 $ypow = "y" if ($n==1);
 $den = nicestring([$c, $d], ['x', $ypow]);
 
-Context('Numeric');
-Context()->variables->add('y'=>'Real');
 
-$mp = MultiAnswer("$a x^$m + $b y","$c x + $d y^$n")->with(
+$mp = MultiAnswer("$a x^$m + $b y","$c x + $d y^$n", $Fxy)->with(
       checker => sub {
         my $correct = shift; my $student = shift; my $self = shift;
-        my ($F,$G) = @{$correct};
-        my ($f,$g) = @{$student};
-        return 0 unless $F/$G == $f/$g;
-        Context()->variables->add(a=>'Parameter');
-        my $result = ($F*'a' == $f || $F*'a' == $g);
-        Context()->variables->remove('a');
-        return $result;
+        my ($F,$G,$cFxy) = @{$correct};
+        my ($f,$g, $fxy) = @{$student};
+		#$mp->setMessage(1,"The function can't be the identity");
+        return [0,0,0] unless $F/$G == $f/$g;
+		Context()->variables->remove(C=>'Parameter');
+		# Since M and N can be multiplied by a common function, no further check
+        #my $result = ($F*'A' == $f || $F*'A' == $g);
+        #return [0,0,0] unless $result;
+		Context()->variables->add(C=>'Parameter');
+		# Now check the last part
+		if ($c!=$b-$k) {
+		  if (Formula($fxy)->isConstant) {
+		    $mp->setMessage(3,"The function can't be constant");
+			return [1,1,0];
+		  }
+		}
+		return [1,1,1] if $cFxy == $fxy;
+		return [1,1,0];
       },
     );
 
 BEGIN_TEXT
-Use the "mixed partials" check to see if the following differential equation is exact.
+Use the "mixed partials" check to see if the following differential equation 
+is exact.
 $BR
 $BR
 If it is exact find a function \(F(x,y)\) whose differential, 
@@ -84,15 +106,15 @@ $BR
 $BR
 If the equation is not exact, enter $BITALIC not exact, $EITALIC  otherwise enter in \(F(x,y)  \) as
 the solution of the differential equation here 
- \{ ans_rule(45) \} \(= C \).
+ \{ $mp->ans_rule(45) \} \(= C \).
 END_TEXT
 
 ANS($mp->cmp);
 
-if    ($c==$b-$k) {ANS(str_cmp($Fxy ))}
-else          {
-  ANS(pc_evaluator([[fun_cmp("C", vars=>["x", "y"], params=>['C']), 0, 'This answer cannot be constant'],
-    [fun_cmp($Fxy,vars=>["x", "y"], params=>['A', 'C'] ), 1]]) )
-}
+#if    ($c==$b-$k) {ANS(str_cmp($Fxy ))}
+#else          {
+#  ANS(pc_evaluator([[fun_cmp("C", vars=>["x", "y"], params=>['A','C']), 0, 'This answer cannot be constant'],
+#    [fun_cmp($Fxy,vars=>["x", "y"], params=>['A', 'C'] ), 1]]) )
+#}
 
 ENDDOCUMENT() ;        # This should be the last executable line in the problem.
