@@ -371,8 +371,8 @@ sub tablesuperscript{
 sub tablefrac{
  my %arg = @_;
  my $width = delete $arg{width} //  3;
- my $lower = delete $arg{lower} //  ans_rule($width);
  my $upper = delete $arg{upper} //  ans_rule($width);
+ my $lower = delete $arg{lower} //  ans_rule($width);
  my $barwidth = delete $arg{barwidth} //  10+$width;
  my $divisionbar = "";
  for ($count = 1;$count <= $barwidth; $count++){
