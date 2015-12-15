@@ -1,0 +1,342 @@
+# DESCRIPTION
+# Gives the graph of a function and asks to determine the inverse graphically
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Inverse functions)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## KEYWORDS('inverse','functions','graph')
+
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "MathObjects.pl",
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "unionTables.pl",
+);
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+$showPartialCorrectAnswers = 1;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric");
+Context()->strings->add(A=>{}, B=>{}, C=>{}, D=>{}, "none"=>{});
+$case = random(0,2,1); # 0 - x^3, 1 - sqrt(x), 2 - line graph
+$a = random(-1,1,2);
+$b = random(-1,1,2);
+$c = random(-5,5);
+$d = non_zero_random(-5,5);
+$x1 = random(-7,-1);
+$x2 = random($x1+3,3);
+$x3 = random($x2+3,8);
+$y1 = non_zero_random(-8,8);
+do {$y2 = non_zero_random(-8,8)} until (sgn($y2) != sgn($y1) && ($y2-$y1)/($x2-$x1) != -1);
+do {$y3 = non_zero_random(-8,8)} until (sgn($y3) == sgn($y2) && ($y3-$y2)/($x3-$x2) != -1);
+
+if ($case == 0 || $case == 1) {
+  $minx = -12;
+  $miny = -12;
+  $maxx = 12;
+  $maxy = 12;
+} else {
+  $minx = min(min($x1,-$x3),min($y1,$y2,$y3),-max($y1,$y2,$y3))-2;
+  $miny = $minx;
+  $maxx = -$minx;
+  $maxy = -$miny;
+}
+$gsize = 500;
+
+for ($i = 0; $i < 5; $i++) {
+  $graphs[$i] = init_graph($minx, $miny, $maxx, $maxy, size=>[$gsize,$gsize]);
+  for ($j = $minx; $j <= $maxx; $j++) {
+    $graphs[$i]->moveTo($j,$miny);
+    $graphs[$i]->lineTo($j,$maxy,'gray',1);
+  }
+  for ($j = $miny; $j <= $maxy; $j++) {
+    $graphs[$i]->moveTo($minx,$j);
+    $graphs[$i]->lineTo($maxx,$j,'gray',1);
+  }
+  $graphs[$i]->moveTo($minx, 0);
+  $graphs[$i]->arrowTo($maxx, 0, 'black', 2);
+  $graphs[$i]->arrowTo($minx, 0, 'black', 2);
+  $graphs[$i]->moveTo(0, $miny);
+  $graphs[$i]->arrowTo(0, $maxy, 'black', 2);
+  $graphs[$i]->arrowTo(0, $miny, 'black', 2);
+  $graphs[$i]->lb(new Label($maxx-0.1, 0.4, 'x', 'black', 'bottom', 'right'));
+  $graphs[$i]->lb(new Label(0.4, $maxy-0.1, 'y', 'black', 'top', 'left'));
+
+  for ($j = $minx+1; $j < $maxx; $j++) {
+    if ($j != 0 && $j % 5 == 0 || $j == 1) {
+      $graphs[$i]->lb(new Label($j,-0.1,$j, 'black', 'top','center'));
+    }
+  }
+
+  for ($j = $miny+1; $j < $maxy; $j++) {
+    if ($j != 0 && $j % 5 == 0 || $j == 1) {
+      $graphs[$i]->lb(new Label(-0.1,$j,$j, 'black', 'middle', 'right'));
+    }
+  }
+}
+
+# original functions
+if ($case == 0) {
+  $expn = sub { my $x = shift(); $a*(($b*$x - $c)**3) + $d };
+  for ($i = 0; $i < 4; $i++) {
+    $fun = new Fun($expn,$graphs[$i]);
+    $fun->steps(1500);
+    $fun->color('blue');
+    $fun->weight(3);
+    $fun->domain($minx,$maxx);
+  }
+} elsif ($case == 1) {
+  $expn = sub { my $x = shift(); $a*sqrt($b*$x - $c) + $d };
+  for ($i = 0; $i < 4; $i++) {
+    $fun = new Fun($expn,$graphs[$i]);
+    $fun->steps(1000);
+    $fun->color('blue');
+    $fun->weight(3);
+    if ($b < 0) {
+      $fun->domain($minx,-$c);
+      $graphs[$i]->stamps(closed_circle(-$c,$d,'blue'));
+    } else {
+      $fun->domain($c,$maxx);
+      $graphs[$i]->stamps(closed_circle($c,$d,'blue'));
+    }
+  }
+} else {
+  for ($i = 0; $i < 4; $i++) {
+    $graphs[$i]->moveTo($x1,$y1);
+    $graphs[$i]->lineTo($x2,$y2,'blue',3);
+    $graphs[$i]->lineTo($x3,$y3,'blue',3);
+    $graphs[$i]->stamps(closed_circle($x1,$y1,'blue'));
+    $graphs[$i]->stamps(closed_circle($x2,$y2,'blue'));
+    $graphs[$i]->stamps(closed_circle($x3,$y3,'blue'));
+  }
+}
+
+# set up plots and answer
+@pos = (0..3);
+@posspos = (0..3);
+for ($i = 0; $i < 4; $i++) {
+  $pos[$i] = list_random(@posspos);
+  for ($j = 0; $j < scalar(@posspos); $j++) {
+    if ($posspos[$j] == $pos[$i] ) {
+      $tmp = $posspos[$j];
+      $posspos[$j] = $posspos[scalar(@posspos)-1];
+      $posspos[scalar(@posspos)-1] = $tmp;
+      pop(@posspos);
+      $j--;
+    }
+  }
+}
+
+# plot the choices
+if ($case == 0) {
+  $goodexpn = sub { my $x = shift(); ((sgn(($x-$d)/$a)*(abs(($x-$d)/$a)**(1/3)))+$c)/$b };
+  $goodfun = new Fun($goodexpn,$graphs[$pos[0]]);
+  $goodfun->steps(1500);
+  $goodfun->color('red');
+  $goodfun->weight(3);
+  $goodfun->domain($minx,$maxx);
+
+  $badexpn1 = sub { my $x = shift(); -(((sgn(($x-$d)/$a)*(abs(($x-$d)/$a)**(1/3)))+$c)/$b) };
+  $badfun1 = new Fun($badexpn1,$graphs[$pos[1]]);
+  $badfun1->steps(1500);
+  $badfun1->color('red');
+  $badfun1->weight(3);
+  $badfun1->domain($minx,$maxx);
+
+  $badexpn2 = sub { my $x = shift(); ((-sgn(($x-$d)/$a)*(abs(($x-$d)/$a)**(1/3)))+$c)/$b };
+  $badfun2 = new Fun($badexpn2,$graphs[$pos[2]]);
+  $badfun2->steps(1500);
+  $badfun2->color('red');
+  $badfun2->weight(3);
+  $badfun2->domain($minx,$maxx);
+
+  $badexpn3 = sub { my $x = shift(); -(((-sgn(($x+$d)/$a)*(abs(($x+$d)/$a)**(1/3)))+$c)/$b) };
+  $badfun3 = new Fun($badexpn3,$graphs[$pos[3]]);
+  $badfun3->steps(1500);
+  $badfun3->color('red');
+  $badfun3->weight(3);
+  $badfun3->domain($minx,$maxx);
+}
+
+if ($case == 1) {
+  $goodexpn = sub { my $x = shift(); (((($x-$d)/$a)**2)+$c)/$b };
+  $goodfun = new Fun($goodexpn,$graphs[$pos[0]]);
+  $goodfun->steps(1000);
+  $goodfun->color('red');
+  $goodfun->weight(3);
+  if ($a > 0) {
+    $goodfun->domain($d,$maxx);
+  } else {
+    $goodfun->domain($minx,$d);
+  }
+  if ($b > 0) {
+    if ($d != $c) {
+      $graphs[$pos[0]]->stamps(closed_circle($d,$c,'red'));
+    } else {
+      $graphs[$pos[0]]->stamps(closed_circle($d,$c,'black'));
+    }
+  } else {
+    if ($d != -$c) {
+      $graphs[$pos[0]]->stamps(closed_circle($d,-$c,'red'));
+    } else {
+      $graphs[$pos[0]]->stamps(closed_circle($d,-$c,'black'));
+    }
+  }
+
+  $badexpn1 = sub { my $x = shift(); (((($x-$d)/$a)**2)+$c)/$b };
+  $badfun1 = new Fun($badexpn1,$graphs[$pos[1]]);
+  $badfun1->steps(1000);
+  $badfun1->color('red');
+  $badfun1->weight(3);
+  if ($a > 0) {
+    $badfun1->domain($minx,$d);
+  } else {
+    $badfun1->domain($d,$maxx);
+  }
+  if ($b > 0) {
+    if ($d != $c) {
+      $graphs[$pos[1]]->stamps(closed_circle($d,$c,'red'));
+    } else {
+      $graphs[$pos[1]]->stamps(closed_circle($d,$c,'black'));
+    }
+  } else {
+    if ($d != -$c) {
+      $graphs[$pos[1]]->stamps(closed_circle($d,-$c,'red'));
+    } else {
+      $graphs[$pos[1]]->stamps(closed_circle($d,-$c,'black'));
+    }
+  }
+
+  $badexpn2 = sub { my $x = shift(); -((((($x-$d)/$a)**2)+$c)/$b) };
+  $badfun2 = new Fun($badexpn2,$graphs[$pos[2]]);
+  $badfun2->steps(1000);
+  $badfun2->color('red');
+  $badfun2->weight(3);
+  if ($a > 0) {
+    $badfun2->domain($minx,$d);
+  } else {
+    $badfun2->domain($d,$maxx);
+  }
+  if ($b > 0) {
+    if ($d != -$c) {
+      $graphs[$pos[2]]->stamps(closed_circle($d,-$c,'red'));
+    } else {
+      $graphs[$pos[2]]->stamps(closed_circle($d,-$c,'black'));
+    }
+  } else {
+    if ($d != $c) {
+      $graphs[$pos[2]]->stamps(closed_circle($d,$c,'red'));
+    } else {
+      $graphs[$pos[2]]->stamps(closed_circle($d,$c,'black'));
+    }
+  }
+
+  $badexpn3 = sub { my $x = shift(); (((($x+$d)/$a)**2)+$c)/$b };
+  $badfun3 = new Fun($badexpn3,$graphs[$pos[3]]);
+  $badfun3->steps(1500);
+  $badfun3->color('red');
+  $badfun3->weight(3);
+  if ($a > 0) {
+    $badfun3->domain($minx,-$d);
+  } else {
+    $badfun3->domain(-$d,$maxx);
+  }
+  if ($b > 0) {
+    if ($d != -$c) {
+      $graphs[$pos[3]]->stamps(closed_circle(-$d,$c,'red'));
+    } else {
+      $graphs[$pos[3]]->stamps(closed_circle(-$d,$c,'black'));
+    }
+  } else {
+    if ($d != $c) {
+      $graphs[$pos[3]]->stamps(closed_circle(-$d,-$c,'red'));
+    } else {
+      $graphs[$pos[3]]->stamps(closed_circle(-$d,-$c,'black'));
+    }
+  }
+}
+
+if ($case == 2) {
+  $graphs[$pos[0]]->moveTo($y1,$x1);
+  $graphs[$pos[0]]->lineTo($y2,$x2,'red',3);
+  $graphs[$pos[0]]->lineTo($y3,$x3,'red',3);
+  $graphs[$pos[0]]->stamps(closed_circle($y1,$x1,'red'));
+  $graphs[$pos[0]]->stamps(closed_circle($y2,$x2,'red'));
+  $graphs[$pos[0]]->stamps(closed_circle($y3,$x3,'red'));
+
+  $graphs[$pos[1]]->moveTo($y1,-$x1);
+  $graphs[$pos[1]]->lineTo($y2,-$x2,'red',3);
+  $graphs[$pos[1]]->lineTo($y3,-$x3,'red',3);
+  $graphs[$pos[1]]->stamps(closed_circle($y1,-$x1,'red'));
+  $graphs[$pos[1]]->stamps(closed_circle($y2,-$x2,'red'));
+  $graphs[$pos[1]]->stamps(closed_circle($y3,-$x3,'red'));
+
+  $graphs[$pos[2]]->moveTo(-$y1,$x1);
+  $graphs[$pos[2]]->lineTo(-$y2,$x2,'red',3);
+  $graphs[$pos[2]]->lineTo(-$y3,$x3,'red',3);
+  $graphs[$pos[2]]->stamps(closed_circle(-$y1,$x1,'red'));
+  $graphs[$pos[2]]->stamps(closed_circle(-$y2,$x2,'red'));
+  $graphs[$pos[2]]->stamps(closed_circle(-$y3,$x3,'red'));
+
+  $graphs[$pos[3]]->moveTo(-$y1,-$x1);
+  $graphs[$pos[3]]->lineTo(-$y2,-$x2,'red',3);
+  $graphs[$pos[3]]->lineTo(-$y3,-$x3,'red',3);
+  $graphs[$pos[3]]->stamps(closed_circle(-$y1,-$x1,'red'));
+  $graphs[$pos[3]]->stamps(closed_circle(-$y2,-$x2,'red'));
+  $graphs[$pos[3]]->stamps(closed_circle(-$y3,-$x3,'red'));
+}
+
+@figs = (0..3);
+for ($i = 0; $i < 4; $i++) {
+  $figs[$i] = image(insertGraph($graphs[$i]), width=>$gsize/2, height=>$gsize/2, tex_size=>250 );
+}
+
+@possans = ("A", "B", "C", "D");
+$ans = $possans[$pos[0]];
+
+
+###########################################################################
+# state the problem 
+###########################################################################
+Context()->texStrings;
+BEGIN_TEXT
+
+$BCENTER
+\{ 
+BeginTable().
+  AlignedRow([$figs[0], $figs[1]]).
+  TableSpace(5,0).
+  AlignedRow(["A", "B"]).
+  TableSpace(25,6).
+  AlignedRow([$figs[2], $figs[3]]).
+  TableSpace(5,0).
+  AlignedRow(["C", "D"]).
+EndTable();
+\}
+$ECENTER 
+
+The graph of a one-to-one function \(f\) is shown as a blue curve. Choose the correct graph that shows the inverse of \(f\) as a red curve or type ${BBOLD}none${EBOLD} if none of the red graphs represent the inverse. You may click a graph to enlarge it.
+$PAR
+Correct Letter: \{ans_rule(5)\}
+END_TEXT
+
+
+###########################################################################
+# check the answer  
+###########################################################################
+ANS(String($ans)->cmp());
+
+
+ENDDOCUMENT();
