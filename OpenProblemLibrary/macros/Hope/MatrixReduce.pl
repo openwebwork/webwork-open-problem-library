@@ -95,7 +95,7 @@ Some elementary matrices.
 END_TEXT
 Context()->normalStrings;
 
-COMMENT('MathObject version.');
+
 ENDDOCUMENT();
 
 =back
