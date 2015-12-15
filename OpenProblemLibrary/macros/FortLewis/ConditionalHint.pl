@@ -115,7 +115,7 @@ $showPartialCorrectAnswers = 1;
 ANS( $answers[1]->cmp() );
 ANS( $answers[2]->cmp() );
 
-COMMENT('MathObject version.  When the first answer is correct, a hint appears with an integral formula (using ConditionalHint.pl).');
+COMMENT('When the first answer is correct, a hint appears with an integral formula (using ConditionalHint.pl).');
 
 ENDDOCUMENT();
 
