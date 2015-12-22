@@ -40,7 +40,7 @@ sub newendpoint {
   $text = read_file($start);
   my $node = ispointer($start);
   my ($val, $cnt) = @{$node};
-  $text =~ s/$end1/$newend/g;
+  $text =~ s/$end1/"$newend"/g;
   open(OUTF, ">$start");
   print OUTF $text;
   close(OUTF);
