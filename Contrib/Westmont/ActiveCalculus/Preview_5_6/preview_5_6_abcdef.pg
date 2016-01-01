@@ -1,3 +1,4 @@
+## -*- perl -*- ##
 # DESCRIPTION
 # Preview Activity from _Active Calculus_ by Matthew Boelkins
 # ENDDESCRIPTION
@@ -19,59 +20,198 @@ DOCUMENT();
 loadMacros(
 "PGstandard.pl",
 "MathObjects.pl",
+"AppletObjects.pl",
+"unionTables.pl",
+"parserNumberWithUnits.pl",
 "PGessaymacros.pl",
 "PGcourse.pl",
 );
 
-Context("Numeric");
-
-$intInc = List( "(0,1.5),(4,6)" );
-$intDec = List( "(1.5,4)" );
-
-
-
 TEXT(beginproblem());
-$showPartialCorrectAnswers = 0;
 
-install_problem_grader(~~&std_problem_grader); #for correct behavior with essay
+$showPartialCorrectAnswers = 1;
+
+Context("Numeric")->variables->are(t=>"Real");
+
+$a = random(2,4,1);
+$b = random(5,8,1);
+$c = random(1,3,1);
+$d = random(1,3,1);
+while ($c == $d) { $d = random(1,3,1); }
+
+# $f = Formula("$c / (1+(t-2)^2) + $d / (1+(t-4)^2)");
+$F = Formula("$c * arctan(t-2) + $d * arctan(t-4) - $c * arctan(-2) - $d * arctan(-4)");
+
+$Fa = $F->eval(t=>$a);
+$Fb = $F->eval(t=>$b);
+$disp = $Fb - $Fa;
+
+######################################
+# Create  link to applet:
+###################################
+# You can name your applet (anything reasonable :-) )
+# Adjust the height and width as desired
+# Paste the geogebra parameters in at the bottom of the page just above the
+# command end command
+# so that they don't get in the way
+###################################
+
+
+$appletName = "ggbfoo";
+
+$applet =  GeogebraWebApplet(
+   code       => "geogebra.GeoGebraApplet",
+   archive    => "geogebra.jar",
+   codebase                 => findAppletCodebase("geogebra.jar"),
+   appletName              => $appletName,
+   appletId                    => $appletName,
+   submitActionAlias     => 'getAppletValues',  # default actionAlias
+   initializeActionAlias   => 'configure',  # default actionAlias
+   setStateAlias             => 'setXML',
+   getStateAlias             => 'getXML',
+   setConfigAlias           => '',
+   getConfigAlias           => '',
+   returnFieldName       => '',
+   width                 => 850,              # may want to modify width
+   height                => 465,              # may want to modify height
+  # mayscript             => "true",
+   debugMode             => 0,   # set debugMode to 0 for no debug
+                                              # to 1 to make xml representation visible
+                                              # to 2 to add alerts detailing progression
+                                              # through the applet
+   onInit                => 'ggbOnInit',
+   type                  => 'geogebraweb',
+   #submitActionScript    => qq{ getQE('answerBox').value = getAppletValues() },
+   submitActionScript => '',
+   selfLoading           => 1,
+   params     => GEOGEBRA_PARAMS(),# paste parameters in
+
+);
+
+
+###############################################
+#
+#  PNG picture of GeoGebra applet for hardcopy
+
+#$im = image( "AF7-c".$c."-d".$d.".png", width=>486, height=>335, tex_size=>900 );
+
+
+##################################
+# Setup GeogebraWebApplet --
+###################################
+
+###############################################
+#
+#  For persistence of GeoGebra applet state 
+#  when answers are submitted or page is refreshed.
+#  Uses JavaScript interface to GeoGebra.
+
+HEADER_TEXT(
+qq! 
+<script language="javascript">
+   function ggbOnInit(param) {
+       if (param == "$appletName") {
+           applet_loaded(param,1);  // report that applet is ready. 
+           ww_applet_list[param].safe_applet_initialize(2);
+       }
+   } 
+</script>
+<noscript>For this question to work properly, 
+you must enable JavaScript, or use another browser 
+(or computer) on which JavaScript works.</noscript>
+!);
+
+
+
+#######################################################
+#
+#  For setting initial values in GeoGebra from WeBWorK
+#  Uses JavaScript interface to GeoGebra.
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+<script language="javascript">
+function setAppletCoefficients() {
+   var applet=getApplet("$appletName");   // alert("Updating coefficients");
+   if (typeof(applet)!="undefined") {
+     if (typeof(applet.setValue)!="undefined") {
+     ////////////////////////////////////////////////////////////////
+     //  List the values of the parameters to be set in the applet here
+     
+          // Set variables "c" and "d" in GeoGebra to values $c and $d from WebWork
+//          applet.setValue("F", x^2); 
+// applet.registerObjectUpdateListener("f", "x^2")   
+//          applet.evalCommand("f(x) = x^2");
+
+
+
+     } else {
+          setTimeout("setAppletCoefficients()", 1000);
+     }
+   } else {
+      setTimeout("setAppletCoefficients()",1000);
+   }
+}
+ww_applet_list["$appletName"].setConfig = function() {setAppletCoefficients()};
+</script>
+END_SCRIPT
+
+###################################
+#insert applet into body  -- this does not need to be changed
+# except to adjust the insertion of the reinitialize_button or
+# a hidden AnswerBox
+###################################
+# TEXT($PAR,  MODES(TeX=>'geogebraweb code',
+#                      HTML=>$applet->insertAll(
+#                                debug =>0,
+#                                reinitialize_button => 1,
+#                                #includeAnswerBox=>1,
+# )));
+
 Context()->texStrings;
 BEGIN_TEXT
 $PAR
-As we begin to investigate ways to approximate definite integrals, it will be 
+While investigating ways to approximate definite integrals, it is 
 insightful to compare results to integrals whose exact values we know.  To that end, 
 the following sequence of questions centers on \(\int_0^3 x^2 \, dx\).
 $PAR
-(a) Use the applet at \(\href{http://gvsu.edu/s/a9}{\texttt{http://gvsu.edu/s/a9}}\) with 
-the function \(f(x) = x^2\) on the window of \(x\) values from \(0\) to \(3\) to compute 
-\(L_3\), the left Riemann sum with three subintervals. $BR
-\{ essay_box(1,25) \}
+$BCENTER
+\{ MODES(HTML=>$applet->insertAll(debug=>0, reinitialize_button=>1, includeAnswerBox=>0,)) \}
+$ECENTER
+$PAR
+(a) Use the above applet to compute \(L_3\), the left Riemann sum with three subintervals, of the function \(f(x) = x^2\) on the window of \(x\) values from \(0\) to \(3\).$BR$BR
+\(L_3=\)\{ ans_rule \}
 $PAR
 (b) Likewise, use the applet to compute \(R_3\) and \(M_3\), the right and middle Riemann 
-sums with three subintervals, respectively. $BR
-\{ essay_box(1,25) \}
+sums with three subintervals, respectively. $BR$BR
+\(R_3=\)\{ ans_rule \}$BR$BR
+\(M_3=\)\{ ans_rule \}
 $PAR
 (c) Use the Fundamental Theorem of Calculus to compute the exact value of 
-\(I = \int_0^3 x^2 \, dx\). $BR
-\{ essay_box(1,25) \}
+\(I = \int_0^3 x^2 \, dx\). $BR$BR
+\(I = \)\{ ans_rule \}
 $PAR
 (d) We define the error in an approximation of a definite integral to be the difference 
 between the integral's exact value and the approximation's value.  What is the error 
-that results from using \(L_3\)? From \(R_3\)?  From \(M_3\)? $BR
-\{ essay_box(1,25) \}
+that results from using \(L_3\)? From \(R_3\)?  From \(M_3\)? $BR$BR
+\(I-L_3 = \)\{ ans_rule \}$BR$BR
+\(I-R_3 = \)\{ ans_rule \}$BR$BR
+\(I-M_3 = \)\{ ans_rule \}
 $PAR
-(e) In what follows in this section, we will learn a new approach to estimating the 
+(e) Let us develop a new approach to estimating the 
 value of a definite integral known as the Trapezoid Rule.  The basic idea is to use 
-trapezoids, rather than rectangles, to estimate the area under a curve.  What is the 
-formula for the area of a trapezoid with bases of length \(b_1\) and \(b_2\) and height \(h\)? $BR
-\{ essay_box(1,25) \}
+trapezoids, rather than rectangles, to estimate the area under a curve. What is the formula for the area of a trapezoid with bases of length \(b\) and \(B\) and height \(h\)? $BR$BR
+Area of Trapizod \(=\) \{ ans_rule \}
 $PAR
 (f) Working by hand, estimate the area under \(f(x) = x^2\) on \([0,3]\) using three 
-subintervals and three corresponding trapezoids.  What is the error in this approximation?  
-How does it compare to the errors you calculated in (d)? $BR
-\{ essay_box(1,25) \}
+subintervals and three corresponding trapezoids. Call this value \(T_3\). $BR$BR
+\(T_3 = \)\{ ans_rule \}
 $PAR
-
-
+What is the error in this approximation?  $BR$BR
+\(I-T_3 = \)\{ ans_rule \}
+$PAR
+How does it compare to the errors you calculated in (d)? $BR$BR
+\{ essay_box(2,25) \}
+$PAR
 
 
 
@@ -84,19 +224,32 @@ ANS( essay_cmp() );
 ANS( essay_cmp() );
 ANS( essay_cmp() );
 ANS( essay_cmp() );
+ANS( essay_cmp() );
+ANS( essay_cmp() );
+ANS( essay_cmp() );
+ANS( essay_cmp() );
+ANS( essay_cmp() );
 
 
 
 
 
-Context()->texStrings;
-SOLUTION(EV3(<<'END_SOLUTION'));
-$PAR SOLUTION $PAR
-This needs to be written up.
-$PAR
-END_SOLUTION
-Context()->normalStrings;
+sub GEOGEBRA_PARAMS {
+    my $result = {
+showResetIcon=>"false" ,
+enableRightClick=>"false" ,
+enableLabelDrags=>"false",
+showMenuBar=>"false" ,
+showToolBar=>"false",
+showAlgebraInput=>"false",
+useBrowserForJS=>"true",
+ggbbase64=>"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"
+
+};
+
+$result;
+}
+
+COMMENT('Uses GeoGebraWeb (JavaScript), so it should work on computers and tablets.');
 
 ENDDOCUMENT();
-
-
