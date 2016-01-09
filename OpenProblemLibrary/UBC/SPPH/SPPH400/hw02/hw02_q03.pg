@@ -1,0 +1,261 @@
+#########################################################
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Exploratory data analysis/descriptive statistics)
+## DBsection(Graphical representations)
+## Level(3)
+## level(4)
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+
+## fix the name of the downloadable data files
+rserve_eval("filename <- file.path(tempdir(), 'SmokingEffect_${studentLogin}.csv')");
+
+my @remote_file = rserve_eval('
+# randomly select the number of obs for the student
+NumObs <- round(rnorm(1, 735, 50), 0);
+
+# initalize the matrix to store the data in
+dataa <- matrix(0, nrow=NumObs, ncol=6);
+
+# give the matrix column names
+colnames(dataa) <- c("Caesarean", "Age", "Gender", "Smoke", "Height", "FEV");
+
+# this will randomly generate caesarean/non-caesarean
+# births (0=no, 1=yes, 25% are caesareans)
+Cae <- sample(c(0,1), size=NumObs, prob=c(0.75, 0.25), replace=TRUE);
+
+# this will randomly select Gender (0 or 1). Below gives 48%
+# prob to 0s (Female) and 52% prob to 1s (Male)
+Gende <- sample(c(0,1), size=NumObs, prob=c(0.48, 0.52), replace=TRUE);
+
+# this is to randomly generate smoke (0=no, 1=yes).
+# 14% of FEMALES are SMOKERS, 9% of MALES are SMOKERS
+Smok <- rep(0, NumObs);
+for (j in 1:NumObs){
+if (Gende[j]== "0"){Smok[j] <- sample( c(rep(0,86), rep(1,14)),
+size=1)} else{ Smok[j] <- sample( c(rep(0,91), rep(1,9)), size=1)}
+};
+
+# this is to randomly generate ages; smokers are older than
+# non-smokers (to create confounding between Smoke and Age)
+# initalize the vector to store ages in
+Ag <- rep(0, NumObs);
+
+# run through a loop to select ages (selects from a different
+# age distribution, depending on if smoker or non-smoker)
+for (k in 1:NumObs){
+if (Smok[k]== "0"){Ag[k] <- sample(c(3,4,5,5,6,6,7,7,7,8,8,8,8,9,9,9,9,
+10,10,10,10,11,11,11,11,11,12,12,12,12,12,13,13,13,13,13,
+14,14,14,14,15,15,15,15,16,16,16,17,17,17,18,18,18,19,19,19),
+size=1)} else{
+Ag[k] <- sample(c(10,10,11,11,11,11,12,12,12,12,13,13,13,13,13, 14,14,14,14,14,15,15,15,15,15,16,16,16,16,17,17,17,17,18,18,18,18,19,19,19),
+size=1)}
+};
+
+# This is to generate the heights, as a function of age and
+# gender (it will produce a quadratic relationship between Age
+# and height...as age increases, curve flattens)
+Heigh <- 32 + 4.2*Ag -0.13*(Ag^2) + 2*as.numeric(Gende) + rnorm(NumObs,
+0,3.3);
+
+# This is to generate FEV as a function of all other variables
+# it will produce a quadratic relationship between Height and FEV
+# there will be no relationship between Caes and FEV
+FE <- 6.9 + 0.07*Ag - 0.27*Heigh + 0.003*(Heigh^2) + 0.15*as.numeric(Gende) - 0.17*as.numeric(Smok) + 0*as.numeric(Cae) + rnorm(NumObs, 0, 0.4);
+
+# this is to store the data in the data matrix
+# Height is rounded to one decimal place and FEV rounded to
+# two decimal places, and FEV absolute value taken just in case
+# something wonky happens (it shouldnt)
+
+dataa[,1] <- Cae;
+dataa[,2] <- Ag;
+dataa[,3] <- Gende;
+dataa[,4] <- Smok;
+dataa[,5] <- round(Heigh, digits=1);
+dataa[,6] <- abs(round(FE, digits=2));
+
+colnames(dataa) <- c("Caes", "Age", "Gender", "Smoke", "Height", "FEV");
+write.csv(dataa, filename, row.names=FALSE); 
+filename
+');
+
+my $local_file = rserve_get_file($remote_file[0]);
+
+$local_url = $local_file;
+$local_url =~ s|$tempDirectory|$tempURL|;
+
+$q1mc = new_multiple_choice();
+$q1mc -> qa(
+"The distribution of heights.",
+"A boxplot."
+);
+$q1mc -> extra(
+"A bar chart.", "A mosaic plot.", "Side-by-side boxplots.", "A scatterplot."
+);
+
+
+$q2mc = new_multiple_choice();
+$q2mc -> qa(
+"The distribution of smoking.",
+"A bar chart."
+);
+$q2mc -> extra(
+"A histogram.", "A mosaic plot.", "Side-by-side boxplots.", "A scatterplot."
+);
+
+
+$q3mc = new_multiple_choice();
+$q3mc -> qa(
+"The relationship between height and gender.",
+"Side-by-side boxplots."
+);
+$q3mc -> extra(
+"A histogram.", "A mosaic plot.", "A bar chart.", "A scatterplot."
+);
+
+$q4mc = new_multiple_choice();
+$q4mc -> qa(
+"The relationship between height and age.",
+"A scatterplot."
+);
+$q4mc -> extra(
+"A boxplot.", "A mosaic plot.", "Side-by-side boxplots.", "A bar chart."
+);
+
+$q5mc = new_multiple_choice();
+$q5mc -> qa(
+"The distribution of age for females.",
+"A boxplot."
+);
+$q5mc -> extra(
+"A pie chart.", "A mosaic plot.", "Side-by-side boxplots.", "A scatterplot."
+);
+
+$q6mc = new_multiple_choice();
+$q6mc -> qa(
+"The relationship between smoking and gender.",
+"A mosaic plot."
+);
+$q6mc -> extra(
+"A forest plot.", "A pie chart.", "Side-by-side boxplots.", "A scatterplot."
+);
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+$BBOLD LINK for DATA SET (\{ htmlLink($local_url, "Download the csv file here") \}) $EBOLD
+$BR
+$BR
+$BBOLD Student Info: $EBOLD You will be working with this data set over the duration of the course.  On each subsequent assignment, you will work with this dataset, and take the analysis one step further.  At the end of the course, you will write a brief report on your analysis.  While you will have access to this dataset in WebWorkiR for each assignment, it is a good idea to save a copy of it, as well as any progress you make in analyzing the dataset over the course.  You can consult the R tutorials (\{ htmlLink("www.youtube.com/marinstatlectures", "www.youtube.com/marinstatlectures") \}) , if you like, to learn more about handy ways of being able to reproduce analyses (Writing Scripts), as well as ways of organizing your work (Working Directories, etc.)
+$BR
+$BR
+$BBOLD Data Description: $EBOLD The data come from a cross-section of youths aged 3-19 years old, living in East Boston, in the mid-1970's.  The survey consists of self-reported data.  The dataset contains six variables: "Caesarean" is an indicator of whether or not the child was born via caesarean-section (0=no, 1=yes), "Age" recorded in years, "Gender" (0=female, 1=male), "Smoke" is an indicator if the child identifies themselves as a smoker (0=no, 1=yes), "Height" recorded in inches, and "FEV" is forced expiratory volume with units of Litres, a numeric measure of lung capacity.
+$BR
+$BR
+Our main question of interest will be the effect of smoking on lung capacity.  Along the way, we will discuss many concepts, such as confounding, effect modification, etc.  We will also discuss limitations of the data, such as self-reported data, cross-sectional data, etc.
+$BR
+$BR
+$BBOLD Note: $EBOLD Questions 3-6 will involve the use of your personal data set described above.
+$BR
+$BR
+In this question, you should choose which plot would be appropriate for visualizing:
+$BR
+$BR
+$BBOLD Part (a) (WebWorkiR) $EBOLD
+\{ $q1mc -> print_q() \}
+$BR
+\{ $q1mc -> print_a() \}
+$PAR
+$BBOLD Part (b)  (WebWorkiR) $EBOLD
+\{ $q2mc -> print_q() \}
+$BR
+\{ $q2mc -> print_a() \}
+$PAR
+$BBOLD Part (c)  (WebWorkiR) $EBOLD
+\{ $q3mc -> print_q() \}
+$BR
+\{ $q3mc -> print_a() \}
+$PAR
+$BBOLD Part (d)  (WebWorkiR) $EBOLD
+\{ $q4mc -> print_q() \}
+$BR
+\{ $q4mc -> print_a() \}
+$PAR
+$BBOLD Part (e)  (WebWorkiR) $EBOLD
+\{ $q5mc -> print_q() \}
+$BR
+\{ $q5mc -> print_a() \}
+$PAR
+$BBOLD Part (f)  (WebWorkiR) $EBOLD
+\{ $q6mc -> print_q() \}
+$BR
+\{ $q6mc -> print_a() \}
+$BR
+
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( radio_cmp( $q1mc -> correct_ans() ) );
+ANS( radio_cmp( $q2mc -> correct_ans() ) );
+ANS( radio_cmp( $q3mc -> correct_ans() ) );
+ANS( radio_cmp( $q4mc -> correct_ans() ) );
+ANS( radio_cmp( $q5mc -> correct_ans() ) );
+ANS( radio_cmp( $q6mc -> correct_ans() ) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD Part (a) $EBOLD
+A boxplot.
+$BR
+$BBOLD Part (b) $EBOLD
+A bar chart.
+$BR
+$BBOLD Part (c) $EBOLD
+Side-by-side boxplots.
+$BR
+$BBOLD Part (d) $EBOLD
+A scatterplot.
+$BR
+$BBOLD Part (e) $EBOLD
+A boxplot.
+$BR
+$BBOLD Part (f) $EBOLD
+A mosaic plot.
+$BR
+END_SOLUTION
+
+ENDDOCUMENT();

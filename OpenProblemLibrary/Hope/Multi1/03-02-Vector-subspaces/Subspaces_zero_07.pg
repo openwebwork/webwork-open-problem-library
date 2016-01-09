@@ -1,0 +1,133 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Euclidean spaces)
+## DBsection(Subspaces)
+## Date(July 2013)
+## Institution(Hope College)
+## Author(Paul Pearson)
+## Level(3)
+## KEYWORDS('linear algebra','vector space','subspaces')
+
+DOCUMENT();
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"unionLists.pl",
+"unionTables.pl",
+"parserPopUp.pl",
+"PGcourse.pl",
+);
+
+$showPartialCorrectAnswers = 0;
+$refreshCachedImages = 1;
+TEXT(beginproblem()); 
+
+Context('Vector')->strings->add( 'CLOSED' => {caseSensitive=>0} );
+
+do {
+$a = random(-1,1,2) * random(2,7,1);
+$b = random(-1,1,2) * random(2,7,1);
+$c = random(-1,1,2) * random(2,7,1);
+$ab = $a * $b;
+} until ((gcd($a,$b) == 1) and (gcd($a,$c) == 1));
+
+$zero = PopUp(['choose','H contains the zero vector of V','H does not contain the zero vector of V'],'H does not contain the zero vector of V');
+$subspace = PopUp(['choose','H is a subspace of V','H is not a subspace of V'],'H is not a subspace of V');
+
+
+$list1 = List(Vector($b,0,0),Vector(0,$a,0));
+$list2 = List(Real(2),Vector($b,0,0));
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \( V = \mathbb{R}^3 \) and let \( H \) be the subset of \( V \) 
+of all points on the plane \( $a x + $b y + $c z = $ab \).
+Is \( H \) a subspace of the vector space \( V \)?
+$BR
+$BR
+\{ BeginList('OL') \}
+$ITEM Does \( H \) contain the zero vector of \( V \)? $BR \{ $zero->menu() \}
+$ITEMSEP
+$ITEM Is \( H \) closed under addition?  If it is, enter ${BITALIC}CLOSED${EITALIC}.
+If it is not, enter two vectors in \( H \) whose sum is not in \( H \), 
+using a comma separated list and syntax such as \( \verb+<1,2,3>, <4,5,6>+ \).
+$BR \{ $list1->ans_rule(30) \}
+$ITEMSEP
+$ITEM Is \( H \) closed under scalar multiplication?  If it is, enter ${BITALIC}CLOSED${EITALIC}.
+If it is not, enter a scalar in \( \mathbb{R} \) and a vector in \( H \) whose product is not in \( H \),
+using a comma separated list and syntax such as \( \verb+2, <3,4,5>+ \).
+$BR \{ $list2->ans_rule(30) \}
+$ITEMSEP
+$ITEM Is \( H \) a subspace of the vector space \( V \)?
+You should be able to justify your answer by writing a complete, coherent, and detailed proof 
+based on your answers to parts 1-3.
+$BR \{ $subspace->menu() \} \{ EndList('OL') \}
+END_TEXT
+Context()->normalStrings;
+
+install_problem_grader(~~&std_problem_grader);
+
+sub mycheck_add {
+
+  my ($correct, $student, $ansHash, $value) = @_;
+  my @s = @{$student};
+  my $score = 0;
+  my @errors = ();
+
+  return 0 if !defined($s[1]);
+
+  if ( ($s[0]->class eq 'Vector') and ($s[1]->class eq 'Vector') ) {
+    my ($ux,$uy,$uz) = $s[0]->value;
+    my ($vx,$vy,$vz) = $s[1]->value;
+    my ($wx,$wy,$wz) = ($ux + $vx, $uy + $vy, $uz + $vz);
+    my $z = Real(0);
+
+    my $u_inside = 0;
+    my $v_inside = 0;
+    my $w_outside = 0;
+    $u_inside = 1 if ( $a * $ux + $b * $uy + $c * $uz == $ab );
+    $v_inside = 1 if ( $a * $vx + $b * $vy + $c * $vz == $ab );
+    $w_outside = 1 if ( $a * $wx + $b * $wy + $c * $wz != $ab );
+    if ( $u_inside and $v_inside and $w_outside ) { 
+      $score = 2; 
+    } 
+  } 
+
+  return ($score,@errors);
+
+}
+
+
+sub mycheck_mult {
+
+  my ($correct, $student, $ansHash, $value) = @_;
+  my @s = @{$student};
+  my $score = 0;
+  my @errors = ();
+
+  return 0 if !defined($s[1]);
+
+  my $k = Real(0);  # the student's scalar will be assigned to $c later
+  my $v = Vector(0,0); # the student's vector will be assigned to $v later
+  my $z = Real(0);
+  if ( ($s[0]->class eq 'Real') and ($s[1]->class eq 'Vector') ) { $k = $s[0]; $v = $s[1]; }
+  if ( ($s[1]->class eq 'Real') and ($s[0]->class eq 'Vector') ) { $k = $s[1]; $v = $s[0]; }
+  my ($vx,$vy,$vz) = $v->value;
+
+  if ( ($a * $vx + $b * $vy + $c * $vz == $ab) and ($a * $k * $vx + $b * $k * $vy + $c * $k * $vz != $ab) ) { $score = 2; } 
+
+  return ($score,@errors);
+
+}
+
+
+ANS($zero->cmp);
+ANS($list1->cmp(list_checker=>~~&mycheck_add));
+ANS($list2->cmp(list_checker=>~~&mycheck_mult));
+ANS($subspace->cmp);
+COMMENT('Randomly chooses coefficients in the equation for the plane.  The plane never goes through the origin.');
+ENDDOCUMENT();

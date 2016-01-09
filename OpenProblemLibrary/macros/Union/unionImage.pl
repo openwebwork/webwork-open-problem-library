@@ -48,6 +48,7 @@ sub _unionImage_init {}; # don't reload this file
 #
 sub Image {
   my $image = shift; my $ilink;
+  return unless defined $image;
   my %options = (
     size => [150,150], tex_size => 200,
     link => 0, align => "BOTTOM", tex_center => 0, @_);
@@ -57,6 +58,7 @@ sub Image {
   my ($tcenter) = $options{tex_center};
   my $HTML; my $TeX;
   ($image,$ilink) = @{$image} if (ref($image) eq "ARRAY");
+  $ilink = $ilink//'';
   $image = alias(insertGraph($image)) if (ref($image) eq "WWPlot");
   $image = alias($image) unless ($image =~ m!^(/|https?:)!i); # see note
   if ($ilink) {

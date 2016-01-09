@@ -1,0 +1,155 @@
+## DESCRIPTION
+## Higher order ODEs: the Wronskian
+## ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Higher order differential equations)
+## DBsection(Linear independence)
+## Date(01/30/2011)
+## Institution(Fort Lewis College)
+## Author(Paul Pearson)
+## Level(3)
+## TitleText1('Notes on Diffy Qs')
+## AuthorText1('Jiri Lebl')
+## EditionText1('December 9, 2010')
+## Section1('2.1')
+## Problem1('1')
+## KEYWORDS('differential equations','second order','Wronskian')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGmatrixmacros.pl",
+"parserPopUp.pl",
+"parserMultiAnswer.pl",
+"weightedGrader.pl",
+);
+
+TEXT(beginproblem());
+
+install_weighted_grader();
+
+
+#############################
+#  Setup
+
+Context("Numeric");
+
+$a = random(2,6,1);
+do { $b = random(2,6,1); } until ($b != $a);
+
+$a11 = Formula("e^(x + $a)");  $a12 = Formula("e^(x + $b)");
+$a21 = Formula("e^(x + $a)");  $a22 = Formula("e^(x + $b)");
+
+$wronskian = $a11 * $a22 - $a12 * $a21; 
+
+$pop = PopUp(["Choose","zero","nonzero"],"zero");
+
+
+$multians1 = MultiAnswer($a11, $a12, $a21, $a22)->with(
+
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  checkTypes => 0,
+  format =>  "<table border='0' cellspacing='10'>
+  <tr><td> %s </td><td> %s </td></tr>
+  <tr><td> %s </td><td> %s </td></tr>
+  </table>",
+  tex_format =>  "\left\lbrack\begin{array}{rr} %s & %s \\ %s & %s \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my @score = ();
+      foreach my $j (0..3) {
+        $score[$j] = 0;
+        if ($c[$j]->typeMatch($s[$j]) && $c[$j] == $s[$j]) { $score[$j] = 1; }
+      }
+      return [ @score ];
+  }
+
+);
+
+
+$weight1 = Compute("e^($b)");
+$weight2 = Compute("-e^($a)");
+
+$multians2 = MultiAnswer($weight1,$weight2)->with(
+
+  singleResult => 1,
+  allowBlankAnswers => 0,
+  checkTypes => 0,
+  format =>  "%s, %s",
+  tex_format =>  "%s, %s",
+
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      return 0 unless $c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]);
+      return 0 if ($s[0] == 0 && $s[1] == 0);
+      return $s[0]*$a11 == -1*($s[1]*$a12);      
+  }
+
+);
+
+
+######################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+Use the Wronskian to determine whether the functions
+\( y_1 = $a11 \) and \( y_2 = $a12 \)
+are linearly independent.
+$PAR
+$BCENTER
+\{ 
+mbox(
+  "Wronskian = \( \mathrm{det} \)",
+  display_matrix([
+  [$multians1->ans_rule(10),$multians1->ans_rule(10)], 
+  [$multians1->ans_rule(10),$multians1->ans_rule(10)]], align=>'cc'),
+  " = ".$SPACE.ans_rule(20)
+);
+\}
+$ECENTER
+$PAR
+The test for linear independence of the set \( \lbrace $a11, $a12 \rbrace \) using the Wronskian is inconclusive because the Wronskian is \{ $pop->menu() \} for all \(x\).
+$BR
+$BR
+If the functions \( $a11 \) and \( $a12 \) are linearly dependent, find a nontrivial solution to the equation below.  If they are linearly independent, enter all zeros to indicate that the only solution to the equation is the trivial solution.
+$BR
+$BR
+$BCENTER
+\{ $multians2->ans_rule(10) \} \( ($a11) + \)
+\{ $multians2->ans_rule(10) \} \( ($a12) = 0. \)
+$ECENTER
+END_TEXT
+Context()->normalStrings;
+
+
+######################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+WEIGHTED_ANS( $multians1->cmp(), 50 );
+
+WEIGHTED_ANS( $wronskian->cmp(), 10 );
+
+WEIGHTED_ANS( $pop->cmp(), 10 );
+
+WEIGHTED_ANS( $multians2->cmp(), 30 );
+
+COMMENT("Uses parserMultiAnswer.pl to format the matrix nicely.");
+
+ENDDOCUMENT();

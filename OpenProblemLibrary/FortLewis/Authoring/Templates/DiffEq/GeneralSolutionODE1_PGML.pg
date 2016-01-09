@@ -1,0 +1,132 @@
+## DESCRIPTION
+## Differential Equations: custom answer checkers for ODEs.
+## ENDDESCRIPTION
+
+
+## DBsubject(WeBWorK)
+## DBchapter(WeBWorK tutorial)
+## DBsection(PGML tutorial 2015)
+## Date(06/01/2015)
+## Institution(Hope College)
+## Author(Paul Pearson)
+## MO(1)
+## KEYWORDS('differential equations', 'custom answer checker')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGunion.pl",
+"MathObjects.pl",
+"PGML.pl",
+"AnswerFormatHelp.pl",
+"parserAssignment.pl",
+"PGcourse.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+Context("Numeric");
+Context()->variables->add(
+'c1'=>"Real",'c2'=>"Real",'c3'=>"Real",y=>"Real",
+);
+Context()->variables->set(
+'c1'=>{limits=>[2,4]},
+'c2'=>{limits=>[2,4]},
+'c3'=>{limits=>[2,4]}
+);
+Context()->flags->set(
+    formatStudentAnswer=>'parsed',
+    reduceConstants=>0,
+    reduceConstantFunctions=>0,
+);
+parser::Assignment->Allow;
+
+$a  = list_random(2,3,5,6,7,8);
+
+# char poly (r-1)(r^2 + $a)
+
+$diffeq = "y^{\,\prime\prime\prime} - y^{\,\prime\prime} + $a y^{\,\prime} - $a y = 0"; # tex
+
+$answer = Compute("y = c1 e^x + c2 cos(sqrt($a) x) + c3 sin(sqrt($a) x)");
+
+
+BEGIN_PGML
+Find the general solution to [` [$diffeq] `].
+In your answer, use [` c_1, c_2 `] and [` c_3 `] to 
+denote arbitrary constants and [` x `] 
+the independent variable.  Your answer should
+be an equation of the form [`y = \ldots`] and 
+you should enter 
+[` c_1 `] as [| c1 |]*, 
+[` c_2 `] as [| c2 |]*, and
+[` c_3 `] as [| c3 |]*.
+
+[_________________________________]
+[@ AnswerFormatHelp("equations") @]*
+END_PGML
+
+
+ANS( $answer->cmp( checker => sub {
+
+    my ( $correct, $student, $answerHash ) = @_;
+    my $stu   = Formula($student->{tree}{rop});
+
+    #################################
+    #  Check for arbitrary constants
+    #
+    Value->Error("Is your answer the most general solution?") 
+    if ( 
+      Formula($stu->D('c1'))==Formula(0) || 
+      Formula($stu->D('c2'))==Formula(0) || 
+      Formula($stu->D('c3'))==Formula(0) 
+    );
+
+
+    ##################################
+    #  Linear independence (Wronskian)
+    #
+    my $x = Real(1.43);
+
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,'c3'=>0,x=>$x,y=>0);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,'c3'=>0,x=>$x,y=>0);
+    my $a13 = $stu->eval('c1'=>0,'c2'=>0,'c3'=>1,x=>$x,y=>0);
+
+    my $a21 = $stu->D('x')->eval('c1'=>1,'c2'=>0,'c3'=>0,x=>$x,y=>0);
+    my $a22 = $stu->D('x')->eval('c1'=>0,'c2'=>1,'c3'=>0,x=>$x,y=>0);
+    my $a23 = $stu->D('x')->eval('c1'=>0,'c2'=>0,'c3'=>1,x=>$x,y=>0);
+
+    my $a31 = $stu->D('x','x')->eval('c1'=>1,'c2'=>0,'c3'=>0,x=>$x,y=>0);
+    my $a32 = $stu->D('x','x')->eval('c1'=>0,'c2'=>1,'c3'=>0,x=>$x,y=>0);
+    my $a33 = $stu->D('x','x')->eval('c1'=>0,'c2'=>0,'c3'=>1,x=>$x,y=>0);
+
+    # my $wronskian =  
+    #    $a11*($a22*$a33-$a32*$a23) -
+    #    $a12*($a21*$a33-$a31*$a23) +
+    #    $a13*($a21*$a32-$a31*$a22);
+    # Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    # if ($wronskian==Real(0));
+
+    Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    if (($a11*($a22*$a33-$a32*$a23)+$a13*($a21*$a32-$a31*$a22)) == ($a12*($a21*$a33-$a31*$a23)));
+
+
+    #################################
+    #  Check that the student answer is a solution to the DE
+    #
+    my $stu1 = Formula($stu->D('x'));
+    my $stu2 = Formula($stu->D('x','x'));
+    my $stu3 = Formula($stu->D('x','x','x'));
+    return ($stu3 + $a * $stu1) == ($stu2 + $a * $stu);
+
+    # my $stuDE = Formula($stuxxx - $stuxx + $a*$stux - $a*$stu)
+    # ->with(test_points=>[[1,1,2,0.1,0],[2,1,1,0,0],[1,2,-1,-0.1,0],[-2,1,1,0,1]]);
+    # return ($stuDE==Formula(0));
+
+
+}));
+
+COMMENT("Characteristic polynomial (r-1)(r^2 + a).  Uses PGML.");
+
+ENDDOCUMENT();

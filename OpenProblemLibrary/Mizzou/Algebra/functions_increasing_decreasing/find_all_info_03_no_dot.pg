@@ -1,0 +1,156 @@
+# DESCRIPTION
+# Find all the listed information for the given graph.
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Functions)
+## DBsection(Graphs)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## MLT(OPL6id02)
+## Level(3)
+## KEYWORDS('graphs', 'equations', 'inequalities', 'zeros', 'intercepts')
+
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "MathObjects.pl",
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "parserPopUp.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+$refreshCachedImages = 1;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric")->strings->add(none=>{}, "does not exist"=>{});
+$a = random(3,7)*random(-1,1,2);
+$c = random(4,10,2);
+$popeo = PopUp(["select","even","odd","neither"],"odd");
+$ineq = random(0,3);
+@ineqstrs = ("\geq",">","\leq","<");
+$ineqstr = $ineqstrs[$ineq];
+$point_1_x = random(-1,1,2)*$c/2;
+$point_1_y = $a*sin(pi*($point_1_x)/$c);
+do {$point_2_x = random(-1,1,2)*$c/2} until ($point_2_x != $point_1_x && $point_2_x != 0);
+$point_2_y = $a*sin(pi*($point_2_x)/$c);
+
+$sqr = max(abs($a),abs($c))+1;
+($maxx, $maxy, $minx, $miny, $gsize, $tickx, $ticky) = ($sqr, $sqr, -$sqr, -$sqr, 600, 1, 1);
+if ($sqr > 6) {$tickx = 2; $ticky = 2};
+$graph = init_graph($minx, $miny, $maxx, $maxy, size=>[$gsize,$gsize]);
+for ($i = $minx; $i <= $maxx; $i++) {
+  $graph->moveTo($i,$miny);
+  $graph->lineTo($i,$maxy,'gray',1);
+}
+for ($i = $miny; $i <= $maxy; $i++) {
+  $graph->moveTo($minx,$i);
+  $graph->lineTo($maxx,$i,'gray',1);
+}
+$graph->moveTo($minx, 0);
+$graph->arrowTo($maxx, 0, 'black', 2);
+$graph->arrowTo($minx, 0, 'black', 2);
+$graph->moveTo(0, $miny);
+$graph->arrowTo(0, $maxy, 'black', 2);
+$graph->arrowTo(0, $miny, 'black', 2);
+$graph->lb(new Label($maxx-0.1, 0.4, 'x', 'black', 'bottom', 'right'));
+$graph->lb(new Label(0.4, $maxy-0.1, 'y', 'black', 'top', 'left'));
+
+for ($i = $minx+1; $i < $maxx; $i++) {
+  if (($i != 0 && $i % $tickx == 0) || $i == 1) {
+    $graph->lb(new Label($i,-0.1,$i, 'black', 'top','center'));
+  }
+}
+
+for ($i = $miny+1; $i < $maxy; $i++) {
+  if (($i != 0 && $i % $ticky == 0) || $i == 1) {
+    $graph->lb(new Label(-0.1,$i,$i, 'black', 'middle', 'right'));
+  }
+}
+
+$sing = sub { my $t = shift(); return $a*sin(pi*($t)/$c) };
+$singf = new Fun($sing, $graph);
+$singf->domain(-$c,$c);
+$singf->steps(500);
+$singf->weight(2);
+$graph->stamps(new Circle($point_1_x,$point_1_y,4,'blue','blue'));
+$graph->stamps(new Circle(-$c,0,4,'blue','blue'));
+$graph->stamps(new Circle($c,0,4,'blue','blue'));
+$graph->stamps(new Circle(0,0,4,'blue','blue'));
+if ($point_1_x != $c/2) {$graph->stamps(new Circle($c/2,$a,4,'blue','blue'));}
+if ($point_1_x != -$c/2) {$graph->stamps(new Circle(-$c/2,-$a,4,'blue','blue'));}
+
+$scale = 0.8;
+$fig = image(insertGraph($graph), width=>$gsize*$scale, height=>$gsize*$scale, tex_size=>250);
+
+
+###########################################################################
+# state the problem 
+###########################################################################
+Context()->texStrings;
+BEGIN_TEXT
+Given the graph of \(y = f(x)\) below, answer all of the following questions.
+$PAR
+$BCENTER
+\{ $fig \}
+$ECENTER 
+$PAR
+(a) Determine \(f($point_1_x)\): \{ans_rule(20)\} $BR
+(b) Solve \(f(x) = $point_2_y\): \{ans_rule(20)\} $BR
+(c) List the \(x\)-intercepts, if any exist: \{ans_rule(35)\} $BR
+(d) List the \(y\)-intercepts, if any exist: \{ans_rule(35)\} $BR
+(e) Find the zeros of \(f\): \{ans_rule(20)\} $BR
+(f) Solve \(f(x) $ineqstr 0\): \{ans_rule(35)\} $BR
+(g) Find the number of solutions to \(f(x) = $point_1_y\): \{ans_rule(20)\} $BR
+(h) Does \(f\) appear to be even, odd, or neither: \{$popeo->menu()\}
+END_TEXT
+Context()->normalStrings;
+
+
+###########################################################################
+# check the answer  
+###########################################################################
+ANS(Compute("$point_1_y")->cmp());
+ANS(Compute("$point_2_x")->cmp());
+
+Context("Point")->strings->add(none=>{}, "does not exist"=>{});
+$xints = List(Point(-$c,0),Point(0,0),Point($c,0));
+ANS($xints->cmp());
+
+$yint = List(Point(0,0));
+ANS($yint->cmp());
+
+$zeros = List(-$c,0,$c);
+ANS($zeros->cmp());
+
+Context("Interval")->strings->add(none=>{}, "does not exist"=>{});
+if ($ineq == 0) {
+  $ineqint = ($a > 0) ? Interval("{-$c}U[0,$c]") : Interval("[-$c,0]U{$c}");
+} elsif ($ineq == 1) {
+  $ineqint = ($a > 0) ? Interval("(0,$c)") : Interval("(-$c,0)");
+} elsif ($ineq == 2) {
+  $ineqint = ($a > 0) ? Interval("[-$c,0]U{$c}") : Interval("{-$c}U[0,$c]");
+} else {
+  $ineqint = ($a > 0) ? Interval("(-$c,0)") : Interval("(0,$c)");
+}
+ANS($ineqint->cmp());
+
+$csolns = 1;
+ANS(Compute("$csolns")->cmp());
+ANS($popeo->cmp());
+
+
+
+
+COMMENT('Created in 2013.
+$BR
+Desc: Find all the listed information for the given graph.');
+ENDDOCUMENT();
