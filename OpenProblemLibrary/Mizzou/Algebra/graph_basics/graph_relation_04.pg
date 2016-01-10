@@ -1,0 +1,262 @@
+# DESCRIPTION
+# Determine the correct graph corresponding to the given relation. The relation is either a horizontal
+# line ray or a vertical ray with varying open/closed endpoint.
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Algebra of real numbers and simplifying expressions)
+## DBsection(Inequalities and intervals)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## MLT(match-graph-inequality)
+## Level(2)
+## KEYWORDS('relations','graphs','relation','graph')
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "MathObjects.pl",
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "PGchoicemacros.pl",
+  "unionTables.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+$refreshCachedImages = 1;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric");
+do {
+  $ldopen = random(0,2);    # 0 - open dot, 1 - close dot, 2 - arrow
+  $ruopen = random(0,2)
+} until ($ldopen + $ruopen != 4 && ($ldopen == 2 || $ruopen == 2));  
+$hvline = random(0,1);     # 0 - horizontal line, 1 - vertical line
+
+($p1x, $p1y) = (non_zero_random(-7,1), non_zero_random(-7,1));
+if ($hvline == 0) {
+  do {$p2x = $p1x + random(2,7)} until ($p2x != 0);
+  $p2y = $p1y;
+} else {
+  do {$p2y = $p1y + random(2,7)} until ($p2y != 0);
+  $p2x = $p1x;
+}
+
+@geq = (">", "\geq");
+@leq = ("<", "\leq");
+if ($hvline == 0) {
+  $relation = ($ldopen == 2) ? "\{ (x,$p1y) \mbox{ }|\mbox{ } x $leq[$ruopen] $p2x \}" : "\{ (x,$p1y) \mbox{ }|\mbox{ } x $geq[$ldopen] $p1x \}";
+} else {
+  $relation = ($ldopen == 2) ? "\{ ($p1x,y) \mbox{ }|\mbox{ } y $leq[$ruopen] $p2y \}" : "\{ ($p1x,y) \mbox{ }|\mbox{ } y $geq[$ldopen] $p1y\}";
+}
+
+# bad relations
+# q's - same line orientation, same endpt coords, change endpoint open close/close
+# s's - different line orientation, swap endpoint coords, same endpoint open/close
+# t's - different line orientation, swap endpoints coords, change endpoint open/close
+if ($ruopen != 2) {
+  ($q1x, $q1y, $q2x, $q2y, $ldopenq, $ruopenq, $hvlineq) = ($p1x, $p1y, $p2x, $p2y, $ldopen, ($ruopen+1)%2, $hvline);
+} else {
+  ($q1x, $q1y, $q2x, $q2y, $ldopenq, $ruopenq, $hvlineq) = ($p1x, $p1y, $p2x, $p2y, ($ldopen+1)%2, $ruopen,  $hvline);
+}
+($s1x, $s1y, $s2x, $s2y, $ldopens, $ruopens, $hvlines) = ($p1y, $p1x, $p2y, $p2x, $ldopen, $ruopen, ($hvline+1)%2); 
+if ($ruopen != 2) {
+  ($t1x, $t1y, $t2x, $t2y, $ldopent, $ruopent, $hvlinet) = ($p1y, $p1x, $p2y, $p2x, $ldopen, ($ruopen+1)%2, ($hvline+1)%2); 
+} else {
+  ($t1x, $t1y, $t2x, $t2y, $ldopent, $ruopent, $hvlinet) = ($p1y, $p1x, $p2y, $p2x, ($ldopen+1)%2, $ruopen, ($hvline+1)%2); 
+}
+# set up graphs
+$n = max(abs($p1x), abs($p2x), abs($p1y), abs($p2y)) + 3;
+$ticks = max(2,ceil($n/3));
+($maxx, $maxy, $minx, $miny, $gsize, $gnum, $tickx, $ticky) = ($n, $n, -$n, -$n, 500, 4, $ticks, $ticks);
+for ($i = 0; $i < $gnum; $i++) {
+  $graphs[$i] = init_graph($minx, $miny, $maxx, $maxy, size=>[$gsize,$gsize]);
+  for ($j = $minx; $j <= $maxx; $j++) {
+    $graphs[$i]->moveTo($j,$miny);
+    $graphs[$i]->lineTo($j,$maxy,'gray',1);
+  }
+  for ($j = $miny; $j <= $maxy; $j++) {
+    $graphs[$i]->moveTo($minx,$j);
+    $graphs[$i]->lineTo($maxx,$j,'gray',1);
+  }
+  $graphs[$i]->moveTo($minx, 0);
+  $graphs[$i]->arrowTo($maxx, 0, 'black', 2);
+  $graphs[$i]->arrowTo($minx, 0, 'black', 2);
+  $graphs[$i]->moveTo(0, $miny);
+  $graphs[$i]->arrowTo(0, $maxy, 'black', 2);
+  $graphs[$i]->arrowTo(0, $miny, 'black', 2);
+  $graphs[$i]->lb(new Label($maxx-0.1, 0.4, 'x', 'black', 'bottom', 'right'));
+  $graphs[$i]->lb(new Label(0.4, $maxy-0.1, 'y', 'black', 'top', 'left'));
+
+  for ($j = $minx+1; $j < $maxx; $j++) {
+    if (($j != 0 && $j % $tickx == 0) || $j == 1) {
+      $graphs[$i]->lb(new Label($j,-0.1,$j, 'black', 'top','center'));
+    }
+  }
+
+  for ($j = $miny+1; $j < $maxy; $j++) {
+    if (($j != 0 && $j % $ticky == 0) || $j == 1) {
+      $graphs[$i]->lb(new Label(-0.1,$j,$j, 'black', 'middle', 'right'));
+    }
+  }
+}
+
+@pos = shuffle(4);
+$dot = 7;
+$lwid = 4;
+if ($ldopen == 0 || $ldopen == 1) {
+  $graphs[$pos[0]]->moveTo($p1x,$p1y);
+  if ($hvline == 0) {
+    $graphs[$pos[0]]->arrowTo($n,$p1y, 'blue', $lwid);
+  } else {
+    $graphs[$pos[0]]->arrowTo($p1x,$n, 'blue', $lwid);
+  }
+  if ($ldopen == 0) {
+    $graphs[$pos[0]]->stamps(new Circle($p1x,$p1y,$dot,'blue','white'));
+  } else { 
+    $graphs[$pos[0]]->stamps(new Circle($p1x,$p1y,$dot,'blue','blue'));
+  }
+} else {
+  $graphs[$pos[0]]->moveTo($p2x,$p2y);
+  if ($hvline == 0) {
+    $graphs[$pos[0]]->arrowTo(-$n,$p2y, 'blue', $lwid);
+  } else {
+    $graphs[$pos[0]]->arrowTo($p2x,-$n, 'blue', $lwid);
+  }
+  if ($ruopen == 0) {
+    $graphs[$pos[0]]->stamps(new Circle($p2x,$p2y,$dot,'blue','white'));
+  } else {
+    $graphs[$pos[0]]->stamps(new Circle($p2x,$p2y,$dot,'blue','blue'));
+  }
+}
+
+if ($ldopenq == 0 || $ldopenq == 1) {
+  $graphs[$pos[1]]->moveTo($q1x,$q1y);
+  if ($hvlineq == 0) {
+    $graphs[$pos[1]]->arrowTo($n,$q1y, 'blue', $lwid);
+  } else {
+    $graphs[$pos[1]]->arrowTo($q1x,$n, 'blue', $lwid);
+  }
+  if ($ldopenq == 0) {
+    $graphs[$pos[1]]->stamps(new Circle($q1x,$q1y,$dot,'blue','white'));
+  } else { 
+    $graphs[$pos[1]]->stamps(new Circle($q1x,$q1y,$dot,'blue','blue'));
+  }
+} else {
+  $graphs[$pos[1]]->moveTo($q2x,$q2y);
+  if ($hvlineq == 0) {
+    $graphs[$pos[1]]->arrowTo(-$n,$q2y, 'blue', $lwid);
+  } else {
+    $graphs[$pos[1]]->arrowTo($q2x,-$n, 'blue', $lwid);
+  }
+  if ($ruopenq == 0) {
+    $graphs[$pos[1]]->stamps(new Circle($q2x,$q2y,$dot,'blue','white'));
+  } else {
+    $graphs[$pos[1]]->stamps(new Circle($q2x,$q2y,$dot,'blue','blue'));
+  }
+}
+
+if ($ldopens == 0 || $ldopens == 1) {
+  $graphs[$pos[2]]->moveTo($s1x,$s1y);
+  if ($hvlines == 0) {
+    $graphs[$pos[2]]->arrowTo($n,$s1y, 'blue', $lwid);
+  } else {
+    $graphs[$pos[2]]->arrowTo($s1x,$n, 'blue', $lwid);
+  }
+  if ($ldopens == 0) {
+    $graphs[$pos[2]]->stamps(new Circle($s1x,$s1y,$dot,'blue','white'));
+  } else { 
+    $graphs[$pos[2]]->stamps(new Circle($s1x,$s1y,$dot,'blue','blue'));
+  }
+} else {
+  $graphs[$pos[2]]->moveTo($s2x,$s2y);
+  if ($hvlines == 0) {
+    $graphs[$pos[2]]->arrowTo(-$n,$s2y, 'blue', $lwid);
+  } else {
+    $graphs[$pos[2]]->arrowTo($s2x,-$n, 'blue', $lwid);
+  }
+  if ($ruopens == 0) {
+    $graphs[$pos[2]]->stamps(new Circle($s2x,$s2y,$dot,'blue','white'));
+  } else {
+    $graphs[$pos[2]]->stamps(new Circle($s2x,$s2y,$dot,'blue','blue'));
+  }
+}
+
+if ($ldopent == 0 || $ldopent == 1) {
+  $graphs[$pos[3]]->moveTo($t1x,$t1y);
+  if ($hvlinet == 0) {
+    $graphs[$pos[3]]->arrowTo($n,$t1y, 'blue', $lwid);
+  } else {
+    $graphs[$pos[3]]->arrowTo($t1x,$n, 'blue', $lwid);
+  }
+  if ($ldopent == 0) {
+    $graphs[$pos[3]]->stamps(new Circle($t1x,$t1y,$dot,'blue','white'));
+  } else { 
+    $graphs[$pos[3]]->stamps(new Circle($t1x,$t1y,$dot,'blue','blue'));
+  }
+} else {
+  $graphs[$pos[3]]->moveTo($t2x,$t2y);
+  if ($hvlinet == 0) {
+    $graphs[$pos[3]]->arrowTo(-$n,$t2y, 'blue', $lwid);
+  } else {
+    $graphs[$pos[3]]->arrowTo($t2x,-$n, 'blue', $lwid);
+  }
+  if ($ruopent == 0) {
+    $graphs[$pos[3]]->stamps(new Circle($t2x,$t2y,$dot,'blue','white'));
+  } else {
+    $graphs[$pos[3]]->stamps(new Circle($t2x,$t2y,$dot,'blue','blue'));
+  }
+}
+
+$scale = 0.6;
+for ($i = 0; $i < 4; $i++) {
+  $figs[$i] = image(insertGraph($graphs[$i]), width=>$gsize*$scale, height=>$gsize*$scale, tex_size=>300 );
+}
+
+Context()->strings->add(A=>{}, B=>{}, C=>{}, D=>{}, "none"=>{}, "E"=>{alias=>"none"}, "none of the above"=>{alias=>"none"});
+@answers = ("A", "B", "C", "D");
+$answer = String($answers[$pos[0]]);
+
+
+###########################################################################
+# state the problem 
+###########################################################################
+Context()->texStrings;
+BEGIN_TEXT
+$BCENTER
+\{ 
+BeginTable().
+  AlignedRow([$figs[0], $figs[1]]).
+  TableSpace(5,0).
+  AlignedRow(["A", "B"]).
+  TableSpace(25,6).
+  AlignedRow([$figs[2], $figs[3]]).
+  TableSpace(5,0).
+  AlignedRow(["C", "D"]).
+EndTable();
+\}
+$ECENTER 
+$PAR
+Choose the correct graph from above of the relation 
+$PAR \[$relation\] $PAR
+or type ${BBOLD}none${EBOLD} if the answer is none of the above.
+$PAR
+Answer: \{ans_rule(10)\}
+END_TEXT
+Context()->normalStrings;
+
+
+###########################################################################
+# check the answer  
+###########################################################################
+ANS($answer->cmp());
+
+
+COMMENT('Desc: Determine the correct graph corresponding to the given relation. The relation is either a horizontal line ray or a vertical ray with varying open/closed endpoint.');
+ENDDOCUMENT();

@@ -27,8 +27,9 @@ loadMacros(
 );
 
 TEXT(beginproblem()) ;
-$showPartialCorrectAnswers = 0;
-install_problem_grader(~~&std_problem_grader);
+$showPartialCorrectAnswers = 1;
+#install_problem_grader(~~&std_problem_grader);
+install_problem_grader(~~&avg_problem_grader);
 
 Context('Numeric');
 
@@ -40,6 +41,7 @@ if    ($k==$b){$c = $b}
 elsif ($z==3) {$c = $b-$k}
 else          {$c = $b}
 
+
 $d = non_zero_random(-4,4);  # this is exact if $b==$c
 $n = random(1,4);
 $n1=$n+1;
@@ -47,45 +49,44 @@ $m = random(2,4);
 $m1= $m+1;
 
 
+Context()->strings->add("not exact" =>{"not exact"});
 Context()->variables->add(A=>'Parameter');
-Context()->variables->add(C=>'Parameter');
+Context()->variables->add(K=>'Parameter');
+Context()->variables->add('y'=>'Real');
+Context()->{cmpDefaults}{String} = {typeMatch=>Formula("x")};
 
-if    ($c==$b-$k) {$Fxy = "not exact"}
+if    ($c != $b) {$Fxy = String("not exact");}
 else  {
-  $Fxy = "A*(($a/$m1) x^{$m1}+${b}x y + (${d}/$n1)y^${n1})+C"
+  $Fxy = Compute("A*(($a/$m1) x^{$m1}+${b}x y + (${d}/$n1)y^${n1})+K");
 }
 
-Context()->variables->add('y'=>'Real');
-Context()->strings->add('not exact' => {});
-
 $num = nicestring([-$a, -$b], ["x^{$m}", 'y']);
+$num2 = nicestring([$a, $b], ["x^{$m}", 'y']);
 $ypow = "y^{$n}";
 $ypow = "y" if ($n==1);
 $den = nicestring([$c, $d], ['x', $ypow]);
 
 
-$mp = MultiAnswer("$a x^$m + $b y","$c x + $d y^$n", $Fxy)->with(
+$mp = MultiAnswer($num2,$den, $Fxy)->with(
+      singleResult => 0,
+	  allowBlankAnswers=>1,
+	  checkTypes=>0,
       checker => sub {
         my $correct = shift; my $student = shift; my $self = shift;
         my ($F,$G,$cFxy) = @{$correct};
         my ($f,$g, $fxy) = @{$student};
-		#$mp->setMessage(1,"The function can't be the identity");
         return [0,0,0] unless $F/$G == $f/$g;
-		Context()->variables->remove(C=>'Parameter');
 		# Since M and N can be multiplied by a common function, no further check
-        #my $result = ($F*'A' == $f || $F*'A' == $g);
-        #return [0,0,0] unless $result;
-		Context()->variables->add(C=>'Parameter');
 		# Now check the last part
-		if ($c!=$b-$k) {
+		if ($c==$b) {
 		  if (Formula($fxy)->isConstant) {
-		    $mp->setMessage(3,"The function can't be constant");
+		    $mp->setMessage(3,"The function cannot be constant");
 			return [1,1,0];
 		  }
-		}
+        }
 		return [1,1,1] if $cFxy == $fxy;
 		return [1,1,0];
-      },
+	  }
     );
 
 BEGIN_TEXT
@@ -111,10 +112,5 @@ END_TEXT
 
 ANS($mp->cmp);
 
-#if    ($c==$b-$k) {ANS(str_cmp($Fxy ))}
-#else          {
-#  ANS(pc_evaluator([[fun_cmp("C", vars=>["x", "y"], params=>['A','C']), 0, 'This answer cannot be constant'],
-#    [fun_cmp($Fxy,vars=>["x", "y"], params=>['A', 'C'] ), 1]]) )
-#}
 
 ENDDOCUMENT() ;        # This should be the last executable line in the problem.
