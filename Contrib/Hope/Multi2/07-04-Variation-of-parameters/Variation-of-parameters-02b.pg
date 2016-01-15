@@ -48,11 +48,13 @@ $kk = $k * $k;
 
 $diffeq = "y^{\,\prime\prime} + $kk y = \sec($k x)"; # tex
 
-# the function ln(cos($k x)) is undefined for values between $xmin and $xmax
-$xmin = 3.14159 / (2 * $k);
-$xmax = 3 * 3.14159 / (2 * $k);
-$xmid = ($xmax - $xmin) / 2;
-
+# the function ln(cos($k x)) is undefined for values between $xmin_undef and $xmax_undef
+$xmin_undef = 3.14159 / (2 * $k);
+$xmax_undef = 3 * 3.14159 / (2 * $k);
+@xvals = ();
+foreach my $i (0..10) {
+    $xvals[$i] = $xmin_undef + ($xmax_undef - $xmin_undef) / 10;
+}
 
 ###########################################
 # Part 1
@@ -180,12 +182,30 @@ ANS( $yparticular->cmp()->withPostFilter(AnswerHints(
 # Get rid of adaptive parameters which might mess with answer checkers.
 
 Context("Numeric");
+Context()->flags->set(
+  checkUndefinedPoints => 1,
+);
 Context()->variables->are(
-  'x' => ["Real", limits => [0,$xmax] ],
+  'x' => ["Real", limits => [-1*$xmin_undef,$xmax_undef] ],
   'c1' => ["Real", limits => [2,4] ],
   'c2' => ["Real", limits => [2,4] ],
 );
-Context()->flags->set(checkUndefinedPoints=>1);
+
+$seckx = Formula("sec($k x)")->with(
+test_at=>[
+[1,2,$xvals[0]],
+[2,3,$xvals[1]],
+[3,4,$xvals[2]],
+[4,5,$xvals[3]],
+[5,6,$xvals[4]],
+[6,7,$xvals[5]],
+[7,8,$xvals[6]],
+[8,9,$xvals[7]],
+[9,1,$xvals[8]],
+[1,2,$xvals[9]],
+],
+checkUndefinedPoints => 1
+);
 
 $ygeneral = Compute("c1 cos($k x) + c2 sin($k x) + 1/$k x sin($k x) + 1/$kk cos($k x) ln(abs(cos($k x)))");
 
@@ -208,9 +228,9 @@ $BR
 
 END_TEXT
 
-ANS($ygeneral->cmp( showDomainErrors => 0, 
+ANS($ygeneral->cmp( showDomainErrors => 1, 
   checker => sub {
-    my ( $correct, $stu, $answerHash ) = @_;
+    my ( $correct, $stu, $ansHash ) = @_;
 
     ################################
     #  Check for arbitrary constants and variables
@@ -222,18 +242,9 @@ ANS($ygeneral->cmp( showDomainErrors => 0,
       $stu->{variables}{'c2'} != 1
     );
 
-    ################################
-    #  Check the domain
-    my $x1 = random($xmin, $xmax, 0.01);
-    #Value->Error("Your function may be missing an absolute value") if 
-    #defined( $stu->eval( 'c1'=>-1, 'c2'=>-2, 'x'=>$x1 ) ) != 1;
-    #Value->Error("Your function may be missing an absolute value") if 
-    #$ygeneral_incorrect_1 == $stu ||
-    #$ygeneral_incorrect_2 == $stu;
-
     ############################################
     #  Check for linear independence (Wronskian)
-    #
+
     my $x = Real(random(0,$xmin-0.01, 0.01));
 
     my $a11 = $stu->eval('c1'=>1,'c2'=>0,x=>$x);
@@ -247,21 +258,9 @@ ANS($ygeneral->cmp( showDomainErrors => 0,
 
     ########################################################
     #  Check that the student answer is a solution to the DE
-    #
 
     my $stu2 = $stu->D('x','x');
-    my $seckx = Formula("sec($k x)");
-
-    #return ( $stu2 - $seckx )->with(test_points => [[1,2,$x1]], checkUndefinedPoints => 1) == (-1 * $kk * $stu); 
-
-    #warn $ygeneral->getFlag("checkUndefinedPoints"); # must use Context()->flags->set('checkUndefinedPoints'=>1); above!!!!!!!
-    if ( ( $stu2 - $seckx ) == (-1 * $kk * $stu) && $ygeneral_incorrect_1 != $stu && $ygeneral_incorrect_2 != $stu ) {
-        return 1;
-    } elsif ( $ygeneral_incorrect_1 == $stu || $ygeneral_incorrect_2 == $stu ) { 
-        Value->Error("Your answer may be missing an absolute value");
-    } else {
-        return 0;
-    }
+    return $seckx == ($stu2 + $kk * $stu);
 
 }));
 
