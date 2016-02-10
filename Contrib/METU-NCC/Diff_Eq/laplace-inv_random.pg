@@ -1,0 +1,208 @@
+##DESCRIPTION
+## Laplace transforms: inverse laplace
+##ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Laplace transforms)
+## DBsection(Step functions)
+## Institution(METU-NCC)
+## Date (11/01/2016)
+## Author (Benjamin Walter)
+## Level(5)
+## KEYWORDS('Laplace transform')
+###################################################
+
+DOCUMENT(); 
+
+loadMacros(
+   "PGstandard.pl",
+   "MathObjects.pl",
+   "PGunion.pl",
+   "answerHints.pl",
+   "parserAssignment.pl",
+   "parserFunction.pl"
+);
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 1;
+###################################################
+##
+##  Setup Contexts
+
+Context("Numeric");
+Context()->variables->are(
+  "t"=>"Real");
+Context()->functions->add(
+  step => {
+    class => 'Parser::Legacy::Numeric',
+    perl => 'Parser::Legacy::Numeric::do_step'
+  });
+parserFunction("u(t)" => "1 - 1*step(-1*t)");
+$f_t = Context()->copy;
+
+Context("Numeric");
+Context()->variables->are(
+  "s"=>"Real", "A"=>"Real", "B"=>"Real");
+Context()->noreduce("(-x)+y","(-x)-y");
+$F_pf = Context()->copy;
+
+Context("Numeric");
+Context()->variables->are(
+  "s"=>"Real");
+Context()->noreduce("(-x)-y");
+$F_s = Context()->copy;
+
+###################################################
+##
+##  Setup Functions 
+
+$type = random(1,3,1); # Type I, II, or III
+
+$a = non_zero_random(-4,4,1);    # roots
+$b = non_zero_random(-4,4,1);
+
+$c = random(2,6,1);              # exp - step
+
+$A = non_zero_random(-2,2,1);    # partial fractions
+$B = non_zero_random(-2,2,1);    # / coefficients
+
+
+if ($type==1) {           # Type I   partial fractions
+  do { $b = non_zero_random(-4,4,1); } 
+  while ($a == $b); 
+
+  $num = Formula($F_s, "($A+$B) s - ($A*$b + $B*$a)")->reduce;
+  $den = Formula($F_s, "s^2 - ($a+$b)s + ($a*$b)")->reduce;
+
+  $yt = Formula($f_t, "u(t-$c) ( $A*e^($a*(t-$c)) + $B*e^($b*(t-$c)) )")->reduce;
+} elsif ($type==2) {      # Type II  partial fractions
+  $b = $a;
+
+  $num = Formula($F_s, "$B s + ($A - $B*$a)")->reduce;
+  $den = Formula($F_s, "s^2 - 2*$a s + $a*$a")->reduce;
+
+  $yt = Formula($f_t, "u(t-$c) ($A*(t-$c) + $B) e^($a*(t-$c))")->reduce;
+} else {                  # Type III partial fractions
+  $b = abs($b);
+
+  $num = Formula($F_s, "$A s + ($B*$b - $A*$a)")->reduce;
+  $den = Formula($F_s, "s^2 - (2*$a)s + ($b*$b+$a*$a)")->reduce;
+
+  $yt = Formula($f_t, "u(t-$c) ($A cos($b(t-$c)) + $B sin($b(t-$c))) e^($a*(t-$c))")->reduce;
+}
+
+$Ys = $num/$den;    $Ys = Formula($F_s, "$Ys e^(-$c s)"); 
+
+
+###################################################
+##
+##  Problem Text
+
+Context()->texStrings;
+BEGIN_TEXT
+Compute the inverse Laplace transform:
+
+$PAR
+
+\(\displaystyle \mathcal{L}^{\text{-}1}\,\biggl\lbrace $Ys \biggr\rbrace = \)
+\{ ans_rule(40) \}
+
+$PAR
+
+$SPACE $SPACE (${BBOLD}Notation:${EBOLD} write ${BBOLD}u(t-c)${EBOLD} for the Heaviside step 
+function \(u_c(t)\) with step at \(t=c\).)
+END_TEXT
+
+###################################################
+##
+##  Hint 
+
+$showHint = 2;
+
+if ($type == 1) {        # Hint for Type I problem
+ $PF = "I";
+
+ $den_fact = Formula($F_pf, "(s - $a)*(s - $b)")->reduce;
+
+ $Ys_fact = $num/$den_fact;
+ $Ys_pf = Formula($F_pf, "A/(s-$a) + B/(s-$b)")->reduce;
+
+ $SPECIFIC_HINT = 
+    "You must solve the ${BBOLD}Type I${EBOLD} partial fractions problem:${PAR}" .
+    "\(\displaystyle \qquad $Ys_fact = $Ys_pf\)";
+
+} elsif ($type == 2) {   # Hint for Type II problem
+ $PF = "II";
+
+ $den_fact = Formula($F_pf, "(s - $a)^2")->reduce;
+ $den_term = Formula($F_pf, "s-$a")->reduce;
+ $den_exp = Formula($f_t, "e^($a t)")->reduce;
+ $Ys_fact = $num/$den_fact;
+ $Ys_shift1 = Formula($F_pf, "($B (s+$a) + ($A-$B*$a))/s^2")->reduce;
+ $Ys_shift2 = Formula($F_pf, "($B s + $A)/s^2")->reduce; 
+ $Ys_pf1 = Formula($F_pf,"A/(s-$a)^2 + B/(s-$a)")->reduce;
+ $Ys_pf2 = Formula($F_pf,"A/s^2 + B/s");
+
+ $SPECIFIC_HINT = 
+    "There are two possible ways to solve:$PAR" .
+    "${BBOLD}(A)$EBOLD Solve the ${BBOLD}Type II$EBOLD partial fractions problem:$PAR " .
+    "\(\displaystyle \qquad $Ys_fact = $Ys_pf1\) " .
+    "${PAR}OR${PAR}" .
+    "${BBOLD}(B)$EBOLD Pull out the \($den_term\) as \($den_exp\), which changes$PAR " .
+    "\(\displaystyle \qquad $Ys_fact\ \) to be \(\displaystyle \ $Ys_shift1 = $Ys_shift2\)$PAR " .
+    "$SPACE $SPACE " .
+    "Then solve the ${BBOLD}very easy${EBOLD} Type II partial fractions problem:$PAR " .
+    "\(\displaystyle \qquad $Ys_shift2 = $Ys_pf2\)"; 
+
+} else {                 # Hint for type III problem
+ $PF = "III";
+
+ $den_term = Formula($F_pf, "s-$a")->reduce;
+ $den_fact = Formula($F_pf, "($den_term)^2 + $b^2")->reduce;
+ $den_exp = Formula($f_t, "e^($a t)")->reduce;
+ $Ys_fact = $num/$den_fact;
+ $Ys_shift1 = Formula($F_pf, "($A (s+$a) + ($B*$b - $A*$a))/(s^2 + $b^2)")->reduce;
+ $Ys_shift2 = Formula($F_pf, "($A s + $B*$b)/(s^2 + $b^2)")->reduce;
+
+ $SPECIFIC_HINT = 
+    "Pull out the \($den_term\) as \($den_exp\), which changes$PAR " .
+    "\(\displaystyle \qquad $Ys_fact \ \) to be \(\displaystyle \ $Ys_shift1 = $Ys_shift2\)";
+}
+
+BEGIN_TEXT
+
+$BR $HR $PAR
+
+If you don't get this in $showHint tries, you can get a hint.
+
+END_TEXT
+BEGIN_HINT
+
+$PAR $HR $PAR
+
+\(\bullet\ \ \)
+The denominator factors as: \($den = $den_fact\).
+
+$PAR
+
+\(\bullet\ \ \)
+$SPECIFIC_HINT
+
+END_HINT
+
+Context()->normalStrings;
+
+
+
+###################################################
+##
+##  Check answer
+
+ANS( $yt->cmp() );
+
+
+COMMENT("Inverse Laplace with step and exponential.  Randomly chooses Type I, II, III problem. Includes detailed Hint.");
+
+ENDDOCUMENT();

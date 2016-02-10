@@ -1,0 +1,393 @@
+## DESCRIPTION
+## Systems of ODEs: Nonhomogeneous Systems
+## ENDDESCRIPTION
+
+## DBsubject(Differential equations)
+## DBchapter(Higher order differential equations)
+## DBsection(Undetermined coefficients)
+## Date(03/12/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGmatrixmacros.pl",
+  "parserMultiAnswer.pl",
+  "answerHints.pl",
+  "extraAnswerEvaluators.pl",  # needed for equation_cmp
+);
+
+
+#####################################
+#  Setup
+
+Context("Numeric");
+Context()->variables->{namePattern} = qr/[a-z][a-z0-9_]*'*/i;
+Context()->variables->are(
+   t=>"Real", r=>"Real",
+   y=>"Real", "y'"=>"Real", "y''"=>"Real",
+   "c1"=>"Real", "c2"=>"Real",
+   A=>"Real", B=>"Real", C=>"Real", D=>"Real", E=>"Real", F=>"Real"
+);
+Context()->flags->set(
+   zeroLevel=>0.001,
+   limits=>[0,2],
+   zeroLevelTol=>0.001
+);
+
+
+
+############################
+# setup differential equation 
+
+my $a = non_zero_random(-3,3,1);     my $b;  # roots of char. eqn.
+my $n = 0;
+
+if (random(0,1,1) == 1)    { $b=$a; }  # raise chance of repeat
+else  { $b=non_zero_random(-3,3,1); }
+
+if ($b==$a) { $n=1; }
+
+$L = Formula("y'' - ($a+$b) y' + ($a*$b) y")->reduce;  # DE
+
+# Pick particular solution Y
+
+my @Yc = (non_zero_random(-3,3,1), random(-3,3,1),
+          non_zero_random(-3,3,1), random(-3,3,1));
+
+$Y = Formula("$Yc[0]*t + $Yc[1] + $Yc[2]*t^($n+2)*e^($a*t) + $Yc[3]*t^($n+1)*e^($a*t)")->reduce;
+
+
+# Compute forcing function g
+
+### Following code doesn't work -- webwork won't reduce ln e
+#my $dY  = $Y->D('t')->reduce;    my $ddY = $Y->D('t','t')->reduce;
+#$g = Formula("$ddY - ($a+$b)*$dY + ($a*$b)*$Y")->reduce;  
+
+my @g_coef = ($a*$b*$Yc[0],
+              $a*$b*$Yc[1] - ($a+$b)*$Yc[0]);
+if ($a == $b) {
+  push @g_coef, (6*$Yc[2]+2*($a-$b)*$Yc[3], 2*$Yc[3]);
+} else {
+  push @g_coef, (2*($a-$b)*$Yc[2], 2*$Yc[2]+($a-$b)*$Yc[3]);
+}
+
+$g = Formula("($g_coef[2]*t*e^($a*t)+$g_coef[3]*e^($a*t)) + ($g_coef[0]*t+$g_coef[1])")->reduce;
+           
+
+
+#############################
+# answer evaluators
+
+# A -- accept any multiple of char. eqn (rounding error => only small multiples)
+
+my $char_eqn = Formula("r^2 - ($a+$b) r  + ($a*$b)")->reduce;
+
+# B -- fundamental solutions 
+
+my $y1, $y2;
+
+$y1 = Formula("e^{$a*t}")->reduce;   
+
+if ($a != $b) {  $y2 = Formula("e^{$b*t}")->reduce; }  
+ else        { $y2 = Formula("t*e^{$b*t}")->reduce; }
+
+$multiansB = MultiAnswer($y1, $y2)->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>
+    "<table border='0' cellspacing='0'>
+     <tr><td>\(y_1 = \) %s </td></tr>
+     <tr><td>\(y_2 = \) %s </td></tr>
+    </table>",
+    tex_format =>
+    "\begin{array}{l} y_1 = %s \\ y_2 = %s 
+     \end{array}",
+
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+        my @s = @{$student};
+        my $msg = "";   my @flag = (0,0);  
+
+        if ($c[0]->typeMatch($s[0]) &&
+            $c[1]->typeMatch($s[1])) {  
+          my @S = ( Formula("$s[0]"),
+                    Formula("$s[1]") );
+          my @dS = ( Formula("$s[0]")->D('t'),
+                     Formula("$s[1]")->D('t') );
+          my @ddS = ( Formula("$s[0]")->D('t','t'),
+                      Formula("$s[1]")->D('t','t') );
+          if (Formula("$S[0]*$dS[1]") == Formula("$S[1]*$dS[0]")) {
+            Value::Error("Fundmental solutions not independent!");
+          }
+          my @L = ( Formula("$ddS[0] - ($a+$b)*$dS[0] + ($a*$b)*$S[0]")->reduce, 
+                    Formula("$ddS[1] - ($a+$b)*$dS[1] + ($a*$b)*$S[1]")->reduce );
+          if ($L[0] == Compute("0")) { $flag[0] = 1; $msg = "\(y_1\) is fine$BR"; }
+          else  { $msg = "\(y_1\) is not a fundamental solution$BR"; }
+
+          if ($L[1] == Compute("0")) { $flag[1] = 1; $msg = $msg . "\(y_2\) is fine$BR"; }
+          else  { $msg = $msg . "\(y_2\) is not a fundamental solution$BR $S[1], $dS[1], $ddS[1]"; }
+        }
+  
+        if ($flag[0]*$flag[1] == 1) {
+          return 1;
+        } else {
+          if (length($msg) > 1) { Value::Error($msg); }
+        }
+        return 0;
+    }
+);
+
+# C - Form of particular solution
+
+my $Yf  = Formula("A*t + B*1 + C*t^($n+2)*e^($a*t) + D*t^($n+1)*e^($a*t)")->reduce;
+
+$multiansC = MultiAnswer($Yf, $Yf->D('t'), $Yf->D('t','t'))->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>
+    "<table border='0' cellspacing='0'>
+     <tr><td>\(Y\phantom{''} = \) %s </td></tr>
+     <tr><td>\(Y'\phantom{'} = \) %s </td></tr>
+     <tr><td>\(Y'' = \) %s </td></tr>
+    </table>",
+    tex_format =>
+    "\begin{array}{l} 
+        Y\phantom{''}  = %s \\ 
+        Y'\,  = %s \\
+        Y'' = %s
+     \end{array}",
+
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+        my @s = @{$student};
+        my $msg = "";   my @flag = (0,0); 
+        if ($c[0]->typeMatch($s[0])) { 
+          my @S_vars = (Formula("A"),Formula("B"),Formula("C"),Formula("D"),Formula("E"),Formula("F"));
+          my @Yf_terms = (Formula("$c[0]")->substitute(A=>"1",B=>"0",C=>"0",D=>"0",E=>"0",F=>"0")->reduce,
+                          Formula("$c[0]")->substitute(A=>"0",B=>"1",C=>"0",D=>"0",E=>"0",F=>"0")->reduce,
+                          Formula("$c[0]")->substitute(A=>"0",B=>"0",C=>"1",D=>"0",E=>"0",F=>"0")->reduce,
+                          Formula("$c[0]")->substitute(A=>"0",B=>"0",C=>"0",D=>"1",E=>"0",F=>"0")->reduce,
+                          Formula("$c[0]")->substitute(A=>"0",B=>"0",C=>"0",D=>"0",E=>"1",F=>"0")->reduce,
+                          Formula("$c[0]")->substitute(A=>"0",B=>"0",C=>"0",D=>"0",E=>"0",F=>"1")->reduce);
+          my @Sf_terms = (Formula("$s[0]")->substitute(A=>"1",B=>"0",C=>"0",D=>"0",E=>"0",F=>"0")->reduce, 
+                          Formula("$s[0]")->substitute(A=>"0",B=>"1",C=>"0",D=>"0",E=>"0",F=>"0")->reduce, 
+                          Formula("$s[0]")->substitute(A=>"0",B=>"0",C=>"1",D=>"0",E=>"0",F=>"0")->reduce, 
+                          Formula("$s[0]")->substitute(A=>"0",B=>"0",C=>"0",D=>"1",E=>"0",F=>"0")->reduce, 
+                          Formula("$s[0]")->substitute(A=>"0",B=>"0",C=>"0",D=>"0",E=>"1",F=>"0")->reduce, 
+                          Formula("$s[0]")->substitute(A=>"0",B=>"0",C=>"0",D=>"0",E=>"0",F=>"1")->reduce);
+          if ($Sf_terms[0] != Formula($s[0])->D('A') ||
+              $Sf_terms[1] != Formula($s[0])->D('B') ||
+              $Sf_terms[2] != Formula($s[0])->D('C') ||
+              $Sf_terms[3] != Formula($s[0])->D('D') ||
+              $Sf_terms[4] != Formula($s[0])->D('E') ||
+              $Sf_terms[5] != Formula($s[0])->D('F')) {
+            Value::Error("The coefficients of \(Y\) don't make sense!");
+          }
+          my $context = Context()->copy;
+          $context->flags->set(no_parameters=>0);
+          $context->variables->add( k=>'Parameter' );
+          my $k = Formula($context, 'k'); 
+          for (my $i=0; $i<scalar(@Sf_terms); $i++) {
+            my $j;
+            for ($j=0; 
+                 ( ($j<scalar(@Yf_terms)) &&  
+                   !(( ($Sf_terms[$i] == Compute(0)) && ($Yf_terms[$j] == Compute(0)) ) ||  
+                     ( ($Sf_terms[$i] != Compute(0)) && ($Yf_terms[$j] != Compute(0)) &&
+                       (Formula($context, "$k*$Sf_terms[$i]") == Formula($context, "$Yf_terms[$j]")) )));
+                 $j++) { ; }
+            if ($j == scalar(@Yf_terms)) { 
+              $wrong = Formula("$S_vars[$i]*$Sf_terms[$i]")->reduce->TeX; 
+              $msg = $msg . "\($wrong\) incorrect!$BR"; 
+            } else { splice @Yf_terms, $j, 1; }
+          }
+        }
+        if (length($msg)>1) { Value::Error($msg); }
+
+        if ($c[1]->typeMatch($s[1])) { 
+          if (Formula("$s[1]") != Formula("$s[0]")->D('t')) {
+            Value::Error("\(Y'\) incorrect!"); 
+          } else {
+            $flag[0] = 1; 
+          }
+        }
+        if ($c[2]->typeMatch($s[2])) { 
+          if (Formula("$s[2]") != Formula("$s[0]")->D('t','t')) {
+            Value::Error("\(Y''\) incorrect!"); 
+          } else {
+            $flag[1] = 1;
+          } 
+        }             
+        return $flag[0]*$flag[1];
+    }
+);
+
+# D - general solution
+
+my $y_gen = Formula("c1*$y1 + c2*$y2 + $Y")->reduce;
+
+$multiansD = MultiAnswer($y_gen)->with(
+    singleResult => 1,
+    checkTypes => 1,
+    allowBlankAnswers => 0,
+ 
+    checker => sub{
+       my ($correct, $student, $answerHash ) = @_;
+       my @s = @{$student};
+       my $msg = "";    my @flag = (0,0,0);  
+
+       my @S_h = (Formula("$s[0]")->D("c1"),
+                  Formula("$s[0]")->D("c2"));
+       my @dS_h = ($S_h[0]->D('t'),
+                   $S_h[1]->D('t'));
+       my @ddS_h = ($S_h[0]->D('t','t'),
+                    $S_h[1]->D('t','t'));
+       if (Formula("$S_h[0]*$dS_h[1]") == Formula("$S_h[1]*$dS_h[0]")) {
+          Value::Error("Not the most general answer...");
+       } 
+       if (Formula("$ddS_h[0] - ($a+$b)*$dS_h[0] + ($a*$b)*$S_h[0]") == Formula("0")) {
+          $msg = "\(y_1\) is okay$BR";
+          $flag[0] = 1;
+       } else {
+          $msg = "\(y_1\) is wrong$BR";
+       }
+       if (Formula("$ddS_h[1] - ($a+$b)*$dS_h[1] + ($a*$b)*$S_h[1]") == Formula("0")) {
+          $msg = $msg . "\(y_2\) is okay$BR";
+          $flag[1] = 1;
+       } else {
+          $msg = $msg . "\(y_2\) is wrong$BR";
+       }
+
+       my $S_p = Formula("$s[0]")->substitute("c1"=>"0","c2"=>"0");
+       my $dS_p = $S_p->D('t');
+       my $ddS_p = $S_p->D('t','t');
+       if (Formula("$ddS_p - ($a+$b)*$dS_p + ($a*$b)*$S_p") == Formula("$g")) {
+          $msg = $msg . "Particular solution is okay";
+          $flag[2] = 1;
+       } else {
+          $msg = $msg . "\(Y\) is wrong";
+       }
+      
+       if ($flag[0]*$flag[1]*$flag[2] != 1) {
+         if (length($msg)>1) { Value::Error($msg); }
+       } else {
+         return 1;
+       }
+       return 0;
+    }
+);
+
+# E - Initial value problem
+
+# Choose integers for constants and compute initial values
+
+my @c = (non_zero_random(-3,3,1), non_zero_random(-3,3,1));
+
+$y = Formula("$c[0]*$y1 + $c[1]*$y2 + $Y")->reduce;
+$y0 = $y->eval(t=>"0");
+$dy0 = $y->D('t')->eval(t=>"0"); 
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+In this problem you will use undetermined coefficients to solve the nonhomogeneous equation 
+\[ $L = $g \]
+with initial values
+\(\quad y(0) = $y0\quad\text{and}\quad y'(0) = $dy0.\)
+$PAR
+$HR
+$PAR
+
+$BBOLD A. $EBOLD
+Write the characteristic equation for the associated homogeneous equation.
+(Use ${BTT}r${ETT} for your variable.)
+\{ mbox([
+ "\(\quad\)",
+ ans_rule(15),
+]) \}
+
+$PAR
+
+$BBOLD B. $EBOLD
+Write the fundamental solutions for the associated homogeneous equation.
+\{ mbox([
+  "\( \quad y_1 = \)",
+  $multiansB->ans_rule(10),
+  "\( \qquad y_2 = \)",
+  $multiansB->ans_rule(10)
+]) \}
+
+$PAR
+
+$BBOLD C. $EBOLD
+Write the form of the particular solution and its derivatives.  
+(Use ${BTT}A${ETT}, ${BTT}B${ETT}, ${BTT}C${ETT}, etc. for undetermined coefficients.
+\{ mbox ([
+  "\( \quad Y\,\,\, = \)",
+  $multiansC->ans_rule(48)
+]) \}
+\{ mbox ([
+  "\( \quad Y'\, = \)",
+  $multiansC->ans_rule(48)
+]) \}
+\{ mbox ([
+  "\( \quad Y'' = \)",
+  $multiansC->ans_rule(48)
+]) \}
+
+$PAR
+
+$BBOLD D. $EBOLD
+Write the general solution.
+(Use ${BTT}c1${ETT} and ${BTT}c2${ETT} for \(c_1\) and \(c_2\)).
+\{ mbox ([
+  "\( \quad y = \)",
+  $multiansD->ans_rule(50)
+]) \}
+
+$PAR
+
+$BBOLD E. $EBOLD
+Plug in the initial values and solve for \(c_1\) and \(c_2\) to find the solution
+to the initial value problem.
+\{ mbox ([
+  "\( \quad y = \)",
+  ans_rule(50)
+]) \}
+
+$PAR
+$HR
+$PAR
+$BBOLD Hint:$EBOLD No fractions are required in the solution or 
+                   answer to this problem.
+
+END_TEXT
+
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( equation_cmp("$char_eqn = 0", vars=>['r']) );
+ANS( $multiansB->cmp() );
+ANS( $multiansC->cmp() );
+ANS( $multiansD->cmp() );
+ANS( $y->cmp() );
+
+COMMENT('MathObject version. Randomized -- NONZERO roots REPEATED or DISTINCT.');
+
+ENDDOCUMENT(); 

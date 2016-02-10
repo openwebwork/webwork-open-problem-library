@@ -1,0 +1,252 @@
+## DESCRIPTION
+## Fourier Series:  Sine and Cosine series
+## ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Partial differential equations)
+## DBsection(Fourier series)
+## Institution(METU-NCC)
+## Author (Benjamin Walter)
+## Level(4)
+## KEYWORDS('Fourier series')
+
+#########################################################
+
+DOCUMENT(); 
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGgraphmacros.pl",
+  "answerHints.pl",
+  "unionLists.pl",
+);
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 1;
+######################################################
+##
+##  Sine or Cosine series ?
+$trig = random(0,1,1) ? "cosine" : "sine";
+
+
+#######################################################
+##  Setup Contexts
+##
+Context("Numeric");
+Context()->variables->are();
+$Num = Context()->copy;
+
+Context()->variables->are(
+  "n"=>["Real",limits=>[1,6],resolution=>1]);
+$F_n = Context()->copy;
+
+Context()->variables->are(
+  "x"=>"Real");
+$f_x = Context()->copy;
+
+
+########################################################
+##
+##  Choose function
+
+$L = random(3,8,1);    # interval length
+$k = random(2,$L-1,1); # length of nonzero graph
+
+my $m = random(-1,1,2);   # sign of nonzero graph  
+my $sh = random(0,1,1);   # ? phase shift graph by L ?
+my $rev = random(0,1,1);  # ? reverse graph ? 
+
+$mid = ($sh==0) ? $k : $L-$k;  # where to switch f1 to f2
+
+$f1 = ($sh==1)  ? Formula("0") :          
+      ($rev==0) ? Formula("$m ($mid - x)") : 
+                  Formula("$m x"); 
+$f2 = ($sh==0)  ? Formula("0") :          
+      ($rev==0) ? Formula("$m (x - $mid)") : 
+                  Formula("$m ($L - x)"); 
+
+$f1 = $f1->reduce;
+$f2 = $f2->reduce;
+
+$le1 = ($sh==0) ? "\le" : "<";
+$le2 = ($sh==1) ? "\le" : "<";
+
+######################################################
+##
+## points for evaluating the Fourier series
+## and values of Fourier series
+
+@x = (($rev==0) ? $L : $mid,
+       ($sh==0) ? random(-$k+1,     -1,1)  : 
+                  random(-$L+1,-$mid-1,1),
+       ($sh==1) ? random( $L+1,$L+$k-1,1)  : 
+                  random( 2*$L-$mid+1,2*$L-1,1)
+     );
+
+
+@F = (($rev==0) ? $f2->eval(x=>"$x[0]") : 
+                  Real("$m*$k/2"),
+       ($sh==0) ? $f1->eval(x=>"-$x[1]") :
+                  $f2->eval(x=>"-$x[1]"),
+       ($sh==0) ? $f1->eval(x=>"2*$L-$x[2]") :
+                  $f2->eval(x=>"2*$L-$x[2]")
+     );
+
+if ($trig eq "sine") {   # sine series are odd-periodic
+ $F[0] = ($rev==0) ? Real("0") : Real("$m*$k/2");
+ $F[1] = -$F[1];      $F[2] = -$F[2];
+}
+
+
+########################################################
+##
+## Setup Graph
+$refreshCachedImages=1;
+
+$xmin = -($L+1); $xmax = $L+1;
+$ymin = -($k+1); $ymax = $k+1;
+
+$gr = init_graph(
+          $xmin, $ymin,            # xmin, ymin
+          $xmax, $ymax,            # xmax, ymax 
+          'axes'=>[0,0],           # axis through origin 
+          'grid'=>[2*$L+2,2*$k+2], # number of grid lines
+          'size'=>[50*($L+1),50*($k+1)]);  # dimensions in pixels
+
+add_functions($gr, 
+  "$f1 for x in [0,$mid> using color:blue and weight:4",
+  "$f2 for x in [$mid,$L] using color:blue and weight:4");
+
+########################################################
+##
+## Record sine & cosine coefficients 
+##
+## reversing series is equivalent to 
+##    f |--> k*u_{mid} - f
+##
+## shifting cosine series multiplies terms by (-1)^n
+## shifting sine series multiplies terms by -(-1)^n
+
+
+$A0 = Formula($F_n, "$m $k^2 / $L")->reduce;
+$An = Formula($F_n, "(-1)^($rev)*2*$m*$L/(n*pi)^2(1 - cos(n*$k*pi/$L)) + $rev*(2*$m*$k/(n*pi)*sin(n*$k*pi/$L))")->reduce;
+if ($sh==1) {  $An = Formula($F_n,"(-1)^n*$An");  }  
+
+$Bn = Formula($F_n, "2*$m/(n*pi)*((1-$rev)*$k + (-1)^($rev+1)*$L/(n*pi)*sin(n*$k*pi/$L) - $rev*$k*cos(n*$k*pi/$L))")->reduce;
+if ($sh==1) {  $Bn = Formula($F_n,"-(-1)^n*$Bn");  }  
+
+########################################################
+##
+## Sine / Cosine coefficient entries
+
+Context()->texStrings;
+
+if ($trig eq "cosine") {
+  $Coeff_entry = 
+     "${ITEM}" . 
+     "\(A_0 = \)" . ans_rule(5) . 
+     "${ITEMSEP}${ITEM}" .
+     "\(A_n = \)" . ans_rule(60);
+  $Series_formula =
+     "\(\displaystyle C(x) = " .
+     "\frac{A_0}{2} \, + \, \sum_{n=1}^\infty A_n\,\cos\left(\frac{n\pi}{$L}\,t\right)\)"; 
+  $Series = "C";
+} else {
+  $Coeff_entry = 
+     "${ITEM}" . 
+     "\(B_n = \)" . ans_rule(60); 
+  $Series_formula =
+     "\(\displaystyle S(x) = " .
+     "\sum_{n=1}^\infty B_n\,\cos\left(\frac{n\pi}{$L}\,t\right)\)";
+  $Series = "S";
+}
+
+
+Context()->normalStrings;
+
+########################################################
+##
+##  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$SPACE $SPACE
+\{ image( insertGraph($gr), 
+width=>200,height=>200,tex_size=>500 ) \}
+
+$PAR
+
+Let 
+\(\displaystyle 
+  f(x) = \begin{cases} 
+            $f1\quad & \text{for}\ \   0    <  x $le1 $mid, \\
+            $f2\quad & \text{for}\ \ $mid $le2 x   <  $L.
+         \end{cases}\)
+$PAR
+$HR
+$PAR
+
+\(\bullet\quad\) Compute the Fourier ${BBOLD}$trig${EBOLD} coefficients for \(f(x)\). $BR
+  
+\{ BeginList('UL') \}
+
+$Coeff_entry
+
+\{ EndList('UL') \}
+
+$PAR
+
+\(\bullet\quad\) Give values for the Fourier ${BBOLD}$trig${EBOLD} series 
+ $Series_formula.
+
+\{ BeginList('UL') \}
+
+$ITEM 
+ \(\phantom{-}$Series($x[0]) = \) \{ ans_rule(2) \}
+
+$ITEMSEP
+$ITEM 
+ \($Series($x[1]) = \) \{ ans_rule(2) \}
+
+$ITEMSEP
+$ITEM 
+ \(\phantom{-}$Series($x[2]) = \) \{ ans_rule(2) \}
+
+\{ EndList('UL') \}
+
+END_TEXT
+Context()->normalStrings;
+
+
+##############################
+#  Answer evaluation
+
+#    check coefficients
+if ($trig eq "cosine") {  # check cosine coefficients
+  ANS( $A0->cmp( 
+         checker=>sub {
+           my ($correct,$student,$ansHash ) = @_;
+           if (2*$student==$correct) {
+             Value::Error("Multiply by 2.${BR}"); 
+           }
+           return $student==$correct;
+         } 
+       ) 
+     );
+  ANS( $An->cmp() );
+} else {         # check sine coefficients
+  ANS( $Bn->cmp() );
+}
+
+#    check values of series
+ANS( $F[0]->cmp() );
+ANS( $F[1]->cmp() );
+ANS( $F[2]->cmp() );
+
+COMMENT("Randomly chooses ${BBOLD}Sine${EBOLD} or ${BBOLD}Cosine${EBOLD} series.${BR}Randomly picks one of four basic graph shapes (zero in first or second half; nonzero part cont on left or right).");
+
+ENDDOCUMENT();
