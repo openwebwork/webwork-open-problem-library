@@ -1,0 +1,201 @@
+## DESCRIPTION
+## Eigenvalues and eigenvectors of 2x2 matrix (distinct, real)
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(11/06/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(4)
+## Static(1)
+## MO(1)
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+);
+
+
+TEXT(beginproblem());
+
+#####################################
+#  Setup
+
+Context("Numeric");
+
+# 1) choose matrix of form
+#    [ a  -b ]
+#    [ c  -a ]   (eigenvalues = 0,0)
+#
+#  where a^2 - bc = 0  possibilities are in @CNum and @OffD
+#
+# 2) phase shift to get 
+#    [ p+a  -b ]
+#    [  c  p-a ]
+#
+#  eigenvalues p, p 
+#  eigenvector [ b a ] generalized [ 0 -1 ] 
+
+my @CNum =  (1,2,2,3,3,4,4,5,6,6,0);              # a
+my @OffD = ([1,2,1,3,1,4,2,5,6,4,0],              # b
+         [1,2,4,3,9,4,8,5,6,9,random(1,9,1)]); # c
+my $i = random(0,10,1);
+my $k = random(0,1,1); 
+my $sign1 = non_zero_random(-1,1,1);
+my $sign2 = non_zero_random(-1,1,1);
+
+my $a = $sign1*$CNum[$i];
+
+my $b = $sign2*$OffD[$k][$i];
+my $c = $sign2*$OffD[($k+1)%2][$i];
+
+#
+# choose phase so that matrix entries stay <= 10 
+#
+my $p = non_zero_random( -10+abs($a),10-abs($a), 1);
+
+$A11 = $p+$a;  $A12 =  -$b;
+$A21 = $c;     $A22 =  $p-$a;
+
+my $v1 = $b;   my $w1 = 0;
+my $v2 = $a;   my $w2 = -1;
+
+$v1 = ($v1 == 0) ? 1 : $v1;
+
+my $lambda =  $p;
+
+$multians1 = MultiAnswer($lambda, $v1, $v2, $w1, $w2)->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+    "<table border='0' cellspacing='10'>
+    <tr>
+      <td> %s; \(\ \ \Bigl\lbrack\) </td>
+      <td><table border='0' cellspacing='10'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+      <td>\(\Bigr\rbrack; \ \ \Bigl\lbrack\) </td>
+      <td><table border='0' cellspacing='10'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+      <td> \(\Bigr\rbrack\) </td>
+    </tr>
+    </table>",
+    tex_format =>  
+    "\lambda = %s; \ \ 
+     \boldsymbol{\vec{v}} = 
+           \left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack; \ \ 
+     \boldsymbol{\vec{w}} = 
+           \left\lbrack \begin{array}{r} %s \\ %s \end{array}\right\rbrack",
+
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
+
+        my $flag1 = 0;
+        my $flag2 = 0;
+        my $flag  = 0;
+
+        Value::Error("Your vectors are parallel") if
+        $c[1]->typeMatch($s[1]) &&
+        $c[2]->typeMatch($s[2]) &&
+        $c[3]->typeMatch($s[3]) &&
+        $c[4]->typeMatch($s[4]) &&
+        ($s[1] * $s[4] == $s[2] * $s[3]);
+        
+        if ( $c[0]->typeMatch($s[0]) && 
+             $c[1]->typeMatch($s[1]) && 
+             $c[2]->typeMatch($s[2]) && 
+             ($s[1] != 0 || $s[2] != 0) ) 
+        {
+          if ( ($A11 * $s[1] + $A12 * $s[2] == $s[0] * $s[1]) &&
+               ($A21 * $s[1] + $A22 * $s[2] == $s[0] * $s[2]) )
+          {
+             $flag1=1;
+             if ( $c[3]->typeMatch($s[3]) && 
+                  $c[4]->typeMatch($s[4]) && 
+                 ($s[3] != 0 || $s[4] != 0) ) 
+             {
+                if ( ($A11 * $s[3] + $A12 * $s[4] == $s[0] * $s[3] + $s[1]) &&
+                     ($A21 * $s[3] + $A22 * $s[4] == $s[0] * $s[4] + $s[2]) )
+                {
+                  $flag2=1;
+                }
+             }
+          }
+        }
+
+        if($flag1==1 && $flag2 ==1){
+          $flag=1;
+        }else{
+          my $msg = "\(\lambda\) is ";
+          if ( $c[0]->typeMatch($s[0]) && $s[0] == $lambda ) {
+            $msg = $msg . "correct; ";
+            if ($flag1==1) {
+              $msg = $msg . "\(\boldsymbol{\vec{v}}\) is correct; but \(\mathrm{A}\boldsymbol{\vec{w}} \neq \lambda \boldsymbol{\vec{w}} + \boldsymbol{\vec{v}}\)";
+            } else {
+              $msg = $msg . "but \( A\boldsymbol{\vec{v}} \neq \lambda \boldsymbol{\vec{v}}\)";
+            }
+          } else {
+            $msg = $msg . "incorrect";
+          }
+          Value::Error($msg);
+        }
+        return $flag; 
+       
+    }
+);
+
+
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+Find an eigenvalue and eigenvector with generalized eigenvector for the matrix
+\( 
+\displaystyle
+\mathrm{A} = 
+\left\lbrack
+\begin{array}{rr}
+$A11 & $A12 \\
+$A21 & $A22
+\end{array}
+\right\rbrack
+\)
+\{ mbox( [ 
+'\(\lambda = \) ',
+$multians1->ans_rule(5),
+] ) \}
+\{ mbox( [ 
+'with eigenvector \( \boldsymbol{\vec{v}} =  \) ', 
+display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]])
+] ) \}
+\{ mbox( [ 
+'with generalized eigenvector \( \boldsymbol{\vec{w}} =  \) ', 
+display_matrix([[$multians1->ans_rule(5)],[$multians1->ans_rule(5)]])
+] ) \}
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $multians1->cmp() );
+
+COMMENT('MathObject version.  Randomized with repeated integer eigenvalues.');
+
+ENDDOCUMENT(); 
