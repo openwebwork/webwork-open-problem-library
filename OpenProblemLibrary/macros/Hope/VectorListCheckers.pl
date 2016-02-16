@@ -72,7 +72,7 @@ Context()->normalStrings;
 
 ANS( $answer->cmp(list_checker=>~~&basis_checker_list_of_vectors) );
 
-COMMENT('MathObject version.');
+
 
 ENDDOCUMENT();
 

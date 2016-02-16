@@ -57,7 +57,7 @@ Usage:
 
      ANS( Compute("$a x + $b")->cmp() );
 
-     COMMENT('MathObject version.  Periodically re-randomizes.');
+     COMMENT('Periodically re-randomizes.');
 
      ENDDOCUMENT();
 
