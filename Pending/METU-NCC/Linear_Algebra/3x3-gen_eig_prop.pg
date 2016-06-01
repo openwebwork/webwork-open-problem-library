@@ -1,0 +1,482 @@
+## DESCRIPTION
+## Properties of generalized eigenvectors
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(11/18/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(2)
+## Static(1)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGmatrixmacros.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "answerHints.pl",
+);
+
+
+TEXT(beginproblem());
+
+#####################################
+#  Setup
+
+# Construct random matrix with one known gen eigenvector/eigenvalue
+#
+# 1) pick eigenvectors [ x x x ]
+#
+# 2) extend to basis of eigenspace  S
+#
+# 3) pick random matrix  R  with eigenvalue in correct location
+#
+# 4) use "block diagonalization" to construct A = S R S^{-1}
+#
+
+Context("Numeric");
+
+my $R, $A;
+
+$l=Real(non_zero_random(-3,3,1));           # eigenvalue
+
+@v = (non_zero_random(-3,3,1), random(-3,3,1), non_zero_random(-3,3,1));
+
+do { 
+ @w = (random(-3,3,1), non_zero_random(-3,3,1), non_zero_random(-3,3,1));
+} while ($v[0]*$w[1] == $v[1]*$w[0]); 
+
+Context("Matrix");
+
+$R = Matrix([                               # block Jordan 
+       [non_zero_random(-3,3,1), 0,   0],
+       [non_zero_random(-3,3,1), $l,  1],
+       [non_zero_random(-3,3,1), 0,  $l]
+]);
+
+$A = Matrix([0,$v[0],$w[0]],[0,$v[1],$w[1]],[1,$v[2],$w[2]])*$R*
+     Matrix([0,$v[0],$w[0]],[0,$v[1],$w[1]],[1,$v[2],$w[2]])->inverse;
+
+
+# Matrix $A is used to check student answers
+
+my $A11=$A->element(1,1);  my $A12=$A->element(1,2);  my $A13=$A->element(1,3);
+my $A21=$A->element(2,1);  my $A22=$A->element(2,2);  my $A23=$A->element(2,3);
+my $A31=$A->element(3,1);  my $A32=$A->element(3,2);  my $A33=$A->element(3,3);
+
+Context("Numeric");   #  Value::Error doesn't like matrix context
+
+###################################################
+#  Answer Checkers
+
+#
+#  A -- other eigenvectors
+
+my $v21 = 2*$v[0];  my $v31 = 3*$v[0];      # other possible eigenvectors
+my $v22 = 2*$v[1];  my $v32 = 3*$v[1];      # for webwork to display
+my $v23 = 2*$v[2];  my $v33 = 3*$v[2];
+
+$multiansA = MultiAnswer($v21,$v22,$v23,$v31,$v32,$v33)->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+      "<table border='0' cellspacing='5'>
+        <tr><td>\(\Biggl\lbrack\)</td>
+         <td><table border='0' cellspacing='5'>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+         </table></td>
+        <td>\(\Biggr\rbrack \quad \Biggl\lbrack\)</td> 
+        <td><table border='0' cellspacing='5'>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+        </table></td>
+        <td>\(\Biggr\rbrack\)</td>
+       </tr></table>",
+    tex_format =>  
+      "\left\lbrack \begin{array}{r} %s \\ %s \\ %s\end{array}\right\rbrack
+       \quad  
+       \left\lbrack \begin{array}{r} %s \\ %s \\ %s\end{array}\right\rbrack",  
+
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
+
+        my @flag  = (0,0,0);
+        my $msg = "";
+
+        if ( $c[0]->typeMatch($s[0]) && 
+             $c[1]->typeMatch($s[1]) && 
+             $c[2]->typeMatch($s[2]) ) {
+          if (($s[0] == 0) && ($s[1] == 0) && ($s[2] == 0)) {
+            $msg = $msg . "\(\boldsymbol{\vec{v}'}\) cannot be all zero!"; 
+          } else { 
+            if ( ( $A11*$s[0] + $A12*$s[1] + $A13*$s[2] == $l*$s[0]) &&
+                 ( $A21*$s[0] + $A22*$s[1] + $A23*$s[2] == $l*$s[1]) &&
+                 ( $A31*$s[0] + $A32*$s[1] + $A33*$s[2] == $l*$s[2]) ) {
+              if ($s[0] != $v[0]) {
+                $flag[0] = 1;
+              } else {
+                $msg = $msg . "\(\boldsymbol{\vec{v}'}\) must be new!";
+              }
+            } else {
+              $msg = $msg . "\(\boldsymbol{\vec{v}'}\) is not an eigenvect";
+            }
+          }
+        }
+        if ( $c[3]->typeMatch($s[3]) && 
+             $c[4]->typeMatch($s[4]) && 
+             $c[5]->typeMatch($s[5]) ) {
+          if (($s[3] == 0) && ($s[4] == 0) && ($s[5] == 0)) {
+            $msg = (length($msg) == 0) ? $msg : $msg . ", $BR";
+            $msg = $msg . "\(\boldsymbol{\vec{v}''}\) cannot be all zero!"; 
+          } else { 
+            if ( ( $A11*$s[3] + $A12*$s[4] + $A13*$s[5] == $l*$s[3]) &&
+                 ( $A21*$s[3] + $A22*$s[4] + $A23*$s[5] == $l*$s[4]) &&
+                 ( $A31*$s[3] + $A32*$s[4] + $A33*$s[5] == $l*$s[5]) ) {
+              if ($s[3] != $v[0]) {
+                $flag[1] = 1;
+              } else {
+                $msg = (length($msg) == 0) ? $msg : $msg . ", $BR";
+                $msg = $msg . "\(\boldsymbol{\vec{v}''}\) must be new!";
+              }
+            } else {
+              $msg = (length($msg) == 0) ? $msg : $msg . ", $BR";
+              $msg = $msg . "\(\boldsymbol{\vec{v}''}\) is not a \(\boldsymbol{\vec{v}}\)-generalized eigenvect";
+            }
+          }
+        }
+        if ( $c[0]->typeMatch($s[0]) && 
+             $c[1]->typeMatch($s[1]) && 
+             $c[2]->typeMatch($s[2]) &&
+             $c[3]->typeMatch($s[3]) && 
+             $c[4]->typeMatch($s[4]) && 
+             $c[5]->typeMatch($s[5]) &&
+             ($s[0] == $s[3]) &&
+             ($s[1] == $s[4]) &&
+             ($s[2] == $s[5]) ) {
+          $msg = (length($msg) == 0) ? $msg : $msg . ", $BR";
+          $msg = $msg . "\(\boldsymbol{\vec{v}'}\) and \(\boldsymbol{\vec{v}''}\) must be different!";
+        } else {
+          $flag[2] = 1; 
+        }
+
+        if (($flag[0]==1) && ($flag[1]==1) && ($flag[2]==1) && (length($msg) == 0)) {
+          return 1;
+        } else {
+          Value::Error($msg);  
+        }
+ 
+   }
+);
+
+#
+# B - other gen. eigenvectors
+
+my $w21 = $w[0]+$v[0]; my $w31 = $w[0]-$v[0];  # some other gen. eigenvect
+my $w22 = $w[1]+$v[1]; my $w32 = $w[1]-$v[1];  # for webwork to display
+my $w23 = $w[2]+$v[2]; my $w33 = $w[2]-$v[2];
+
+$multiansB = MultiAnswer($w21,$w22,$w23,$w31,$w32,$w33)->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+      "<table border='0' cellspacing='5'>
+        <tr><td>\(\biggl\lbrack\)</td>
+         <td><table border='0' cellspacing='5'>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+         </table></td>
+        <td>\(\biggr\rbrack \quad \biggl\lbrack\)</td> 
+        <td><table border='0' cellspacing='5'>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+        </table></td>
+        <td>\(\biggr\rbrack\)</td>
+       </tr></table>",
+    tex_format =>  
+      "\left\lbrack \begin{array}{r} %s \\ %s \\ %s\end{array}\right\rbrack
+       \quad  
+       \left\lbrack \begin{array}{r} %s \\ %s \\ %s\end{array}\right\rbrack",  
+
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
+
+        my @flag  = (0,0,0);
+        my $msg = "";
+
+        if ( $c[0]->typeMatch($s[0]) && 
+             $c[1]->typeMatch($s[1]) && 
+             $c[2]->typeMatch($s[2]) ) {
+          if (($s[0] == 0) && ($s[1] == 0) && ($s[2] == 0)) {
+            $msg = $msg . "\(\boldsymbol{\vec{w}'}\) cannot be all zero!"; 
+          } else { 
+            if ( ( $A11*$s[0] + $A12*$s[1] + $A13*$s[2] == $l*$s[0] + $v[0]) &&
+                 ( $A21*$s[0] + $A22*$s[1] + $A23*$s[2] == $l*$s[1] + $v[1]) &&
+                 ( $A31*$s[0] + $A32*$s[1] + $A33*$s[2] == $l*$s[2] + $v[2]) ) {
+              if ($s[0] != $w[0]) {
+                $flag[0] = 1;
+              } else {
+                $msg = $msg . "\(\boldsymbol{\vec{w}'}\) must be new!";
+              }
+            } else {
+              $msg = $msg . "\(\boldsymbol{\vec{w}'}\) is not a \(\boldsymbol{\vec{v}}\)-generalized eigenvect";
+            }
+          }
+        }
+        if ( $c[3]->typeMatch($s[3]) && 
+             $c[4]->typeMatch($s[4]) && 
+             $c[5]->typeMatch($s[5]) ) {
+          if (($s[3] == 0) && ($s[4] == 0) && ($s[5] == 0)) {
+            $msg = (length($msg) == 0) ? $msg : $msg . ", $BR";
+            $msg = $msg . "\(\boldsymbol{\vec{w}''}\) cannot be all zero!"; 
+          } else { 
+            if ( ( $A11*$s[3] + $A12*$s[4] + $A13*$s[5] == $l*$s[3] + $v[0]) &&
+                 ( $A21*$s[3] + $A22*$s[4] + $A23*$s[5] == $l*$s[4] + $v[1]) &&
+                 ( $A31*$s[3] + $A32*$s[4] + $A33*$s[5] == $l*$s[5] + $v[2]) ) {
+              if ($s[3] != $w[0]) {
+                $flag[1] = 1;
+              } else {
+                $msg = (length($msg) == 0) ? $msg : $msg . ", $BR";
+                $msg = $msg . "\(\boldsymbol{\vec{w}''}\) must be new!";
+              }
+            } else {
+              $msg = (length($msg) == 0) ? $msg : $msg . ", $BR";
+              $msg = $msg . "\(\boldsymbol{\vec{w}''}\) is not a \(\boldsymbol{\vec{v}}\)-generalized eigenvect";
+            }
+          }
+        }
+        if ( $c[0]->typeMatch($s[0]) && 
+             $c[1]->typeMatch($s[1]) && 
+             $c[2]->typeMatch($s[2]) &&
+             $c[3]->typeMatch($s[3]) && 
+             $c[4]->typeMatch($s[4]) && 
+             $c[5]->typeMatch($s[5]) &&
+             ($s[0] == $s[3]) &&
+             ($s[1] == $s[4]) &&
+             ($s[2] == $s[5]) ) {
+          $msg = (length($msg) == 0) ? $msg : $msg . ", $BR";
+          $msg = $msg . "\(\boldsymbol{\vec{w}'}\) and \(\boldsymbol{\vec{w}''}\) must be different!";
+        } else {
+          $flag[2] = 1; 
+        }
+
+        if (($flag[0]==1) && ($flag[1]==1) && ($flag[2]==1) && (length($msg) == 0)) {
+          return 1;
+        } else {
+          Value::Error($msg);  
+        }
+    }
+);
+
+#
+# C - generalized eigenvector for m*v
+
+my $m = list_random(-3,-2,-1,2,3);
+
+@mv = ($m*$v[0], $m*$v[1], $m*$v[2]);
+my @mw = ($m*$w[0], $m*$w[1], $m*$w[2]);
+
+$multiansC = MultiAnswer($mw[0], $mw[1], $mw[2])->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+      "<table border='0' cellspacing='5'>
+        <tr><td>\(\biggl\lbrack\)</td>
+         <td><table border='0' cellspacing='5'>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+         </table></td>
+        <td>\(\biggr\rbrack\)</td>
+       </tr></table>",
+    tex_format =>  
+      "\left\lbrack \begin{array}{r} %s \\ %s \\ %s\end{array}\right\rbrack",
+
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
+
+        my $flag  = 0;
+
+        if ( $c[0]->typeMatch($s[0]) && 
+              $c[1]->typeMatch($s[1]) && 
+              $c[2]->typeMatch($s[2]) )
+        {
+          if (($s[0] == 0) && ($s[1] == 0) && ($s[2] == 0)) {
+           Value::Error("Eigenvector cannot be all zero!"); 
+          } else { 
+            if ( ( $A11*$s[0] + $A12*$s[1] + $A13*$s[2] == $l*$s[0] + $mv[0]) &&
+                   ( $A21*$s[0] + $A22*$s[1] + $A23*$s[2] == $l*$s[1] + $mv[1]) &&
+                   ( $A31*$s[0] + $A32*$s[1] + $A33*$s[2] == $l*$s[2] + $mv[2]) ) {
+              $flag = 1;
+            } else {
+              Value::Error("Not a \(($m\boldsymbol{\vec{v}})\)-generalized eigenvector!"); 
+            }
+          }
+        }
+        return $flag; 
+    }
+);
+
+
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+
+Some \(3\times 3\) matrix \(A\) has eigenvalue \(\lambda = $l\) repeated twice.
+$BR
+The matrix \(A\) has a \($l\)-eigenvector 
+  \(\boldsymbol{\vec{v}} = 
+            \left\lbrack\begin{array}{c} 
+                 $v[0] \\ 
+                 $v[1] \\ 
+                 $v[2] 
+            \end{array}\right\rbrack\)
+and \(\boldsymbol{\vec{v}}\) has a generalized eigenvector
+  \(\boldsymbol{\vec{w}} = 
+            \left\lbrack\begin{array}{c} 
+                 $w[0] \\ 
+                 $w[1] \\ 
+                 $w[2] 
+            \end{array}\right\rbrack\).
+$PAR
+$BBOLD A.$EBOLD
+Modify \(\boldsymbol{\vec{v}}\) to get two other vectors which are also \($l\)-eigenvectors:
+\{ mbox( [ 
+"\(\qquad \boldsymbol{\vec{v}}' = \) ",
+display_matrix([
+ [$multiansA->ans_rule(5)],
+ [$multiansA->ans_rule(5)],
+ [$multiansA->ans_rule(5)]
+], align=>'c'),
+"$SPACE $SPACE and $SPACE $SPACE \( \boldsymbol{\vec{v}}'' = \) ",
+display_matrix([
+ [$multiansA->ans_rule(5)],
+ [$multiansA->ans_rule(5)],
+ [$multiansA->ans_rule(5)]
+], align=>'c')
+] ) \}
+
+$PAR
+$HR
+$PAR
+
+$BBOLD B.$EBOLD
+Modify \(\boldsymbol{\vec{w}}\) to get two other vectors which also generalize \(\boldsymbol{\vec{v}}\):
+\{ mbox( [ 
+"\(\qquad \boldsymbol{\vec{w}}' = \) ",
+display_matrix([
+ [$multiansB->ans_rule(5)],
+ [$multiansB->ans_rule(5)],
+ [$multiansB->ans_rule(5)]
+], align=>'c'),
+"$SPACE $SPACE and $SPACE $SPACE \( \boldsymbol{\vec{w}}'' = \) ",
+display_matrix([
+ [$multiansB->ans_rule(5)],
+ [$multiansB->ans_rule(5)],
+ [$multiansB->ans_rule(5)]
+], align=>'c')
+] ) \}
+
+$PAR
+$HR
+$PAR
+
+$BBOLD C.$EBOLD
+Now write a vector which generalizes the \($l\)-eigenvector
+       \(   \left\lbrack\begin{array}{c} 
+                 $mv[0] \\ 
+                 $mv[1] \\ 
+                 $mv[2] 
+            \end{array}\right\rbrack \)
+\{ mbox( [ 
+"\(\qquad \phantom{\boldsymbol{\vec{w}'} = }\)",
+display_matrix([
+ [$multiansC->ans_rule(5)],
+ [$multiansC->ans_rule(5)],
+ [$multiansC->ans_rule(5)]
+], align=>'c'),
+] ) \}
+
+END_TEXT
+
+###################################
+# Hint
+
+$showHint = 10;
+
+BEGIN_TEXT
+$HR
+$PAR
+If you don't get this in $showHint tries, you can get a hint.
+END_TEXT
+
+BEGIN_HINT
+$PAR
+$SPACE $SPACE \(\bullet\) 
+   If \(\bigl(\mathrm{A}-\lambda\mathrm{I}\bigr)\boldsymbol{\vec{v}} = \boldsymbol{\vec{0}}\)
+   then 
+   \(\bigl(\mathrm{A}-\lambda\mathrm{I}\bigr)(k\boldsymbol{\vec{v}}) = \boldsymbol{\vec{0}}\) also.
+
+$PAR
+$SPACE $SPACE \(\bullet\) 
+   If \(\bigl(\mathrm{A}-\lambda\mathrm{I}\bigr)\boldsymbol{\vec{w}} = \boldsymbol{\vec{v}}\)
+   then 
+    \(\begin{aligned}[t]
+         \bigl(\mathrm{A}-\lambda\mathrm{I}\bigr)(\boldsymbol{\vec{w}} + k\boldsymbol{\vec{v}}) & =
+         \bigl(\mathrm{A}-\lambda\mathrm{I}\bigr)\boldsymbol{\vec{w}} + 
+         \bigl(\mathrm{A}-\lambda\mathrm{I}\bigr)(k\boldsymbol{\vec{v}}) \\ 
+             &= \boldsymbol{\vec{v}} + \boldsymbol{\vec{0}} \\
+             &= \boldsymbol{\vec{v}} \ \ \mathrm{also}
+       \end{aligned} \) 
+
+$PAR
+$SPACE $SPACE \(\bullet\) 
+   If \(\bigl(\mathrm{A}-\lambda\mathrm{I}\bigr)\boldsymbol{\vec{w}} = \boldsymbol{\vec{v}}\)
+   then 
+   \(\bigl(\mathrm{A}-\lambda\mathrm{I}\bigr)(k\boldsymbol{\vec{w}}) = (k\boldsymbol{\vec{v}})\)
+
+END_HINT
+
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $multiansA->cmp() );
+ANS( $multiansB->cmp() );
+ANS( $multiansC->cmp() );
+
+COMMENT('MathObject.  Random eigenvector and generalized eigenvector.  Code constructs a matrix which is used to check answers.');
+
+ENDDOCUMENT(); 
