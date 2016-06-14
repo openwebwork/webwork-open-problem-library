@@ -1,0 +1,498 @@
+## DESCRIPTION
+## Systems of ODEs: Nonhomogeneous Systems
+## ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Systems of differential equations)
+## DBsection(Nonhomogeneous systems)
+## Date(24/11/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## MLT(nonhomogeneous-system)
+## MLTleader(1)
+## Level(4)
+## Static(1)
+## MO(1)
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGmatrixmacros.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "answerHints.pl",
+);
+
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->variables->are(
+   t=>"Real",
+);
+Context()->flags->set(
+   zeroLevel=>0.001,
+   limits=>[0,2],
+   zeroLevelTol=>0.001
+);
+
+
+
+#####################################
+#  Setup matrix
+
+# 1) choose eigenvalues a +- bi for matrix of form
+#    [ 0  -c ]     [  0   c ]
+#    [ d  2a ]  or [ -d  2a ]
+#
+#  where a^2 + b^2 = cd  possibilities are in @CNum and @OffD
+#
+# 2) phase shift to get
+#    [ p   -c  ]
+#    [ d  2a+p ]
+#
+#  eigenvalues (p+a)+-bi
+#  eigenvectors [ -c  a+-bi ]
+
+my $i, $j, $k, $sign1, $sign2, $a, $b, $c, $d, $phase, $alpha, $beta;
+my $v11, $v21, $v12, $v22; 
+
+my @CNum = ([1,1,1,2,2,3,3,3,3,4],
+            [1,2,3,2,2,3,3,4,6,4]);    # Restrict to very small value matrices
+my @OffD = ([1,1,2,1,2,2,3,5,5,4],     #  since a lot of computation will be
+            [2,5,5,8,4,9,6,5,9,8]);    #  required to solve...
+$i = random(0,9,1);
+$j = random(0,1,1);
+$k = 0;
+$sign1 = non_zero_random(-1,1,1);
+$sign2 = non_zero_random(-1,1,1);
+
+$a = $sign1*$CNum[$j][$i];
+$b =        $CNum[($j+1)%2][$i];
+
+$c = $sign2*$OffD[$k][$i];
+$d = $sign2*$OffD[($k+1)%2][$i];
+
+#
+# choose phase so that real part is between -1 and 1.
+#
+$phase = random( max(-1-$a,-9) , min(1-$a,9) , 1);
+
+$A11 = $phase;  $A12 =  -$c;
+$A21 = $d;      $A22 =  2*$a+$phase;
+
+$alpha = Real("$phase + $a");
+$beta  = Real("$b");
+
+$v11 = Real("-$c");  $v12 = Real("0");
+$v21 = Real("$a");   $v22 = Real("$b");
+
+Context("Complex");  # eigenvalue / vector for hint
+
+$l = Complex("$alpha + $beta i")->reduce;
+$v1 = Complex("$v11 + $v12 i")->reduce;
+$v2 = Complex("$v21 + $v22 i")->reduce;
+
+#############################
+# setup forcing functions
+Context("Numeric");
+Context()->variables->are(
+   t=>"Real",
+);
+
+
+$a = non_zero_random(-4,4,1);
+do { $b = non_zero_random(-4,4,1); } 
+  until (abs($b) != abs($a));
+
+$g1 = Formula("$a*e^{$alpha t}")->reduce;
+$g2 = Formula("$b*e^{$alpha t}")->reduce;
+
+#############################
+# answer evaluators
+
+my $cos, $sin, $e, $P11, $P12, $P21, $P22;
+
+$cos = Formula("cos($beta t)"); $e = Formula("e^($alpha t)"); 
+$sin = Formula("sin($beta t)"); 
+
+$P11=Formula("($v11$cos-$v12$sin)$e")->reduce; $P12=Formula("($v11$sin+$v12$cos)$e")->reduce;
+$P21=Formula("($v21$cos-$v22$sin)$e")->reduce; $P22=Formula("($v21$sin+$v22$cos)$e")->reduce;
+
+# A -- Fundamental Matrix, Psi
+
+my $Spsi11, $Spsi12, $Spsi21, $Spsi22, $sDet;
+
+$Spsi11 = Formula(""); $Spsi12 = Formula(""); # Keep track of inverse of
+$Spsi21 = Formula(""); $Spsi22 = Formula(""); # student's version of Psi
+$sDet = Formula("");
+
+$multiansA = MultiAnswer($P11, $P12, $P21, $P22)->with(
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  checkTypes => 0,
+  format =>  "<table border='0'><tr>
+    <td> \( \boldsymbol{\Psi} = \biggl\lbrack \)</td>
+    <td><table border='0' cellspacing='10'>
+           <tr><td> %s $SPACE </td><td> $SPACE %s</td></tr>
+           <tr><td> %s $SPACE </td><td> $SPACE %s</td></tr></table></td>
+    <td> \(\biggr\rbrack\)</td>
+   </tr></table>",
+  tex_format => "\boldsymbol{\Psi} = 
+                 \left\lbrack\begin{array}{rr}
+                      %s & %s \\ %s & %s
+                 \end{array}\right\rbrack",
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my @score = (0,0);
+      my $msg = "";
+      if ($c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) &&
+          $c[2]->typeMatch($s[2]) && $c[3]->typeMatch($s[3])) {
+        if ((($s[0] != 0) || ($s[2] != 0)) &&
+            (Formula("$A11*$s[0] + $A12*$s[2]") == Formula("$s[0]")->D('t')) &&
+            (Formula("$A21*$s[0] + $A22*$s[2]") == Formula("$s[2]")->D('t')) ) {
+          $score[0] = 1;
+        } else {
+          $msg = "First fundamental solution is incorrect!$BR";
+        } if ((($s[1] != 0) || ($s[3] != 0)) &&
+            (Formula("$A11*$s[1] + $A12*$s[3]") == Formula("$s[1]")->D('t')) &&
+            (Formula("$A21*$s[1] + $A22*$s[3]") == Formula("$s[3]")->D('t')) &&
+            ($s[1]*$s[2] != $s[0]*$s[3]) ) {
+          $score[1] = 1;
+        } else {
+          $msg = $msg . "Second fundamental solution is incorrect!$BR";
+        }
+        $sDet = Formula("$s[0]*$s[3]-$s[1]*$s[2]");
+        if ($sDet == Formula("0")) {
+          $msg = $msg . "Fundamental solutions not independent!";
+        } else {
+          $Spsi11 = Formula("$s[3]")->reduce; $Spsi12 = Formula("-$s[1]")->reduce;
+          $Spsi21 = Formula("-$s[2]")->reduce;$Spsi22 = Formula("$s[0]")->reduce;
+          if ($score[0]*$score[1] == 1) { return 1; }
+          else { Value::Error($msg); }
+        }
+      }
+      if (length($msg) > 1) { Value::Error($msg); }
+      return 0;
+  }
+);
+
+# B -- Phi inverse
+
+my $Pdet, $Pi11, $Pi12, $Pi21, $Pi22;
+
+$Pdet = Formula("($v11*$v22 - $v12*$v21)*$e");
+
+$Pi11=Formula("($v21$sin+$v22$cos)/$Pdet")->reduce; $Pi12=Formula("-($v11$sin+$v12$cos)/$Pdet")->reduce;
+$Pi21=Formula("-($v21$cos-$v22$sin)/$Pdet")->reduce;$Pi22=Formula("($v11$cos-$v12$sin)/$Pdet")->reduce;
+
+$multiansB = MultiAnswer($Pi11, $Pi12, $Pi21, $Pi22)->with(
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  checkTypes => 0,
+  format => "<table border='0'><tr>
+    <td> \( \boldsymbol{\Psi}^{\mathrm{-}1} \ = \ \biggl\lbrack \)</td>
+    <td><table border='0' cellspacing='10'>
+           <tr><td> %s $SPACE </td><td> $SPACE %s</td></tr>
+           <tr><td> %s $SPACE </td><td> $SPACE %s</td></tr></table></td>
+    <td> \(\biggr\rbrack\)</td>
+   </tr></table>",
+  tex_format => "\boldsymbol{\Psi}^{\mathrm{-}1} = \left\lbrack\begin{array}{rr}
+                      %s & %s \\ %s & %s
+                 \end{array}\right\rbrack",
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      if ($c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) &&
+          $c[2]->typeMatch($s[2]) && $c[3]->typeMatch($s[3])) {
+        if ((Formula("$s[0]*$sDet") == Formula("$Spsi11")) &&
+            (Formula("$s[1]*$sDet") == Formula("$Spsi12")) &&
+            (Formula("$s[2]*$sDet") == Formula("$Spsi21")) &&
+            (Formula("$s[3]*$sDet") == Formula("$Spsi22"))) {
+          return 1;
+        }
+      }
+      return 0;
+  }
+);
+
+# C -- integral of Phi inverse g
+
+my $iPig1, $iPig2;
+
+$Pdet = Formula("($v11*$v22 - $v12*$v21)*$beta");
+
+$iPig1 = Formula("(($a*$v22-$b*$v12)*$sin+($b*$v11-$a*$v21)*$cos)/$Pdet")->reduce;
+$iPig2 = Formula("(($b*$v12-$a*$v22)*$cos+($b*$v11-$a*$v21)*$sin)/$Pdet")->reduce;
+
+$multiansC = MultiAnswer($iPig1, $iPig2)->with(
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  checkTypes => 0,
+  format =>  "<table border='0'><tr>
+    <td> \( \biggl\lbrack\)</td>
+    <td><table border='0' cellspacing='10'>
+           <tr><td> %s </td></tr>
+           <tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack\)</td>
+   </tr></table>",
+  tex_format => "\left\lbrack\begin{array}{r}
+                      %s \\ %s 
+                 \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      if ($c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) &&
+          ($Spsi11 != Formula("")) && ($Spsi12 != Formula("")) &&
+          ($Spsi21 != Formula("")) && ($Spsi22 != Formula("")) ) {
+        my @dS = ( Formula("$s[0]")->D('t'), Formula("$s[1]")->D('t'));
+        if ((Formula("$Spsi11*$g1 + $Spsi12*$g2") == Formula("$dS[0]*$sDet")) &&
+            (Formula("$Spsi21*$g1 + $Spsi22*$g2") == Formula("$dS[1]*$sDet"))){
+          return 1;
+        }
+      }
+      return 0;
+  }
+);
+
+# D -- solution to nonhomogeneous system
+
+my $yP1 = Formula("$P11*$iPig1 + $P12*$iPig2")->reduce;
+my $yP2 = Formula("$P21*$iPig1 + $P22*$iPig2")->reduce;
+
+$multiansD = MultiAnswer($P11, $P21, $P12, $P22, $yP1, $yP2)->with(
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  checkTypes => 0,
+  format =>  "<table border='0'><tr>
+    <td> \( \boldsymbol{\vec{y}} = 
+         \biggl\lbrack \)</td>
+    <td><table border='0' cellspacing='10'>
+           <tr><td> %s </td></tr>
+           <tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack c_1 + \biggl\lbrack\) </td>
+    <td><table border='0' cellspacing='10'>
+           <tr><td> %s </td></tr>
+           <tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack c_2 + \biggl\lbrack\) </td>
+    <td><table border='0' cellspacing='10'>
+           <tr><td> %s </td></tr>
+           <tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack \) </td>
+   </tr></table>",
+  tex_format => "\boldsymbol{\vec{y}} = 
+                \left\lbrack\begin{array}{r} 
+                      %s \\ %s
+                 \end{array}\right\rbrack 
+                 c_1 + 
+                 \left\lbrack\begin{array}{r} 
+                      %s \\ %s
+                 \end{array}\right\rbrack 
+                 c_2 + 
+                 \left\lbrack\begin{array}{r} 
+                      %s \\ %s
+                 \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my @score = (0,0);
+      if ($c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) &&
+          $c[2]->typeMatch($s[2]) && $c[3]->typeMatch($s[3])) {
+        if ((($s[0] != 0) || ($s[1] != 0)) &&
+            (Formula("$A11*$s[0] + $A12*$s[1]") == Formula("$s[0]")->D('t')) &&
+            (Formula("$A21*$s[0] + $A22*$s[1]") == Formula("$s[1]")->D('t')) ) {
+          $score[0] = 1;
+        } else {
+          Value::Error("Homogeneous solution is incorrect!");
+        } if ((($s[2] != 0) || ($s[3] != 0)) &&
+            (Formula("$A11*$s[2] + $A12*$s[3]") == Formula("$s[2]")->D('t')) &&
+            (Formula("$A21*$s[2] + $A22*$s[3]") == Formula("$s[3]")->D('t')) &&
+            ($s[0]*$s[3] != $s[1]*$s[2]) ) {
+          $score[1] = 1;
+        } else {
+          Value::Error("Homogeneous solution is incorrect!");
+        }
+      }
+      if ($c[4]->typeMatch($s[4]) && $c[5]->typeMatch($s[5])) {
+        if ((Formula("$A11*$s[4] + $A12*$s[5] + $g1") == Formula("$s[4]")->D('t')) &&
+            (Formula("$A21*$s[4] + $A22*$s[5] + $g2") == Formula("$s[5]")->D('t'))) {
+          return (($score[0] == 1) && ($score[1] == 1)) ? 1 : 0;
+        } else {
+          Value::Error("Particular solution is incorrect!");
+        }
+      }
+      return 0;
+    }
+);
+
+
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+In this problem you will solve the ${BBOLD}nonhomogeneous$EBOLD system
+\[
+\boldsymbol{\vec{y}\,'}\  =  
+ \left\lbrack
+   \begin{array}{rr}
+    $A11 & $A12 \\
+    $A21 & $A22
+   \end{array}
+ \right\rbrack \,
+\boldsymbol{\vec{y}}
+\ + \ 
+ \left\lbrack
+   \begin{array}{r}
+    $g1 \\ $g2
+   \end{array}
+ \right\rbrack\]
+
+$PAR
+$HR
+$PAR
+
+$BBOLD A. $EBOLD
+Write a fundamental matrix for the associated homogeneous system
+$BR
+\{ mbox( [ 
+'\( \boldsymbol{\Psi}\ =\ \) ',
+display_matrix(
+   [[$multiansA->ans_rule(20), $multiansA->ans_rule(20)],
+    [$multiansA->ans_rule(20), $multiansA->ans_rule(20)]])
+] ) \}
+
+$PAR
+
+$BBOLD B. $EBOLD
+Compute the inverse
+$BR
+\{ mbox( [ 
+'\( \boldsymbol{\Psi}^{\mathrm{-}1}\ =\ \) ',
+display_matrix(
+   [[$multiansB->ans_rule(25), $multiansB->ans_rule(25)],
+    [$multiansB->ans_rule(25), $multiansB->ans_rule(25)]])
+] ) \}
+
+
+$PAR
+
+$BBOLD C. $EBOLD
+Multiply by \(\boldsymbol{\vec{g}}  \) and integrate
+$BR
+
+\{ mbox( [ 
+'\(\displaystyle  \int \boldsymbol{\Psi}^{\mathrm{-}1}\; \boldsymbol{\vec{g}}\; dt\ =\ \) ',
+display_matrix(
+   [[$multiansC->ans_rule(30), '\(+ c_1\)'],
+    [$multiansC->ans_rule(30), '\(+ c_2\)']])
+] ) \}
+
+(Do not include \(c_1\) and \(c_2\) in your answers).
+
+$PAR
+
+$BBOLD D. $EBOLD
+Give the solution to the system
+$BR
+\{ mbox( [ 
+'\(\displaystyle \boldsymbol{\vec{y}}\ =\ \) ',
+display_matrix(
+   [[$multiansD->ans_rule(20)],
+    [$multiansD->ans_rule(20)]]),
+'\( c_1 + \)',
+display_matrix(
+   [[$multiansD->ans_rule(20)],
+    [$multiansD->ans_rule(20)]]),
+'\( c_2 \)'
+]) \}
+$BR
+\{ mbox([
+'\(\phantom{y = } \quad + \)',
+display_matrix(
+   [[$multiansD->ans_rule(65)],
+    [$multiansD->ans_rule(65)]])
+] ) \}
+
+(Do not include \(c_1\) and \(c_2\) in your answers).
+
+END_TEXT
+
+$showHint = 2;
+
+BEGIN_TEXT
+$HR
+$PAR
+If you don't get this in $showHint tries, you can get a hint.
+END_TEXT
+
+BEGIN_HINT
+$PAR
+$SPACE $SPACE \(\bullet\) The matrix 
+    \(\displaystyle 
+      \left\lbrack \begin{array}{rr}
+        $A11 & $A12 \\
+        $A21 & $A22
+      \end{array} \right\rbrack\) 
+  has
+   \(($l)\)-eigenvector 
+    \(\displaystyle 
+      \left\lbrack\begin{array}{c}
+        $v1 \\ $v2
+      \end{array}\right\rbrack\).
+$PAR
+$SPACE $SPACE \(\bullet\) The matrix
+   \(\displaystyle \boldsymbol{\Psi} = 
+    \left\lbrack \begin{array}{cc}
+         {\scriptsize |}     &   {\scriptsize |}    \\
+       \boldsymbol{\vec{a}}  & \boldsymbol{\vec{b}} \\
+         {\scriptsize |}     &   {\scriptsize |}    
+    \end{array} \right\rbrack \, 
+    \left\lbrack \begin{array}{rr}
+       \cos(\beta t) & \sin(\beta t) \\
+      -\sin(\beta t) & \cos(\beta t) 
+    \end{array}\right\rbrack \,
+    e^{\alpha\, t} \)
+$BR
+ \(\qquad\) has determinant 
+  \(\displaystyle \mathrm{det} \bigl(\boldsymbol{\Psi}\bigr) = 
+     \mathrm{det}\left(
+     \left\lbrack \begin{array}{cc}
+         {\scriptsize |}     &   {\scriptsize |}    \\
+       \boldsymbol{\vec{a}}  & \boldsymbol{\vec{b}} \\
+         {\scriptsize |}     &   {\scriptsize |}    
+    \end{array} \right\rbrack\right) \, 
+   e^{2\alpha\, t} \)
+$PAR
+$SPACE $SPACE \(\bullet\) This problem has been carefully designed so that
+ integration by parts is not needed.
+END_HINT
+
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $multiansA->cmp() );
+ANS( $multiansB->cmp() );
+ANS( $multiansC->cmp() );
+ANS( $multiansD->cmp() );
+
+COMMENT('MathObject version.  Randomized with COMPLEX integer eigenvalues.');
+
+ENDDOCUMENT(); 

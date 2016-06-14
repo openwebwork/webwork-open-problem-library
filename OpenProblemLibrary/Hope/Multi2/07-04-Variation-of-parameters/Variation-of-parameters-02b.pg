@@ -1,0 +1,268 @@
+## DESCRIPTION
+## Higher order ODEs: constant coefficient second order nonhomogeneous linear ODEs
+## ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Higher order differential equations)
+## DBsection(Variation of parameters)
+## Date(09/01/2015)
+## Institution(Hope College)
+## Author(Paul Pearson)
+## Level(3)
+## MO(1)
+## TitleText1('Multivariable Mathematics')
+## AuthorText1('Darin Stephenson')
+## EditionText1('Version 3.0')
+## Section1('7.2')
+## Problem1('2')
+## KEYWORDS('differential equations','second order linear ODE','constant coefficients','nonhomogeneous')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"AnswerFormatHelp.pl",
+"answerHints.pl",
+"unionLists.pl",
+"PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 1;
+
+###########################################
+#  The diff eq
+
+$k = random(2,5,1);
+$kk = $k * $k;
+
+# char poly r^2 + $k^2
+
+$diffeq = "y^{\,\prime\prime} + $kk y = \sec($k x)"; # tex
+
+# the function ln(cos($k x)) is undefined for values between $xmin_undef and $xmax_undef
+$xmin_undef = 3.14159 / (2 * $k);
+$xmax_undef = 3 * 3.14159 / (2 * $k);
+@xvals = ();
+foreach my $i (0..10) {
+    $xvals[$i] = $xmin_undef + ($xmax_undef - $xmin_undef) / 10;
+}
+
+###########################################
+# Part 1
+# Get rid of adaptive parameters which might mess with answer checkers.
+
+Context("Numeric");
+Context()->variables->are(
+  'x' => ["Real", limits => [-5,5] ],
+  'c1' => ["Real", limits => [2,4] ],
+  'c2' => ["Real", limits => [2,4] ],
+);
+
+$yhomogeneous = Compute("c1 cos($k x) + c2 sin($k x)");
+
+
+Context()->texStrings;
+BEGIN_TEXT
+Solve the following differential equation by variation of parameters.  Fully evaluate all integrals.
+\[
+$diffeq.
+\]
+
+\{ BeginList('OL',type=>'a') \}
+
+$ITEMSEP
+$ITEM Find the most general solution to the 
+associated homogeneous differential equation.  
+Use \( c_1 \) and \( c_2 \) in your answer to denote 
+arbitrary constants, and enter them as ${BTT}c1${ETT}
+and ${BTT}c2${ETT}.
+$BR
+$BR
+\( y_h = \)
+\{ ans_rule(40) \}
+\{ AnswerFormatHelp("formulas") \}
+
+END_TEXT
+Context()->normalStrings;
+
+
+######################
+#  Answer evaluation
+
+ANS( $yhomogeneous->cmp( 
+  checker => sub {
+    my ( $correct, $stu, $answerHash ) = @_;
+
+    ################################
+    #  Check for arbitrary constants and variables
+    #
+    Value->Error("Is your answer the most general solution?") 
+    if ( 
+      $stu->{variables}{'x'} != 1 ||
+      $stu->{variables}{'c1'} != 1 ||
+      $stu->{variables}{'c2'} != 1
+    );
+
+    ############################################
+    #  Check for linear independence (Wronskian)
+    #
+    my $x = Real(random(1.2, 1.3, 0.01));
+
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,x=>$x);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,x=>$x);
+ 
+    my $a21 = $stu->D('x')->eval('c1'=>1,'c2'=>0,x=>$x);
+    my $a22 = $stu->D('x')->eval('c1'=>0,'c2'=>1,x=>$x);
+
+    Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    if ($a11 * $a22 == $a21 * $a12);
+
+    ########################################################
+    #  Check that the student answer is a solution to the DE
+    #
+    my $stu2 = $stu->D('x','x');
+    return $stu2 == -1 * $kk * $stu; 
+
+}));
+
+
+
+
+
+#############################
+#  Part 2
+
+Context("Numeric");
+Context()->variables->are(
+  'x' => ["Real", limits => [-3,3] ],
+  'a'=>'Parameter',
+  'b'=>'Parameter',
+);
+
+$yparticular = Compute("a cos($k x) + b sin($k x) + 1/$k x sin($k x) + 1/$kk cos($k x) ln(abs(cos($k x)))");
+$yparticular_incorrect = Compute("1/$k x sin($k x) + 1/$kk cos($k x) ln(cos($k x))");
+
+# A ha!  There are three variables in the context
+#TEXT(join(',',Context()->variables->names));
+# So, the next line is incorrect!
+#$yparticular->{test_at} = [[pi/$k],[pi/$k+0.1],[pi/$k-0.14]];
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$ITEMSEP
+$ITEM Find a particular solution to the 
+nonhomogeneous differential equation \( $diffeq \).
+$BR
+$BR
+\( y_p = \) 
+\{ ans_rule(40) \}
+\{ AnswerFormatHelp("formulas") \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $yparticular->cmp()->withPostFilter(AnswerHints( 
+  $yparticular_incorrect => ["Your answer is missing an absolute value",replaceMessage=>1],
+)) );
+
+
+###########################################
+# Part 3
+#
+# Get rid of adaptive parameters which might mess with answer checkers.
+
+Context("Numeric");
+Context()->flags->set(
+  checkUndefinedPoints => 1,
+);
+Context()->variables->are(
+  'x' => ["Real", limits => [-1*$xmin_undef,$xmax_undef] ],
+  'c1' => ["Real", limits => [2,4] ],
+  'c2' => ["Real", limits => [2,4] ],
+);
+
+$seckx = Formula("sec($k x)")->with(
+test_at=>[
+[1,2,$xvals[0]],
+[2,3,$xvals[1]],
+[3,4,$xvals[2]],
+[4,5,$xvals[3]],
+[5,6,$xvals[4]],
+[6,7,$xvals[5]],
+[7,8,$xvals[6]],
+[8,9,$xvals[7]],
+[9,1,$xvals[8]],
+[1,2,$xvals[9]],
+],
+checkUndefinedPoints => 1
+);
+
+$ygeneral = Compute("c1 cos($k x) + c2 sin($k x) + 1/$k x sin($k x) + 1/$kk cos($k x) ln(abs(cos($k x)))");
+
+$ygeneral_incorrect_1 = Compute("c1 cos($k x) + c2 sin($k x) + 1/$k x sin($k x) + 1/$kk cos($k x) ln((cos($k x)))");
+$ygeneral_incorrect_2 = Compute("c2 cos($k x) + c1 sin($k x) + 1/$k x sin($k x) + 1/$kk cos($k x) ln((cos($k x)))");
+
+BEGIN_TEXT
+$ITEMSEP
+$ITEM Find the most general solution to the 
+original nonhomogeneous differential equation.  
+Use \( c_1 \) and \( c_2 \) in your answer to denote 
+arbitrary constants.
+$BR
+$BR
+\( y = \)
+\{ ans_box(2,60) \}
+\{ AnswerFormatHelp("formulas") \}
+
+\{ EndList('OL') \}
+
+END_TEXT
+
+ANS($ygeneral->cmp( showDomainErrors => 1, 
+  checker => sub {
+    my ( $correct, $stu, $ansHash ) = @_;
+
+    ################################
+    #  Check for arbitrary constants and variables
+    #
+    Value->Error("Is your answer the most general solution?") 
+    if ( 
+      $stu->{variables}{'x'} != 1 ||
+      $stu->{variables}{'c1'} != 1 ||
+      $stu->{variables}{'c2'} != 1
+    );
+
+    ############################################
+    #  Check for linear independence (Wronskian)
+
+    my $x = Real(random(0,$xmin-0.01, 0.01));
+
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,x=>$x);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,x=>$x);
+ 
+    my $a21 = $stu->D('x')->eval('c1'=>1,'c2'=>0,x=>$x);
+    my $a22 = $stu->D('x')->eval('c1'=>0,'c2'=>1,x=>$x);
+
+    Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    if ($a11 * $a22 == $a21 * $a12);
+
+    ########################################################
+    #  Check that the student answer is a solution to the DE
+
+    my $stu2 = $stu->D('x','x');
+    return $seckx == ($stu2 + $kk * $stu);
+
+}));
+
+COMMENT("MathObject version.  Characteristic polynomial r^2 + k^2.");
+
+ENDDOCUMENT();

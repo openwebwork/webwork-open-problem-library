@@ -1,0 +1,164 @@
+## DESCRIPTION
+## Radicals and Rational Exponents: Simplifying Radicals
+## ENDDESCRIPTION
+
+
+## Author1('David Covert')
+## Author2('Teri Christiansen')
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Date(Spring 2012)
+## Institution(University of Missouri)
+## Level(3)
+## TitleText1('College Algebra')
+## AuthorText1('Beecher, Penna, Bittinger')
+## EditionText1('4')
+## Section1('.7')
+## Problem1('')
+## KEYWORDS('radical expression')
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGunion.pl",
+"MathObjects.pl",
+"PGcourse.pl",
+"parserMultiAnswer.pl",
+"AnswerFormatHelp.pl",
+"contextLimitedPowers.pl"
+);
+
+TEXT(beginproblem());
+
+
+###################################
+# Setup
+
+
+#
+# Subclass the numeric functions
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+
+#
+# Override sqrt() to return a special value (usually 1) when evaluated
+# effectively eliminating it from the product.
+#
+sub sqrt {
+  my $self = shift;
+  my $value = $self->context->flag("setSqrt");
+  return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+  return $value if $value;
+  return $self->SUPER::sqrt(@_);
+}
+
+#
+# end of subclass
+#
+package main;
+
+###########################
+
+Context("Numeric");
+Context("Numeric")->variables->are(
+x => ["Real", limits => [0,2]],    # only needed if x is used in the square roots
+);
+#
+# make sqrt() use our subclass
+#
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+Context()->flags->set(reduceConstantFunctions=>0);
+Context()->variables->add(
+y=>"Real",
+t=>"Real",
+s=>"Real",
+u=>"Real",
+v=>"Real",
+p=>"Real",
+q=>"Real",
+r=>"Real",
+w=>"Real",
+z=>"Real");
+
+$var = list_random('x','y','z','w','p','q','r','s','t','u','v');
+$var1 = list_random('x','y','z','w','t');
+$var2 = list_random('p','q','r','u','v');
+
+$a = random(2,10,1);
+$b = list_random(3,5,7);
+$c = random(2,10,1);
+$d = list_random(2,5,1);
+$e = random(2,10,1);
+$f = random(2,5,1);
+
+$e1 = 2*$b;
+$e2 = 2*$b*$d**2;
+$e3 = 2*$b*$f**2;
+
+$const = $a + $c *$d - $e*$f;
+
+#
+# Don't allow fractional powers (avoids 1/2 power)
+# [Could subclass exponentiation to handle that as well]
+#
+
+$expr = "$a \sqrt{$e1 $var^2} + $c $var \sqrt{$e2} - $e $var \sqrt{$e3} ";
+$ans = Compute(" $const $var sqrt{2*$b}  ");
+
+##############################################################
+
+BEGIN_TEXT
+
+Simplify the expression, and write your answer using only positive powers of \($var\).  Assume that all variables represent positive real numbers.
+$PAR
+$BCENTER
+\( $expr = \text{ }~\) \{ans_rule(20)\}
+$ECENTER
+$PAR
+Write an exact answer using radical notation if necessary.  
+\{ AnswerFormatHelp("exponents", "Click here for help writing exponents and square roots.") \}
+END_TEXT
+
+##############################################################
+
+
+
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $ans-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 1);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+
+
+
+
+
+COMMENT('MathObject version');
+ENDDOCUMENT();

@@ -1,0 +1,330 @@
+## DESCRIPTION
+## Systems of ODEs: Writing solutions given eigenvalues and eigenvectors 
+## ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Systems of differential equations)
+## DBsection(Distinct real eigenvalues)
+## Date(11/06/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## Static(1)
+## MO(1)
+## KEYWORDS('differential equations','systems of ODEs')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGmatrixmacros.pl",
+"parserMultiAnswer.pl",
+"PGcourse.pl",
+"unionTables.pl"
+);
+
+TEXT(beginproblem());
+
+#############################
+#  Setup
+
+Context("Numeric");
+Context()->variables->are(
+   t=>"Real",
+'c1'=>"Real",
+'c2'=>"Real",
+);
+
+@evec1 = (non_zero_random(-4,4,1), random(-4,4,1));
+do { @evec2 = (random(-4,4,1), non_zero_random(-4,4,1)); } 
+  while ($evec1[0]*$evec2[1] == $evec1[1]*$evec2[0]);
+
+$eval1 = random(-4,4,1);  
+do { $eval2 = random(-4,4,1); } 
+  while ($eval1 == $eval2);
+
+my $y1 = Formula("$evec1[0] c1 e^($eval1 t) + $evec2[0] c2 e^($eval2 t)")->reduce();
+my $y2 = Formula("$evec1[1] c1 e^($eval1 t) + $evec2[1] c2 e^($eval2 t)")->reduce();
+
+my $P11 = Formula("$evec1[0] e^($eval1 t)"); my $P12 = Formula("$evec2[0] e^($eval2 t)");
+my $P21 = Formula("$evec1[1] e^($eval1 t)"); my $P22 = Formula("$evec2[1] e^($eval2 t)");
+
+Context("Matrix");
+my $A = Matrix([$evec1[0], $evec2[0]], [$evec1[1], $evec2[1]]) *
+        Matrix([$eval1, 0], [0, $eval2]) *
+        Matrix([$evec1[0], $evec2[0]], [$evec1[1], $evec2[1]])->inverse;
+
+my $A11 = $A->element(1,1);  my $A12 = $A->element(1,2);
+my $A21 = $A->element(2,1);  my $A22 = $A->element(2,2);
+
+Context("Numeric");
+Context()->variables->are(
+   t=>"Real",
+'c1'=>"Real",
+'c2'=>"Real",
+);
+ 
+
+$multiansA = MultiAnswer($evec1[0], $evec1[1], $eval1, $evec2[0], $evec2[1], $eval2)->with(
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  checkTypes => 0,
+  format =>  "<table border='0'><tr>
+    <td> \(c_1\ \biggl\lbrack\) </td>
+    <td><table border='0' cellspacing='10'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack\ e^{%s t} \ \ +  \ \ c_2\ \biggl\lbrack\)  </td>
+    <td><table border='0' cellspacing='10'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack\ e^{%s t} \)</td>
+  </tr></table>",
+  tex_format => "c_1 \left\lbrack\begin{array}{r} %s \\ %s \end{array}\right\rbrack \ 
+                      e^{%s t} \ + \  
+                 c_2 \left\lbrack\begin{array}{r} %s \\ %s \end{array}\right\rbrack \ 
+                      e^{%s t}",
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my @score = (0,0);
+      if ($c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) && $c[2]->typeMatch($s[2]) &&
+          $c[3]->typeMatch($s[3]) && $c[4]->typeMatch($s[4]) && $c[5]->typeMatch($s[5])) { 
+        if ((($s[0] != 0) || ($s[1] != 0)) && 
+            ($c[0]*$s[1] == $c[1]*$s[0]) && ($c[2] == $s[2])) {
+          $score[0] = 1;
+        } 
+        if ((($s[3] != 0) || ($s[4] != 0)) && 
+            ($c[3]*$s[4] == $c[4]*$s[3]) && ($c[5] == $s[5])) {
+          $score[1] = 1;
+        }
+      }
+      return (($score[0] == 1) && ($score[1] == 1)) ? 1 : 0;
+  }
+);
+
+
+$multiansB = MultiAnswer($P11, $P12, $P21, $P22)->with(
+  singleResult => 1,
+  allowBlankAnswers => 1,
+  checkTypes => 0,
+  format =>  "<table border='0'><tr>
+    <td> \( \biggl\lbrack \)</td>
+    <td><table border='0' cellspacing='10'>
+           <tr><td> %s $SPACE </td><td> $SPACE %s</td></tr>
+           <tr><td> %s $SPACE </td><td> $SPACE %s</td></tr></table></td>
+    <td> \(\biggr\rbrack\ \biggl\lbrack\)</td>
+    <td><table border='0' cellspacing='10'><tr><td> \(c_1\) </td></tr>
+                                           <tr><td> \(c_2\) </td></table></td>
+    <td> \(\biggr\rbrack\) </td>
+   </tr></table>",
+  tex_format => "\left\lbrack\begin{array}{rr} 
+                      %s & %s \\ %s & %s 
+                 \end{array}\right\rbrack \  
+                 \left\lbrack\begin{array}{r} 
+                      c_1 \\ c_2 
+                 \end{array}\right\rbrack",
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my @score = (0,0);
+      if ($c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) && 
+          $c[2]->typeMatch($s[2]) && $c[3]->typeMatch($s[3])) {
+        if ((($s[0] != 0) || ($s[2] != 0)) && 
+            (Formula("$A11*$s[0] + $A12*$s[2]") == Formula("$s[0]")->D('t')) &&
+            (Formula("$A21*$s[0] + $A22*$s[2]") == Formula("$s[2]")->D('t')) ) {
+          $score[0] = 1;
+        } 
+        if ((($s[1] != 0) || ($s[3] != 0)) && 
+            (Formula("$A11*$s[1] + $A12*$s[3]") == Formula("$s[1]")->D('t')) &&
+            (Formula("$A21*$s[1] + $A22*$s[3]") == Formula("$s[3]")->D('t')) &&
+            ($s[1]*$s[2] != $s[0]*$s[3]) ) {
+          $score[1] = 1;
+        }
+      }
+      return (($score[0] == 1) && ($score[1] == 1)) ? 1 : 0;
+  }
+);
+
+$multiansC = MultiAnswer($y1, $y2)->with(
+  singleResult => 1,
+  allowBlankAnswers => 0,
+  checkTypes => 1,
+  format => "<table border='0'>
+         <tr><td style='text-align:left'>\(x(t) = \) %s </td></tr> 
+         <tr><td style='text-align:left'>\(y(t) = \) %s </td></tr> </table>",
+  tex_format => "\begin{array}{l} x(t) = %s \\ y(t) = %s\end{array}",
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @S = @{$student};
+      my @c = ($P11, $P12, $P21, $P22);      
+      my @score = (0, 0);
+      if ($c[0]->typeMatch($S[0]) && $c[1]->typeMatch($S[1])) {  
+        $S[0] = Formula("$S[0] + c1c2");  $S[1] = Formula("$S[1] + c1c2");
+        my @s = ($S[0]->substitute(c1=>1,c2=>0),$S[0]->substitute(c1=>0,c2=>1),
+                 $S[1]->substitute(c1=>1,c2=>0),$S[1]->substitute(c1=>0,c2=>1));
+        if ((($s[0] != 0) || ($s[2] != 0)) && 
+            (Formula("$A11*$s[0] + $A12*$s[2]") == Formula("$s[0]")->D('t')) &&
+            (Formula("$A21*$s[0] + $A22*$s[2]") == Formula("$s[2]")->D('t')) ) {
+           $score[0] = 1;
+         } 
+         if ((($s[1] != 0) || ($s[3] != 0)) && 
+            (Formula("$A11*$s[1] + $A12*$s[3]") == Formula("$s[1]")->D('t')) &&
+            (Formula("$A21*$s[1] + $A22*$s[3]") == Formula("$s[3]")->D('t')) && 
+            ($s[1]*$s[2] != $s[0]*$s[3]) ) {
+           $score[1] = 1;
+         }
+      }
+      return (($score[0] == 1) && ($score[1] == 1)) ? 1 : 0;
+  }
+);
+
+Context()->texStrings;
+
+$v11 = $multiansA->ans_rule(2); $v12 = $multiansA->ans_rule(2);
+if ($displayMode eq 'TeX') {
+  $exp1 =
+  "\( \displaystyle  e^{" .  $multiansA->ans_rule(2) . "t}\)";
+} else {
+  $exp1 =
+    ColumnTable(
+     "\( \displaystyle e\)",
+     $multiansA->ans_rule(2)."\(t\)".$BR.$BR,
+     indent => 0, separation => 0, valign => "BOTTOM"
+    );
+} 
+
+$v21 = $multiansA->ans_rule(2); $v22 = $multiansA->ans_rule(2);
+if ($displayMode eq 'TeX') {
+  $exp2 =
+  "\( \displaystyle  e^{" .  $multiansA->ans_rule(2) . "t}\)";
+} else {
+ $exp2 =
+    ColumnTable(
+     "\( \displaystyle e\)",
+     $multiansA->ans_rule(2)."\(t\)".$BR.$BR,
+     indent => 0, separation => 0, valign => "BOTTOM"
+    );
+}
+Context()->normalStrings;
+
+######################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+Suppose that the matrix \(\mathrm{A}\) has the following eigenvalues and eigenvectors:
+$BR
+$SPACE $SPACE \(\lambda_1 = $eval1\) with 
+  \( \displaystyle\boldsymbol{\vec{v}_1} = 
+    \left\lbrack
+    \begin{array}{r}
+     $evec1[0]  \\
+     $evec1[1]  
+    \end{array}
+  \right\rbrack. \)
+$BR
+and
+$BR
+$SPACE $SPACE \(\lambda_2 = $eval2\) with 
+  \( \displaystyle\boldsymbol{\vec{v}_2} = 
+    \left\lbrack
+    \begin{array}{r}
+     $evec2[0]  \\
+     $evec2[1]  
+    \end{array}
+  \right\rbrack. \)
+$PAR
+Write the solution to the linear system 
+  \(\boldsymbol{\vec{r}\,'} = \mathrm{A}\boldsymbol{\vec{r}}\)
+in the following forms.
+
+$BR
+$PAR
+$BR
+
+$BBOLD A.$EBOLD
+ In eigenvalue/eigenvector form:
+$BR
+\{ mbox(
+ "\(\qquad \displaystyle \biggl\lbrack\begin{array}{c} x(t) \\ y(t)\end{array}\biggr\rbrack = c_1 \)",
+  display_matrix([
+  [$v11],[$v12] 
+  ], align=>'c'),
+  $exp1,
+  "\( \ + \ c_2 \)",
+  display_matrix([
+  [$v21],[$v22] 
+  ], align=>'c'),
+  $exp2
+); \}
+
+$BR
+$PAR
+$BR
+
+
+$BBOLD B.$EBOLD
+ In fundamental matrix form: 
+$BR
+\{ mbox(
+ "\(\qquad \displaystyle \biggl\lbrack\begin{array}{c} x(t) \\ y(t)\end{array}\biggr\rbrack = \)",
+ display_matrix([
+ [$multiansB->ans_rule(7),$multiansB->ans_rule(7)],
+ [$multiansB->ans_rule(7),$multiansB->ans_rule(7)]
+ ], align=>'cc'),
+ "\( \displaystyle
+    \left\lbrack
+    \begin{array}{r}
+     c_1  \\
+     c_2 
+    \end{array}
+  \right\rbrack \)"
+); \}
+
+$BR
+$PAR
+$BR
+
+$BBOLD C.$EBOLD
+ As two equations: $BITALIC (write "c1" and "c2" for \(c_1\) and \(c_2\) ) $EITALIC
+$BR
+\{ mbox(
+ "\(\qquad x(t) = \)", $multiansC->ans_rule(20) 
+); \}
+$BR
+\{ mbox(
+ "\(\qquad y(t) = \)", $multiansC->ans_rule(20) 
+); \}
+
+
+$BR
+$PAR
+$BR
+
+$BBOLD Note:$EBOLD if you are feeling adventurous you could use other 
+eigenvectors like \(4\,\boldsymbol{\vec{v}_1}\) or 
+\(-3\,\boldsymbol{\vec{v}_2}\).
+
+  
+END_TEXT
+Context()->normalStrings;
+
+
+######################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $multiansA->cmp() );
+ANS( $multiansB->cmp() );
+ANS( $multiansC->cmp() );
+
+COMMENT("MathObject version. Real Distinct Eigenvalues.");
+
+ENDDOCUMENT();
+
