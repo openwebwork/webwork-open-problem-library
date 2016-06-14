@@ -1,0 +1,173 @@
+#########################################################
+##KEYWORDS('Sampling theory'; 'ratio estimators', 'regression estimators'; 'in
+##a context where a regression estimator is appropriate determine relative
+##magnitudes of the sample mean', 'the ratio estimator and the regression
+##estimator', 'identify that the ratio estimator is inappropriate due to
+##negative correlation between the sampled variables'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Sample survey methods)
+## DBsection(Regression estimators)
+## Date(2015/09/28)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(4)
+## level('5')
+## 3 Attempts. 
+
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+####plots
+$plot=rserve_start_plot('png');
+rserve_eval('
+set.seed(13)
+age <- runif(50,3,95)
+bdens <- rnorm(50, 1.35- 0.7*(age/100), .15)
+plot(age,bdens,
+     xlab="Age (Years)", ylab="Bone Density",xlim=c(0,100),ylim=c(0,2)) 
+');
+$plotpath=rserve_finish_plot($plot);
+
+
+####
+$ans_1_correct = "RT< VN < RG";
+
+$qu_1 = "Based on the information provided, which of the following is the
+order of your three estimates of population average bone density,
+from smallest to largest.";
+
+@ans_1_all = (
+"RT < RG < VN",
+"VN < RT < RG",
+"VN < RG < RT",
+"RG < VN < RT",
+"RG < RT < VN ",
+"Insufficient information is provided to know for sure."
+);
+
+$mc_1 = new_multiple_choice();
+$mc_1->qa(
+  $qu_1,
+  $ans_1_correct
+);
+
+$mc_1->makeLast(
+$ans_1_all[0], $ans_1_all[1], $ans_1_all[2], $ans_1_all[3], $ans_1_all[4], $ans_1_all[5] 
+);
+
+
+############
+$ans_2_correct = "Ratio";
+
+$qu_2 = "Of the three methods, which one is clearly inappropriate for these
+data?";
+
+@ans_2_all = (
+"Vanilla",
+"Regression",
+);
+
+$mc_2 = new_multiple_choice();
+$mc_2->qa(
+  $qu_2,
+  $ans_2_correct
+);
+
+$mc_2->makeLast(
+$ans_2_all[0], $ans_2_all[1] 
+);
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+In a medical study, a simple random sample of size 50 is obtained from a
+general population. Each sampled person's age is recorded, and his/her
+bone density (in appropriate units) is measured. The scatterplot shows the sample data.
+$BR
+$BR
+$BCENTER
+\{ image($plotpath, width=>400, height=>250)   \}
+$ECENTER
+$BR
+$BR
+You would like to estimate the average bone density in this population.
+From census data you know that the mean age in the population is
+48. The mean age in your sample happens to be higher than this. You
+are considering three methods to estimate your target: "vanilla" (VN)
+estimation, ratio (RT) estimation, and regression (RG) estimation.
+$BR
+$BR
+$BBOLD(a) $EBOLD 
+\{ $mc_1->print_q() \}
+$BR
+\{ $mc_1->print_a() \}
+$BR
+$BR
+
+
+$BBOLD(b) $EBOLD 
+\{ $mc_2->print_q() \}
+$BR
+\{ $mc_2->print_a() \}
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( radio_cmp( $mc_1 -> correct_ans( ) ) );
+ANS( radio_cmp( $mc_2 -> correct_ans( ) ) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD The impact of ratio estimation can be visualized
+by the upward-sloping line passing through the origin (0,0)
+and also sample means \( \left( \overline{\text{age}}_S, \overline{\text{BD}}_S \right) \). Since the population
+mean age is less than the sample mean age, we follow the line
+to the left (and down), to obtain a ratio estimate less than the
+vanilla estimate. In contrast, by visual inspection of the scatterplot, the regression line will clearly be downward-sloping. So in following the line to the left (and up), we obtain a regression estimate greater than the vanilla estimate. Hence RT< VN < RG is the correct ordering. 
+$BR
+$BR
+
+$BBOLD (b) $EBOLD The ratio estimate is completely inappropriate here. This
+procedure aims to take advantage of a positive association between the two variables, whereas the scatterplot shows a negative association between age and bone density.
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+
+ENDDOCUMENT();

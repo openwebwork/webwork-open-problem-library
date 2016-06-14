@@ -1,0 +1,232 @@
+#########################################################
+##KEYWORDS('Inference'; 'hypothesis tests, comparison of two normal
+##distributions, equality of variances'; 'test for equality of variances of two
+##normal distributions using an F test'.)
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(Two sample variances)
+## Date(2015/11/02)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+  "answerCustom.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@dat=rserve_eval('
+v1 <- round(runif(1, min=70, max=90),2)
+v2 <- round(runif(1, min=15, max=30),2)
+');
+
+@v1 = rserve_eval('
+v1
+');
+
+@v2 = rserve_eval('
+v2
+');
+
+#####Q1
+@q1= rserve_eval('
+sd = v1/v2
+round(sd, 2)
+');
+
+####Q2
+@q2 = rserve_eval('
+q2 = 4.757
+round(q2, 2)
+');
+
+######Q3
+@q3 = rserve_eval('
+q3 = pf(v1/v2, df1=3, df2=6, lower.tail=F)
+round(q3, 2)
+');
+
+#####Q4
+@ans_e_correct = rserve_eval('
+tem<-q3
+r<-0
+if( q3<0.05 ){
+r<-1  
+}
+r
+');
+
+$ans_e_correct = $ans_e_correct[0];
+
+$qu_e = "With a 5% significance level, what decision do you make?";
+
+@ans_e_all = ("Do not reject the null hypothesis.", "Reject the null hypothesis.");
+
+$ans_e = $ans_e_all[$ans_e_correct];
+$mc_e = new_multiple_choice();
+$mc_e->qa(
+  $qu_e,
+  $ans_e
+);
+$mc_e->makeLast(
+$ans_e_all[0], $ans_e_all[1]
+);
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+It is hypothesized that the market share of a corporation should vary
+more in an industry with active price competition than in one with duopoly
+and tacit collusion. Suppose that in a study of the steam turbine generator
+industry, it was found that in 4 years of active price competition, the
+variance of General Electric's market share was @v1[0]. In the
+following 7 years, in which there was duopoly and tacit collusion, this
+variance was @v2[0]. Assume that the data can be regarded as an
+independent random sample from two normal distributions. Test the null
+hypothesis that the two population variances are equal against the
+alternative that the variance of market share is higher in years of active
+price competition. Answer the following, rounding off your answers to two
+decimal places.
+
+$BR
+$BR
+$BBOLD(a) $EBOLD 
+What is the test statistic?  \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD  
+With a 5 % significance level, what is the critical value? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(c) $EBOLD  What is the p-value for the test? \{  ans_rule(7) \}
+$BR
+$BR
+$BBOLD(d) $EBOLD 
+ \{ $mc_e->print_q() \}
+$BR
+\{ $mc_e->print_a() \}
+$BR
+To make a decision, two approaches can be used: compare the test statistic
+with the critical value or interpret the p-value. You can check that both
+approaches give the same conclusion.
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+
+ANS( num_cmp(@q1[0], tol=> 0.02) );
+ANS( num_cmp(@q2[0], tol=> 0.02) );
+ANS( num_cmp(@q3[0], tol=> 0.02) );
+ANS(radio_cmp($mc_e->correct_ans()) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+Solution: The test for equality of variances of two normal
+distributions has as test statistic
+$BR
+$BR
+$BCENTER
+\begin{eqnarray*}
+F=\frac{s_{1}^{2}}{s_{2}^{2}}
+\end{eqnarray*}
+$ECENTER
+$BR
+$BR
+where \(s_{1}^{2} \) and \(s_{2}^{2} \) are the sample
+variances. If we have samples of size \(n_{1}\)  and  \(n_{2},\)
+we compare the ratio \(s_{1}^{2}/ s_{2}^{2} \) and compare this
+with the F distribution on \( n_{1}-1\) and \( n_{2}-1\) degrees of freedom. Specifically 
+$BR
+$BR
+$BCENTER
+\begin{eqnarray*}
+\frac{s_{1}^{2}}{s_{2}^{2}}\sim F_{\left( n_{1}-1\right) ,\left(
+n_{2}-1\right) }
+\end{eqnarray*}
+$ECENTER
+$BR
+$BR
+when \( H_{0}:\sigma _{1}^{2}=\sigma _{2}^{2} \) is true.
+$BR
+$BR
+
+$BBOLD (a) $EBOLD
+The test statistic is
+$BR
+$BR
+$BCENTER
+\begin{eqnarray*}
+\frac{s_{1}^{2}}{s_{2}^{2}}=\frac{@v1[0]}{@v2[0]}=@q1[0]. 
+\end{eqnarray*}
+$ECENTER
+$BR
+$BR
+
+$BBOLD (b) $EBOLD
+In this case we compare 
+$BR
+$BR
+$BCENTER
+\begin{eqnarray*}
+\frac{s_{1}^{2}}{s_{2}^{2}}=\frac{@v1[0]}{@v2[0]}=@q1[0]
+\end{eqnarray*}
+$ECENTER
+$BR
+$BR
+with the \(F_{3,6}\) distribution. This is a one-tailed test (the
+alternative hypothesis is \( H_{a}:\sigma _{1}^{2}>\sigma _{2}^{2},\) 
+consistent with the suggestion that prices will vary more in a market with
+price competition), so we seek the upper 95% point on the \(
+F_{3,6} \) distribution if testing at 5% significance level. This
+value is (via tables or software) 4.757.
+$BR
+$BR
+
+$BBOLD (c) $EBOLD
+The p-value is the probability of observing a value of the test
+statistic greater than the one observed (and so more consistent with \(H_{a}\)) when \(H_{0}\) holds. This is @q3[0].  
+$BR
+$BR
+
+$BBOLD (d) $EBOLD
+If our test statistic is less than 4.757, we would not reject the
+null hypothesis. Otherwise, we must reject at the 5 % significance level.
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

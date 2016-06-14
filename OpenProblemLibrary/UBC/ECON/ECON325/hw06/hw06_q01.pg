@@ -1,0 +1,127 @@
+#########################################################
+##KEYWORDS('Inference'; 'sampling distribution of sample mean, normal
+##distribution'; 'find the standard error of a sample mean, find the
+##probability that the sample mean is less than a given value'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Sampling distributions)
+## DBsection(Sample mean)
+## Date(2015/07/11)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@n=rserve_eval('
+n <- sample(10:20, 1)
+');
+
+@m=rserve_eval('
+m <- sample(80:120, 1)
+');
+
+@s=rserve_eval('
+s <- sample(15:25, 1)
+');
+
+@smean=rserve_eval('
+round(s/sqrt(n), 4) 
+');
+
+@x=rserve_eval('
+x <- sample((m+2):(m+10), 1)
+');
+
+@q1=rserve_eval('
+q1=s / sqrt(n) 
+round(q1 , 2)
+');
+
+@q2=rserve_eval('
+q2= pnorm( (x-m)/ (s/ sqrt(n)) )
+round(q2,  2)
+');
+
+$q1ans =@q1[0];
+$q2ans =@q2[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+A random sample of \(@n[0]\) junior managers in the office of corporations in a large city centre was taken in order to estimate average daily commuting times for all such managers. Suppose that the population times have a normal distribution with mean \(@m[0]\) minutes and standard deviation \(@s[0]\) minutes. Answer the following questions, rounding your answers to two decimal places where appropriate.
+$BR
+$BR
+$BBOLD(a) $EBOLD What is the standard error of the sample mean commuting time? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD What is the probability that the sample mean is less \(@x[0]\) minutes?   \{  ans_rule(7) \} 
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.02) );
+ANS( num_cmp($q2ans, tol=> 0.02) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD The standard error of the sample mean is another term for the
+standard deviation of the sample mean, this being \(  \sigma / \sqrt{n} \) where \(  \sigma \)  is the variance of variable of interest in the population (commuting times here), and \(n\) is the sample size. In this case   
+$BR
+$BR
+$BCENTER
+\( 
+\sigma / \sqrt{n} =  @s[0] / \sqrt{@n[0]} = $q1ans. 
+\)
+$ECENTER
+$BR
+$BR
+
+$BBOLD (b) $EBOLD The sample mean \( \bar{X} \) is normally distributed with mean \(@m[0]\) and standard deviation \( @s[0] / \sqrt{@n[0]} = @smean[0] \). With\(Z\) a standard normal variable, we have
+$BR
+$BR
+$BCENTER
+\( 
+P (\bar{X} < @x[0] ) = P(    \frac{\bar{X}- @m[0]}{ @s[0]/\sqrt{@n[0]}}  <    
+\frac{@x[0] - @m[0]}{ @s[0]/\sqrt{@n[0]}} )  = P(Z <  \frac{@x[0] - @m[0]}{ @s[0]/\sqrt{@n[0]}}  ) = $q2ans. 
+\)
+$ECENTER
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();
