@@ -16,7 +16,7 @@
 ## Section1('2.4')
 ## Problem1('')
 ## KEYWORDS('linear function', 'slope-intercept form','lines')
-## Date: 2007/10
+## Date: 2007/10 updated 2016/06 --rac
 
 DOCUMENT(); # This should be the first executable line in the problem.
 
@@ -24,10 +24,10 @@ loadMacros(
   "PGstandard.pl",
   "PGchoicemacros.pl",
   "MathObjects.pl",
-  "contextLimitedNumeric.pl",
   "PGgraphmacros.pl",
-  "PGnauGraphics.pl",
-  "CofIdaho_macros.pl"
+  "contextLimitedNumeric.pl",
+  "parserImplicitPlane.pl",
+  "CofIdaho_macros.pl" #For reduced fraction form
 );
 
 TEXT(beginproblem());
@@ -49,19 +49,20 @@ $n = random(0,14,2);
 $dy = $fraction[$n]* (-1)**random(1,2,1);
 $dx = $fraction[$n+1];
 $slope = $dy / $dx ;
-$b = random(-2,2,1);
+$b = random(-3,3,1);
 
 @slice = NchooseK(3,3);
 @colors = ("blue", "red", "green");
 @sc = @colors[@slice]; #scrambled colors
 
-$f = FEQ("$slope*x+$b for x in [$xmin,$xmax] using color=$sc[0] and weight=3");
+$f = Formula("$slope*x+$b");
 
 #----Build the graph
-$graph = init_graph_no_labels($xmin,$ymin,$xmax,$ymax,
+$graph = init_graph($xmin,$ymin,$xmax,$ymax,
                               'axes'=>[0,0],
                               'grid'=>[$xmax-$xmin,$ymax-$ymin]);
-add_functions( $graph,$f);
+$graph->lb('reset');
+add_functions( $graph,"$f for x in [$xmin,$xmax] using color=$sc[0] and weight=3");
 
 $i = 0;           # Number the axes
 do {
@@ -83,13 +84,15 @@ do {
 #  Main text
 
 BEGIN_TEXT
-\{ Plot($graph, tex_size => 600) \} 
+$BCENTER
+\{ image(insertGraph($graph),width=>400, height=>400, tex_size=>600) \}
+$ECENTER 
 $BR $BR
 Use the graph, given above, to find the slope and equation for the line. 
 $PAR
 a) Slope of the line: \( m =\) \{ans_rule(10)\}
 $PAR
-b) The equation of the line in slope-intercept form: \( y = \) \{ans_rule(15)\}
+b) Equation of the line:  \{ans_rule(20)\}
 END_TEXT
 
 ######################################
@@ -105,15 +108,31 @@ $m= ReduceFraction($dy,$dx);
 $ans_a = Compute($m);
 ANS($ans_a->cmp); 
 
-$ans_b = "y=$m*x+$b";
-if ($b<0) {$b = -1*$b; $ans_b = "y=$m*x-$b";}
-if ($b==0) {$ans_b = "y=$m*x";}
-ANS(SlopeIntercept_equation_cmp($ans_b)); 
+Context("ImplicitPlane");
+Context()->variables->are(x=>"Real",y=>"Real");
+
+$ans_b = ImplicitPlane("y=$m*x+$b");
+ANS($ans_b->cmp->withPostFilter(
+      sub { 
+        my $ans = shift;
+        if ($ans->{ans_message} =~ /left side|it looks like/) {
+          $ans->{ans_message} = "Your answer must be an equation: $BR \(y = m x + b\) or \(ax + by = c\)";
+        }
+        return $ans;
+      }
+    ));
 
 $showPartialCorrectAnswers = 1;
 
 ######################################
+#  Solution
 
-
-;
+Context()->texStrings;
+BEGIN_SOLUTION
+$PAR Solution: $BR $BR
+a) Slope: \($m\)
+$BR
+b) Equation: \(y = $m x + $b\)
+END_SOLUTION
+Context()->normalStrings;
 ENDDOCUMENT();

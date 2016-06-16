@@ -17,7 +17,7 @@
 ## Section1('2.4')
 ## Problem1('')
 ## KEYWORDS('linear function', 'slope-intercept form')
-## Date: 2007/10
+## Date: 2007/10 updated 2016/06 --rac
 
 DOCUMENT(); # This should be the first executable line in the problem.
 
@@ -26,8 +26,9 @@ loadMacros(
   "PGchoicemacros.pl",
   "MathObjects.pl",
   "PGgraphmacros.pl",
-  "PGnauGraphics.pl",
-  "CofIdaho_macros.pl"
+  "contextLimitedNumeric.pl",
+  "parserImplicitPlane.pl",
+  "CofIdaho_macros.pl" #For reduced fraction form
 );
 
 TEXT(beginproblem());
@@ -46,10 +47,12 @@ $b = random(-4,4,1);
 @colors = ("blue", "red", "green");
 @sc = @colors[@slice]; #scrambled colors
 
-$f = FEQ("$b for x in [$xmin,$xmax] using color=$sc[0] and weight=3");
+$f = Formula("$b");
 
-$graph = init_graph_no_labels($xmin,$ymin,$xmax,$ymax,'axes'=>[0,0],'grid'=>[12,12]);
-add_functions( $graph,$f);
+#----Build the graph
+$graph = init_graph($xmin,$ymin,$xmax,$ymax,'axes'=>[0,0],'grid'=>[12,12]);
+$graph->lb('reset');
+add_functions( $graph,"$f for x in [$xmin,$xmax] using color=$sc[0] and weight=3");
 
 $i = 0;           # Number the axes
 do {
@@ -71,13 +74,15 @@ do {
 #  Main text
 
 BEGIN_TEXT
-\{ Plot($graph, tex_size => 600) \} 
+$BCENTER
+\{ image(insertGraph($graph),width=>400, height=>400, tex_size=>600) \}
+$ECENTER
 $BR $BR
 Use the graph, given above, to find the slope and equation for the line. 
 $PAR
 a) Slope of the line: \( m =\) \{ans_rule(10)\}
 $PAR
-b) The equation of the line in slope-intercept form: \{ans_rule(20)\}
+b) Equation of the line: \{ans_rule(20)\}
 END_TEXT
 
 ######################################
@@ -90,13 +95,32 @@ Context()->strings->add("Does not exist"=>{},
 $ans_a = Compute("0")->with(tolerance=>.01,toltype=>'absolute');
 ANS($ans_a->cmp); 
 
-$ans_b = "y=$b";
-ANS(SlopeIntercept_equation_cmp($ans_b)); 
+Context("ImplicitPlane");
+Context()->variables->are(x=>"Real",y=>"Real");
+
+$ans_b = ImplicitPlane("y=$b");
+ANS($ans_b->cmp->withPostFilter(
+      sub { 
+        my $ans = shift;
+        if ($ans->{ans_message} =~ /left side|it looks like/) {
+          $ans->{ans_message} = "Your answer must be an equation: $BR \(y = m x + b\) or \(ax + by = c\)";
+        }
+        return $ans;
+      }
+    ));
 
 $showPartialCorrectAnswers = 1;
 
 ######################################
+#  Solution
 
+Context()->texStrings;
+BEGIN_SOLUTION
+$PAR Solution: $BR $BR
+a) Slope: \($ans_a\)
+$BR
+b) Equation: \(y = $b\)
+END_SOLUTION
+Context()->normalStrings;
 
-;
 ENDDOCUMENT();
