@@ -1,0 +1,164 @@
+# DESCRIPTION
+# 
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## Level(3)
+## MO(1)
+
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "MathObjects.pl",
+  "PGstandard.pl",
+  "AnswerFormatHelp.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+#
+# Subclass the numeric functions
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+
+#
+# Override sqrt() to return a special value (usually 1) when evaluated
+# effectively eliminating it from the product.
+#
+sub sqrt {
+  my $self = shift;
+  my $value = $self->context->flag("setSqrt");
+  return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+  return $value if $value;
+  return $self->SUPER::sqrt(@_);
+}
+
+#
+# end of subclass
+#
+package main;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric");
+@vars = ("x","y","z","a","b","c","p","q","r");
+$ch = random(0,scalar(@vars)-1,1);
+$v = $vars[$ch];
+Context()->variables->are($v=> ["Real", limits => [0,2]]);
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+Context()->flags->set(reduceConstantFunctions=>0);
+
+$a1 = list_random(2,3,5);
+do {$a2 = list_random(1,2,3,5)} until ($a2 != $a1);
+do {$b = list_random(2,3,5,7,11)} until ($b != $a1 && $b != $a2);
+$a12 = ($a1)**2;
+$a22 = ($a2)**2;
+$dn1 = $a12*$b;
+$dn2 = $a22*$b;
+
+$case1 = random(0,1,1);
+$case2 = random(0,2,1);
+$sgn = random(-1,1,2);
+$dpm = ($sgn < 0) ? "-" : "+";
+
+if ($case1 == 0) {
+  do {$a3 = list_random(2,3,5)} until ($a3 != $a1 && $a3 != b);
+  $a32 = ($a3)**2;
+  if ($case2 == 0) {
+    $disp = "\displaystyle \sqrt{\frac{$dn1}{$a32 $v^2}} $dpm \sqrt{\frac{$dn2}{$v^2}}";
+  } elsif ($case2 == 1) {
+    $disp = "\displaystyle \frac{\sqrt{$dn1}}{$a3 $v} $dpm \sqrt{\frac{$dn2}{$v^2}}";
+  } else {
+    $disp = "\displaystyle \sqrt{\frac{$dn1}{$a32 $v^2}} $dpm \frac{\sqrt{$dn2}}{$v}";
+  }
+  $n = $a1 + $sgn*$a2*$a3;
+  $ans = Formula("$n sqrt($b)/($a3 $v)");
+  $dans = $ans;
+  if ($n == -1) {
+    $dans = "-\frac{\sqrt{$b}}{$a3 $v}";
+  } elsif ($n == 1) {
+    $dans = "\frac{\sqrt{$b}}{$a3 $v}";
+  }
+} else {
+  do {$a3 = list_random(2,3,5)} until ($a3 != $a2 && $a3 != b);
+  $a32 = ($a3)**2;
+  if ($case2 == 0) {
+    $disp = "\displaystyle \sqrt{\frac{$dn1}{$v^2}} $dpm \sqrt{\frac{$dn2}{$a32 $v^2}}";
+  } elsif ($case2 == 1) {
+    $disp = "\displaystyle \frac{\sqrt{$dn1}}{$v} $dpm \sqrt{\frac{$dn2}{$a32 $v^2}}";
+  } else {
+    $disp = "\displaystyle \sqrt{\frac{$dn1}{$v^2}} $dpm \frac{\sqrt{$dn2}}{$a3 $v}";
+  }
+  $n = $a1*$a3 + $sgn*$a2;
+  $ans = Formula("$n sqrt($b)/($a3 $v)");
+  $dans = $ans;
+  if ($n == -1) {
+    $dans = "-\frac{\sqrt{$b}}{$a3 $v}";
+  } elsif ($n == 1) {
+    $dans = "\frac{\sqrt{$b}}{$a3 $v}";
+  }
+}
+
+Context()->operators->undefine("+", "-");
+
+
+###########################################################################
+# state the problem 
+###########################################################################
+Context()->texStrings;
+BEGIN_TEXT
+Simplify.  Assume that all expressions under radicals represent nonnegative numbers.
+$PAR
+$BCENTER
+\($disp  = \) \{ans_rule(15)\}
+$ECENTER
+$BR
+Write your answer using radical notation if necessary.  
+END_TEXT
+
+
+###########################################################################
+# check the answer  
+###########################################################################
+ANS( $ans-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 1);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+  BEGIN_TEXT
+  $PAR
+  ${BBOLD}Help:${EBOLD} 
+  \{ AnswerFormatHelp("exponents", "Click here for help writing exponents and square roots.") \}
+  $BR
+  END_TEXT
+Context()->normalStrings;
+
+ENDDOCUMENT();
