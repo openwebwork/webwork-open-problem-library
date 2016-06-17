@@ -23,7 +23,8 @@ loadMacros(
   "PGstandard.pl",
   "PGchoicemacros.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl"
+  "bizarroArithmetic.pl"
+#  "CofIdaho_macros.pl"
 );
 
 TEXT(beginproblem());
@@ -32,8 +33,18 @@ TEXT(beginproblem());
 #  Setup
 #  Form: c(ay+d)/(y-b)(y+b) * (y+b)/y(ay+d)
 
+Context('Numeric');
 
 Context()->variables->are(y=>'Real');
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1});
 
 
 $a = random(2,5,1);
@@ -65,10 +76,26 @@ END_TEXT
 ######################################
 #  Answer
 
+$den = nicestring([1,-$b], ['y','']);
+$answer = Compute("$c/(y*($den))");
 
-$answer = "$c/(y*(y-$b))";
+ANS($answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroDiv=>0);
+      Value::Error("Your answer needs to be simplified further") unless $OK;
+      return $OK;
+})); 
 
-ANS(RationalExpEvaluator($answer,"y")); 
 
 $showPartialCorrectAnswers = 1;
 
