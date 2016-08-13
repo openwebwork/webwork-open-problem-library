@@ -1,0 +1,201 @@
+# DESCRIPTION
+# 
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## Level(3)
+## MO(1)
+
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "MathObjects.pl",
+  "PGstandard.pl",
+  "AnswerFormatHelp.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+#
+# Subclass the numeric functions
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+
+#
+# Override sqrt() to return a special value (usually 1) when evaluated
+# effectively eliminating it from the product.
+#
+sub sqrt {
+  my $self = shift;
+  my $value = $self->context->flag("setSqrt");
+  return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+  return $value if $value;
+  return $self->SUPER::sqrt(@_);
+}
+
+#
+# end of subclass
+#
+package main;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric");
+@vars = ("x","y","z","a","b","c","p","q","r");
+$ch1 = random(0,scalar(@vars)-1,1);
+$v1 = $vars[$ch1];
+$ch2 = random(0,scalar(@vars)-1,1);
+$v2 = $vars[$ch2];
+Context()->variables->are($v1=> ["Real", limits => [0,2]], $v2=> ["Real", limits => [0,2]]);
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+Context()->flags->set(reduceConstantFunctions=>0);
+
+$p1[0] = list_random(2,3,5,7,11);
+do {$p1[1] = list_random(2,3,5,7,11)} until ($p1[1] != $p1[0]);
+do {$p1[2] = list_random(2,3,5,7,11)} until ($p1[2] != $p1[0] && $p1[2] != $p1[1]);
+$s1 = random(-1,1,2);
+$pm1 = ($s1 < 0) ? "-" : "+";
+$dc1 = $p1[0]*$p1[1];
+$dc2 = $p1[0]*$p1[2];
+$disp1 = "\sqrt{$p1[0]} \left(\sqrt{$dc1} $pm1 \sqrt{$dc2} \right)";
+
+$case2 = random(0,1,1);
+$p2 = list_random(2,3,5,7,13);
+$s2 = random(-1,1,2);
+$pm2 = ($s2 < 0) ? "-" : "+";
+$disp2 = "\sqrt{$p2 $v1} \left(\sqrt{$p2} $pm2 \sqrt{$v1} \right)";
+if ($case2 == 1) {
+  $disp2 = "\sqrt{$p2 $v1} \left(\sqrt{$v1} $pm2 \sqrt{$p2} \right)";
+}
+
+$case3 = random(0,1,1);
+$p3[0] = list_random(2,3,5,7);
+do {$p3[1] = list_random(2,3,5,7)} until ($p3[1] != $p3[0]);
+$s3 = random(-1,1,2);
+$pm3 = ($s3 < 0) ? "-" : "+";
+$dc3 = $p3[0]*$p3[1];
+$disp3 = "\sqrt{$p3[0]} \left(\sqrt{$p3[0]} $pm3  $v2 \sqrt{$dc3}\right)";
+if ($case3 == 1) {
+  $disp3 = "\sqrt{$p3[0]} \left($v2 \sqrt{$dc3} $pm3 \sqrt{$p3[0]}\right)";
+}
+
+$ansa = Formula("$p1[0] sqrt($p1[1]) $pm1 $p1[0] sqrt($p1[2])");
+if ($case2 == 0) {
+  $ansb = Formula("$p2 sqrt($v1)".$pm2."$v1 sqrt($p2)"); #
+} else {
+  $ansb = Formula("$v1 sqrt($p2)".$pm2."$p2 sqrt($v1)");
+}
+if ($case3 == 0) {
+  $ansc = Formula("$p3[0]".$pm3."$p3[0] $v2 sqrt($p3[1])");
+} else {
+  $ansc = Formula("$p3[0] $v2 sqrt($p3[1])".$pm3."$p3[0]");
+}
+
+
+###########################################################################
+# state the problem 
+###########################################################################
+Context()->texStrings;
+BEGIN_TEXT
+Simplify.  Assume that all variables under radicals represent nonnegative numbers.
+$PAR
+(a) \($disp1 = \) \{ans_rule(20)\}
+$PAR
+(b) \($disp2 = \) \{ans_rule(20)\}
+$PAR
+(c) \($disp3 = \) \{ans_rule(20)\}
+$PAR
+Write your answer using radical notation if necessary.  
+END_TEXT
+
+
+###########################################################################
+# check the answer  
+###########################################################################
+ANS( $ansa-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 101);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+ANS( $ansb-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 101);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+ANS( $ansc-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 101);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+  BEGIN_TEXT
+  $PAR
+  ${BBOLD}Help:${EBOLD} 
+  \{ AnswerFormatHelp("exponents", "Click here for help writing exponents and square roots.") \}
+  $BR
+  END_TEXT
+
+Context()->normalStrings;
+
+ENDDOCUMENT();

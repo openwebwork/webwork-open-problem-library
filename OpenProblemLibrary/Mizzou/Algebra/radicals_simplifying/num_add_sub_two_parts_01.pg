@@ -1,0 +1,159 @@
+# DESCRIPTION
+# 
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## MLT(add_like_roots)
+## Level(2)
+
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "MathObjects.pl",
+  "PGstandard.pl",
+  "contextLimitedPowers.pl",
+  "contextFraction.pl",
+  "AnswerFormatHelp.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+#
+# Subclass the numeric functions
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+
+#
+# Override sqrt() to return a special value (usually 1) when evaluated
+# effectively eliminating it from the product.
+#
+sub sqrt {
+  my $self = shift;
+  my $value = $self->context->flag("setSqrt");
+  return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+  return $value if $value;
+  return $self->SUPER::sqrt(@_);
+}
+
+#
+# end of subclass
+#
+package main;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric");
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+Context()->flags->set(reduceConstantFunctions=>0);
+Context()->strings->add("not real"=>{}, "not a real number"=>{alias=>"not real"});
+LimitedPowers::OnlyPositiveIntegers();
+
+$n1a = list_random(2,3,5);
+$n1a3 = ($n1a)**3;
+do {$n2a = random(2,7,1)} until ($n2a != $n1a);
+$b1 = $n1a*($n2a**2);
+$c1 = $n1a - $n2a;
+if ($c1 == 1) {
+  $ansa = Formula("sqrt($n1a)");
+} elsif ($c1 == -1) {
+  $ansa = Formula("-sqrt($n1a)");
+} else {
+  $ansa = Formula("$c1 sqrt($n1a)");
+}
+$dispa = "\(\sqrt{$n1a3} - \sqrt{$b1}\)";
+
+do {
+  $n1b = random(2,9);
+  do {$d1b = random(2,9)} until (gcd($d1b,$n1b) == 1);
+  $n2b = random(2,9);
+  do {$d2b = random(2,9)} until (gcd($d2b,$n2b) == 1);
+  $anb = $n1b*$d2b + $d1b*$n2b;
+  $adb = $d1b*$d2b;
+} until ($n1b != $n2b && $d1b != $d2b && gcd($anb,$adb) == 1);
+$pb = list_random(2,3,5,6,7,10,11,13);
+$ansb = Formula("$anb sqrt($pb)/$adb");
+$dispb = "\(\displaystyle \frac{$n1b \sqrt{$pb}}{$d1b} + \frac{$n2b\sqrt{$pb}}{$d2b}\)";
+Context()->operators->undefine("**", "^");
+
+
+###########################################################################
+# state the problem 
+###########################################################################
+Context()->texStrings;
+BEGIN_TEXT
+Simplify.
+$PAR
+(a) $dispa \{ans_rule(20)\}
+$PAR
+(b) $dispb \{ans_rule(20)\}
+$PAR
+Write your answer using radical notation if necessary.
+END_TEXT
+
+
+###########################################################################
+# check the answer  
+###########################################################################
+ANS( $ansa-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 1);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+ANS( $ansb-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 1);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+BEGIN_TEXT
+$PAR
+${BBOLD}Help:${EBOLD} 
+\{ AnswerFormatHelp("exponents", "Click here for help writing exponents and square roots.") \}
+$BR
+END_TEXT
+
+ENDDOCUMENT();

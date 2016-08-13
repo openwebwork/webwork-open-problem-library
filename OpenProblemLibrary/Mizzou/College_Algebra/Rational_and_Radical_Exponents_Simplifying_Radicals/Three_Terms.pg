@@ -1,0 +1,143 @@
+# DESCRIPTION
+# 
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## Level(2)
+## MO(1)
+
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "MathObjects.pl",
+  "PGstandard.pl",
+  "contextLimitedPowers.pl",
+  "contextFraction.pl",
+  "AnswerFormatHelp.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+#
+# Subclass the numeric functions
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+
+#
+# Override sqrt() to return a special value (usually 1) when evaluated
+# effectively eliminating it from the product.
+#
+sub sqrt {
+  my $self = shift;
+  my $value = $self->context->flag("setSqrt");
+  return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+  return $value if $value;
+  return $self->SUPER::sqrt(@_);
+}
+
+#
+# end of subclass
+#
+package main;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric");
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+Context()->flags->set(reduceConstantFunctions=>0);
+Context()->strings->add("not real"=>{}, "not a real number"=>{alias=>"not real"});
+LimitedPowers::OnlyPositiveIntegers();
+
+$case = random(0,1,1);
+
+$p0 = random(2,3,1);
+do {$p1 = list_random(2,3,5)} until ($p1 != $p0);
+@dp = (($p0**2)*($p1**3), $p0*($p1**2), $p1*($p0**4)); # for displayiing
+
+$ch[0] = random(0,2,1);
+do {$ch[1] = random(0,2,1)} until ($ch[1] != $ch[0]);
+do {$ch[2] = random(0,2,1)} until ($ch[2] != $ch[0] && $ch[2] != $ch[1]);
+
+$n[0] = non_zero_random(-7,7,1);
+$n[1] = non_zero_random(-7,7,1);
+$n[2] = non_zero_random(-7,7,1);
+
+@d = (0,0,0);
+for ($i = 0; $i <= 2; $i++) {
+  if ($n[$ch[$i]] == 1 ) {
+    $d[$i] = "\sqrt{$dp[$ch[$i]]}";
+  } elsif ($n[$ch[$i]] == -1) {
+    $d[$i] = "-\sqrt{$dp[$ch[$i]]}";
+  } else {
+    $d[$i] = "$n[$ch[$i]]\sqrt{$dp[$ch[$i]]}";
+  }
+}
+$disp = "\($d[0] + $d[1] + $d[2] = \)";
+
+$c1 = $n[0]*$p0*$p1 + $n[2]*($p0)**2;
+$c2 = $n[1]*$p1;
+$ans = Formula("$c1 sqrt($p1) + $c2 sqrt($p0)");
+if ($c2 < 0) {
+  $tmp = -$c2;
+  $ans = Formula("$c1 sqrt($p1) - $tmp sqrt($p0)");
+}
+
+
+###########################################################################
+# state the problem 
+###########################################################################
+Context()->texStrings;
+BEGIN_TEXT
+Simplify as much as possible.
+$PAR
+$disp \{ans_rule(20)\}
+$PAR
+Write your answer using radical notation if necessary.
+END_TEXT
+
+
+###########################################################################
+# check the answer  
+###########################################################################
+ANS( $ans-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 1);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+  BEGIN_TEXT
+  $PAR
+  ${BBOLD}Help:${EBOLD} 
+  \{ AnswerFormatHelp("exponents", "Click here for help writing exponents and square roots.") \}
+  $BR
+  END_TEXT
+Context()->normalStrings;
+
+ENDDOCUMENT();

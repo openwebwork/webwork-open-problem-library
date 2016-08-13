@@ -10,30 +10,32 @@
 ## Institution(Rochester)
 ## MLT(SDE-A-mixture)
 ## Level(5)
+## MO(1)
 ## KEYWORDS('differential equation' 'first order' 'matrices' 'application')
 
 DOCUMENT();
 loadMacros(
-        "PG.pl",
-        "PGbasicmacros.pl",
+        "PGstandard.pl",
+        "MathObjects.pl",
         "PGchoicemacros.pl",
-        "PGanswermacros.pl",
-        "PGauxiliaryFunctions.pl",
-        "PGmatrixmacros.pl"
+        "parserMultiAnswer.pl",
+        "PGcourse.pl"
 );
 
-$water1 = random(10,100,10);
-$water2 = random(10,100,10);
-$salt1 = random(100, 500, 5);
-$salt2 = random(100, 500, 5);
+Context("Numeric");
 
-$salt_concentration1 = random(10,50,5);
-$salt_concentration2 = random(10,50,5);
+$water1 = Real(random(10,100,10));
+$water2 = Real(random(10,100,10));
+$salt1 = Real(random(100, 500, 5));
+$salt2 = Real(random(100, 500, 5));
 
-$flow_rate1 = random(1,4,0.5);
-$flow_rate2 = random(1,4,0.5);
+$salt_concentration1 = Real(random(10,50,5));
+$salt_concentration2 = Real(random(10,50,5));
 
-$tank2to1 = random(1,4,0.5);
+$flow_rate1 = Real(random(1,4,0.5));
+$flow_rate2 = Real(random(1,4,0.5));
+
+$tank2to1 = Real(random(1,4,0.5));
 $tank1to2 = $flow_rate1 + $tank2to1;
 
 $flow_out2 = $flow_rate2 +$tank1to2 - $tank2to1;
@@ -42,7 +44,7 @@ $flow_out2 = $flow_rate2 +$tank1to2 - $tank2to1;
 
 $showPartialCorrectAnswers=1;
 TEXT(beginproblem());
-
+Context()->texStrings;
 BEGIN_TEXT
 
 \{ image("ur_de_13_4.gif", width=>532, height=>243) \}
@@ -69,7 +71,7 @@ down precisely, much less solve.)
 $PAR
 How does the water in each tank change over time?
 $PAR
-Let \(p(t)\) and \(q(t) \) be the amount of salt in g at time t in tanks 1 and 2 respectively.
+Let \(p(t)\) and \(q(t) \) be the number of grams (g) of salt at time t in tanks 1 and 2 respectively.
 Write differential
 equations for \( p \) and \( q \).
 (As usual, use the symbols \(p\) and \(q\) rather than \(p(t)\) and \(q(t)\).)
@@ -80,54 +82,92 @@ $BR
 $PAR
 END_TEXT
 
-$pp = FEQ( "$salt_concentration1*$flow_rate1 - ($tank1to2/$water1)p + ($tank2to1/$water2)q" );
-$qp = FEQ( "$salt_concentration2*$flow_rate2 - ( $tank2to1/$water2 + $flow_out2/$water2 )q + ( $tank1to2/$water1 )p" );
+Context()->normalStrings;
+Context()->variables->are(
+  'p' => ["Real", limits => [0,4]],
+  'q' => ["Real", limits => [0,4]],
+  't' => ["Real", limits => [1,2]]
+);
 
-ANS fun_cmp( [$pp, $qp], var=>['p','q','t'], domain=>[ [0,4],[0,4],[1,2] ] );
+$pp = Compute("$salt_concentration1*$flow_rate1 - ($tank1to2/$water1)*p + ($tank2to1/$water2)*q");
 
+$qp = Compute("$salt_concentration2*$flow_rate2 - ( $tank2to1/$water2 + $flow_out2/$water2 )*q + ( $tank1to2/$water1 )*p");
+
+
+$formulaChecker = sub {
+  my ($correct, $student, $ansHash) = @_;
+  return ($student - $correct) == Formula(0);
+};
+
+
+ANS($pp->cmp( checker => $formulaChecker ));
+
+ANS($qp->cmp( checker => $formulaChecker ));
+     
+Context("Matrix");
+$initVals = Matrix([$salt1,$salt2])->transpose;
+
+Context()->texStrings;
 BEGIN_TEXT
-Give the initial values:
-$BR
-\{ mbox( display_matrix([ ['p(0)'],['q(0)'] ]), "\( = \)", answer_matrix(2,1,15), "." ) \} 
+Give the initial values $BR
+\(\begin{bmatrix} p(0) \\ q(0) \end{bmatrix}\) = \{$initVals->ans_array\}
 $PAR
 END_TEXT
+Context()->normalStrings;
 
-ANS num_cmp( [$salt1, $salt2] );
-
-BEGIN_TEXT
-Show the equation that needs to be solved to find a constant solution to the differential equation:
-$BR
-\{ mbox( answer_matrix(2,1,15), "\( = \)", answer_matrix(2,2,15), display_matrix([['p'],['q']]), "." ) \} 
-$PAR
-END_TEXT
+ANS($initVals->cmp());
 
 #left hand side vector answers
 $v1 = -$salt_concentration1*$flow_rate1;
 $v2 = -$salt_concentration2*$flow_rate2;
 
-ANS num_cmp( [ $v1,  $v2]);
 # matrix answers
 $a11 = -$tank1to2/$water1;
 $a12 = $tank2to1/$water2;
 $a21 = $tank1to2/$water1;
 $a22 = -$tank2to1/$water2 - $flow_out2/$water2;
 
-ANS num_cmp( [ $a11, $a12  ]);
-ANS num_cmp( [ $a21, $a22  ]);
+$v = Matrix([$v1,$v2])->transpose;
+$a = Matrix([
+ [$a11, $a12],
+ [$a21, $a22]
+]);
 
+$det = $a->det;  # never vanishes with this setup 
+$const = ($a->inverse)*$v; #constant solution
+
+# The next question has infinitely many correct answers so just  
+# check that the equations are independent and are satisfied by the 
+# constant solution.
+
+$multians = MultiAnswer($v,$a)->with(
+  singleResult => 1,
+  checker => sub {
+    my ( $correct, $student, $answerHash ) = @_;
+    my @s = @{$student};
+    $sv = Matrix($s[0]);
+    $sa = Matrix($s[1]);
+    return ($sv == $sa*$const) && !(($sa->det)==0);
+  }
+); 
+
+Context()->texStrings;
 BEGIN_TEXT
+Show the equation that needs to be solved to find a constant solution to the differential equation:
+$BR
+\{ $multians->ans_array(10) \}\( = \) \{ $multians->ans_array(10)\}
+\(\begin{bmatrix} p \\ q \end{bmatrix}\)
+$PAR
+
 A constant solution is obtained if \(p(t) = \) \{ans_rule(10)\} for all time t and
 \(q(t) = \) \{ans_rule(10)\} for all time t.
 
 END_TEXT
+Context()->normalStrings;
 
-$det = $a11*$a22-$a12*$a21;
-warn "There is a mistake in the construction of this problem" unless $det>0;
+ANS( $multians->cmp());
 
-
-
-$const_p = ($a22*$v1 - $a12*$v2)/$det;
-$const_q = (-$a21*$v1 +$a11*$v2)/$det;
-ANS num_cmp( [ $const_p ,  $const_q ] );
+ANS(($const->element(1,1))->cmp());
+ANS(($const->element(2,1))->cmp());
 
 ENDDOCUMENT();

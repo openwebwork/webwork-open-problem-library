@@ -1,0 +1,216 @@
+#########################################################
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(One sample mean - t)
+## Date(2015/05/26)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## KEYWORDS('Statistics inference', 'confidence interval for a mean', ' computer 90% ##and 95% confidence interval for a mean using a t distribution')
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+## warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@yearP=rserve_eval('
+
+city=as.factor(c("", "St. John, NL", "Charlottetown",  "Halifax", "Saint John, NB", "Quebec", "Montreal", "Ottawa", "Toronto", "Thunder Bay", "Winnipeg", "Regina",  "Saskatoon", "Edmonton", "Calgary", "Vancouver", "Victoria", "Whitehorse", "Yellowknife"));
+
+y=c(2010.0, 112.0, 102.2,  105.4,  101.1,  107.0,  106.6, 96.0,   98.2,  109.2,   98.8,  105.6,  105.1,   92.8, 94.9,  115.6,  109.7,  112.5,  116.9);
+
+ya=c(2011.0,  137.1,  126.4,  133.6,  127.2,  135.8,  136.2, 128.3,  133.5,  142.6,  126.2,  132.3,  132.2,  120.8, 123.2,  139.5,  131.6,  136.9,  138.9);
+
+yb=c(2012.0, 135.0, 125.8, 131.5, 129.7, 136.9, 135.8, 125.5, 128.9, 138.2, 122.1, 126.1, 126.2, 111.9, 114.5, 144.4, 131.8, 136.5, 138.9);
+
+yd=c(2013.0, 124.1,  126.6,  126.3,  122.7,  132.6,  135.9, 122.4,  125.4,  135.4,  123.5,  123.7,  125.2,  114.0, 118.9,  145.7,  132.3,  133.4,  138.9);
+
+ye=c(2014.0,  138.3,  139.4,  139.1,  135.6,  140.3,  142.7, 134.2,  135.8,  141.7,  127.8,  129.7,  129.1,  114.4, 123.1,  149.1,  139.2,  140.2,  138.9);
+
+data=data.frame(cbind(city, y, ya, yb, yd, ye));
+
+ind = sample(x=seq(1, 5), size=1, replace=F);
+year=c(2010, 2011, 2012, 2013, 2014);
+yearS=year[ind];
+');
+$yearP=$yearP[0]; 
+
+
+@gasPrice=rserve_eval('
+dat=data[,(ind+1)][-1]
+###sample 6 numbers
+i=sort(sample(x=seq(1, 18), size=6, replace=F))
+#####extract data
+gas=dat[i]
+'); 
+
+@Cities=rserve_eval('
+cities<-as.character(city[(i+1)])
+'); 
+
+@meanP=rserve_eval('
+####Q1 compute mean
+m<-mean(gas)
+round(mean(gas), 2)
+'); 
+$meanP=$meanP[0];
+$q1ans = $meanP;
+
+@sdP=rserve_eval('
+####Q2 sd
+s<-sd(gas)
+round(sd(gas), 2)
+');
+$sdP=$sdP[0];
+$q2ans = $sdP;
+
+
+@LB=rserve_eval('
+ME90=2.015*s/sqrt(6)
+round(m-ME90, 2)
+'); 
+$LB=$LB[0];
+
+@UB=rserve_eval('
+round(m+ME90, 2)
+'); 
+$UB=$UB[0];
+
+$q3ansLB = $LB;
+$q3ansUB = $UB;
+
+#####95%
+@LBF=rserve_eval('
+ME95<-2.570*s/sqrt(6)
+round(m-ME95, 2)
+'); 
+$LBF=$LBF[0];
+
+
+@UBF=rserve_eval('
+round(m+ME95, 2)
+'); 
+$UBF=$UBF[0]; 
+
+$q4ansLB = $LBF;
+$q4ansUB = $UBF;
+
+
+###Make a table
+$Table=
+"\(
+\begin{array}{c|c}
+\text{Urban area} & \text{Price/litre} \\  \hline
+\text{$Cities[0]} & $gasPrice[0] \\   
+\text{$Cities[1]} & $gasPrice[1] \\ 
+\text{$Cities[2]} & $gasPrice[2] \\ 
+\text{$Cities[3]} & $gasPrice[3] \\ 
+\text{$Cities[4]} & $gasPrice[4] \\ 
+\text{$Cities[5]} & $gasPrice[5]
+\end{array}
+\)"
+;  
+ 
+## Answers evaluation (Required)
+$showPartialCorrectAnswers = 1;
+ANS( num_cmp($q1ans, tol=> 0.02) );
+ANS( num_cmp($q2ans, tol=> 0.02) );
+ANS( num_cmp($q3ansLB, tol=> 0.02) );
+ANS( num_cmp($q3ansUB, tol=> 0.02) );
+ANS( num_cmp($q4ansLB, tol=> 0.02) );
+ANS( num_cmp($q4ansUB, tol=> 0.02) );
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+The data below gives the mean price (in cents) of a litre of regular gasoline at self-service filling stations at a sample of six urban centres in Canada in May $yearP.
+$BR
+$BR
+$BCENTER
+$Table
+$ECENTER
+$BR
+Provide answers to the following to two decimal places.
+$BR
+$BR
+$BBOLD Part (a) $EBOLD Find the sample mean (in cents). \{ ans_rule(7) \}
+$BR
+$BR
+$BBOLD Part (b) $EBOLD Find the sample standard deviation (in cents). \{ ans_rule(7) \}
+$BR 
+$BR
+$BBOLD Part (c) $EBOLD Using the appropriate t distribution, find a 90% confidence interval for the mean gasoline price per litre across urban Canada in May $yearP. Provide the upper and lower bounds for your confidence interval. ( \{ans_rule(7)\}, \{ans_rule(7)\}) 
+$BR  
+$BR
+$BBOLD Part (d) $EBOLD Would a 95% confidence interval be wider or narrower than the interval you found in Part (c)? Using the appropriate t distribution, find a 95% confidence interval for the mean gasoline price per litre across urban Canada in May $yearP. Provide the upper and lower bounds for your confidence interval. ( \{ans_rule(7)\}, \{ans_rule(7)\})
+$BR  
+$BR
+END_TEXT
+
+## Solution (Optional but recommended)
+Context()->texStrings;
+Context()->{format}{number} = "%.2f";
+BEGIN_SOLUTION
+$BBOLD Part(a) $EBOLD The mean is \(\bar{x}\)= \($q1ans\) cents. 
+$BR
+$BR
+$BBOLD Part(b) $EBOLD The standard deviation is \(s\)= \($q2ans\) cents.
+$BR
+$BR
+$BBOLD Part(c) $EBOLD We assume our sample is a random sample of six urban centres from all urban centres in Canada in May $yearP. The parameter of interest is the mean gasoline price \( \mu  \) (per litre, in cents) across urban areas of Canada in May $yearP. As the sample size is small and the population standard deviation unknown, we apply the result that 
+$BR
+\begin{align*}
+\frac{\bar{x}-\mu }{s/\sqrt{6}}
+\end{align*}
+$BR
+approximately follows a \(t\) distribution with \(5\) degrees of freedom. The \(95\)th percentile point of the \(t_{5}\) distribution is \(2.015\) (the \(5\)th percentile being \(-2.015\) ). Hence a \(90\) % confidence interval for \(\mu \) is
+$BR
+\begin{align*}
+\bar{x}\pm 2.015\frac{s}{\sqrt{6}}.
+\end{align*}
+$BR
+$BR
+$BBOLD Part(d) $EBOLD We expect a \(95\) % confidence interval to be wider than a \(90\) % confidence interval. As above, but noting that the \(97\frac{1}{2}\) th percentile point of the \(t_{5}\)
+distribution is \(2.570\) (the \( 2 \frac{1}{2}\) th percentile being \(-2.570\) ), a \(95\) % confidence interval for 
+\( \mu  \) is 
+$BR
+\begin{align*}
+\bar{x}\pm 2.570\frac{s}{\sqrt{6}}.
+\end{align*}
+$BR
+END_SOLUTION
+#########################################################
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

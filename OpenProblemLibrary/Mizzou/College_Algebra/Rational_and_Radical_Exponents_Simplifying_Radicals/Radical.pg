@@ -1,0 +1,158 @@
+## DESCRIPTION
+## Radicals and Rational Exponents: Simplifying Radicals
+## ENDDESCRIPTION
+
+
+## Author1('David Covert')
+## Author2('Teri Christiansen')
+## Author3('Rick Lynch')
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Date(Spring 2012)
+## Institution(University of Missouri)
+## Level(3)
+## MO(1)
+## TitleText1('College Algebra')
+## AuthorText1('Beecher, Penna, Bittinger')
+## EditionText1('4')
+## Section1('.7')
+## Problem1('')
+## KEYWORDS('radical expression')
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGunion.pl",
+"MathObjects.pl",
+"PGcourse.pl",
+"parserMultiAnswer.pl",
+"contextLimitedPowers.pl",
+"AnswerFormatHelp.pl",
+);
+
+TEXT(beginproblem());
+
+
+###################################
+# Setup
+
+
+#
+# Subclass the numeric functions
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+
+#
+# Override sqrt() to return a special value (usually 1) when evaluated
+# effectively eliminating it from the product.
+#
+sub sqrt {
+  my $self = shift;
+  my $value = $self->context->flag("setSqrt");
+  return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+  return $value if $value;
+  return $self->SUPER::sqrt(@_);
+}
+
+#
+# end of subclass
+#
+package main;
+
+###########################
+
+Context("Numeric");
+Context("Numeric")->variables->are(
+x => ["Real", limits => [0,2]],    # only needed if x is used in the square roots
+);
+#
+# make sqrt() use our subclass
+#
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+Context()->flags->set(reduceConstantFunctions=>0);
+Context()->variables->add(
+y=>"Real",
+t=>"Real",
+s=>"Real",
+u=>"Real",
+v=>"Real",
+p=>"Real",
+q=>"Real",
+r=>"Real",
+w=>"Real",
+z=>"Real");
+
+$var = list_random('x','y','z','w','p','q','r','s','t','u','v');
+$var1 = list_random('x','y','z','w','t');
+$var2 = list_random('p','q','r','u','v');
+$a = list_random(2,3,4,5,6,10);
+$b = list_random(2,3,5);
+$a2b = ($a**2)*$b;
+
+
+LimitedPowers::OnlyPositiveIntegers();
+
+$expr = "\sqrt{$a2b $var^{3}}";
+
+$ans = Compute("$a $var sqrt($b $var)");
+
+Context()->variables->set($var=>{limits=>[5,10]});
+Context()->variables->set($var1=>{limits=>[5,10]});
+Context()->variables->set($var2=>{limits=>[5,10]});
+$texanswer = "\($a $var \sqrt{$b $var} \)";
+
+##############################################################
+
+BEGIN_TEXT
+Simplify.  Assume that all variables represent positive real numbers.
+$PAR
+$BCENTER
+\( $expr = \) \{ans_rule(20)\}
+$ECENTER
+$BR
+    Write your answer using radical notation if necessary.  
+END_TEXT
+
+    BEGIN_TEXT
+    $PAR
+
+$BBOLD Help: $EBOLD
+To enter the square root of a number use ${BBOLD}sqrt()${EBOLD}. For example, to give \(\sqrt{7x}\) as an answer, you would type sqrt(7x). If you mistakenly type sqrt 7x instead, Webwork will take this to mean \(x \sqrt{7}\), not \(\sqrt{7x}\). That is, you MUST put parentheses around everything of which you want to take the square root.
+    END_TEXT
+
+Context()->normalStrings;
+
+##############################################################
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $ans-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 1);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+ENDDOCUMENT();

@@ -1,0 +1,127 @@
+# DESCRIPTION
+# 
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## Level(3)
+## MO(1)
+
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "MathObjects.pl",
+  "PGstandard.pl",
+  "AnswerFormatHelp.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+#
+# Subclass the numeric functions
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+
+#
+# Override sqrt() to return a special value (usually 1) when evaluated
+# effectively eliminating it from the product.
+#
+sub sqrt {
+  my $self = shift;
+  my $value = $self->context->flag("setSqrt");
+  return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+  return $value if $value;
+  return $self->SUPER::sqrt(@_);
+}
+
+#
+# end of subclass
+#
+package main;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric");
+@vars = ("x","y","z","a","b","c","p","q","r");
+$ch = random(0,scalar(@vars)-1,1);
+$v = $vars[$ch];
+Context()->variables->are($v=> ["Real", limits => [0,2]]);
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+Context()->flags->set(reduceConstantFunctions=>0);
+
+do {
+  $a = random(2,9);
+  $b = non_zero_random(-9,9)
+} until (gcd($a,$b) == 1);
+
+do {
+  $c = random(2,9);
+  $d = non_zero_random(-9,9)
+} until ($c != $a && $d != $b && gcd($c,$d) == 1);
+
+$disp = "\left($a \sqrt{$v} + $b \right)\left($c \sqrt{$v} + $d \right)";
+$e1 = $a*$c;
+$e2 = $a*$d + $b*$c;
+$e3 = $b*$d;
+$ans = Formula("$e1 $v + $e2 sqrt($v) + $e3")->reduce;
+
+
+###########################################################################
+# state the problem 
+###########################################################################
+Context()->texStrings;
+BEGIN_TEXT
+Simplify.  Assume that all expressions under radicals represent nonnegative numbers.
+$PAR
+$BCENTER
+\($disp =\)  \{ans_rule(20)\}
+$ECENTER
+$PAR
+Write your answer using radical notation if necessary.  
+END_TEXT
+
+
+###########################################################################
+# check the answer  
+###########################################################################
+ANS( $ans-> cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 101);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Check to see if your answer is simplified.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"reduced"
+  )
+);
+
+  BEGIN_TEXT
+  $PAR
+  ${BBOLD}Help:${EBOLD} 
+  \{ AnswerFormatHelp("exponents", "Click here for help writing exponents and square roots.") \}
+  $BR
+  END_TEXT
+Context()->normalStrings;
+
+ENDDOCUMENT();

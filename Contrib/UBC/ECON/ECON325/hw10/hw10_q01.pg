@@ -1,0 +1,271 @@
+#########################################################
+##KEYWORDS('Inference'; 'hypothesis tests, matched pairs, dependent
+##samples'; 'find the test statistic for a matched pairs t test, compute the
+##p-value for the test in the case of a one--sided alternative, decide whether
+##to reject the null hypothesis'. )
+# DESCRIPTION
+## DBsubject('Statistics')
+## DBchapter('Hypothesis tests')
+## DBsection('Paired samples')
+## Date('2015/11/01')
+## Author('Nelson Chen')
+## Institution('University of British Columbia')
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+  "answerCustom.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@dat=rserve_eval('
+n <- round(runif(1, min=160, max=180), 0)
+s1 <- round(runif(1, min=12, max=16),1)
+m1 <- round(runif(1, min=70, max=78),1)
+s2 <- round(runif(1, min=12, max=16),1)
+m2 <- round(runif(1, min=68, max=76),1)
+c <- round(runif(1, min=68, max=76),1)
+sd <- sqrt((s1^2)+(s2^2)-2*c)
+');
+
+@n = rserve_eval('
+n
+');
+
+@n1 = rserve_eval('
+n-1
+');
+
+
+@m1 = rserve_eval('
+m1
+');
+
+@m2 = rserve_eval('
+m2
+');
+
+@s1 = rserve_eval('
+s1
+');
+
+@s2 = rserve_eval('
+s2
+');
+
+@c = rserve_eval('
+c
+');
+
+@sd = rserve_eval('
+round(sd, 3)
+');
+
+#####Q1
+@q1_a = rserve_eval('
+q1_a=round((m1-m2)/(sd/sqrt(n)),2)
+');
+
+@q1_b = rserve_eval('
+q1_b=round((m2-m1)/(sd/sqrt(n)),2)
+');
+
+@q1 = rserve_eval('
+q1=c(q1_a, q1_b)
+');
+
+@qtol = rserve_eval('
+0.02
+');
+
+$qtol=@qtol[0];
+
+####Q2
+@q2 = rserve_eval('
+q2=round(pt((m1-m2)/(sd/sqrt(n)), df=n-1, lower.tail=FALSE),3)
+');
+
+#####Q3
+@ans_e_correct = rserve_eval('
+tem<-q2
+r<-0
+if(tem<0.01){
+r<-1  
+}
+r
+');
+
+$ans_e_correct = $ans_e_correct[0];
+
+$qu_e = "With a 1 % significance level, what decision do you make?";
+
+@ans_e_all = ("Do not reject the null hypothesis.",
+"Reject the null hypothesis.");
+
+$ans_e = $ans_e_all[$ans_e_correct];
+$mc_e = new_multiple_choice();
+$mc_e->qa(
+  $qu_e,
+  $ans_e
+);
+$mc_e->makeLast(
+$ans_e_all[0], $ans_e_all[1]
+);
+
+####Build table
+$Table = 
+"\(       
+\begin{array}{l|cc} 
+ & \text{Mean} &  \text{Standard deviation} \\ \hline
+\text{Midterm exam} & @m1[0] & @s1[0] \\ 
+\text{Final exam} & @m2[0] & @s2[0]     
+\end{array}
+\)"
+;
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Statistics for a sample of @n[0] students in Economics 325 are:
+$BR
+$BCENTER
+$Table
+$ECENTER
+$BR
+The sample covariance between the mid-term and final exam grades is @c[0]. Test the null hypothesis that the within-student average grades for the
+mid-term and final exams are the same against a one-sided alternative that
+the within-student average grade for the final exam is lower than the
+average grade for the mid-term exam.
+
+$BR
+$BR
+$BBOLD(a) $EBOLD Report the test statistic. Round off your answer to two decimal places.  \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD Report the p-value of the test. Round off your answer to three decimal places. \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(c) $EBOLD 
+ \{ $mc_e->print_q() \}
+$BR
+\{ $mc_e->print_a() \}
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+
+ANS(custom_list_cmp(List(@q1), sub {
+my ($correct,$student, $ans) = @_;
+return 0 unless scalar(@{$student}) == 1;
+my $sx = $student->[0];
+((grep {abs($sx - $_) < $qtol} @{$correct}) ? scalar(@{$correct}) : 0)
+}));
+
+ANS( num_cmp(@q2[0], tol=> 0.02) );
+ANS(radio_cmp($mc_e->correct_ans()) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+$BBOLD (a) $EBOLD
+We have n=@n[0] matched pairs data here, and so
+have a test based on t where
+$BR
+$BR
+$BCENTER
+\begin{eqnarray*}
+t &=\frac{\bar{d}}{s_{d}/\sqrt{n}},
+\end{eqnarray*}
+$ECENTER
+$BR
+$BR
+where \(\bar{d}\) is the mean within-student difference (which
+equals the difference of the sample means) and \(s_{d}\) is the
+standard deviation of these differences. It can be shown that
+$BR
+$BR
+$BCENTER
+\begin{eqnarray*}
+s_{d}^{2} &=s_{X}^{2}+s_{Y}^{2}-2s_{XY}
+\end{eqnarray*}
+$ECENTER
+$BR
+$BR
+where \(s_{X}\) is the standard deviation of the midterm scores, 
+\( s_{Y}\) is the standard deviation of the exam scores, and \(s_{XY}\) 
+is the sample covariance of the two scores. Here then
+$BR
+$BR
+$BCENTER
+\begin{eqnarray*}
+s_{d}=@sd[0]
+\end{eqnarray*}
+$ECENTER
+$BR
+$BR
+and so
+$BR
+$BR
+$BCENTER
+\begin{eqnarray*}
+t &=\frac{@m1[0]-@m2[0]}{@sd[0]/\sqrt{@n[0]}}=@q1_a[0].
+\end{eqnarray*}
+$ECENTER
+$BR
+$BR
+Note that the value
+$BR
+$BR
+$BCENTER
+\begin{eqnarray*}
+t &=\frac{@m2[0]-@m1[0]}{@sd[0]/\sqrt{@n[0]}}=@q1_b[0]. 
+\end{eqnarray*}
+$ECENTER
+$BR
+$BR
+is also accepted.  
+$BR
+$BR
+
+$BBOLD (b) $EBOLD
+Under the null hypothesis, the test statistic t follows
+the t distribution with @n1[0] degrees of freedom. As we have
+a one-sided alternative hypothesis conjecturing that the exam has a lower
+mean average per student than the midterm, the p-value is @q2[0].  
+$BR
+$BR
+
+$BBOLD (c) $EBOLD
+If the p-value found in (b) is lower than 0.01, we reject the null
+hypothesis that the mean grades for the two tests are the same. Otherwise we
+cannot reject the null hypothesis.
+END_SOLUTION
+ENDDOCUMENT();
