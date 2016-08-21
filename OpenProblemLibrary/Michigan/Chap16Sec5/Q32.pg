@@ -68,7 +68,8 @@ $cart = MultiAnswer( Compute("-$rad"), Compute("$rad"),
 		     Compute("z"), Compute("y"), Compute("x") )->with(
     singleAnswer=>0,
     checker=>sub {
-	my ( $c, $s, $self ) = @_;
+	my ( $c, $s, $self, $ansHash ) = @_;
+	# warn( "correct_ans = " . $self->{cmp}->[2]->{rh_ans}->{correct_ans} );
 	@res = ( 0,0, 0,0, 0,0, 0, 0,0,0 );
 	$res[6] = ( $c->[6] == $s->[6] ) ? 1 : 0;
 	## if z is innermost
@@ -78,22 +79,27 @@ $cart = MultiAnswer( Compute("-$rad"), Compute("$rad"),
 	    $res[5] = ( $c->[5] == $s->[5] ) ? 1 : 0;
 
 	    ## then x and y can be in either order
-	    if ( $c->[9] == $s->[9] ) {
+	    if ( $c->[9] == $s->[9] ) { # x is outermost
 		$res[9] = 1;
-		$yind = 2;
 		$res[0] = ( $c->[0] == $s->[0] ) ? 1 : 0;
 		$res[1] = ( $c->[1] == $s->[1] ) ? 1 : 0;
-	    } elsif ( $c->[9] == $s->[8] ) {
-		$res[8] = 1;
-		$yind = 0;
+
+		$res[8] = ( $c->[8] == $s->[8] ) ? 1 : 0;
+		$res[2] = ( $c->[2] == $s->[2] ) ? 1 : 0;
+		$res[3] = ( $c->[3] == $s->[3] ) ? 1 : 0;
+	    } elsif ( $c->[9] == $s->[8] ) { # y is outermost
+		$res[9] = 1;
+		$res[0] = ( $c->[0] == $s->[0] ) ? 1 : 0;
+		$res[1] = ( $c->[1] == $s->[1] ) ? 1 : 0;
+
+		$res[8] = ( $c->[8] == $s->[9] ) ? 1 : 0;
 		$res[2] = ( Compute("-sqrt($rad^2-y^2)") == $s->[2] ) ? 1 : 0;
 		$res[3] = ( Compute("sqrt($rad^2-y^2)") == $s->[3] ) ? 1 : 0;
+		# I think this should reset the displayed correct answer,
+		#    but it doesn't
+		# $self->{cmp}->[2]->{rh_ans}->{correct_ans} = "-sqrt($rad^2-y^2)";
+		# $self->{cmp}->[3]->{rh_ans}->{correct_ans} = "sqrt($rad^2-y^2)";
 	    }
-	    $res[9-$yind/2] = ( $c->[8] == $s->[9-$yind/2] ) ? 1 : 0;
-	    $res[$yind] = ( ($yind == 2 && $c->[2] == $s->[$yind]) ||
-			    ($yind == 0 && $c->[0] == $s->[$yind]) ) ? 1 : 0;
-	    $res[1+$yind] = ( ($yind == 2 && $c->[3] == $s->[1+$yind]) ||
-			      ($yind == 0 && $c->[1] == $s->[1+$yind]) ) ? 1:0;
 
 	## next, if z is the outermost
 	} elsif ( Compute("z") == $s->[9] ) {
@@ -104,40 +110,40 @@ $cart = MultiAnswer( Compute("-$rad"), Compute("$rad"),
 	    ## then x and y can be in either order
 	    if ( Compute("y") == $s->[8] ) {
 		$res[8] = 1;
-		$xind = 7; @xlim = ( 4, 5 );
 		$res[2] = ( Compute("-z/$m") == $s->[2] ) ? 1 : 0;
 		$res[3] = ( Compute("z/$m") == $s->[3] ) ? 1 : 0;
+
+		$res[7] = ( Compute("x") == $s->[7] ) ? 1 : 0;
+		$res[4] = (Compute("-sqrt((z/$m)^2 - y^2)") == $s->[4]) ? 1 : 0;
+		$res[5] = (Compute("sqrt((z/$m)^2 - y^2)") == $s->[5]) ? 1 : 0;
+
 	    } elsif ( Compute("y") == $s->[7] ) {
 		$res[7] = 1;
-		$xind = 8; @xlim = ( 2, 3 );
-		$res[4] = ( Compute("-sqrt((z/$m)^2 - x^2)") == $s->[4] ) ?1:0;
-		$res[5] = ( Compute("sqrt((z/$m)^2 - x^2)") == $s->[5] ) ? 1:0;
+		$res[4] = (Compute("-sqrt((z/$m)^2 - x^2)") == $s->[4]) ? 1: 0;
+		$res[5] = (Compute("sqrt((z/$m)^2 - x^2)") == $s->[5]) ? 1 : 0;
+
+		$res[8] = ( Compute("x") == $s->[8] ) ? 1 : 0;
+		$res[2] = ( Compute("-z/$m") == $s->[2] ) ? 1 : 0;
+		$res[3] = ( Compute("z/$m") == $s->[3] ) ? 1 : 0;
 	    }
-	    $res[$xind] = ( Compute("x") == $s->[$xind] ) ? 1 : 0;
-	    $res[$xlim[0]] =
-	      (($xlim[0] == 4 && Compute("-sqrt((z/$m)^2 - y^2)") == $s->[4])
-	       ||
-	       ($xlim[0] == 2 && Compute("-z/$m") == $s->[2])) ? 1 : 0;
-	    $res[$xlim[1]] =
-	      (($xlim[1] == 5 && Compute("sqrt((z/$m)^2 - y^2)") == $s->[5])
-	       ||
-	       ($xlim[1] == 3 && Compute("z/$m") == $s->[5])) ? 1 : 0;
 
 	## finally, if z is in the middle.  blech.
 	} elsif ( Compute("z") == $s->[8] ) {
 	    ## x or y is in the outside
 	    if ( Compute("x") == $s->[9] ) {
+		$res[9] = 1;
 		$invar = "y";  $outvar = "x";
 		$res[0] = ( Compute("-$rad") == $s->[0] ) ? 1 : 0;
 		$res[1] = ( Compute("$rad") == $s->[1] ) ? 1 : 0;
-		$res[8] = 1;
+		$res[8] = 1;  # z
 		$res[2] = ( Compute("$m*x") == $s->[2] ) ? 1 : 0;
 		$res[3] = ( Compute("$h") == $s->[3] ) ? 1 : 0;
 	    } elsif ( Compute("y") == $s->[9] ) {
+		$res[9] = 1;
 		$invar = "x";  $outvar = "y";
 		$res[0] = ( Compute("-$rad") == $s->[0] ) ? 1 : 0;
 		$res[1] = ( Compute("$rad") == $s->[1] ) ? 1 : 0;
-		$res[8] = 1;
+		$res[8] = 1; # z
 		$res[2] = ( Compute("$m*y") == $s->[2] ) ? 1 : 0;
 		$res[3] = ( Compute("$h") == $s->[3] ) ? 1 : 0;
 	    }
@@ -421,7 +427,7 @@ ANS($cart->cmp() );
 ANS($cyl->cmp() );
 ANS($sph->cmp() );
 
-$r2 = $r*$r;
+$r2 = $rad*$rad;
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
@@ -433,10 +439,10 @@ it has equation
 \[ z = $mdisp \sqrt{x^2+y^2}. \]
 The top of the cone, the plane with equation \(z = $height\),
 intersects the cone in the circle
-\( x^2 + y^2 = $rad\). Thus,
+\( x^2 + y^2 = $r2\). Thus,
 in cartesian coordinates we have
 \[
-\int_W\, dV = \int_{-$rad}^{$rad}\int_{-\sqrt{$r2-x^2}}^{\sqrt{r2-x^2}}
+\int_W\, dV = \int_{-$rad}^{$rad}\int_{-\sqrt{$r2-x^2}}^{\sqrt{$r2-x^2}}
   \int_{$mdisp\sqrt{x^2+y^2}}^{$height}\,1\,dz\,dy\,dx.
 \]
 
@@ -445,7 +451,7 @@ ${BBOLD}(b)$EBOLD
 In cylindrical coordinates the cone has equation \(z = $mdisp r\), so
 the integral becomes
 \[
-\int_W\,dV = \int_{0}^{2\pi}\int{0}^{$rad}\int_{$mdisp r}^{$height}
+\int_W\,dV = \int_{0}^{2\pi}\int_{0}^{$rad}\int_{$mdisp r}^{$height}
   r\,dz\,dr\,d\theta.
 \]
 

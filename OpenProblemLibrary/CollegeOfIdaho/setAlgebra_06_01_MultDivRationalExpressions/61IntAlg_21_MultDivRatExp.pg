@@ -22,7 +22,7 @@ DOCUMENT(); # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl"
+  "bizarroArithmetic.pl"
 );
 
 TEXT(beginproblem());
@@ -43,6 +43,17 @@ do {$d = non_zero_random(-8,8,1);} while ($d==$a || $d==$c || $d==$b);
 ######################################
 #  Main text
 
+Context('Numeric');
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1});
+
+
 BEGIN_TEXT
 Multiply and simplify your answer.
 \[($f1) \cdot $f2\]
@@ -55,13 +66,28 @@ END_TEXT
 
 # \(\hskip 15pt  \displaystyle $poly1n \cdot \frac{$poly2n}{$poly2d}\)
 
-$answer = "((x+$b)*(x+$c))/(x+$d)";
-ANS(RationalExpEvaluator($answer,"x")); 
+$num = nicestring([1, $b+$c, $b*$c]);
+$answer = Compute("($num)/(x+$d)");
+ANS($answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroDiv=>0);
+      Value::Error("Your answer needs to be simplified further") unless $OK;
+      return $OK;
+})); 
+
+#ANS(RationalExpEvaluator("($num)/(x+$d)","x")); 
 
 $showPartialCorrectAnswers = 1;
 
-######################################
 
-
-;
 ENDDOCUMENT();

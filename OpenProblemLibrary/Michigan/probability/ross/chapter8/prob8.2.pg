@@ -1,0 +1,171 @@
+# DESCRIPTION
+# Homework problem from A First Course in Probability, Ross;
+# 9th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('probability,random variables,discrete random variables')
+## Tagged by glr 13/09/25
+
+## DBsubject('Probability')
+## DBchapter('Laws, theory')
+## DBsection('Misc.')
+## Date('08/12/16')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('A First Course in Probability')
+## EditionText1('9')
+## AuthorText1('Sheldon Ross')
+## Section1('8.3')
+## Problem1('2')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGnumericalmacros.pl",
+"PGstatisticsmacros.pl",
+"parserPopUp.pl",
+);
+
+Context("Numeric");
+
+# normal_prob(a, b, mean=>0, deviation=>1);
+# normal_distr(prob, mean=>0, deviation=>1);  Phi^{-1}(prob)
+
+$mu   = random(75,85,1);
+$v    = $mu + 10;
+$var  = random(20,30,1);
+$mid1 = $mu - 10;
+$mid2 = $mu + 10;
+$perc = random(85,95,5);
+$pr   = $perc/100;
+$perc1 = 100 - $perc;
+$pr1  = 1 - $pr;
+$dist = list_random(2,3,5);
+
+$markov    = Compute( "$mu/$v" );
+$chebyshev = Compute( "1 - $var/100" );
+$chebineq  = PopUp( [ "?", "<=", ">=", "=" ], ">=" );
+
+$wlln_num  = Compute( "$var/($dist*$dist*$pr1)" );
+$wlln_num_r = int( $wlln_num );
+$wlln_num_r += 1 if ( $wlln_num_r != $wlln_num );
+
+$phi_inv = ( 1.439531471, 1.644853627, 1.959963985 )[($perc-85)/5];
+$clt_num = Compute( "$var*$phi_inv^2/($dist)^2" );
+$clt_num_r = int( $clt_num );
+$clt_num_r += 1 if ( $clt_num_r != $clt_num );
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Suppose that the test score of a student taking the final
+of a probability course is a random variable with mean $mu.
+$PAR
+${BBOLD}(a)$EBOLD
+Give an upper bound for the probability that a student's test
+score will exceed $v.
+$BR
+\( P\lbrace \mbox{score} > $v \rbrace \le \) \{ $markov->ans_rule() \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Suppose that we know, in addition, that the variance
+of students' test scores on the final is $var.  What
+can you say about the probability that a student will score
+between $mid1 and $mid2 (do not use the central limit theorem)?
+$BR
+\( P\lbrace $mid1\le \mbox{score}\le $mid2\rbrace \)
+\{ $chebineq->menu() \}
+\{ $chebyshev->ans_rule() \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+How many students would have to take the final to ensure with a
+probability of at least $pr that the class average would be within
+$dist of $mu (do not use the central limit theorem)?
+$BR
+\( n = \) \{ $wlln_num->ans_rule() \}
+
+$PAR
+${BBOLD}(d)$EBOLD
+If you use the central limit theorem in (c), what is your estimate
+for the number of students needed?
+$BR
+\( n = \) \{ $clt_num->ans_rule() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $markov->cmp() );
+ANS( $chebineq->cmp() );
+ANS( $chebyshev->cmp() );
+ANS( $wlln_num->cmp( checker=>sub { my ( $c, $s, $a ) = @_;
+				    return $c == $s || $wlln_num_r == $s } ) );
+ANS( $clt_num->cmp( checker=>sub { my ( $c, $s, $a ) = @_;
+				   return $c == $s || $clt_num_r == $s ||
+				          abs($c - $s) <= 0.015 } ) );
+
+($mn,$md) = reduce( $mu, $v );
+$mark_frac = "\frac{$mn}{$md}";
+($cn, $cd) = reduce( $var, 100 );
+$cheb_frac = ( $cn == $var ) ? '' : " = \frac{$cn}{$cd}";
+($wn, $wd) = reduce( $var*100, $dist*$dist*$perc1 );
+$wlln_frac = ( $wd == 1 ) ? $wn : "\frac{$wn}{$wd}";
+($zn, $zd) = reduce( $var, ($mu - $dist)*($mu - $dist) );
+$z_frac = ( $zd == 1 ) ? $zn : "\frac{$zn}{$zd}";
+
+$phi_inv_r = sprintf("%1.5f", $phi_inv);
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+${BBOLD}(a)$EBOLD
+Markov's inequality gives
+\( P\lbrace X\ge a\rbrace \le \frac{E[X]}{a} \),
+so we may estimate that
+\( P\lbrace X\ge $v\rbrace \le \frac{$mu}{$v} = $mark_frac \).
+
+$PAR
+${BBOLD}(b)$EBOLD
+If we in addition know that the variance of the test score is $var,
+we can use Chebyshev's inequality to find a bound on the probability.
+Chebyshev's inequality is
+\( P\lbrace |X - \mu| \ge k \rbrace \le \frac{\sigma^2}{k^2} \),
+so
+\( P\lbrace $mid1\le X\le $mid2 \rbrace \ge \frac{$var}{100} $cheb_frac \).
+
+$PAR
+${BBOLD}(c)$EBOLD
+In that we are not to use the central limit theorem, we will invoke the
+weak law of large numbers instead.  We have
+\( P\lbrace\frac{X_1 + \cdots + X_n}{n} - \mu \ge k \rbrace \le
+\frac{\sigma^2}{n\,k^2} \),
+so for
+\( P\lbrace \bar X - $mu \ge $dist \rbrace \le \frac{$var}{$dist^2 k} = $pr1 \),
+we must have \( n\ge $wlln_frac \), or, disallowing fractional students,
+\( n\ge $wlln_num_r \).
+
+$PAR
+${BBOLD}(d)$EBOLD
+Finally, if we have access to the central limit theorem, we want
+to find \(n\) so that
+\[ P\lbrace $mu - $dist \le \frac{X_1+\cdots+X_n}{n}\le $mu + $dist \rbrace
+\ge $pr, \]
+or, approximating with a normal,
+\[ P\lbrace \frac{-$dist}{\sqrt{$var/n}} \le Z \le
+\frac{$dist}{\sqrt{$var/n}} \rbrace =
+2\Phi(\frac{$dist\sqrt{n}}{\sqrt{$var}}) \ge $pr. \]
+The corresponding z-score is $phi_inv_r, so that, solving for \(n\), we must
+have \(n\ge $clt_num\), or, disallowing fractional students,
+\( n\ge $clt_num_r \).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

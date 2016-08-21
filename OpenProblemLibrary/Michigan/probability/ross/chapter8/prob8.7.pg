@@ -1,0 +1,133 @@
+# DESCRIPTION
+# Homework problem from A First Course in Probability, Ross;
+# 9th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('probability,random variables,discrete random variables')
+## Tagged by glr 13/09/25
+
+## DBsubject('Probability')
+## DBchapter('Laws, theory')
+## DBsection('Central limit theorem')
+## Date('08/12/16')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('A First Course in Probability')
+## EditionText1('9')
+## AuthorText1('Sheldon Ross')
+## Section1('8.3')
+## Problem1('7')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGnumericalmacros.pl",
+"PGstatisticsmacros.pl",
+);
+
+Context("Numeric");
+Context()->flags->set( tolerance=>0.005, tolType=>'absolute' );
+
+# normal_prob(a, b, mean=>0, deviation=>1);
+
+$n = random(90,120,5);
+$m = random(10,30,5);
+$msq = $m*$m;
+$tot = $n*$m + $msq;
+$tot2 = $tot + $msq;
+
+$z_score = ($tot - $m*$n)/($m*sqrt($n));
+$prob = Compute( 0.5 - normal_prob(0,$z_score) );
+
+$z_score2 = ($tot2 - $m*$n - ($n-1)/4)/sqrt($n*$msq + ($n-1)/48);
+# this calculation fails for very small probabilities
+# $prob2 = Compute( 1 - normal_prob(-infty,$z_score2) );
+$v2 = Compute( (10000 - 10000*normal_prob(-infty,$z_score2)) );
+$prob2 = Compute( "$v2/10000" );
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider a system with one component that is subject to failure, and
+suppose that we have $n copies of the component.  Suppose further that
+the lifespan of each copy is an independent exponential random variable
+with mean $m days, and that we replace the component with a new copy
+immediately when it fails.
+$PAR
+${BBOLD}(a)$EBOLD
+Approximate the probability that the system is still working after
+$tot days.
+$BR
+Probability \(\approx\) \{ $prob->ans_rule() \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Now, suppose that the time to replace the component is a random
+variable that is uniformly distributed over \((0,0.5)\).  Approximate
+the probability that the system is still working after $tot2 days.
+$BR
+Probability \(\approx\) \{ $prob2->ans_rule() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $prob->cmp() );
+ANS( $prob2->cmp() );
+
+$nm = $n*$m;
+$nm1 = $n - 1;
+$nmsq = $n*$msq;
+$m2 = $nm + $nm1/4;
+$var2 = $nmsq + $nm1/48;
+
+$z_score_r = sprintf("%1.5f", $z_score);
+$prob_r    = sprintf("%1.5f", $prob);
+
+$z_score2_r = sprintf("%1.5f", $z_score2);
+$prob2_r    = sprintf("%1.5f", 1 - normal_prob(-infty,$z_score2) );
+$prob2_r = 0 if ( $prob2_r eq '0.00000' );
+
+$var2_r = sprintf("%1.3f", $var2);
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+Recall that the mean and variance of an exponential random variable
+with parameter \(\lambda\) are \(1/\lambda\) and \(1/\lambda^2\),
+respectively.  Thus variance in the lifespan of one of the copies
+is \($msq\).
+$PAR
+${BBOLD}(a)$EBOLD
+Let \(X_j\) be the lifespan of the \(j\)th copy of the
+component; then the system is still functioning after $tot days if
+\( X = X_1 + X_2 +\cdots + X_{$n} \ge $tot \).  Using the central
+limit theorem and approximating by a normal distribution, we want
+\[ P\lbrace \frac{X - ($m)($n)}{$m\sqrt{$n}} >
+\frac{$tot - ($m)}{$m\sqrt{$n}} \rbrace \approx
+P\lbrace Z > $z_score_r\rbrace = 1 - \Phi($z_score_r) \approx $prob_r. \]
+
+$PAR
+${BBOLD}(b)$EBOLD
+We note that the replacement times \(U_j\) have means \(\frac14\) and
+variances \(\frac1{48}\).  There are several ways to approach this; one
+is to note that, by the central limit theorem (assuming that $n is large
+enough),
+\(X = X_1 + \cdots + X_{$n} \sim N($nm, $nmsq)\) and
+\(U = U_1 + \cdots + U_{$nm1} \sim N($nm1/4, $nm1/48)\).
+Thus \(Y = X + U \sim N($nm + $nm1/4, $nmsq + $nm1/48)\), and we want the
+probability \(P\lbrace Y > $tot2\rbrace\).  We may calculate this as
+before, finding
+\[ P\lbrace Y > $tot2 \rbrace \approx
+P\lbrace Z > \frac{$tot2 - $m2}{\sqrt{$var2_r}}\rbrace =
+1 - \Phi($z_score2_r) \approx $prob2_r. \]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

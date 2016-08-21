@@ -1,0 +1,124 @@
+# DESCRIPTION
+# Homework problem from A First Course in Probability, Ross;
+# 9th ed.
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('probability,random variables,discrete random variables')
+## Tagged by glr 13/09/25
+
+## DBsubject('Probability')
+## DBchapter('Random variables')
+## DBsection('Expectation')
+## Date('08/12/16')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('A First Course in Probability')
+## EditionText1('9')
+## AuthorText1('Sheldon Ross')
+## Section1('7.4')
+## Problem1('55')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+"PGauxiliaryFunctions.pl",
+"PGnumericalmacros.pl",
+"PGstatisticsmacros.pl",
+);
+
+Context("Numeric");
+Context()->flags->set( tolerance=>0.01, tolType=>'absolute' );
+
+# normal_prob(a, b, mean=>0, deviation=>1);
+$n = random(5,25,5);
+$p = random(0.4,0.6,0.1);
+$l = random(5,6,1);
+($pn,$pd) = reduce( 10*$p, 10 );
+
+## work out some approximate values; reasonable values might be
+##    sums from mean + std dev or higher.
+@okSums = ();
+$stdDev = sqrt($l);
+$minTerms = round($l + $stdDev + 0.5);
+
+$twol = 2*$l;
+$exl  = exp(-1*$l);
+$ifac = 1;
+$sum  = ( 1 - (1 - $p)**($n) )*$exl*$l;
+for ( my $i=2; $i<=100; $i++ ) {
+    $ifac *= ($i-1);
+    $sum += ( 1 - (1 - $p/$i)**($n) )*$exl*$l**$i/$ifac;
+    if ( $i == $twol ) {
+	$entwol = Compute( $sum );
+    }
+    if ( $i > $l + $stdDev && $i < 3*$l ) {
+	push( @okSums, Compute($sum) );
+    }
+}
+$en = Compute( $sum );
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+A group of $n hunters wait for ducks to fly by.  When a flock of ducks
+flies overhead, the hunters all fire at the same time, each selecting a
+target at random and independently of the others.  If each hunter
+independently hits his target with probability $p, and if all misses do
+not hit other ducks, what is the expected number of ducks that will be
+hit?  Assume that the number of ducks in a flock is a Poisson random
+variable with mean $l.
+$PAR
+\( E[N] = \) \{ $en->ans_rule() \}
+$BR
+${BITALIC}(Hint: your final answer will involve a sum; you may want
+to approximate it with a partial sum.  If you do this, be sure to
+include at least $minTerms terms.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+# ANS( $en->cmp( checker=>sub { my ($c, $s, $ans) = @_;
+# 			      return $c == $s || $entwol == $s ||
+# 				($c > $entwol && $entwol < $s && $c > $s) ||
+# 				  ($c < $entwol && $c < $s && $entwol > $s); } ) );
+ANS( $en->cmp( checker=>sub { my ($c, $s, $ans) = @_;
+			      return $c == $s || $okSums[0] == $s ||
+				($c > $okSums[0] && $okSums[0] < $s && $c > $s) ||
+				  ($c < $okSums[0] && $c < $s && $okSums[0] > $s); } ) );
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+We condition on the number of ducks in the flock: let \(M\) be the
+number of ducks.  Then
+\[ E[N] = \sum\limits_{m=1}^{\infty} E[N|M=m] P\lbrace M=m\rbrace. \]
+(Obviously the number of ducks in a flock will not be infinite, but
+we select the upper bound because of the Poisson model that we're using.)
+Then \(P\lbrace M=m\rbrace = e^{-$l}\frac{$l^m}{m!}\).  To find the
+expected number of ducks that are hit for a given flock-size, let
+\(D_j\) be an indicator variable for the \(j\)th duck that is \(0\)
+if it is not hit, and \(1\) if it is.  Because each hunter independently
+has a \(\frac1{m}\) chance of shooting at a given duck, and a probability
+of \($p\) of hitting it if s/he does, we have
+\(P\lbrace D_j=0\rbrace = \left(1 - \frac{$pn}{$pd m}\right)^{$n}\), and
+\(P\lbrace D_j=1\rbrace = 1 - \left(1 - \frac{$pn}{$pd m}\right)^{$n}\).
+Thus
+\( E[N|M=m] = m\left( 1 - \left(1 - \frac{$pn}{$pd m}\right)^{$n}\right) \),
+and
+\[ E[N] = \sum\limits_{m=1}^{\infty}
+m\left( 1 - \left(1 - \frac{$pn}{$pd m}\right)^{$n}\right)\cdot
+e^{-$l}\frac{$l^m}{m!}. \]
+It is not clear that this sum collapses to a simplified form, but we
+can estimate the value by summing out to, say \(m = $twol\) (twice the
+expected flock size): this give \( E[N] \approx $entwol \).  Completing
+the sum gives \( E[N] \approx $en \).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
