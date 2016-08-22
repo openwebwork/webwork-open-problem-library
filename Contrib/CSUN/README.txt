@@ -1,1 +1,0 @@
-For issues with the problems in this directory, contact David Protas at david.protas@csun.edu 
