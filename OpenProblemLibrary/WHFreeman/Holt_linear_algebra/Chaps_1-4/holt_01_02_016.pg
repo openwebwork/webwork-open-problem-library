@@ -24,10 +24,13 @@
 ###########################################################################
 DOCUMENT();
 loadMacros(
-  "MathObjects.pl",
   "PGstandard.pl",
+  "MathObjects.pl",
+  "MatrixReduce.pl",
+  "PGchoicemacros.pl",  #for NchooseK
   "parserPopUp.pl",
-  "PGmatrixmacros.pl",
+  "PGcourse.pl",
+#  "PGmatrixmacros.pl",
 );
 
 TEXT(beginproblem());
@@ -38,64 +41,58 @@ $showPartialCorrectAnswers = 1;
 # setup contexts and variables 
 ###########################################################################
 Context("Matrix");
-sub dispMat {
-  my $A = shift;
-  my @d = $A->dimensions;
-  my @a = ();
-  my $dA = "\left[\begin{array}{";
-  for (my $i = 0; $i < $d[1]; $i++) {
-    $dA = $dA."r";
-  }
-  $dA = $dA."}";
-  for (my $i = 0; $i < $d[0]; $i++) {
-    for (my $j = 0; $j < $d[1]; $j++) {
-      $a[$i][$j] = $A->element($i+1,$j+1);
-      if ($j != $d[1] - 1) {
-        $dA = $dA." $a[$i][$j] & ";
-      } elsif ($j == $d[1] - 1 && $i != $d[0] -1) {
-        $dA = $dA." $a[$i][$j] \\";
-      } else {
-        $dA = $dA." $a[$i][$j]";
-      }
-    }
-  }
-  $dA = $dA."\end{array}\right]";
-  return ($dA, @a);
+
+#Create 3x4 matrix with rank 3 whose third row has only one nonzero element
+do {
+  $M = Matrix([
+    [non_zero_random(-5,5), non_zero_random(-5,5), non_zero_random(-5,5), non_zero_random(-5,5)], 
+    [non_zero_random(-5,5),non_zero_random(-5,5),non_zero_random(-5,5), non_zero_random(-5,5)],
+    [0,0,0,0]
+  ]);
+  # insert zero into a random position in first two rows
+  $zero_row = random(1,2);
+  ($zero_column,$one_column) = (1,2,3,4)[NchooseK(4,2)]; 
+  change_matrix_entry($M,[$zero_row,$zero_column],0);
+  change_matrix_entry($M,[3,$one_column],1);
+  $Mrref = rref($M); 
+} until ( !($M->row(3)->isZero) );  
+
+$A=Matrix([$M->row(1),$M->row(2)]); 
+
+#add $c times $rowAdd to $rowBase of $A to obtain $B
+#require that column $one_column of $B be nonzero
+#this must happen because $A has only one zero
+
+do {
+  ($rowBase,$rowAdd) = (1,2)[NchooseK(2,2)];
+  $c = random(2,4)*random(-1,1,2);
+  $E = elem_matrix_row_add(2,$rowBase,$rowAdd,$c);
+  $B = $E*$A;
+} until ( !($B->column($one_column)->isZero) );
+
+#change a nonzero entry of column $one_column of $B to obtain $N
+
+($i,$j) = (1,2)[NchooseK(2,2)];
+if ( $B->element($i,$one_column)->isZero ){ $badRow = $j;}
+else {$badRow = $i;}
+
+do {$badEntry = non_zero_random(-9,9);} until ( $badEntry != ($B->element($badRow,$one_column)) );
+
+$N=Matrix($B);
+change_matrix_entry($N,[$badRow,$one_column],$badEntry);
+
+$pop = PopUp(["select", "-->", "<-->"], "-->");
+
+
+Context()->variables->are(R1 => "Real",R2 => "Real");
+if ($rowBase == 1){
+  $lhs = Formula("$c*R2+R1");
+  $rhs = Formula("R1");
 }
-
-$A = Matrix([non_zero_random(-5,5), non_zero_random(-5,5), non_zero_random(-5,5), non_zero_random(-5,5)], [non_zero_random(-5,5),non_zero_random(-5,5),non_zero_random(-5,5), non_zero_random(-5,5)]);
-($d1,$d2) = $A->dimensions;
-$A = $A->wwMatrix;
-$A->assign(random(1,$d1),random(1,$d2),0);
-$A = Matrix($A);
-($dA,@a) = dispMat($A);
-$row1 = random(1,$d1);
-do {$row2 = random(1,$d1)} until ($row2 != $row1);
-$c = random(2,4)*random(-1,1,2);
-
-$B = Matrix([0,0,0,0],[0,0,0,0])->wwMatrix;
-for ($i = 0; $i < $d1; $i++) {
-  for ($j = 0; $j < $d2; $j++) {
-    $B->assign($i+1,$j+1,$a[$i][$j] + $c*$a[$row2-1][$j]) if ($i == $row1 -1);
-    $B->assign($i+1,$j+1,$a[$i][$j]) if ($i != $row1 - 1);
-  } 
+else {
+  $lhs = Formula("$c*R1+R2");
+  $rhs = Formula("R2");
 }
-$B = Matrix($B);
-($dB,@b) = dispMat($B);
-
-do {($bad1,$bad2) = (list_random($row1), random(1,$d2))} until ($B->element($bad1,$bad2) != 0);
-$N = $B->wwMatrix;
-do {$N->assign($bad1,$bad2,non_zero_random(-9,9))} until ($N->element($bad1,$bad2) != $B->element($bad1,$bad2));
-$N = Matrix($N);
-($dN,@n) = dispMat($N);
-
-Context()->variables->add(R1 => ["Real", TeX=>"R_1"], R2 => ["Real", TeX=>"R_2"], R3 => ["Real", TeX=>"R_3"]);
-$rd1 = "R".$row1;
-$rd2 = "R".$row2;
-$rstrlhs = nicestring([$c,1],[$rd2,$rd1]);
-$lhs = Formula($rstrlhs);
-$rhs = Formula($rd1);
-$pop = PopUp(["select", "⇒", "⇔"], "⇒");
 
 
 ###########################################################################
@@ -105,12 +102,12 @@ Context()->texStrings;
 BEGIN_TEXT
 A single row operation was performed on the matrix on the left to produce the matrix on the right. Unfortunately, an error was made when performing the row operation.
 $PAR
-\[ $dA  \sim $dN \]
+\[ $A  \text{ row op produces: } $N \]
 $PAR
-First identify the row operation and then fix the error. Use ${BBOLD}R1${EBOLD}, ${BBOLD}R2${EBOLD}, and ${BBOLD}R3${EBOLD} to represent the rows \(R_1\), \(R_2\), and \(R_3\).
+First identify the row operation, then fix the error. Use ${BBOLD}R1${EBOLD}, and ${BBOLD}R2${EBOLD} to represent the rows \(R_1\), \(R_2\).  For example, if the operation were "add 2 times row 4 to row 6" then the answer would be "\(2*R4+R6 \longrightarrow R6\)".   If it were "swap row 4 with row 6" the answer would be "\(R4 \longleftrightarrow R6\)". 
 $PAR
 Row operation: \{ans_rule(10)\} \{$pop->menu()\} \{ans_rule(10)\} $PAR
-Fixed RHS: $BR \{ mbox(answer_matrix($d1,$d2,5)) \}
+Fixed right hand side: $BR \{ $B->ans_array \}
 END_TEXT
 Context()->normalStrings;
 
@@ -121,7 +118,7 @@ Context()->normalStrings;
 ANS($lhs->cmp());
 ANS($pop->cmp());
 ANS($rhs->cmp());
-ANS num_cmp(ra_flatten_matrix($B));
+ANS($B->cmp());
 
 
 ###########################################################################
@@ -130,11 +127,8 @@ ANS num_cmp(ra_flatten_matrix($B));
 Context()->texStrings;
 BEGIN_SOLUTION
 ${BBOLD}SOLUTION:${EBOLD}
-\($lhs \Rightarrow $rhs\), \($dB\)
+\($lhs \longrightarrow $rhs\), \($dB\)
 END_SOLUTION
 Context()->normalStrings;
 
-COMMENT('Created in 2013.
-$BR
-Desc: Determine the row operation performed and fix error.');
 ENDDOCUMENT();
