@@ -1,12 +1,10 @@
 ## DESCRIPTION
 ## Linear Algebra
 ## ENDDESCRIPTION
-
-
-
 ## DBsubject(Linear algebra)
 ## DBchapter(Systems of linear equations)
 ## DBsection(Systems with 3 variables)
+## MO(1)
 ## Date(8/24/2013)
 ## Institution(NAU)
 ## Author(Nandor Sieben)
@@ -16,33 +14,51 @@
 DOCUMENT();
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl"
+"PGstandard.pl",
+"MathObjects.pl",
+"MatrixReduce.pl",
+"parserMultiAnswer.pl",
+"PGcourse.pl",
 );
 
-TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
+
+Context("Matrix");
 
 $a = non_zero_random(-9,9,1);
 $b = non_zero_random(-8,8,2);
 $c = non_zero_random(-9,9,2);
 
-BEGIN_TEXT
+#basis for solution space
+$v1=ColumnVector($b,-$a,0);
+$v2=ColumnVector($c,0,-$a);
 
+$multians = MultiAnswer($v1,$v2)->with(
+  singleResult =>1,
+  checker => sub {
+    my ($correct,$student,$self) = @_;
+    my ($stuVec1,$stuVec2) = @{$student}; 
+    my ($basisVec1,$basisVec2) = @{$correct};
+    my $rrefStu = rref(Matrix("[$stuVec1,$stuVec2]")); 
+    my $rrefBasis = rref(Matrix("[$basisVec1, $basisVec2]"));
+    Value::Error("Basis vectors can't be zero.") if $rrefStu->row(1)->isZero;
+    Value::Error("Basis vectors must be independent.") if $rrefStu->row(2)->isZero;
+    return $rrefBasis == $rrefStu;
+  }
+);
+
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
 Solve the equation \[ $a x + $b y + $c z = 0 \] 
 
 $BR
-\{ mbox(display_matrix([['\(x\)'], ['\(y\)'], ['\(z\)']]) , '\( = s \)', ans_array(3,1,5), ' \(+\)  \( t\)' ,ans_array_extension(3,1,5) ) \} 
+\(\displaystyle \begin{bmatrix} x \\ y \\ z \end{bmatrix} = s\) \{$multians->ans_array(5)\} \( +  t\) \{$multians->ans_array(5) \} 
 
 END_TEXT
 
-ANS(basis_cmp([[$b, - $a, 0], [$c, 0, - $a]]));
+Context()->normalStrings;
+ANS($multians->cmp());
 
 ENDDOCUMENT();
