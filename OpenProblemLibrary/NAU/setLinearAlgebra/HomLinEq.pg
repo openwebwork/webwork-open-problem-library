@@ -1,64 +1,123 @@
 ## DESCRIPTION
 ## Linear Algebra
 ## ENDDESCRIPTION
+
 ## DBsubject(Linear algebra)
 ## DBchapter(Systems of linear equations)
 ## DBsection(Systems with 3 variables)
-## MO(1)
 ## Date(8/24/2013)
 ## Institution(NAU)
 ## Author(Nandor Sieben)
 ## Level(2)
 
-
 DOCUMENT();
-
 loadMacros(
 "PGstandard.pl",
 "MathObjects.pl",
-"MatrixReduce.pl",
 "parserMultiAnswer.pl",
+"AnswerFormatHelp.pl",
 "PGcourse.pl",
+"MatrixReduce.pl",
+"rank.pl",
 );
 
 $showPartialCorrectAnswers = 1;
+TEXT(beginproblem()); 
 
-Context("Matrix");
+Context("Fraction");
+Context() -> parens -> set ("[" => {formMatrix => 1});
 
 $a = non_zero_random(-9,9,1);
 $b = non_zero_random(-8,8,2);
 $c = non_zero_random(-9,9,2);
 
-#basis for solution space
-$v1=ColumnVector($b,-$a,0);
-$v2=ColumnVector($c,0,-$a);
+$A = Matrix([[$b],[- $a],[0]]);
+$B = Matrix([[$c],[0],[- $a]]);
 
-$multians = MultiAnswer($v1,$v2)->with(
-  singleResult =>1,
-  checker => sub {
-    my ($correct,$student,$self) = @_;
-    my ($stuVec1,$stuVec2) = @{$student}; 
-    my ($basisVec1,$basisVec2) = @{$correct};
-    my $rrefStu = rref(Matrix("[$stuVec1,$stuVec2]")); 
-    my $rrefBasis = rref(Matrix("[$basisVec1, $basisVec2]"));
-    Value::Error("Basis vectors can't be zero.") if $rrefStu->row(1)->isZero;
-    Value::Error("Basis vectors must be independent.") if $rrefStu->row(2)->isZero;
-    return $rrefBasis == $rrefStu;
-  }
+$multians = MultiAnswer($A, $B)->with(
+singleResult => 1,
+checker => sub {
+my ( $correct, $student, $self ) = @_;
+Context("Fraction");
+my @s = @{$student};
+my @c = @{$correct};
+my $s0 = Matrix($s[0]); 
+my $s1 = Matrix($s[1]);
+
+my $M1=Matrix(
+      [$s0->element(1,1),$s0->element(2,1),$s0->element(3,1)],
+      [$b,- $a,0],
+      [$c,0,- $a] 
+      );
+
+if (rank($M1)!=2) {
+  $self->setMessage(1,"Not a solution.");
+  return 0;
+}
+
+my $M2=Matrix(
+      [$s1->element(1,1),$s1->element(2,1),$s1->element(3,1)],
+      [$b,- $a,0],
+      [$c,0,- $a] 
+      );
+
+if (rank($M2)!=2) {
+  $self->setMessage(2,"Not a solution.");
+  return 0;
+}
+
+my $M3=Matrix(
+      [$s0->element(1,1),$s0->element(2,1),$s0->element(3,1)],
+      [$s1->element(1,1),$s1->element(2,1),$s1->element(3,1)]
+      );
+
+if (rank($M3)!=2) {
+  $self->setMessage(1,"Not independent.");
+  $self->setMessage(2,"Not independent.");
+  return 0;
+}
+
+return 1;
+}
 );
 
-
-TEXT(beginproblem());
 Context()->texStrings;
 BEGIN_TEXT
 Solve the equation \[ $a x + $b y + $c z = 0 \] 
-
 $BR
-\(\displaystyle \begin{bmatrix} x \\ y \\ z \end{bmatrix} = s\) \{$multians->ans_array(5)\} \( +  t\) \{$multians->ans_array(5) \} 
+$BR
+\( 
+\left[ 
+\begin{array}{c}
+x \\
+y \\
+z
+\end{array} 
+\right] 
+= s \)
+
+\{ $multians->ans_array(3) \}
+
++ \( t \)
+
+\{ $multians->ans_array(3) \}
+
 
 END_TEXT
-
 Context()->normalStrings;
-ANS($multians->cmp());
+
+ANS( $multians->cmp() );
 
 ENDDOCUMENT();
+
+
+sub rank {
+   my $R = rref(apply_fraction_to_matrix_entries(shift));
+   my ($row,$col) = $R->dimensions;
+   my ($r,$c) = (1,1);
+   while (($r <= $row) && ($c <= $col)) {
+      $r++ if ($R->element($r,$c) > 0.5);
+      $c ++;
+   }
+   $r - 1;
+}

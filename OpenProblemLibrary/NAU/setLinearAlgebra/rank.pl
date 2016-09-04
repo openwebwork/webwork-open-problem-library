@@ -4,7 +4,6 @@
 sub rank {
    Context('Fraction');
    my $R = rref(apply_fraction_to_matrix_entries(shift));
-   Context('Matrix');
    my ($row,$col) = $R->dimensions;
    my ($r,$c) = (1,1);
    while (($r <= $row) && ($c <= $col)) {
@@ -13,3 +12,5 @@ sub rank {
    }
    $r - 1;
 }
+
+1;
