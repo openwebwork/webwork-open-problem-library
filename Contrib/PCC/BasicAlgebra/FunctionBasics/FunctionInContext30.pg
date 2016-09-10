@@ -1,0 +1,132 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a function in context, understand the meaning of f(1)=2.
+#
+# Last update: Carl Yao 07/17/2014
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Function')
+## DBsection('Domain and Range')
+## KEYWORDS('function')
+## DBCCSS('8.F','F-IF')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+#  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+#  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+  "PCCmacros.pl",
+  "contextCurrency.pl",
+  "parserRadioButtons.pl",
+  "contextFraction.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Fraction");
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->variables->add(b=>"Real");
+
+$den = random(3,6,1);
+do {$num=random(1,$den-1,1);} until (gcd($den,$num)==1);
+$slope = -Fraction($num,$den);
+$intercept = random(20,50,5);
+$func = Compute("$slope*b+$intercept")->reduce;
+$budget = $intercept*$den;
+
+$maxBowls = $budget/$num;
+$x1 = $den*random(1,$maxBowls/$den,1);
+$y1 = $func->eval(b=>$x1);
+
+Context("Currency");
+Context()->currency->addSymbol("dollars","dollar");
+Context()->flags->set(trimTrailingZeros=>1);
+Context()->operators->undefine('+','-');
+
+$numC = Currency($num);
+$denC = Currency($den);
+$y1C = Currency($y1);
+$x1C = Currency($x1);
+$budgetC = Currency($budget);
+
+$sex = list_random('male','female');
+$pronoun = 'he' if ($sex eq 'male');
+$pronoun = 'she' if ($sex eq 'female');
+$object = 'him' if ($sex eq 'male');
+$object = 'her' if ($sex eq 'female');
+$possessive = 'his' if ($sex eq 'male');
+$possessive = 'her' if ($sex eq 'female');
+$name = RandomName(sex=>$sex);
+
+@answers = (
+   "`$x1` bowls and `$y1` plates can be purchased.",
+   "`$y1` bowls and `$x1` plates can be purchased.",
+   "`$x1C` will be used to purchase bowls, and `$y1C` will be used to purchase plates.",
+   "`$y1C` will be used to purchase bowls, and `$x1C` will be used to purchase plates.",
+);
+
+#Create a hash and its inverse that randomizes the order of the four choices.
+%scramble = ();
+%inverse = ();
+@answersShuffled = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+  $answersShuffled[$i] = @answers[$scramble{$i}];
+  $answersShuffled[$i]=$ALPHABET[$i].'. '.$answersShuffled[$i];
+};
+
+$correctAns = @answersShuffled[$inverse{0}];
+
+$radio = RadioButtons(
+   ~~@answersShuffled,
+   $correctAns, # correct answer
+   order => ~~@answersShuffled,
+   labels => "ABC",
+);
+
+##############################################
+
+BEGIN_PGML
+
+[$name] will spend [`[$budgetC]`] to purchase some bowls and some plates. Each bowl costs [`[$numC]`], and each plate costs [`[$denC]`]. The function [`p(b)=[$func]`] models the number of plates [$name] to be purchase, where [`b`] represents the number of bowls to be purchased.
+
+Interpret the meaning of [`p([$x1])=[$y1]`].
+
+    [@$radio->buttons()@]*
+
+END_PGML
+
+ANS( $radio->cmp() );
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+For [`p(b)=[$func]`], the value of [`b`] represents the number of bowls to be purchased, and the value of [`p(b)`] represents the number of plates to be purchased.
+
+For [`p([$x1])=[$y1]`], [`[$x1]`] implies [`[$x1]`] bowls will be purchased, while [`[$y1]`] implies [`[$y1]`] plates will be purchased. The correct solution is [$correctAns]
+
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();
