@@ -25,6 +25,8 @@ loadMacros(
   "MathObjects.pl",
   "PGstandard.pl",
   "parserPopUp.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
 );
 
 TEXT(beginproblem());
@@ -35,13 +37,35 @@ $showPartialCorrectAnswers = 1;
 # setup contexts and variables 
 ###########################################################################
 Context()->variables->add(R1 => ["Real", TeX=>"R_1"], R2 => ["Real", TeX=>"R_2"], R3 => ["Real", TeX=>"R_3"], R4 => ["Real", TeX=>"R_4"], R5 => ["Real", TeX=>"R_5"], R6 => ["Real", TeX=>"R_6"]);
-$pop = PopUp(["select", "⇒", "⇔"], "⇔");
+$pop = PopUp(["select", "-->", "<-->"], "<-->");
 $i = random(1,6);
 do {$j = random(1,6)} until ($j != $i);
 $R1 = "R".$i;  $R2 = "R".$j;
 $dR1 = "R_{$i}"; $dR2 = "R_{$j}";
-$dtrans = "$dR1 \Leftrightarrow $dR2";
-$dans = "$dR2 \Leftrightarrow $dR1";
+$dtrans = "$dR1 \longleftrightarrow $dR2";
+$dans = "$dR2 \longleftrightarrow $dR1";
+
+$lhs = Formula("$R1");
+$rhs = Formula("$R2");
+
+$multians = MultiAnswer($lhs,$pop,$rhs)->with(
+  singleResult => 0,
+  checker => sub {
+    my ($correct, $student, $self ) = @_;
+    my ($lhsStu,$popStu,$rhsStu) = @{$student};
+    my ($lhsCorr,$popCorr,$rhsCorr) = @{$correct};
+    my ($lhsScore,$popScore,$rhsScore) = (0,0,0);
+    if ($popStu == $popCorr){ $popScore = 1;}
+    if ( (($lhsStu == $lhsCorr) && ($rhsStu == $rhsCorr)) ||
+	 (($lhsStu == $rhsCorr) && ($rhsStu == $lhsCorr))
+    ){ ($lhsScore,$rhsScore) = (1,1); } 
+    elsif ( ($lhsStu == $lhsCorr) || ($lhsStu == $rhsCorr) 
+    ){ $lhsScore = 1;}
+    elsif ( ($rhsStu == $rhsCorr) || ($rhsStu == $lhsCorr) 
+    ){ $rhsScore = 1;}
+    return [$lhsScore,$popScore,$rhsScore];
+  }
+);
 
 
 ###########################################################################
@@ -49,9 +73,10 @@ $dans = "$dR2 \Leftrightarrow $dR1";
 ###########################################################################
 Context()->texStrings;
 BEGIN_TEXT
-Suppose that $PAR \[$dtrans\] $PAR is used to transform a matrix. Determine the row operation that will transform the matrix back to its original form. Use ${BBOLD}R1${EBOLD}, ${BBOLD}R2${EBOLD}, etc. to represent the rows \(R_1\), \(R_2\), etc.
+Suppose that $PAR \[$dtrans\] $PAR is used to transform a matrix. Determine the row operation that will transform the matrix back to its original form. Use ${BBOLD}R1${EBOLD}, ${BBOLD}R2${EBOLD}, etc. to represent the rows \(R_1\), \(R_2\), etc.  For example, if the required operation were "add 2 times row 4 to row 6" then the answer would be "\(2*R4+R6 \longrightarrow R6\)".  If it were "swap row 4 with row 6" the answer would be "\(R4 \longleftrightarrow R6\)". 
+
 $PAR
-Answer: \{ans_rule(10)\} \{$pop->menu()\} \{ans_rule(10)\}
+Answer: \{$multians->ans_rule(10)\} \{$multians->ans_rule(10)\} \{$multians->ans_rule(10)\}
 END_TEXT
 Context()->normalStrings;
 
@@ -59,10 +84,11 @@ Context()->normalStrings;
 ###########################################################################
 # check the answer  
 ###########################################################################
-ANS(Formula("$R1")->cmp());
-ANS($pop->cmp());
-ANS(Formula("$R2")->cmp());
+#ANS(Formula("$R1")->cmp());
+#ANS($pop->cmp());
+#ANS(Formula("$R2")->cmp());
 
+ANS( $multians->cmp() ); 
 
 ###########################################################################
 # solution
@@ -74,7 +100,4 @@ ${BBOLD}SOLUTION:${EBOLD}
 END_SOLUTION
 Context()->normalStrings;
 
-COMMENT('Created in 2013.
-$BR
-Desc: Determine the row operation that is used to transform the matrix back.');
 ENDDOCUMENT();
