@@ -26,6 +26,8 @@ loadMacros(
   "MathObjects.pl",
   "PGstandard.pl",
   "parserPopUp.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
 );
 
 TEXT(beginproblem());
@@ -92,8 +94,26 @@ if ($row1 < $row2) {
 }
 $lhs = Formula($rd1);
 $rhs = Formula($rd2);
-$pop = PopUp(["select", "⇒", "⇔"], "⇔");
+$pop = PopUp(["select", "-->", "<-->"], "<-->");
 
+$multians = MultiAnswer($lhs,$pop,$rhs)->with(
+  singleResult => 0,
+  checker => sub {
+    my ($correct, $student, $self ) = @_;
+    my ($lhsStu,$popStu,$rhsStu) = @{$student};
+    my ($lhsCorr,$popCorr,$rhsCorr) = @{$correct};
+    my ($lhsScore,$popScore,$rhsScore) = (0,0,0);
+    if ($popStu == $popCorr){ $popScore = 1;}
+    if ( (($lhsStu == $lhsCorr) && ($rhsStu == $rhsCorr)) ||
+	 (($lhsStu == $rhsCorr) && ($rhsStu == $lhsCorr))
+    ){ ($lhsScore,$rhsScore) = (1,1); } 
+    elsif ( ($lhsStu == $lhsCorr) || ($lhsStu == $rhsCorr) 
+    ){ $lhsScore = 1;}
+    elsif ( ($rhsStu == $rhsCorr) || ($rhsStu == $lhsCorr) 
+    ){ $rhsScore = 1;}
+    return [$lhsScore,$popScore,$rhsScore];
+  }
+);
 
 ###########################################################################
 # state the problem 
@@ -102,11 +122,11 @@ Context()->texStrings;
 BEGIN_TEXT
 The matrix on the right results after performing a single row operation on the matrix on the left.
 $PAR
-\[ $dA  \sim $dB \]
+\[ $dA  \text{ row op produces: } $dB \]
 $PAR
-Identify the row operation. Use ${BBOLD}R1${EBOLD}, ${BBOLD}R2${EBOLD}, and ${BBOLD}R3${EBOLD} to represent the rows \(R_1\), \(R_2\), and \(R_3\).
+Identify the row operation. Use ${BBOLD}R1${EBOLD}, ${BBOLD}R2${EBOLD}, and ${BBOLD}R3${EBOLD} to represent the rows \(R_1\), \(R_2\), and \(R_3\).  For example, if the operation were "add 2 times row 4 to row 6" then the answer would be "\(2*R4+R6 \longrightarrow R6\)".  If it were "swap row 4 with row 6" the answer would be "\(R4 \longleftrightarrow R6\)".
 $PAR
-Answer: \{ans_rule(10)\} \{$pop->menu()\} \{ans_rule(10)\}
+Answer: \{$multians->ans_rule(10)\} \{$multians->ans_rule(10)\} \{$multians->ans_rule(10)\}
 END_TEXT
 Context()->normalStrings;
 
@@ -114,10 +134,11 @@ Context()->normalStrings;
 ###########################################################################
 # check the answer  
 ###########################################################################
-ANS($lhs->cmp());
-ANS($pop->cmp());
-ANS($rhs->cmp());
+#ANS($lhs->cmp());
+#ANS($pop->cmp());
+#ANS($rhs->cmp());
 
+ANS( $multians->cmp() ); 
 
 ###########################################################################
 # solution
@@ -125,11 +146,9 @@ ANS($rhs->cmp());
 Context()->texStrings;
 BEGIN_SOLUTION
 ${BBOLD}SOLUTION:${EBOLD}
-\($lhs \Leftrightarrow $rhs\)
+\($lhs \longleftrightarrow $rhs\)
 END_SOLUTION
 Context()->normalStrings;
 
-COMMENT('Created in 2013.
-$BR
-Desc: Determine the row operator performed. Of form R_i <=> R_j.');
+COMMENT('Of form R_i <=> R_j.');
 ENDDOCUMENT();

@@ -60,7 +60,8 @@ ANS($ans -> cmp(
       $student = Formula("$student"); $correct = Formula("$correct");
       return 0 unless ($correct == $student);
       Context()->flags->set(bizarroDiv=>1);
-      delete $correct->{test_values}, $student->{test_values};
+      delete $correct->{test_values};
+      delete $student->{test_values};
       Value->Error("Your answer is correct, but please simplify it further") unless (($correct == $student) or ($student == $correct));
       Context()->flags->set(bizarroDiv=>0);
       return 1;

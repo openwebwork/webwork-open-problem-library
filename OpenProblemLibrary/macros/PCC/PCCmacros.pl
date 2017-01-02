@@ -834,7 +834,7 @@ sub radicalListCheck {
      my ($correct,$student,$ansHash,$value) = @_;
      my $score = 0;              # number of correct student answers
      my @errors = ();            # stores error messages
-     my $i, $j, $k;              # loop counters
+     my ($i, $j, $k);              # loop counters
      return (0, @errors) if $ansHash->{isPreview};
      my $fullStudent = $ansHash->{student_formula};
      my $fullCorrect = Formula($ansHash->{correct_ans});
@@ -882,13 +882,14 @@ sub radicalListCheck {
        #  If not already used, check that it is a correct and reduced answer
        #
        if (!$used) {
-          my $numericallyCorrect, $reduced;
+          my ($numericallyCorrect, $reduced);
           for ($k = 0, $numericallyCorrect = 0; ($k < $m) ; $k++) {
                     $q = $fullCorrectValue[$k];
                     if ($q == $p) {
                           $numericallyCorrect = 1;
                           Context()->flags->set(checkSqrt => $setSqrt, checkRoot => $setRoot, bizarroAdd => 1, bizarroSub => 1, bizarroMul => 1, bizarroDiv => 1);
-                          delete $p->{test_values}, $q->{test_values};
+                          delete $p->{test_values};
+                          delete $q->{test_values};
                              if ($p == $q) {$reduced = 1} else {$reduced = 0}; # check if form is correct
 
                           Context()->flags->set(checkSqrt => 0, checkRoot => 0, bizarroAdd => 0, bizarroSub => 0, bizarroMul => 0, bizarroDiv => 0);
