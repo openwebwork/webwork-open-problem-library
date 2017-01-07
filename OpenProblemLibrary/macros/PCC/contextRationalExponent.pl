@@ -64,7 +64,8 @@ sub _contextRationalExponent_init {
     $student = Formula("$student"); $correct = Formula("$correct"); #ensure both are Formula objects
     my ($setSqrt, $setRoot) = (Context()->flag("setSqrt"), Context()->flag("setRoot"));
     Context()->flags->set(checkSqrt => $setSqrt, checkRoot => $setRoot, bizarroAdd => 1, bizarroSub => 1, bizarroMul => 1, bizarroDiv => 1, bizarroPow => 1); 
-    delete $correct->{test_values}, $student->{test_values};
+    delete $correct->{test_values};
+    delete $student->{test_values};
     my $OK = (($correct == $student) or ($student == $correct)); # check if equal when sqrt's are replaced by 1
     Context()->flags->set(checkSqrt => 0, checkRoot => 0, bizarroAdd => 0, bizarroSub => 0, bizarroMul => 0, bizarroDiv => 0, bizarroPow => 0); 
     Value::Error("You must simplify your answer further") unless $OK;

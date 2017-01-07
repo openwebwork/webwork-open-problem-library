@@ -8,6 +8,7 @@
 ## DBchapter(Systems of differential equations)
 ## DBsection(Phase planes)
 ## Institution(ASU)
+## MO(1)
 ## MLT(SDE-PP-DRE)
 ## Level(4)
 ## KEYWORDS('differential equation' 'first order' 'matrices' 'eigenvalue')
@@ -15,367 +16,121 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-           "PGbasicmacros.pl",
-           "PGchoicemacros.pl",
-           "PGanswermacros.pl",
-           "PGgraphmacros.pl",
-           "PGmatrixmacros.pl",
-           "PGdiffeqmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGcourse.pl",
+  "PGchoicemacros.pl",
 );
 
-
-TEXT(beginproblem());
+Context("Matrix");
 
 $showPartialCorrectAnswers = 1;
 
+# define change-of-basis matrix
+do {
+  $a11 = non_zero_random(-5,5,1);
+  $a12 = non_zero_random(-5,5,1);
+  $a21 = random(-5,5,1);
+  $a22 = random(-5,5,1);
+} until ( $a11*$a22-$a21*$a12 != 0 && $a11*$a12 != 0 && $a21*$a22 != 0); 
+$a = Matrix([
+  [non_zero_random(-5,5,1),non_zero_random(-5,5,1)],
+  [random(-5,5,1),random(-5,5,1)]
+]);
+$a_det=$a->det;
 
-$a_det=0;
-$max_iterations = 10;
-$a= new Matrix(2,2);
-while (abs($a_det)<.1 && $max_iterations--) {
-# define matrix
-	$a->assign(1,1,non_zero_random(-5,5,1) );
-	$a->assign(1,2,non_zero_random(-5,5,1) );
-	$a->assign(2,1,random(-5,5,1) );
-	$a->assign(2,2,random(-5,5,1) );
-	$a_lr = $a->decompose_LR();
-	$a_det = $a_lr->det_LR()
-}
-warn "Can't calculate an invertable matrix" unless $max_iterations;
 #define inverse matrix
-	$b = $a_lr->invert_LR();
-#define eigenvalues
-    $e = new Matrix(2,2);
-    $e->one(); 
-    $e->assign(1,1, random(-5,0,1)*$a_det);
-    $e->assign(2,2, random(1,5,1)*$a_det);
-#define final matrix
-	$matrix = $a * $e *$b;
-	$matrix_lr = $matrix->decompose_LR();
-	$matrix_det = $matrix_lr->det_LR();
-##########################
-#define right hand side
-    $rhs = new Matrix(2,1);  # a column vector
-    $rhs->assign(1,1,random(-5,5,1));
-    $rhs->assign(2,1,random(-5,5,1));
+$b = $a->inverse;
 
+#define eigenvalues and vectors
+@eigVal = (-5..5)[NchooseK(11,2)];  #two distinct integers 
+$eigVal[0]=$eigVal[0]*$a_det;
+$eigVal[1]=$eigVal[1]*$a_det;
+$e = Matrix([
+  [$eigVal[0],0],
+  [0,$eigVal[1]]
+]);  
+if ( $eigVal[0]<$eigVal[1] ){
+  $smallEigVal = $eigVal[0];
+  $smallEigVal_vector = ColumnVector($a->column(1));
+  $largeEigVal = $eigVal[1];
+  $largeEigVal_vector = ColumnVector($a->column(2));
+}
+else {
+  $smallEigVal = $eigVal[1];
+  $smallEigVal_vector = ColumnVector($a->column(2));
+  $largeEigVal = $eigVal[0];
+  $largeEigVal_vector = ColumnVector($a->column(1));
+}
+$matrix = $a * $e *$b;
 
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 Calculate the eigenvalues of this matrix:
 $PAR
-[Note-- you'll probably want to use a graphing calculator to estimate the roots of the polynomial which defines
-the eigenvalues. You can use the web version at
-\{htmlLink("http://webwork.math.rochester.edu/mth163/phaseplaneplotters/launchXfunctions.html", 
-"xFunctions", q!TARGET="plotter"!)\}.
+[Note-- you'll probably want to use a calculator or computer to estimate the roots of the polynomial which defines
+the eigenvalues.  You also may want to view a 
+\{htmlLink("http://comp.uark.edu/~aeb019/pplane.html", q! phase plane plot!)\} (right click to open in a new window).]
+] 
 $PAR
-If you select the "integral curves utility" from the main menu, will also be able to plot the integral curves of the associated diffential equations. ]
-$PAR
-\{ mbox( "\( A = \)", display_matrix($matrix) ) \}
-$BR  
+\( A = $matrix\)
+$PAR  
 smaller eigenvalue \( = \) \{ans_rule(10)\} 
-$BR
-associated eigenvector \( =  \) ( \{ NAMED_ANS_RULE(vec1,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec1,10) \} )  
-$BR
+$PAR
+associated eigenvector \( =  \) \{ $smallEigVal_vector->ans_array \}   
+$PAR
 larger eigenvalue \( = \) \{ ans_rule(10) \}
-$BR
-associated, eigenvector  \( = \)  ( \{ NAMED_ANS_RULE(vec2,10) \}  , \{ NAMED_ANS_RULE_OPTION(vec2,10) \} )  
+$PAR
+associated, eigenvector  \( = \)  \{ $largeEigVal_vector->ans_array \}   
 
 END_TEXT
+Context()->normalStrings;
 
-if ( $e->element(1,1) < $e->element(2,2) ) {
-	ANS(num_cmp($e->element(1,1),tol=>.1));
-    NAMED_ANS(vec1 => check_eigenvector($e->element(1,1), $matrix, 
-    					correct_ans =>[ $a->column(1)->list ])   );
-	ANS(num_cmp($e->element(2,2),tol=>.1));
-	NAMED_ANS(vec2 =>check_eigenvector($e->element(2,2), $matrix, 
-						correct_ans =>[$a->column(2)->list])   );;
-} else {
-	ANS(num_cmp($e->element(2,2),tol=>.1));
-    NAMED_ANS(vec1 => check_eigenvector($e->element(2,2), $matrix, 
-                       correct_ans =>[$a->column(2)->list ] )  );
-    ANS(num_cmp($e->element(1,1),tol=>.1));
-	NAMED_ANS(vec2 => check_eigenvector($e->element(1,1), $matrix, 
-	                   correct_ans =>[ $a->column(1)->list ])  );
-}
+ANS($smallEigVal->cmp(tolerance => 0.1));
+ANS($smallEigVal_vector->cmp(tolerance => 0.1, parallel=>1));
+ANS($largeEigVal->cmp(tolerance => 0.1));
+ANS($largeEigVal_vector->cmp(tolerance => 0.1, parallel=>1));
 
 
 #  behavior of differential equations defined by A
 $mc = new_multiple_choice();  # the parens are important -- otherwise the name of the object is new_multiple_choice.
 
 @answers =(
-	'All of the solutions curves would converge towards 0. (Stable node)',
 	'All of the solution curves would run away from 0. (Unstable node)',
+	'All of the solutions curves would converge towards 0. (Stable node)',
 	'The solution curves would race towards zero and then veer away towards infinity. (Saddle)',
-	'The solution curves converge to different points.'
+	'The solution curves converge to different points on parallel paths.',
+	'The solution curves diverge from different points on parallel paths.'
 );
-$matrix_trace=$matrix->trace();
-#switch
 
-$matrix_det <0                     && do {$ind=2 };  #saddle
-$matrix_det>0 and $matrix_trace>0  && do {$ind=1 };  #unstable node
-$matrix_det>0 and $matrix_trace<0  && do {$ind=0 };  # stable node
-$matrix_det==0                      && do {$ind=3 };
+if ($smallEigVal>0) {$ind=0;} #unstable node
+elsif ($largeEigVal<0) {$ind=1;} #stable node
+elsif ($smallEigVal<0 && $largeEigVal>0) {$ind = 2;} #saddle
+elsif ($smallEigVal<0 && $largeEigVal==0) {$ind=3;}  #converge along parallels
+elsif ($smallEigVal==0 && $largeEigVal>0) {$ind=4; }  #diverge along parallels
 
-
-
-
-
-	
+$correct=splice(@answers,$ind,1); # correct answer
 $mc->qa(
 	q!If \(y' = Ay\) is a differential equation, how would the solution curves behave?!,
-	splice(@answers,$ind,1)   # enter the correct answer
+	$correct  
 	);
 	
 $mc->extra(@answers);
 
-
-
-
-
+Context()->texStrings;
 BEGIN_TEXT
 $HR
+$PAR $correct
   $PAR 
  \{ $mc->print_q() \} 
 $PAR 
 \{ $mc->print_a() \}
 $HR
 END_TEXT
+Context()->normalStrings;
 
 ANS(radio_cmp($mc->correct_ans));
-
-######################################################### 
-# sub check_eigenvector {
-# 	my $eigenvalue = shift;
-# 	my $matrix = shift;
-# 	my %options = @_;
-# 	my @correct_vector = ();
-# 	@correct_vector = @{$options{'correct_ans'}} if defined ($options{'correct_ans'});
-# 
-# 	$ans_eval = new AnswerEvaluator;
-# 	$ans_eval->{ans_hash}->{correct_ans} = "( " . join(", ", @correct_vector ) . " )";
-# 	$ans_eval->install_pre_filter(sub {my $ans_hash = shift;
-#                                    # return if the result is an array
-# 								   return($ans_hash) if  ref($ans_hash->{student_ans}) eq 'ARRAY' ;
-# 								   $ans_hash->throw_error("NOTARRAY","The answer is not an array");
-# 								   $ans_hash;
-# 								   }
-# 	);
-# 	$ans_eval->install_pre_filter(~~&std_num_array_filter);
-# 
-# 	$ans_eval->install_evaluator(sub { my $ans_hash = shift;
-# 									   my %options  = @_;
-# 									   my @vector = @{$ans_hash->input()};
-# 									   
-# 									   unless (@correct_vector == @vector ) {
-# 	                                   		return($ans_hash) unless @correct_vector == @vector;
-# 	                                   		
-# 	                                     	# make sure the vectors are the same dimension
-# 	                                   }
-# 								 		$vec = new Matrix(2,1);
-# 								 		$vec->assign(1,1, $vector[0]);
-# 								 		$vec->assign(2,1, $vector[1]);
-# 								 		$out_vec = $matrix * $vec;
-# 								 		$diff[0] = $out_vec->element(1,1) - $vec->element(1,1)*$eigenvalue;
-# 								 		$diff[1] = $out_vec->element(2,1) - $vec->element(2,1)*$eigenvalue;
-# 								 		$ans_hash->{score} = zero_check(~~@diff);
-# 								 		$ans_hash;
-# 								 	}
-# 	);
-# 	$ans_eval->install_post_filter( sub { my $ans_hash= shift;
-# 										  my %options = @_;
-# 										  return($ans_hash) unless defined($ans_hash->{error_flag}) and $ans_hash->{error_flag} eq 'SYTNAX';
-# 										  $ans_hash->{ans_message} = $ans_hash->{error_message};
-# 										  $ans_hash ->{error_message} = '';
-# 										  $ans_hash ->{error_flag} = undef;
-# 										  $ans_hash ->{done}=1;
-# 										  $ans_hash;
-# 										 }
-# 	);
-# 	$ans_eval;
-# }
-# sub  check_eigenvector {
-#     my $eigenvalue = shift;
-# 	my $matrix = shift;
-# 	my %options = @_;
-# 	my @correct_vector = ();
-# 	@correct_vector = @{$options{'correct_ans'}} if defined($options{'correct_ans'});
-# 	$ans_eval = sub {
-# 		my $in = shift @_;
-# 		my @in1 = split("~~0",$in);
-# 		my $ans_hash = new AnswerHash(
-# 			'score'					=>	0,
-# 			'correct_ans'			=>	"( " . join(", ", @correct_vector ) . " )",
-# 			'student_ans'			=>	"( " . join(", ", @in1 ) . " )",
-# 			'ans_message'			=>	'',
-# 			'type'					=>	"std_number",
-# 			'preview_text_string'	=>	'',
-# 			'preview_latex_string'	=>	'',
-# 			'original_student_ans'	=>	$in
-# 		);
-# 		my @in=();
-# 		foreach $i (0..$#in1) {
-# 		    if ($in1[$i] =~/~~S/ ) {
-# 				($in[$i],$PG_eval_errors,$PG_full_error_report) = PG_answer_eval(math_constants($in1[$i]));
-# 			} else {
-# 				$PG_eval_errors = ' ';
-# 			}
-# 			if ($PG_eval_errors) {			  ##error message from eval	or above
-# 				$formattedSubmittedAnswer =	$PG_eval_errors;
-# 				$formattedSubmittedAnswer =clean_up_error_msg($formattedSubmittedAnswer);
-# 				$PGanswerMessage = 'There is a syntax error	in your	answer';
-# 				$PGanswerMessage = '' if $PG_eval_errors eq	' ';
-# 				my $ans_hash = new AnswerHash(
-# 						'score'					=>	0,
-# 						'correct_ans'			=>	"( " . join(", ", @correct_vector ) . " )",
-# 						'student_ans'			=>	[@in],
-# 						'ans_message'			=>	$PGanswerMessage,
-# 						'type'					=>	'std_number',
-# 						'preview_text_string'	=>	' ',
-# 						'preview_latex_string'	=>	' ',
-# 						'original_student_ans'	=>	"( " . join(", ", @in1 ) . " )"
-# 				);
-# 				return($ans_hash);
-# 			}		
-# 		}
-# 		return($ans_hash) unless @correct_vector == @in;  # make sure the vectors are the same dimension
-# 		$vec = new Matrix(2,1);
-# 		$vec->assign(1,1, $in[0]);
-# 		$vec->assign(2,1, $in[1]);
-# 		$out_vec = $matrix * $vec;
-# 		$diff[0] = $out_vec->element(1,1) - $vec->element(1,1)*$eigenvalue;
-# 		$diff[1] = $out_vec->element(2,1) - $vec->element(2,1)*$eigenvalue;
-# 		$ans_hash->{score} = zero_check(~~@diff);
-# 		$ans_hash;
-# 	};
-# 	$ans_eval;
-# }
-# sub std_num_filter {
-# 	my $in = shift;
-# 	if ($in	=~ /\S/) {
-# 		($inVal,$PG_eval_errors,$PG_full_error_report) = PG_answer_eval($in);
-# 	} else	{
-# 		$PG_eval_errors	= '	';
-# 	}
-# 
-# 	if ($PG_eval_errors) {			  ##error message from eval	or above
-# 		$formattedSubmittedAnswer =	$PG_eval_errors;
-# 		$formattedSubmittedAnswer =clean_up_error_msg($formattedSubmittedAnswer);
-# 		$PGanswerMessage = 'There is a syntax error	in your	answer';
-# 		$PGanswerMessage = '' if $PG_eval_errors eq	' ';
-# 		my $ans_hash = new AnswerHash(
-# 				'score'					=>	$score,
-# 				'correct_ans'			=>	$formattedCorrectAnswer,
-# 				'student_ans'			=>	$formattedSubmittedAnswer,
-# 				'ans_message'			=>	$PGanswerMessage,
-# 				'type'					=>	"std_number",
-# 				'preview_text_string'	=>	$preview_text_string,
-# 				'preview_latex_string'	=>	$preview_latex_string,
-# 				'original_student_ans'	=>	$in
-# 		);		
-# 	
-# 	}
-# 	$ans_hash;
-# }
- 
-# ############
-# sub display_matrix{
-# 	my $ra_matrix = shift;
-# 	my $rows = @$ra_matrix;
-# 	my $cols = @{$ra_matrix->[0]};
-# 	my $out = q!\left(\begin{array}{! . 'c' x$cols . q!}!;
-# 	for( $i=0; $i<$rows; $i++) {
-# 	    my @row = @{$ra_matrix->[$i]};
-# 	    while (@row) {
-# 	    	my $entry = shift(@row);
-# 	    	$entry = "#" unless defined($entry);
-# 	    	$out.= $entry;
-# 	    	if (@row) {
-# 	    		$out .= "& ";
-# 	    	} else {
-# 	    		next;
-# 	    	}
-# 	    }
-# 		$out .=  "\cr~~n";
-# 	}
-# 	$out .= "\end{array}\right)"
-# }
-# sub apl_matrix_mult{
-# 	$ra_a= shift;
-# 	$ra_b= shift;
-# 	%options = @_;
-# 	my $rf_op_times= sub {$_[0] *$_[1]};
-# 	my $rf_op_plus = sub {my $sum = 0; my @in = @_; while(@in){ $sum = $sum + shift(@in) } $sum; };
-# 	$rf_op_times = $options{'times'} if defined($options{'times'}) and ref($options{'times'}) eq 'CODE';
-# 	$rf_op_plus = $options{'plus'} if defined($options{'plus'}) and ref($options{'plus'}) eq 'CODE';
-# 	my $rows = @$ra_a;
-# 	my $cols = @{$ra_b->[0]};
-# 	my $k_size = @$ra_b;
-# 	my $out ;
-# 	my ($i, $j, $k);
-# 	for($i=0;$i<$rows;$i++) {
-# 		for($j=0;$j<$cols;$j++) {
-# 		    my @r = ();
-# 		    for($k=0;$k<$k_size;$k++) {
-# 		    	$r[$k] =  &$rf_op_times($ra_a->[$i]->[$k] , $ra_b->[$k]->[$j]);
-# 		    }
-# 			$out->[$i]->[$j] = &$rf_op_plus( @r );
-# 		}
-# 	}
-# 	$out;
-# }
-# sub matrix_mult {
-# 	apl_matrix_mult($_[0], $_[1]);
-# }
-# sub make_matrix{
-# 	my $function = shift;
-# 	my $rows = shift;
-# 	my $cols = shift;
-# 	my ($i, $j, $k);
-# 	for($i=0;$i<$rows;$i++) {
-# 		for($j=0;$j<$cols;$j++) {
-# 			$ra_out->[$i]->[$j] = &$function($i,$j);
-# 		}
-# 	}
-# 	$ra_out;
-# }
-# 
-#      
-# sub format_answer{
-# 	my $ra_eigenvalues = shift;
-# 	my $ra_eigenvectors = shift;
-# 	my $functionName = shift;
-# 	my @eigenvalues=@$ra_eigenvalues;
-# 	my $size= @eigenvalues;
-# 	my $ra_eigen = make_matrix( sub {my ($i,$j) = @_; ($i==$j) ? "e^{$eigenvalues[$j] t}": 0 }, $size,$size);
-# 	my $out = qq!
-# 				$functionName(t) =! .
-# 				                    displayMatrix(apl_matrix_mult($ra_eigenvectors,$ra_eigen,
-#                                     'times'=>sub{($_[0] and $_[1]) ? "$_[0]$_[1]"  : ''},
-#                                     'plus'=>sub{ my $out = join("",@_); ($out) ?$out : '0' }
-#                                     ) ) ;
-#        $out;
-# }
-# sub format_vector_answer{
-# 	my $ra_eigenvalues = shift;
-# 	my $ra_eigenvectors = shift;
-# 	my $functionName = shift;
-# 	my @eigenvalues=@$ra_eigenvalues;
-# 	my $size= @eigenvalues;
-# 	my $ra_eigen = make_matrix( sub {my ($i,$j) = @_; ($i==$j) ? "e^{$eigenvalues[$j] t}": 0 }, $size,$size);
-# 	my $out = qq!
-# 				$functionName(t) =! .
-# 				                    displayMatrix($ra_eigenvectors)."e^{$eigenvalues[0] t}" ;
-#        $out;
-# }
-# sub format_question{
-# 	my $ra_matrix = shift;
-# 	my $out = qq! y'(t) = ! . displayMatrix($B). q! y(t)!
-# 
-# }
-# 
-# #Now to make lists
-# 
-
 
 
 ENDDOCUMENT() ;        

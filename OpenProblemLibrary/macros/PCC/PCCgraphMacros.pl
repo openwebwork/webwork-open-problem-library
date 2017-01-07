@@ -61,7 +61,7 @@ sub NiceGraphParameters{
      @yaction = (@yaction,@temp);
     }
 
-  my @max, @min;
+  my(@max, @min);
   $max[0] = max(@xaction);
   $min[0] = min(@xaction);
   $max[1] = max(@yaction);
@@ -77,7 +77,7 @@ sub NiceGraphParameters{
   my $buffer = 1.618;
   $buffer = $options{buffer} if (defined $options{buffer});
 
-  my @center, @left, @right, @tickexp, %tickcoefs, @tickcoef, @marksep, @ticknum, @scale;
+  my (@center, @left, @right, @tickexp, %tickcoefs, @tickcoef, @marksep, @ticknum, @scale);
   for my $i (0,1) {
      $center[$i] = ($max[$i]+$min[$i])/2;
      $low[$i] = $center[$i]+$buffer*($min[$i]-$center[$i]);
@@ -100,9 +100,6 @@ sub NiceGraphParameters{
   @temp = ();
   };
   
- my @xticks = ();
- my @yticks = ();
-
  my @xticks = map { $min[0] + $marksep[0] * $_ } 1..$ticknum[0]-1;
  my @yticks = map { $min[1] + $marksep[1] * $_ } 1..$ticknum[1]-1;
 
