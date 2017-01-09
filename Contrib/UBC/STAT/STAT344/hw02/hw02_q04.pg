@@ -1,19 +1,16 @@
 #########################################################
-##KEYWORDS('Sampling theory'; 'ratio estimators', 'regression estimators'; 'in
-##a context where a regression estimator is appropriate determine relative
-##magnitudes of the sample mean', 'the ratio estimator and the regression
-##estimator', 'identify that the ratio estimator is inappropriate due to
-##negative correlation between the sampled variables'.) 
+##KEYWORDS('Inference'; 'confidence intervals for proportion', 'confidence
+##intervals for population size'; 'find a 95% confidence interval for a
+##population proportion', 'find approximate confidence interval for a population
+##size given the count within the population with the characteristic of interest.) 
 # DESCRIPTION
-## DBsubject('Statistics')
-## DBchapter('Sample survey methods')
-## DBsection('Regression estimators')
-## Date('2015/09/28')
-## Author('Nelson Chen')
+## DBsubject('Statistics')
+## DBchapter('Confidence intervals')
+## DBsection('Concepts')
+## Date('2016/07/12')
+## Author('Bo Chang')
 ## Institution('University of British Columbia')
 ## level('5')
-## 3 Attempts. 
-
 
 #########################################################
 DOCUMENT();
@@ -47,121 +44,143 @@ $seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
 ####Call R server
 rserve_eval("set.seed($seed)"); ## can not combine with the rest
 
-####plots
-$plot=rserve_start_plot('png');
-rserve_eval('
-set.seed(13)
-age <- runif(50,3,95)
-bdens <- rnorm(50, 1.35- 0.7*(age/100), .15)
-plot(age,bdens,
-     xlab="Age (Years)", ylab="Bone Density",xlim=c(0,100),ylim=c(0,2)) 
+@n=rserve_eval('
+n <- 100*sample(10:20, size=1)
 ');
-$plotpath=rserve_finish_plot($plot);
 
+@y1=rserve_eval('
+y1 <- rbinom(1, size=n, prob=0.35)
+');
 
-####
-$ans_1_correct = "RT< VN < RG";
+@y2=rserve_eval('
+y2 <- rbinom(1, size=y1, prob=0.1)
+');
 
-$qu_1 = "Based on the information provided, which of the following is the
-order of your three estimates of population average bone density,
-from smallest to largest.";
+@y3=rserve_eval('
+y3 <- rbinom(1, size=n-y1, prob=.05)
+');
 
-@ans_1_all = (
-"RT < RG < VN",
-"VN < RT < RG",
-"VN < RG < RT",
-"RG < VN < RT",
-"RG < RT < VN ",
-"Insufficient information is provided to know for sure."
-);
+@y2PlusY3=rserve_eval('
+y2 + y3
+');
 
-$mc_1 = new_multiple_choice();
-$mc_1->qa(
-  $qu_1,
-  $ans_1_correct
-);
+@q1PHat = rserve_eval('
+p.hat <- (y1 + y2 - y3) / n
+round(p.hat, 4)
+');
 
-$mc_1->makeLast(
-$ans_1_all[0], $ans_1_all[1], $ans_1_all[2], $ans_1_all[3], $ans_1_all[4], $ans_1_all[5] 
-);
+@q1SE = rserve_eval('
+q1.se <- sqrt(p.hat * (1-p.hat) / n)
+round(q1.se, 4)
+');
 
+@q1LB = rserve_eval('
+q1.lb <- p.hat - 1.96 * q1.se
+round(q1.lb, 3)
+');
 
-############
-$ans_2_correct = "Ratio";
+@q1UB = rserve_eval('
+q1.ub <- p.hat + 1.96 * q1.se
+round(q1.ub, 3)
+');
 
-$qu_2 = "Of the three methods, which one is clearly inappropriate for these
-data?";
+@q2DiffPHat = rserve_eval('
+p.hat.NY <- y2 / n
+p.hat.YN <- y3 / n
+diff <- p.hat.NY - p.hat.YN
+round(diff, 4)
+');
 
-@ans_2_all = (
-"Vanilla",
-"Regression",
-);
+@q2SE = rserve_eval('
+term1 <- p.hat.NY * (1 - p.hat.NY) / n
+term2 <- p.hat.YN * (1 - p.hat.YN) / n
+term3 <- 2 * p.hat.NY * p.hat.YN / n
+q2.se <- sqrt(term1 + term2 + term3)
+round(q2.se, 4)
+');
 
-$mc_2 = new_multiple_choice();
-$mc_2->qa(
-  $qu_2,
-  $ans_2_correct
-);
+@q2LB = rserve_eval('
+q2.lb <- diff - 1.96 * q2.se
+round(q2.lb, 3)
+');
 
-$mc_2->makeLast(
-$ans_2_all[0], $ans_2_all[1] 
-);
+@q2UB = rserve_eval('
+q2.ub <- diff + 1.96 * q2.se
+round(q2.ub, 3)
+');
+
+$q1ans1 =@q1LB[0];
+$q1ans2 =@q1UB[0];
+$q2ans1 =@q2LB[0];
+$q2ans2 =@q2UB[0];
 
 #########################################################
 ## Main Text: where all text goes (Required)
 Context()->texStrings;
 BEGIN_TEXT
-In a medical study, a simple random sample of size 50 is obtained from a
-general population. Each sampled person's age is recorded, and his/her
-bone density (in appropriate units) is measured. The scatterplot shows the sample data.
-$BR
-$BR
-$BCENTER
-\{ image($plotpath, width=>400, height=>250)   \}
-$ECENTER
-$BR
-$BR
-You would like to estimate the average bone density in this population.
-From census data you know that the mean age in the population is
-48. The mean age in your sample happens to be higher than this. You
-are considering three methods to estimate your target: "vanilla" (VN)
-estimation, ratio (RT) estimation, and regression (RG) estimation.
-$BR
-$BR
-$BBOLD(a) $EBOLD 
-\{ $mc_1->print_q() \}
-$BR
-\{ $mc_1->print_a() \}
-$BR
-$BR
 
+A panel of @n[0] eligible voters was assembled by randomly sampling from the population of all eligible voters.
+When questioned last month, @y1[0] of the panel members indicated support for the Liberal party.   When questioned this month, @y2PlusY3[0] panel members had changed their mind, with @y2[0] becoming Liberal supporters and @y3[0] ceasing to be Liberal supporters.
 
-$BBOLD(b) $EBOLD 
-\{ $mc_2->print_q() \}
 $BR
-\{ $mc_2->print_a() \}
+$BR
+$BBOLD(a) $EBOLD
+Give a 95% confidence interval for the proportion of eligible voters supporting the Liberal party now.
+Report the interval endpoints to three decimal places.
 
+$BR
+(\{  ans_rule(7) \}, \{  ans_rule(7) \}).   
+
+$BR
+$BR
+$BBOLD(b) $EBOLD
+Give a 95% confidence interval for change in support, i.e., 
+the proportion of eligible voters supporting the Liberal party now minus the proportion who supported them last month.  Report the interval endpoints to three decimal places.
+
+$BR
+(\{  ans_rule(7) \}, \{  ans_rule(7) \}).   
+ 
 END_TEXT
 #########################################################
 ## Answers evaluation (Required)
-ANS( radio_cmp( $mc_1 -> correct_ans( ) ) );
-ANS( radio_cmp( $mc_2 -> correct_ans( ) ) );
+ANS( num_cmp($q1ans1, tol=> 0.005) );
+ANS( num_cmp($q1ans2, tol=> 0.005) );
+ANS( num_cmp($q2ans1, tol=> 0.005) );
+ANS( num_cmp($q2ans2, tol=> 0.005) );
+
 
 #########################################################
 ## Solution (Optional but recommended)
 Context()->texStrings;
 BEGIN_SOLUTION
-$BBOLD (a) $EBOLD The impact of ratio estimation can be visualized
-by the upward-sloping line passing through the origin (0,0)
-and also sample means \( \left( \overline{\text{age}}_S, \overline{\text{BD}}_S \right) \). Since the population
-mean age is less than the sample mean age, we follow the line
-to the left (and down), to obtain a ratio estimate less than the
-vanilla estimate. In contrast, by visual inspection of the scatterplot, the regression line will clearly be downward-sloping. So in following the line to the left (and up), we obtain a regression estimate greater than the vanilla estimate. Hence RT< VN < RG is the correct ordering. 
+
+$BBOLD(a) $EBOLD
+For support currently we have a sample proportion of  \(\hat{p}=(@y1[0]+@y2[0]-@y3[0])/@n[0] = @q1PHat[0]\), with a standard error of \(SE=\sqrt{\hat{p}(1-\hat{p})/n}=@q1SE[0]\).  Hence the confidence interval 
+\(\hat{p} \pm 1.96 SE\) runs from @q1LB[0] to @q1UB[0].
+
 $BR
 $BR
 
-$BBOLD (b) $EBOLD The ratio estimate is completely inappropriate here. This
-procedure aims to take advantage of a positive association between the two variables, whereas the scatterplot shows a negative association between age and bone density.
+$BBOLD(b) $EBOLD
+We have 
+\( 
+(\hat{p}_{NY} + \hat{p}_{YY}) - (\hat{p}_{YN} + \hat{p}_{YY}) = 
+\hat{p}_{NY} - \hat{p}_{YN} = @y2[0]/@n[0] - @y3[0]/@n[0]
+= @q2DiffPHat[0]
+\) as the estimated change in proportion.  And the corresponding standard error is
+\[
+\begin{eqnarray*}
+SE &=& \sqrt{
+\frac{\hat{p}_{NY}(1-\hat{p}_{NY})}{n} + 
+\frac{\hat{p}_{YN}(1-\hat{p}_{YN})}{n} +
+2\frac{\hat{p}_{NY}\hat{p}_{YN}}{n}
+} \\
+&=& @q2SE[0]
+\end{eqnarray*}
+\]
+Hence the form of the confidence interval is 
+\(\hat{p}_{NY} - \hat{p}_{YN} \pm 1.96 SE = (@q2LB[0], @q2UB[0])\).
+
 
 END_SOLUTION
 ENDDOCUMENT();
