@@ -21,7 +21,7 @@ sub contextSetup {
   Context()->variables->are(%varAddHash);
   parser::Assignment->Allow;
   Context()->flags->set(reduceConstantFunctions=>0,
-                        formatStudentAnswer=>parsed,
+                        formatStudentAnswer=>"parsed",
                         reduceFractions=>0,
                         showExtraParens=>0);
   Context()->operators->redefine(',');
@@ -55,7 +55,7 @@ sub contextSetup {
     my $tempString = $vRef->[$i].' = '.$aRef->[$i];
     push (@ansEqArray , Formula("$tempString"));
   };
-  my @eqTypes = ();
+  @eqTypes = ();
   for my $i (0..$#{$vRef}) {
     push (@eqTypes, $vRef->[$i].' = ___');
   };

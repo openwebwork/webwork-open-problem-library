@@ -1,18 +1,17 @@
 #########################################################
-##KEYWORDS('Sampling theory'; 'bias in sampling'; 'compute the ratio of 
-##mean number of items purchased by customers at a store by adjusting for the
-##assumption that the number of items purchased is proportional to the number
-##of visits') 
+##KEYWORDS('Sampling theory'; 'stratified sampling', 'sampling for a
+##characteristic'; 'compute the ratio of expected standard errors of a
+##stratified sampling estimate of a proportion to that of an estimate based on
+##a simple random sample'.) 
 # DESCRIPTION
-## DBsubject('Statistics')
-## DBchapter('Sample survey methods')
-## DBsection('Sampling bias')
-## Date('2015/11/06')
+## DBsubject('Statistics')
+## DBchapter('Sample survey methods')
+## DBsection('Stratified sampling')
+## Date('2015/10/13')
 ## Author('Nelson Chen')
 ## Institution('University of British Columbia')
-## level('5')
-## 2 Attempts. 
-
+## level('4')
+## 2 Attempts
 
 #########################################################
 DOCUMENT();
@@ -47,93 +46,84 @@ $seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
 rserve_eval("set.seed($seed)"); ## can not combine with the rest
 
 
-my ($remote_file, @problem_data) = rserve_eval(<<CODE);
-# this is R code
-vsts <- sample(5:15, size=50, replace=T)
-prch <- rpois(50, vsts/2)
-tmp <- data.frame(Visits=vsts, Purchases=prch)
-problem_data<-tmp
-problem_file <- tempfile("Shopping", fileext = '.csv')
-write.csv(problem_data, problem_file, row.names=F)
-list(problem_file, problem_data)
-CODE
-
-my $local_file = rserve_get_file($remote_file);
-($local_url = $local_file) =~ s|$tempDirectory|$tempURL|;
-
-@c=rserve_eval('
-round(mean(prch), 2)
+@p=rserve_eval('
+p <- sample(seq(from=.08, to=.12, by=.01), size=1)
 ');
 
-@sum_nu=rserve_eval('
-round(sum(prch/vsts), 3)
+@q=rserve_eval('
+q <- sample(seq(from=.62, to=.68, by=.01), size=1)
 ');
 
-@sum_de=rserve_eval('
-round(sum(1/vsts), 3)
+@r=rserve_eval('
+r <- 0.71*p + 0.29*q
 ');
 
 
 #######answers_q1
 @q1=rserve_eval('
-tmp=sum(prch/vsts)/sum(1/vsts)
-round(tmp, 2)
+tem1<- sqrt(0.71^2*p*(1-p)/100 + 0.29^2*q*(1-q)/100 )
+tem2<-sqrt( r*(1-r)/200)  
+tem<-tem1/tem2
+round(tem, 2)
 ');
+
 
 #########################################################
 ## Main Text: where all text goes (Required)
 Context()->texStrings;
 BEGIN_TEXT
- The dataset in the file \(Shopping.csv\) linked below reports
-information for an "approached in-store at random" sample of 50 of a store's customers. For each sampled customer, both the number of store visits and number of items
-purchased last year are recorded. The store management is interested in
-estimating the number of items purchased per customer last year. As you can
-verify, the average number of items purchased last year amongst the sampled
-customers is @c[0]. However, you are concerned that
-the nature of the sampling is such that frequent customers are
-over-represented in the sample. To deal with this, you assume that the
-probability of "catching" a specific customer in the sample is proportional to his/her number of store visits. Using this assumption, give a better estimate of the target than @c[0]. Report your answer to two decimal places. \{  ans_rule(7) \} 
-$BR
-$BR
-$BBOLD 
-LINK for Shopping.csv (\{ htmlLink($local_url, "Download the csv file here") \}) 
-$EBOLD
+A researcher approaches you for statistical advice. He wants to estimate
+the proportion of senior (aged 65+) Canadians who exceed 172 cm in
+height. He is aware of census information from Statistics Canada that
+71% of the target population is female. He is also aware that for
+study planning purposes he should commit to educated $BBOLD a priori $EBOLD guesses.
+He uses @p[0] and @q[0] as guessed proportions of the female and male subpopulations that exceed 172cm in height. The researcher will sample
+individuals and measure their height very precisely (to compare to the
+172 cm threshold). But he is trying to decide between using a single
+random sample of 200 from the whole population or separate random
+samples of size 100 each from the female and male sub-populations.
+For estimating the target parameter, give the ratio of the anticipated
+standard error using the second sampling scheme to the anticipated
+standard error using the first sampling scheme. Report this ratio to
+two decimal places. \{  ans_rule(7) \}  
+
 END_TEXT
 #########################################################
 ## Answers evaluation (Required)
-ANS( num_cmp(@q1[0], tol=> 0.0201) );
+ANS( num_cmp(@q1[0], tol=> 0.051) );
+
 
 #########################################################
 ## Solution (Optional but recommended)
 Context()->texStrings;
 BEGIN_SOLUTION
-Let \(Y \) and \( X\) denote a customer's number
-of purchases and number of visits, respectively. With \( \mathcal{S} \)
-denoting the sample taken, if we knew the sampling weight \( w_{i} \)
-for each sampled customer, then 
+Finite-population correction can be ignored given the very
+large strata. The guessed proportions of "tallness" for the two strata
+imply a guessed proportion of
 $BR
 $BR
 $BCENTER
 \begin{align*}
-\frac{\sum_{i\in \mathcal{S}}w_{i}y_{i}}{\sum_{i\in \mathcal{S}}w_{i}}
+0.71 \times @p[0] +0.29 \times @q[0] &= @r[0].  
 \end{align*}
 $ECENTER
 $BR
-would be an appropriate estimate since the numerator estimates the
-population total for \(Y\) and the denominator estimates the
-population size. We do not know the sampling weights exactly, but we are
-assuming they are inversely proportional to the number of visits. Moreover,
-since the weights appear in both the numerator and denominator of the
-estimate, the constant of proportionality will not have any effect. Thus our
-estimate can be expressed as
+$BR
+for the whole population. Thus the ratio of anticipated standard errors
+for the stratified estimator compared to the simple random sample estimator is
+$BR
 $BR
 $BCENTER
-\begin{eqnarray*}
-\frac{\sum_{i\in \mathcal{S}}y_{i}/x_{i}}{\sum_{i\in \mathcal{S}}1/x_{i}} &=&
-\frac{@sum_nu[0]}{@sum_de} \\
-&=& @q1[0].
-\end{eqnarray*}
+\begin{align*}
+\frac{ \sqrt{ 0.71^2 \times @p[0] \times (1-@p[0])/100 +  0.29^2 \times @q[0] \times (1-@q[0])/100  }  } {  \sqrt{  @r[0] \times (1-@r[0]) /200} } =@q1[0].  
+\end{align*}
 $ECENTER
+$BR
+$BR
+Note that we should not  be surprised that the stratified scheme is a fair
+bit better in the present context. There is considerable across-stratum
+variation in the variable of interest (binary indicator of height exceeding the threshold).
+
 
 END_SOLUTION
 ENDDOCUMENT();

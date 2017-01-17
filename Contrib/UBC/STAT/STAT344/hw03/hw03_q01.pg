@@ -1,18 +1,16 @@
 #########################################################
-##KEYWORDS('Sampling theory'; 'simple random sampling', 'stratified sampling',
-##'ratio estimators'; 'determine an estimate of population mean from a stratified
-##sample by (i) treating as a simple random sample, (ii) using a stratified
-##estimator with proportional allocation, and (iii) using a ratio estimator';
-##'finding the standard error in each case'. ) 
+##KEYWORDS('Sampling theory'; 'ratio estimators'; 'determine an estimate of
+##population total from a sample of strata', 'finding both the scaled sample
+##mean and the ratio estimator and giving confidence intervals based on both'.) 
 # DESCRIPTION
-## DBsubject('Statistics')
-## DBchapter('Sample survey methods')
-## DBsection('Stratified sampling')
-## Date('2015/10/13')
+## DBsubject('Statistics')
+## DBchapter('Sample survey methods')
+## DBsection('Ratio estimators')
+## Date('2015/09/23')
 ## Author('Nelson Chen')
 ## Institution('University of British Columbia')
 ## level('5')
-## 5 Attempts
+## 4 Attempts
 
 #########################################################
 DOCUMENT();
@@ -46,14 +44,29 @@ $seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
 ####Call R server
 rserve_eval("set.seed($seed)"); ## can not combine with the rest
 
+@N=rserve_eval('
+N <- sample(200:250, size=1)
+');
+
+@B=rserve_eval('
+B <- N*325
+');
+
+@C=rserve_eval('
+C <- N*30000
+');
+
 my ($remote_file, @problem_data) = rserve_eval(<<CODE);
-# this is R code
-n <- 200
-fsa <- sample(1:6, size=n, replace=T)
-scr <- round(60+3*fsa + rnorm(n, sd=7))
- tmp <- data.frame(Score=scr, FSA=fsa)
- problem_data<-tmp
- problem_file <- tempfile("ExamScores", fileext = '.csv')
+  # this is R code
+ set.seed(13)
+ n <- 35
+ county.pop <- round(runif(n, 10000,50000)) ### pop mean
+ county.area <- round(runif(n, 10,25)^2) ### pop mean 325
+ county.lwyr <- round((county.pop/2000)*runif(n,0.7,1.4))
+ tmp <- data.frame(county.pop, county.area, county.lwyr)
+ names(tmp)<-c("inhabitants", "area", "num.lawyers")
+  problem_data<-tmp
+  problem_file <- tempfile("lawyers", fileext = '.csv')
  write.csv(problem_data, problem_file, row.names=F)
  list(problem_file, problem_data)
 CODE
@@ -62,205 +75,248 @@ my $local_file = rserve_get_file($remote_file);
 ($local_url = $local_file) =~ s|$tempDirectory|$tempURL|;
 
 
-@n_grp=rserve_eval('
-n_grp <- table(fsa)
+@data=rserve_eval('
+set.seed(13)
+n <- 35
+county.pop <- round(runif(n, 10000,50000)) ### pop mean
+county.area <- round(runif(n, 10,25)^2) ### pop mean 325
+county.lwyr <- round((county.pop/2000)*runif(n,0.7,1.4))
+tmp <- data.frame(county.pop, county.area, county.lwyr)
+names(tmp)<-c("inhabitants", "area", "num.lawyers")
+#write.csv(tmp, file=lawyers.csv, row.names=F)
 ');
 
-
-@mn_grp=rserve_eval('
-mn_grp <- tapply(scr, fsa, mean)
-round(mn_grp, 3)
+@e=rserve_eval('
+e <- county.lwyr - (mean(county.lwyr)/mean(county.pop))*county.pop
 ');
 
-@sd_grp=rserve_eval('
-sd_grp <- sqrt(tapply(scr, fsa, var))
-round(sd_grp, 3)
+@meany=rserve_eval('
+meany<-mean(county.lwyr)
 ');
 
-@tot_grp=rserve_eval('
-tot_grp <- n_grp*mn_grp
+@meanx=rserve_eval('
+meanx<-mean(county.area)
 ');
-
-@se=rserve_eval('
-se <- round(sqrt(var(tot_grp-(mean(tot_grp)/mean(n_grp))*n_grp)),4)
-');
-
 
 #######answers_q1
-@q1=rserve_eval('
-tem<-  round(mean(scr),2)
+@q1_pre=rserve_eval('
+tem<-  sqrt((1-35/N)*6.637^2/35)
 round(tem, 2)
+');
+
+@q1=rserve_eval('
+re1<-N*16.8
+round(re1, 0)
 ');
 
 #######answers_q2
-@q2=rserve_eval('
-tem<-  round(sqrt(var(scr)/200),2)
+@q2_pre=rserve_eval('
+tem<-  N*sqrt((1-35/N)*6.637^2/35)
 round(tem, 2)
+');
+
+@q2_LB=rserve_eval('
+re2_LB<-N*16.8-1.96*tem
+round(re2_LB, 0)
+');
+
+@q2_UB=rserve_eval('
+re2_UB<-N*16.8+1.96*tem
+round(re2_UB, 0)
 ');
 
 
 #######answers_q3
-@q3=rserve_eval('
-tem<-  round(mean(scr),2)
+@q3_pre=rserve_eval('
+tem<-  (meany/meanx)*30000
 round(tem, 2)
 ');
 
+@q3=rserve_eval('
+re3<-N*16.326
+round(re3, 0)
+');
 
 #######answers_q4
-@q4=rserve_eval('
-tem<-round(sqrt(sum((n_grp/n)^2*sd_grp^2/n_grp)), 2)
+@q4_pre=rserve_eval('
+tem<- sqrt((1-35/N)*var(e)/35)
 round(tem, 2)
 ');
 
-#######answers_q5
-@q5=rserve_eval('
-tem<-  round(mean(scr),2)
-round(tem, 2)
+@q4_prea=rserve_eval('
+round(var(e), 2)
 ');
 
-#######answer_q6
-@q6=rserve_eval('
-se_tem <- sqrt(var(tot_grp-(mean(tot_grp)/mean(n_grp))*n_grp))
-tem<-  (1/mean(n_grp))*se_tem/sqrt(6)
-round(tem, 2)
+
+@q4_preb=rserve_eval('
+tem2<- N*sqrt((1-35/N)*var(e)/35)
+round(tem2, 2)
 ');
+
+
+@q4_LB=rserve_eval('
+re4_LB<-N*16.326-1.96*tem2
+round(re4_LB, 0)
+');
+
+@q4_UB=rserve_eval('
+re4_UB<-N*16.326+1.96*tem2
+round(re4_UB, 0)
+');
+
 
 #########################################################
 ## Main Text: where all text goes (Required)
 Context()->texStrings;
 BEGIN_TEXT
-If presented with a dataset, it can be dangerous to try to analyze it
-with little or no idea of how the data were obtained. To help reflect upon this, we consider how answers change for the same dataset, under different assumptions about how that dataset was collected. In the file ExamScores.csv linked below, each row corresponds to a student. The first column gives that student's grade on a standardized test (scored
-on a scale from 0 points to 100 points). The second column gives the
-geographic area in which the student lives. In particular, it indicates in
-which of six forward sortation areas (FSAs) the student lives, simply
-coded as \(1, \ldots, 6\) in the file. (In actuality, each FSA is distinguished by
-the first 3 characters of the 6-character postal code.) In all parts that
-follow, answers are to be given on the scale of exam points, and should
-be reported to two decimal places. 
+The file lawyers.csv linked below contains the result of a simple random sample of 35 out of @N[0] counties that comprise the mythical land of Nod. Each row corresponds to a sampled county, with the columns giving the county population size (number of inhabitants), the area (in square kilometres), and the number of practicing lawyers. It is known that the total area of Nod is @B[0] \(km^2\), and the total population is @C[0] people. Provide answers to the nearest integers.
 $BR
 $BR
 $BBOLD 
-LINK for ExamScores.csv (\{ htmlLink($local_url, "Download the csv file here") \}) 
+LINK for lawyer.csv (\{ htmlLink($local_url, "Download the csv file here") \}) 
 $EBOLD
 $BR
 $BR
-$BBOLD(a) $EBOLD Presume that the (large) population of interest corresponds to all
-students in these six FSAs, and that the data arose from a simple
-random sample of size n = 200 from the population. Give an
-estimate of the population average test score. \{  ans_rule(7) \}  
+$BBOLD(a) $EBOLD Give a "vanilla" estimate for the total number of practicing lawyers
+in Nod. \{  ans_rule(7) \}.  
 $BR
 $BR
 
-$BBOLD(b) $EBOLD Give an appropriate standard error to accompany the estimate in
-(a). \{  ans_rule(7) \}  
+$BBOLD(b) $EBOLD Give a 95% confidence interval to accompany your answer to (a). 
+$BR
+$BR
+ (\{  ans_rule(7) \}, \{  ans_rule(7) \}).  
 $BR
 $BR
 
-
-$BBOLD(c) $EBOLD Presume that the (large) population of interest corresponds to
-all students in these six FSAs, and that the data arose from a stratified random sampling using proportional allocation. Give an estimate of the population average test score.  \{  ans_rule(7) \}.  
-$BR
-$BR
-
-
-$BBOLD(d) $EBOLD Give an appropriate standard error to accompany the estimate in
-(c). \{  ans_rule(7) \}  
-$BR
-$BR
-
-$BBOLD(e) $EBOLD Presume that the (large) population of interest is comprised of all
-students from a large number of small FSAs, and that the data were obtained from a one-stage cluster sample of FSAs. Give an estimate of the population average test score.  \{  ans_rule(7) \}.  
+$BBOLD(c) $EBOLD Give a ratio estimate for the total number of practicing lawyers
+in Nod. (NOTE: if you can think of more than one ratio estimate for this target, then give the one that makes the most intuitive sense to you.)  \{  ans_rule(7) \}.  
 $BR
 $BR
 
 
-$BBOLD(f) $EBOLD Give an appropriate standard error to accompany the estimate in
-(e). \{  ans_rule(7) \}  
+$BBOLD(b) $EBOLD Give a 95% confidence interval to accompany your answer to (c). 
 $BR
 $BR
+ (\{  ans_rule(7) \}, \{  ans_rule(7) \}).  
+$BR
+$BR
+
 END_TEXT
 #########################################################
 ## Answers evaluation (Required)
-ANS( num_cmp(@q1[0], tol=> 0.071) );
-ANS( num_cmp(@q2[0], tol=> 0.071) );
-ANS( num_cmp(@q3[0], tol=> 0.071) );
-ANS( num_cmp(@q4[0], tol=> 0.071) );
-ANS( num_cmp(@q5[0], tol=> 0.071) );
-ANS( num_cmp(@q6[0], tol=> 0.071) );
+ANS( num_cmp(@q1[0], tol=> 8.1) );
+ANS( num_cmp(@q2_LB[0], tol=> 8.1) );
+ANS( num_cmp(@q2_UB[0], tol=> 8.1) );
+ANS( num_cmp(@q3[0], tol=> 8.1) );
+ANS( num_cmp(@q4_LB[0], tol=> 8.1) );
+ANS( num_cmp(@q4_UB[0], tol=> 8.1) );
 
 #########################################################
 ## Solution (Optional but recommended)
 Context()->texStrings;
 BEGIN_SOLUTION
-$BBOLD (a) $EBOLD Under simple random sampling, the sample mean of
-the scores, \( \bar{y}_S = @q1[0] \), estimates the population mean.
-$BR
-$BR
-
-$BBOLD (b) $EBOLD Since the population is large, the standard error of the sample
-mean is simply \( \sqrt{s^2/n} =@q2[0] \). 
-$BR
-$BR
-
-$BBOLD (c) $EBOLD From the dataset we compute the within-FSA sample sizes to
-be \(@n_grp[0], @n_grp[1], \ldots, @n_grp[5]\), the within-FSA mean
-scores to be \(@mn_grp[0], @mn_grp[1], \ldots, @mn_grp[5]\), and the within-FSA standard deviations of scores to be \(@sd_grp[0], @sd_grp[1], \ldots, @sd_grp[5]\). Since proportional allocation is being used, the population proportions must be the same as the sample proportions, i.e., \(N_h/N = n_h/n\) for \(h=1, 2, \ldots, 6\). Thus
+$BBOLD (a) $EBOLD Let Y denote the number of lawyers. The sample
+mean and standard deviation of Y are 16.800 and 6.6368, hence
+the standard error of the sample mean is
 $BR
 $BR
 $BCENTER
-\begin{align*}
-\bar{y}_{str} &= \sum_{h=1}^{6} \frac{N_h}{N}\bar{y}_h \\
-&=\sum_{h=1}^{6} \frac{n_h}{n}\bar{y}_h \\
-&=\bar{y}_S
-\end{align*}
+\(
+\sqrt{ (1-\frac{35}{@N[0]}) \frac{6.637^2}{35}} =@q1_pre[0]. 
+\)
 $ECENTER
 $BR
-i.e., the estimate is the same as in (a).
+$BR
+Our estimate for the total number of lawyers is then @N[0] \(\times\) 16.8=@q1[0]. 
 $BR
 $BR
 
-$BBOLD (d) $EBOLD The standard error is
+$BBOLD (b) $EBOLD The standard error of the estimate in (a) is
 $BR
 $BR
 $BCENTER
-\begin{align*}
-SE(\bar{y}_{str}) &=\sqrt{ \sum_{h=1}^{6} (\frac{N_h}{N})^2 \frac{s_h^2}{n_h} }  \\
-&= \sqrt{ \sum_{h=1}^{6} (\frac{n_h}{n})^2 \frac{s_h^2}{n_h} }  \\
-&=@q4[0]. 
-\end{align*}
+\(
+@N[0] \times \sqrt{ (1-\frac{35}{@N[0]}) \frac{6.637^2}{35}} =@q2_pre[0]. 
+\)
 $ECENTER
 $BR
 $BR
-
-$BBOLD (e) $EBOLD Letting \(t_i\) and \(m_i\) be the total score and the size of the i th FSA, our estimator in this situation is the ratio estimator, \( \bar{t}_S/\bar{m}_S\). But
-this is just the overall sample mean, i.e., the same estimate as in (a) and (c).
-$BR
-$BR
-
-$BBOLD (f) $EBOLD Using ratio estimator theory, we have
+The point estimate is @N[0] \(\times\) 16.8=@q1[0]. Hence an approximate 95% confidence interval is
 $BR
 $BR
 $BCENTER
-\begin{align*}
-SE( \bar{t}_S/\bar{m}_S ) &= \frac{1}{\bar{m}_S} \frac{s_e}{\sqrt{6}}   \\
-\end{align*}
+\(
+\left(
+@q1[0] - 1.96 \times @N[0] \times \sqrt{ (1-\frac{35}{@N[0]}) \frac{6.637^2}{35}} , 
+@q1[0] + 1.96 \times @N[0] \times \sqrt{ (1-\frac{35}{@N[0]}) \frac{6.637^2}{35}} 
+\right), 
+\)
 $ECENTER
 $BR
+that is, (@q2_LB[0], @q2_UB[0]).  
 $BR
-where \(s_e^2\) is the sample variance of the residuals
+$BR
+
+$BBOLD (c) $EBOLD Additionally let X denote the county population size (since it is much more plausible that the number of lawyers is positively associated with the population size than with the geographical size). So our
+ratio estimate of the mean of Y is
 $BR
 $BR
 $BCENTER
-\begin{align*}
-e_i &=t_i-( \bar{t}_S/\bar{m}_S  ) m_i \\
-\end{align*}
+\(
+\frac{\bar{y}}{\bar{x}} \times 30000=16.326. 
+\)
 $ECENTER
 $BR
 $BR
-Thus we compute from the data \(s_e=@se[0] \) and hence 
-\(  SE( \bar{t}_S/\bar{m}_S )  \)= @q6[0]. 
+The estimate for the total number of lawyers is then @N[0] \(\times\) 16.326= @q3[0].
+$BR
+$BR
 
+$BBOLD (d) $EBOLD Letting
+$BR
+$BR
+$BCENTER
+\(
+e_i=y_i-\frac{\bar{y}} {\bar{x}} x_i, 
+\)
+$ECENTER
+$BR
+$BR
+for i=1,. . . ,35, and \(s_e \) denote the sample standard deviation of
+these 35 values, the corresponding standard error of the ratio estimate for the mean number of lawyers per county is
+$BR
+$BR
+$BCENTER
+\(
+\sqrt{ (1-\frac{35}{@N[0]}) \frac{s_e^2}{35}}=\sqrt{ (1-\frac{35}{@N[0]}) \frac{@q4_prea[0]}{35}}=@q4_pre[0].
+\)
+$ECENTER
+$BR
+$BR
+Our point estimate for the total number of lawyers is then @N[0] \(\times\) 16.326=@q3[0], with a standard error of
+$BR
+$BR
+$BCENTER
+\(
+@N[0] \times \sqrt{ (1-\frac{35}{@N[0]}) \frac{s_e^2}{35}}= @N[0] \times \sqrt{ (1-\frac{35}{@N[0]}) \frac{@q4_prea}{35}}=@q4_preb[0]. 
+\)
+$ECENTER
+$BR
+$BR
+Hence an approximate 95% confidence interval is
+$BR
+$BR
+$BCENTER
+\(
+\left(
+@q3[0] - 1.96 \times @N[0] \times \sqrt{ (1-\frac{35}{@N[0]}) \frac{s_e^2}{35}} , 
+@q3[0] + 1.96 \times @N[0] \times \sqrt{ (1-\frac{35}{@N[0]}) \frac{s_e^2}{35}}
+\right),
+\)
+$ECENTER
+$BR
+that is, (@q4_LB[0], @q4_UB[0]).
 
 
 END_SOLUTION

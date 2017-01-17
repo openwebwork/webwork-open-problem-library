@@ -26,8 +26,8 @@ sub rand_button
 #**********************************************************
 sub reduce_fraction
 {
-  $n = @_[0];
-  $d = @_[1];
+  $n = $_[0];
+  $d = $_[1];
   $wholenum = 0;
 #
 # **********************
@@ -114,8 +114,8 @@ sub reduce_fraction
 #  else $Display=\(\frac{$n}{$d}\)
 #**********************************************************
 sub display_fraction_long
-{  $n = @_[0];
-  $d = @_[1];
+{  $n = $_[0];
+  $d = $_[1];
   $w=0;
   $display=0;
 #call reduce_fraction
@@ -143,8 +143,8 @@ return($n, $d, $w,$display);
 #  else $Display=\(\frac{$n}{$d}\)
 #**********************************************************
 sub display_fraction
-{  $n = @_[0];
-  $d = @_[1];
+{  $n = $_[0];
+  $d = $_[1];
   $w=0;
   $display=0;
 #call reduce_fraction
@@ -178,7 +178,7 @@ return($display);
 #*******************************************************************************
 sub sqrt_simplify
 {
-  $number = @_[0];
+  $number = $_[0];
   ($Natnum,$Radnum) = (1,1);
   $Error = 0;
 
