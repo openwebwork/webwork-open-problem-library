@@ -86,7 +86,7 @@ already in use for absolute values.  If you wish to use "|" rather
 than ":", you can do that, but must then use "abs()" to obtain
 absolute values.  To enable the vertical line as "such that", use
 
-        InequalititySetBuilder::UseVerticalSuchThat();
+        InequalitySetBuilder::UseVerticalSuchThat();
 
 prior to setting the context to one of the set-builder contexts.  This
 will disable ":" and enable "|" as such-that rather than absolute-value.
