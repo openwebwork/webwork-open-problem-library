@@ -3,3 +3,7 @@ sub negate {
 	#return "\\lnot";
 };
 
+sub implies {
+	return "\\Rightarrow";
+}
+
