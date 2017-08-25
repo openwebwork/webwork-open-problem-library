@@ -113,8 +113,9 @@ sub AnswerRule {
   my $rule = main::ans_rule(1);
   $self->{tgtAns} = ""; $self->{tgtAns} = $1 if $rule =~ m/id="(.*?)"/;
   $self->{srcAns} = $self->{tgtAns}."-src";
-  main::RECORD_FORM_LABEL($self->{srcAns});
-  my $ext = main::NAMED_ANS_RULE_EXTENSION($self->{srcAns},1);
+  # main::RECORD_FORM_LABEL($self->{srcAns});
+  $main::PG->store_persistent_data;
+  my $ext = main::NAMED_ANS_RULE_EXTENSION($self->{srcAns},1,answer_group_name=>$self->{srcAns}.'-src');
   main::TEXT( main::MODES(TeX=>"", HTML=>'<div style="display:none" id="Proof">'.$rule.$ext.'</div>'));
 }
 
