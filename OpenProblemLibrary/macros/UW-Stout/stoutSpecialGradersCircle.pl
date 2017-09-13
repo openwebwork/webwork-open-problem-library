@@ -809,7 +809,7 @@ sub TeX{
 }
 
 package stoutGenericEquation;
-
+@stoutGenericEquation::ISA =qw(Value);
 
 # the easier debug block
 # it uses functions from stoutUtils package,
