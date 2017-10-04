@@ -14,14 +14,14 @@
 ## Section1('6.2')
 ## Problem1('')
 ## KEYWORDS('rational expressions','rational functions')
-## Date: 2007/11
+## Date: 2007/11 updated 2017/10 --rac
 
 DOCUMENT(); # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl"
 );
 
@@ -29,7 +29,22 @@ TEXT(beginproblem());
 
 ######################################
 #  Setup
-#  Form: d - a/(bx+c) 
+
+Context("Numeric");
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '+' => {class => 'bizarro::BOP::add', isCommand => 1},
+   '+ ' => {class => 'bizarro::BOP::add', isCommand => 1},
+   ' +' => {class => 'bizarro::BOP::add', isCommand => 1},);
+
+# --- Form: d - a/(bx+c) ------------------------------------
 #  Note:  b and c rel prime, d>a, d neq b
 #  Answer: (dbx+dc-a)/(bx+c)
 
@@ -38,8 +53,21 @@ $b = random(2,7,1);
 do {$c = non_zero_random(-5,5,1);} until (gcd($b,$c)==1);
 $d = $a + random(1,7,1);
 
+$den1 = Formula("1")->reduce;
 $f1 = Formula("$d")->reduce->TeX;
-$f2 = Formula("($a) / ($b x + $c)")->reduce->TeX;
+$den2 = Formula("$b x + $c")->reduce;
+$f2 = Formula("($a) / $den2")->reduce->TeX;
+
+# --- For the alternative answer ------------------
+$numFactor = gcd($d*$b, $d*$c-$a);  
+$numCoef1 = ($d*$b)/$numFactor;
+$numCoef2 = ($d*$c-$a)/$numFactor;
+
+# --- For the Solution----------------------------------
+$lcd = $den2;
+$mult1 = $den2;
+$num1 = Formula("($d*$b) x + ($d*$c)")->reduce;
+$num2 = Formula("$a")->reduce;
 
 ######################################
 #  Main text
@@ -49,20 +77,73 @@ Perform the indicated operation.  Simplify the result, if possible.
  \[ $f1 - $f2 \]
 $PAR
 Answer:  \{ ans_rule(25) \} 
+$BR $BR
+\{ 
+knowlLink("help(entering your answer)", 
+value=>'Enter your answer  '.
+'in the form: ${BITALIC}numerator/denominator$EITALIC. '.
+'Use parentheses as needed.'.
+'$BR Your answer should be in reduced form with integer ' .
+'coefficients. For example:'.
+'$BR $SPACE $SPACE If the correct, reduced answer is: 3/(2x+4)'.
+'$BR $SPACE $SPACE The following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))'
+) \}
 END_TEXT
 
 ######################################
 #  Answer
 
-$answer = "($d*$b * x + $d*$c -$a ) / ($b * x + $c)";
-ANS(RationalExpEvaluator($answer,"x"));  
-
 $showPartialCorrectAnswers = 1;
 
+$errText = "Your answer is equivalent to the correct answer, but ".
+                 "needs to be simplified further or is not in the expected format. $BR".
+                 "See ${BBOLD}help(entering your answer)$EBOLD ".
+                 "given below for the expected format.";
+
+$answer = Formula("( ($d*$b)x+($d*$c-$a) ) / ($b x+$c)")->reduce;
+
+#--The alternative answer has possible factoring in numerator ------
+$answerAlt = Formula("( ($d*$b)x+($d*$c-$a) ) / ($b x+$c)")->reduce;
+if ($numFactor>1) {
+   $answerAlt = Formula("( $numFactor($numCoef1 x+$numCoef2) ) / ($b x+$c)")->reduce;
+}
+
+ANS($answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1,bizarroAdd=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      $student = Formula("$student"); $correct = Formula("$correct"); 
+      $correctAlt = Formula("$answerAlt");
+      my $OK = ($correct == $student || $correctAlt == $student);
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0,bizarroAdd=>0);
+      Value::Error($errText) unless $OK;
+      return $OK;
+})); 
+
 ######################################
+#  Solution d - a/(bx+c) 
 
+Context()->texStrings;
+BEGIN_SOLUTION
+$BR
+The LCD is \($lcd\).
+\[
+\begin{aligned} 
+$f1 - $f2 & = \frac{$f1}{1} \cdot \frac{$mult1}{$mult1} - $f2 \\
+          & = \frac{$num1}{$lcd} - \frac{$num2}{$lcd} \\
+          & = $answer               
+\end{aligned}
+\]
+END_SOLUTION
+Context()->normalStrings;
 
-;
 ENDDOCUMENT();
 
 

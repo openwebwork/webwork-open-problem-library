@@ -16,14 +16,14 @@
 ## Section1('6.2')
 ## Problem1('')
 ## KEYWORDS('rational expressions','rational functions')
-## Date: 2007/11
+## Date: 2007/11 updated 2017/09 --rac
 
 DOCUMENT(); # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl"
 );
 
@@ -31,7 +31,22 @@ TEXT(beginproblem());
 
 ######################################
 #  Setup
-#  Form: (x^2+d)/(x+b)(x-c) - ((ac+d)+(c-a)x)/(x+b)(x-c)  
+
+Context("Numeric");
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '+' => {class => 'bizarro::BOP::add', isCommand => 1},
+   '+ ' => {class => 'bizarro::BOP::add', isCommand => 1},
+   ' +' => {class => 'bizarro::BOP::add', isCommand => 1},);
+
+# --- Form: (x^2+d)/(x+b)(x-c) - ((ac+d)+(c-a)x)/(x+b)(x-c) ----------
 #  Note:  a neq b, a>c, ac>d
 #  Answer: (x+a)/(x+b)
 
@@ -40,8 +55,10 @@ $c = random(1,5,1);
 do {$a = $c + random(1,3,1);} while ($a==$b);
 do {$d = non_zero_random(-3,3,1);} while ($a*$c+$d<=0);
 
-$f1 = Formula("(x^2+$d) / (x^2+($b-$c)x-($b*$c))")->reduce->TeX;
-$f2 = Formula("($a*$c+$d + ($c-$a)x) / (x^2+($b-$c)x-($b*$c))")->reduce->TeX;
+$den = Formula("x^2+($b-$c)x-($b*$c)")->reduce;
+$f1 = Formula("(x^2+$d) / ($den)")->reduce->TeX;
+$f2 = Formula("($a*$c+$d + ($c-$a)x) / ($den)")->reduce->TeX;
+$unreduced = Formula("x^2 - ($c - $a)x - $a*$c")->reduce;
 
 ######################################
 #  Main text
@@ -52,18 +69,69 @@ are the same.  Simplify the result, if possible.
 \[ $f1 - $f2 \]
 $PAR
 Answer:  \{ ans_rule(25) \} 
+$BR $BR
+\{ 
+knowlLink("help(entering your answer)", 
+value=>'Enter your answer  '.
+'in the form: ${BITALIC}numerator/denominator$EITALIC. '.
+'Use parentheses as needed.'.
+'$BR Your answer should be in reduced form with integer ' .
+'coefficients. For example:'.
+'$BR $SPACE $SPACE If the correct, reduced answer is: 3/(2x+4)'.
+'$BR $SPACE $SPACE The following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))'
+) \}
 END_TEXT
 
 ######################################
 #  Answer
 
-$answer = "(x+$a)/(x+$b)";
-ANS(RationalExpEvaluator($answer,"x"));  
-
 $showPartialCorrectAnswers = 1;
 
+$errText = "Your answer is equivalent to the correct answer, but ".
+                 "needs to be simplified further or is not in the expected format. $BR".
+                 "See ${BBOLD}help(entering your answer)$EBOLD ".
+                 "given below for the expected format.";
+
+$answer = Formula("(x+$a)/(x+$b)")->reduce;
+ 
+ANS($answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1,bizarroAdd=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0,bizarroAdd=>0);
+      Value::Error($errText) unless $OK;
+      return $OK;
+})); 
+
 ######################################
+#  Solution
 
+$constant = $a*$c+$d;
+$ca = $c - $a;
+$num = Formula("x^2+$d - $constant - $ca x")->reduce;
 
-;
+Context()->texStrings;
+BEGIN_SOLUTION
+$BR
+The denominators are equal.  Add the numerators. Factor and reduce.
+\[
+\begin{aligned}
+$f1 - $f2  & = \frac{$num}{$den} & \\
+               & = \frac{$unreduced}{$den} \\
+                & = \frac{(x+$a)(x-$c)}{(x+$b)(x-$c)}  & \mbox{Reduce common factors }\\
+                & = $answer
+\end{aligned}
+\]
+END_SOLUTION
+Context()->normalStrings;
+
 ENDDOCUMENT();

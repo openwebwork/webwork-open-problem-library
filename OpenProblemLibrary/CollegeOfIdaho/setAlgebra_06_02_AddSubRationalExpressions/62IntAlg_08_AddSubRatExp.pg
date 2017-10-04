@@ -15,14 +15,14 @@
 ## Section1('6.2')
 ## Problem1('')
 ## KEYWORDS('rational expressions','rational functions')
-## Date: 2007/11
+## Date: 2007/11 updated 2017/09 --rac
 
 DOCUMENT(); # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl"
 );
 
@@ -30,7 +30,22 @@ TEXT(beginproblem());
 
 ######################################
 #  Setup
-#  Form: (ex^2+(ce+d+f)x+g)/(ax+b)(cx+d) - ((e-c)x^2+fx+(g-de))/(ax+b)(cx+d)  
+
+Context("Numeric");
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '+' => {class => 'bizarro::BOP::add', isCommand => 1},
+   '+ ' => {class => 'bizarro::BOP::add', isCommand => 1},
+   ' +' => {class => 'bizarro::BOP::add', isCommand => 1},);
+
+# --- Form: (ex^2+(ce+d+f)x+g)/(ax+b)(cx+d) - ((e-c)x^2+fx+(g-de))/(ax+b)(cx+d) ----
 #  Answer: (x+e)/(ax+b), 
 #  note:  e>c, a and b rel prime, c and d rel prime
 
@@ -45,6 +60,10 @@ $g =  non_zero_random(-5,5,1);
 
 $f1 = Formula("($e x^2+($c*$e+$d+$f)x+$g)/(($a*$c)x^2+($b*$c+$a*$d)x+($b*$d))")->reduce->TeX;
 $f2 = Formula("(($e-$c)x^2+$f x+($g-$d*$e)) / (($a*$c)x^2+($b*$c+$a*$d)x+($b*$d))")->reduce->TeX;
+$unreduced = Formula("$c x^2 + ($c*$e+$d) x + ($d*$e)")->reduce;
+$den = Formula("($a*$c)x^2+($b*$c+$a*$d)x+($b*$d)")->reduce;
+$factorNum = Formula("(x + $e)($c x + $d)")->reduce;
+$factorDen = Formula("($a x + $b)($c x + $d)")->reduce;
 
 ######################################
 #  Main text
@@ -55,18 +74,65 @@ are the same.  Simplify the result, if possible.
 \[ $f1 - $f2 \]
 $PAR
 Answer:  \{ ans_rule(25) \} 
+$BR $BR
+\{ 
+knowlLink("help(entering your answer)", 
+value=>'Enter your answer  '.
+'in the form: ${BITALIC}numerator/denominator$EITALIC. '.
+'Use parentheses as needed.'.
+'$BR Your answer should be in reduced form with integer ' .
+'coefficients. For example:'.
+'$BR $SPACE $SPACE If the correct, reduced answer is: 3/(2x+4)'.
+'$BR $SPACE $SPACE The following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))'
+) \}
 END_TEXT
 
 ######################################
 #  Answer
 
-$answer = "(x+$e)/($a*x+$b)";
-ANS(RationalExpEvaluator($answer,"x"));  
-
 $showPartialCorrectAnswers = 1;
 
+$errText = "Your answer is equivalent to the correct answer, but ".
+                 "needs to be simplified further or is not in the expected format. $BR".
+                 "See ${BBOLD}help(entering your answer)$EBOLD ".
+                 "given below for the expected format.";
+
+$answer = Formula("(x+$e)/($a*x+$b)")->reduce;
+
+ANS($answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1,bizarroAdd=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0,bizarroAdd=>0);
+      Value::Error($errText) unless $OK;
+      return $OK;
+})); 
+
 ######################################
+#  Solution
 
+Context()->texStrings;
+BEGIN_SOLUTION
+$BR
+The denominators are equal.  Add the numerators.
+Factor and reduce
+\[
+\begin{aligned} 
+    $f1 - $f2       & = \frac{$unreduced}{$den} \\
+                        & =  \frac{$factorNum}{$factorDen}\\
+                        & = $answer
+\end{aligned}
+\]
+END_SOLUTION
+Context()->normalStrings;
 
-;
 ENDDOCUMENT();

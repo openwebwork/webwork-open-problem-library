@@ -15,14 +15,14 @@
 ## Section1('6.2')
 ## Problem1('')
 ## KEYWORDS('rational expressions','rational functions')
-## Date: 2007/11
+## Date: 2007/11 updated 2017/09 --rac
 
 DOCUMENT(); # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl"
 );
 
@@ -30,7 +30,19 @@ TEXT(beginproblem());
 
 ######################################
 #  Setup
-#  Form: a/bx + c/bx 
+
+Context('Numeric');
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1});
+
+# --Form: a/bx + c/bx -------------------------------------
 #  Note: (a+c) and b are not rel. prime 
 #  Answer: d/ex
 
@@ -41,6 +53,7 @@ $gcd = random(2,5,1);
 do {$a = random(1,5,1);} until ($d * $gcd - $a>0);
 $c = $d * $gcd - $a;  #Need c to be positive for addition
 $b = $gcd * $e;
+$unreduced = $a + $c;  #For error message if unreduced numerator
  
 $f1 = Formula("($a) / ($b x)")->reduce->TeX;
 $f2 = Formula("($c) / ($b x)")->reduce->TeX;
@@ -54,18 +67,65 @@ are the same.  Simplify the result, if possible.
 \[ $f1 + $f2 \]
 $PAR
 Answer:  \{ ans_rule(25) \} 
+$BR $BR
+\{ 
+knowlLink("help(entering your answer)", 
+value=>'Enter your answer  '.
+'in the form: ${BITALIC}numerator/denominator$EITALIC. '.
+'Use parentheses as needed.'.
+'$BR Your answer should be in reduced form with integer ' .
+'coefficients. For example:'.
+'$BR $SPACE $SPACE If the correct, reduced answer is: 3/(2x+4)'.
+'$BR $SPACE $SPACE The following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))'
+) \}
 END_TEXT
 
 ######################################
 #  Answer
 
-$answer = "$d/($e*x)";
-ANS(RationalExpEvaluator($answer,"x"));  
-
 $showPartialCorrectAnswers = 1;
 
+$errText = "Your answer is equivalent to the correct answer, but ".
+                 "needs to be simplified further or is not in the expected format. $BR".
+                 "See ${BBOLD}help(entering your answer)$EBOLD ".
+                 "given below for the expected format.";
+
+$answer = Formula("$d/($e*x)");
+
+ANS($answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroDiv=>0);
+      Value::Error($errText) unless $OK;
+      return $OK;
+})); 
+
 ######################################
+#  Solution
 
+Context()->texStrings;
+BEGIN_SOLUTION
+$BR
+The denominators are equal.  Add the numerators.
+\[ $f1 + $f2 = \frac{$a + $c}{$b x}=\frac{$unreduced}{$b x}\]
+Factor out the common divisor and reduce
+\[
+\begin{aligned} 
+\frac{$unreduced}{$b x} & = \frac{$gcd\cdot $d}{$gcd \cdot $e x} \\
+                                       & = $answer
+\end{aligned}
+\]
+END_SOLUTION
+Context()->normalStrings;
 
-;
 ENDDOCUMENT();

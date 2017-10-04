@@ -15,14 +15,14 @@
 ## Section1('6.2')
 ## Problem1('')
 ## KEYWORDS('rational expressions','rational functions')
-## Date: 2007/11
+## Date: 2007/11 updated 2017/10 --rac
 
 DOCUMENT(); # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl"
 );
 
@@ -30,7 +30,22 @@ TEXT(beginproblem());
 
 ######################################
 #  Setup
-#  Form: a/(y+b) + c/(y+d) 
+
+Context("Numeric");
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '+' => {class => 'bizarro::BOP::add', isCommand => 1},
+   '+ ' => {class => 'bizarro::BOP::add', isCommand => 1},
+   ' +' => {class => 'bizarro::BOP::add', isCommand => 1},);
+
+# --- Form: a/(y+b) + c/(y+d) ------------------------------------- 
 #  Note: b neq d, and (ad+cb)/(a+c) neq b nor d
 #  Answer: ((a+c)y+(ad+cb))/(y+b)(y+d)
 
@@ -40,11 +55,21 @@ $a = random(2,5,1);
 $b = random(-5,-1,1);
 $d = non_zero_random(-7,7,1);
 if ($b==$d) {$d = random(1,7,1);}
-do {$c = random(1,7,1);}
-  while (($a*$d+$c*$b)/($a+$c)==$b || ($a*$d+$c*$b)/($a+$c)==$d);
+do {$c = random(1,8,1);}
+  until ( gcd(($a*$d+$c*$b),($a+$c)) ==1 );
 
-$f1 = Formula("($a) / (y + $b)")->reduce->TeX;
-$f2 = Formula("($c) / (y + $d)")->reduce->TeX;
+$den1 = Formula("y + $b")->reduce;
+$f1 = Formula("($a) / $den1")->reduce->TeX;
+$den2 = Formula("y + $d")->reduce;
+$f2 = Formula("($c) / $den2")->reduce->TeX;
+
+# --- For the Solution----------------------------------
+$lcd = Formula("(y+$b)(y+$d)")->reduce;
+$mult1 = $den2;
+$mult2 = $den1;
+$num1 = Formula("$a y + ($a*$d)")->reduce;
+$num2 = Formula("$c y + ($c*$b) ")->reduce;
+
 
 ######################################
 #  Main text
@@ -55,44 +80,68 @@ are different.  Simplify the result, if possible.
 \[ $f1 + $f2 \]
 $PAR
 Answer:  \{ ans_rule(25) \} 
+$BR $BR
+\{ 
+knowlLink("help(entering your answer)", 
+value=>'Enter your answer  '.
+'in the form: ${BITALIC}numerator/denominator$EITALIC. '.
+'Use parentheses as needed.'.
+'$BR Your answer should be in reduced form with integer ' .
+'coefficients. For example:'.
+'$BR $SPACE $SPACE If the correct, reduced answer is: 3/(2x+4)'.
+'$BR $SPACE $SPACE The following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))'
+) \}
 END_TEXT
 
 ######################################
 #  Answer
 
-$answer = "(($a+$c)*y+($a*$d+$c*$b))/((y+$b)*(y+$d))";
-ANS(RationalExpEvaluator($answer,"y"));  
-
 $showPartialCorrectAnswers = 1;
 
+$errText = "Your answer is equivalent to the correct answer, but ".
+                 "needs to be simplified further or is not in the expected format. $BR".
+                 "See ${BBOLD}help(entering your answer)$EBOLD ".
+                 "given below for the expected format.";
+
+$answer = Formula("(($a+$c)*y+($a*$d+$c*$b))/((y+$b)*(y+$d))")->reduce;
+
+#--The alternative answer has the factors multiplied out----------
+$answerAlt = Formula("(($a+$c)*y+($a*$d+$c*$b))/(y^2+($b+$d)y+($b*$d))")->reduce;
+
+ANS($answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1,bizarroAdd=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      $student = Formula("$student"); $correct = Formula("$correct"); 
+      $correctAlt = Formula("$answerAlt");
+      my $OK = ($correct == $student || $correctAlt == $student);
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0,bizarroAdd=>0);
+      Value::Error($errText) unless $OK;
+      return $OK;
+})); 
+
 ######################################
+#  Solution
 
+Context()->texStrings;
+BEGIN_SOLUTION
+$BR
+The LCD is \($lcd\).
+\[
+\begin{aligned} 
+$f1 + $f2 & = $f1\cdot \frac{$mult1}{$mult1} + $f2 \cdot \frac{$mult2}{$mult2} \\
+          & = \frac{$num1}{$lcd} + \frac{$num2}{$lcd} \\
+          & = $answer               
+\end{aligned}
+\]
+END_SOLUTION
+Context()->normalStrings;
 
-;
 ENDDOCUMENT();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

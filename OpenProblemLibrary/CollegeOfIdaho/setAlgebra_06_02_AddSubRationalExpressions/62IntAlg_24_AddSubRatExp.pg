@@ -15,15 +15,14 @@
 ## Section1('6.2')
 ## Problem1('')
 ## KEYWORDS('rational expressions','rational functions')
-## Date: 2007/11
+## Date: 2007/11 updated 2017/10 --rac
 
 DOCUMENT(); # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl",
-  "contextRationalFunction.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl"
 );
 
@@ -31,22 +30,45 @@ TEXT(beginproblem());
 
 ######################################
 #  Setup
-#  Form: ax/(x+b)(x+c) - d/(x+c) 
+
+Context("Numeric");
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '+' => {class => 'bizarro::BOP::add', isCommand => 1},
+   '+ ' => {class => 'bizarro::BOP::add', isCommand => 1},
+   ' +' => {class => 'bizarro::BOP::add', isCommand => 1},);
+
+# --- Form: ax/(x+b)(x+c) - d/(x+c) -------------------------------
 #  Note: b neq + or -c, 
 #        (a-d) does not factor out of -bd, 
 #         to give c.
 #  Answer: ((a-d)x-bd)/(x+b)(x+c)
 
-$b = random(1,5,1);
+$b = random(1,4,1);
 $c = non_zero_random(-4,4,1);
-if ($c*$c==$b*$b) {$c = $b + random(1,3,1);}
+if ($c*$c==$b*$b) {$c = list_random(-5,5);}
 $d = random(1,5,1);
-do {$a = $d + random(1,4,1);} while ((-1*$b*$d)/($a-$d)==$c);
+do {$a = $d + random(2,5,1);} until (gcd( ($b*$d),($a-$d) )==1);
 
-Context("RationalFunction");
+$den1 = Formula("x^2+($b+$c)x+($b*$c)")->reduce;
+$f1 = Formula("($a x) / $den1")->reduce->TeX;
+$den2 = Formula("x+$c")->reduce;
+$f2 = Formula("$d / $den2")->reduce->TeX;
 
-$f1 = Formula("($a x) / (x^2+($b+$c)x+($b*$c))")->reduce->TeX;
-$f2 = Formula("($d) / (x+$c)")->reduce->TeX;
+# --- For the Solution----------------------------------
+$factor1 = Formula("(x+$b)(x+$c)")->reduce;
+$factor2 = Formula("x+$c")->reduce;
+$lcd = Formula("(x+$b)(x+$c)")->reduce;
+$mult2 =Formula("x+$b")->reduce;
+$num1 = Formula("$a x")->reduce;
+$num2 = Formula("$d x + ($d*$b)")->reduce;
 
 ######################################
 #  Main text
@@ -57,34 +79,71 @@ are different.  Simplify the result, if possible.
 \[ $f1 - $f2 \]
 $PAR
 Answer:  \{ ans_rule(25) \} 
+$BR $BR
+\{ 
+knowlLink("help(entering your answer)", 
+value=>'Enter your answer  '.
+'in the form: ${BITALIC}numerator/denominator$EITALIC. '.
+'Use parentheses as needed.'.
+'$BR Your answer should be in reduced form with integer ' .
+'coefficients. For example:'.
+'$BR $SPACE $SPACE If the correct, reduced answer is: 3/(2x+4)'.
+'$BR $SPACE $SPACE The following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))'
+) \}
 END_TEXT
 
 ######################################
 #  Answer
 
-#$answer=(($a-$d)*x - $b*$d ) / ((x+$b)*(x+$c))";
-#ANS(RationalExpEvaluator($answer,"x"));  
-
-$answer=Formula("(($a-$d)*x - $b*$d ) / ((x+$b)*(x+$c))")->reduce;
-ANS($answer->cmp(checker => sub {
-  my ($correct,$student,$ans) = @_;
-  return 0 unless $correct == $student;
-  return 0 unless $student->{tree}->class eq "BOP" && $student->{tree}{bop} eq "/";
-  my $cnum = Formula($correct->{tree}{lop});
-  my $snum = Formula($student->{tree}{lop});
-Value->Error("Your answer isn't reduced") unless $cnum == $snum;
-  return 1;
-}));
-
 $showPartialCorrectAnswers = 1;
 
+$errText = "Your answer is equivalent to the correct answer, but ".
+                 "needs to be simplified further or is not in the expected format. $BR".
+                 "See ${BBOLD}help(entering your answer)$EBOLD ".
+                 "given below for the expected format.";
+
+$answer = Formula("(($a-$d)*x - $b*$d ) / ((x+$b)*(x+$c))")->reduce;
+
+#--The alternative answer has the factors multiplied out----------
+$answerAlt = Formula("(($a-$d)*x - $b*$d ) / (x^2+($b+$c)x+($b*$c))")->reduce;
+
+ANS($answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1,bizarroAdd=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      $student = Formula("$student"); $correct = Formula("$correct"); 
+      $correctAlt = Formula("$answerAlt");
+      my $OK = ($correct == $student || $correctAlt == $student);
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0,bizarroAdd=>0);
+      Value::Error($errText) unless $OK;
+      return $OK;
+})); 
+
 ######################################
-# Solution
+#  Solution
 
 Context()->texStrings;
 BEGIN_SOLUTION
-$PAR Solution: $BR $BR
-Answer: \(\displaystyle $answer\)
+$BR
+Calculate the LCD by factoring the denominator:
+$BR $BR
+$SPACE $SPACE  \($den1 = $factor1\) and the second is already factored, \($den2\)
+$BR $BR
+The LCD is \($lcd\).
+\[
+\begin{aligned} 
+$f1 - $f2 & = $f1  - $f2 \cdot \frac{$mult2}{$mult2} \\
+          & = \frac{$num1}{$lcd} - \frac{$num2}{$lcd} \\
+          & = $answer               
+\end{aligned}
+\]
 END_SOLUTION
 Context()->normalStrings;
 

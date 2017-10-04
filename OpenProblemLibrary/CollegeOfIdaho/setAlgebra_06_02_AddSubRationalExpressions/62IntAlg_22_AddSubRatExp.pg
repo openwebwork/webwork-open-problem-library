@@ -16,15 +16,14 @@
 ## Section1('6.2')
 ## Problem1('')
 ## KEYWORDS('rational expressions','rational functions')
-## Date: 2007/11
+## Date: 2007/11 updated 2017/10 --rac
 
 DOCUMENT(); # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl"
 );
 
@@ -32,18 +31,44 @@ TEXT(beginproblem());
 
 ######################################
 #  Setup
-#  Form: a/(x+1)(x-1) + b/cx(x+1) 
+
+Context("Numeric");
+
+Context()->operators->set(
+   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+   '+' => {class => 'bizarro::BOP::add', isCommand => 1},
+   '+ ' => {class => 'bizarro::BOP::add', isCommand => 1},
+   ' +' => {class => 'bizarro::BOP::add', isCommand => 1},);
+
+# --- Form: a/(x+1)(x-1) + b/cx(x+1) ---------------------------
 #  Note: c, b rel prime, b neq 1
 #  Answer: ((ac+b)x-b)/(cx(x+1)(x-1))
 
-$a = random(1,4,1);
-$b = random(5,9,1);
-do {$c = random(2,7,1);} until (gcd($b,$c)==1);
+$b = random(1,5,1);
+do {$c = random(2,5,1);} until (gcd($b,$c)==1);
+do {$a = random(1,9,1);} until (gcd(($a*$c+$b),$b)==1);
 
-@Expression = (Formula("($a) / (x^2-1)")->reduce->TeX,
-               Formula("($b) / ($c x^2 + $c x)")->reduce->TeX);
-@slice = NchooseK(2,2);
-@f=@Expression[@slice];
+@den = (Formula("x^2-1"), Formula("$c x^2 + $c x") );
+@f = (Formula("$a / $den[0]")->reduce->TeX,
+               Formula("$b / $den[1]")->reduce->TeX);
+
+$p1 = random(0,1,1);
+$p2 = 1-$p1;
+
+# --- For the Solution----------------------------------
+$factor[0] = Formula("(x+1)(x-1)")->reduce;
+$factor[1] = Formula("$c x(x+1)")->reduce;
+$lcd = Formula("$c x(x+1)(x-1)")->reduce;
+$mult[0] = Formula("$c x")->reduce;
+$mult[1] = Formula("x-1")->reduce;
+$num[0] = Formula("($a*$c) x")->reduce;
+$num[1] = Formula("$b x - $b")->reduce;
 
 ######################################
 #  Main text
@@ -51,23 +76,77 @@ do {$c = random(2,7,1);} until (gcd($b,$c)==1);
 BEGIN_TEXT
 Perform the indicated operation.  Note that the denominators
 are different.  Simplify the result, if possible.
-\[ $f[0] + $f[1] \]
+\[ $f[$p1] + $f[$p2] \]
 $PAR
 Answer:  \{ ans_rule(25) \} 
+$BR $BR
+\{ 
+knowlLink("help(entering your answer)", 
+value=>'Enter your answer  '.
+'in the form: ${BITALIC}numerator/denominator$EITALIC. '.
+'Use parentheses as needed.'.
+'$BR Your answer should be in reduced form with integer ' .
+'coefficients. For example:'.
+'$BR $SPACE $SPACE If the correct, reduced answer is: 3/(2x+4)'.
+'$BR $SPACE $SPACE The following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))'
+) \}
 END_TEXT
 
 ######################################
 #  Answer
 
-$answer="(($a * $c + $b) * x - $b ) / ($c * x * (x - 1)* (x + 1))";
-ANS(RationalExpEvaluator($answer,"x"));  
-
 $showPartialCorrectAnswers = 1;
 
+$errText = "Your answer is equivalent to the correct answer, but ".
+                 "needs to be simplified further or is not in the expected format. $BR".
+                 "See ${BBOLD}help(entering your answer)$EBOLD ".
+                 "given below for the expected format.";
+
+$answer = Formula("(($a*$c+$b)x-$b ) / ($c x(x-1)(x+1))")->reduce;
+
+#--The alternative answer has the factors multiplied out----------
+$answerAlt = Formula("(($a*$c+$b)x-$b ) / ($c x^3-$c x)")->reduce;
+
+ANS($answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1,bizarroAdd=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      $student = Formula("$student"); $correct = Formula("$correct"); 
+      $correctAlt = Formula("$answerAlt");
+      my $OK = ($correct == $student || $correctAlt == $student);
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0,bizarroAdd=>0);
+      Value::Error($errText) unless $OK;
+      return $OK;
+})); 
+
 ######################################
+#  Solution
 
+Context()->texStrings;
+BEGIN_SOLUTION
+$BR
+Calculate the LCD by factoring the denominators:
+$BR $BR
+$SPACE $SPACE  \($den[$p1] = $factor[$p1]\) and \($den[$p2] = $factor[$p2]\)
+$BR $BR
+The LCD is \($lcd\).
+\[
+\begin{aligned} 
+$f[$p1] + $f[$p2] & = $f[$p1] \cdot\frac{$mult[$p1]}{$mult[$p1]} + $f[$p2] \cdot \frac{$mult[$p2]}{$mult[$p2]} \\
+          & = \frac{$num[$p1]}{$lcd} + \frac{$num[$p2]}{$lcd} \\
+          & = $answer               
+\end{aligned}
+\]
+END_SOLUTION
+Context()->normalStrings;
 
-;
 ENDDOCUMENT();
 
 
