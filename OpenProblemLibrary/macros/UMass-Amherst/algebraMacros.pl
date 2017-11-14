@@ -31,6 +31,12 @@ sub cyclic {
 
 };
 
+# Macro to display the ring Z/nZ
+sub ZmodnZ {
+	my $n = shift;
+	return "\\mathbb{Z} / $n \\mathbb{Z}";
+}
+
 sub dihedral { 
 
 	my $n = shift;
