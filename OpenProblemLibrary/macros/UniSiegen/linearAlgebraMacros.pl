@@ -1,5 +1,5 @@
 sub vectorstyle {
-	$v = shift;
+	my $v = shift;
 	#return "\\vec\{$v\}"
-	return "$v"
+	return "$v";
 }
