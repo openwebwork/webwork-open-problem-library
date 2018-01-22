@@ -11,6 +11,7 @@
 ## Institution(Howard University)
 ## Author(Richard Bayne)
 ## MLT(find_basis_with_instructions)
+## MO(1)
 ## Level(3)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
@@ -25,22 +26,14 @@
 DOCUMENT();
 
 loadMacros(
-"PGstandard.pl",
-#"MathObjects.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
-
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "MatrixReduce.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-#Context("Matrix");
-TEXT(beginproblem());
+Context("Matrix");
 
 #k and m are multipliers to row reduce rows 2 and 3
 
@@ -56,31 +49,81 @@ $a31 = -$k*$a11;
 $a32 = -$k - $k*$a12;
 $a33 = $k - $k*$a13;
 
+$A = Matrix([
+  [$a11,$a12,$a13],
+  [$a21,$a22,$a23],
+  [$a31,$a32,$a33]
+]);
 
+$V1 = ColumnVector($A->column(1));
+$V2 = ColumnVector($A->column(2)); 
+$V3 = ColumnVector($A->column(3)); 
 
+$multians = MultiAnswer($V1,$V2)->with(
+  singleResult => 1,
+  checker => sub { 
+    my ($correct,$student,$self) = @_;
+    my ($cor1,$cor2)=@{$correct};
+    my ($stu1,$stu2)=@{$student};
+    if ( ($cor1==$stu1 && $cor2==$stu2) || ($cor1==$stu2 && $cor2==$stu1) ){
+      return 1;
+    }
+    else {
+      $cor1 = Vector($cor1);
+      $cor2 = Vector($cor2);
+      $stu1 = Vector($stu1);
+      $stu2 = Vector($stu2);
+      $cor = Matrix([
+	[@{$cor1->{data}}],
+	[@{$cor2->{data}}]
+      ]);
+      $stu = Matrix([
+	[@{$stu1->{data}}],
+	[@{$stu2->{data}}]
+      ]);
+      $cor = rref($cor);
+      $stu = rref($stu);
+      $diff = $cor-$stu;
+      if ($diff->isZero ){
+	Value::Error("These vectors are a basis for the subspace but they are not a subset of the given set S."); 
+      }
+      elsif ($stu->row(2)->isZero){
+	Value::Error("The vectors in a basis must be linearly independent.");
+      }
+      else { 
+        Value::Error("These vectors are linearly independent but they don't span the given subspace");
+      }
+      return 0;
+    }
+  }
+);
+
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
-Suppose a subspace is spanned by the set of vectors shown. Find a basis for the subspace, using the method of transforming a matrix to echelon form, where the columns of the matrix represent vectors spanning the subspace.
-\{ mbox( ' {' ,display_matrix( [ [$a11],[$a21],[$a31] ] ) ,  display_matrix([ [$a12],[$a22],[$a32] ]) ,  display_matrix([ [$a13],[$a23],[$a33] ]), '} ' ) \}
-$BR
-
- \{ mbox( '\( {\rm Basis\ } = \)', '{', ans_array(3,1,5), ans_array_extension(3,1,5), '}' ) \}
-
-$BR
-What is the dimension of the basis? \{ans_rule(5) \}
+Suppose a subspace is spanned by the set \(S\) of vectors shown. Find a $BBOLD subset of $EBOLD \(\mathbf S\) that forms a basis for the subspace, using the method of transforming a matrix to echelon form, where the columns of the matrix represent vectors spanning the subspace.$PAR
+\(S = \Bigg $LBRACE\)\($V1\), \($V2\), \($V3\)\(\Bigg $RBRACE\)
+$PAR
+A basis is \(\Bigg $LBRACE\)\{$multians->ans_array\}, \{$multians->ans_array\}\(\Bigg $RBRACE\)
+$PAR
+What is the dimension of the subspace? \{ans_rule(5) \}
 END_TEXT
+Context()->normalStrings;
 
-ANS(basis_cmp([[$a11,$a21,$a31],[$a12,$a22,$a32]]));
-ANS(num_cmp(2));
+ANS($multians->cmp());
+ANS(Real(2)->cmp());
 
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR$PAR{BBOLD}SOLUTION:${EBOLD} $PAR
 Row-reduce the matrix which has the given vectors as columns.
 $BR$BR
 \(\left[ \begin{array}{ccc} $a11 & $a12 & $a13 \\ $a21 & $a22 & $a23 \\ $a31 & $a32 & $a33 \end{array}\right] \sim \left[ \begin{array}{ccc} $a11 & $a12 & $a13 \\ 0 & -1 & 1 \\ 0 & 0 & 0 \end{array} \right]  \)$PAR
-so that a basis for the subspace is given by columns 1 and 2 of the original matrix corresponding to the pivot columns of the row-reduced matrix. Thus a basis for \(S\) is
+A basis for the subspace is given by columns 1 and 2 of the original matrix, which correspond to the pivot columns in the row-reduced matrix. Thus a basis for \(S\) is
 $PAR
- \(\left$LBRACE \left [ \begin{array}{c} $a11 & $a21 & $a31 \end{array} \right] , \left [ \begin{array}{c} $a12 & $a22 & $a32 \end{array} \right]\right$RBRACE \)
-
+ \(\Bigg $LBRACE\)\($V1\), \($V2\) \(\Bigg $RBRACE \)
 END_SOLUTION
+
+Context()->normalStrings;
 
 ENDDOCUMENT();

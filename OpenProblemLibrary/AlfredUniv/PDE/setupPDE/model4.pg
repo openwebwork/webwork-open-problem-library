@@ -24,11 +24,11 @@
 DOCUMENT();      
 
 loadMacros(
-   "PGstandard.pl",     # Standard macros for PG language
-   "MathObjects.pl",
-   "parserFunction.pl",
-   #"source.pl",        # allows code to be displayed on certain sites.
-   "PGcourse.pl",      # Customization file for the course
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserFunction.pl",
+  "parserImplicitEquation.pl",
+  "PGcourse.pl"
 );
 
 # Print problem number and point value (weight) for the problem
@@ -42,44 +42,19 @@ $showPartialCorrectAnswers = 1;
 #  Setup
 #
 #
-Context("Point");
-Context()->variables->add(L=>"Real",t=>"Real",);
-$leftend = Point("(0,t)");
-$rightend = Point("(L,t)");
-$initial = Point("(x,0)");
-
-Context("Numeric");
-Context()->variables->add(a=>"Real",c=>"Real",h=>"Real",k=>"Real",L=>"Real",t=>"Real",u=>"Real",um=>"Real",ux=>"Real",uxx=>"Real",ut=>"Real",utt=>"Real",uy=>"Real",uyy=>"Real");
-Context()->variables->set(um=>{TeX => '{u_m}'},ux=>{TeX => '{\frac{\partial u}{\partial x}}'},uxx=>{TeX => '{\frac{\partial^2 u}{\partial x^2}}'},ut=>{TeX => '{\frac{\partial u}{\partial t}}'},utt=>{TeX => '{\frac{\partial^2 u}{\partial t^2}}'},uy=>{TeX => '{\frac{\partial u}{\partial y}}'},uyy=>{TeX => '{\frac{\partial^2 u}{\partial y^2}}'});
-
-$u = Formula("u");
-$ux = Formula("ux");
-$uxx = Formula("uxx");
-$ut = Formula("ut");
-$utt = Formula("utt");
-$uy = Formula("uy");
-$uyy = Formula("uyy");
-
-$um = Compute(random(0,100));
-$heatleft = Formula("k*uxx");
-$heatwithtransfer = Formula("k*uxx-h*(u-$um)");
-$heatright = Formula("ut");
-
-$waveleft = Formula("a^2*uxx");
-$waveright = Formula("utt");
-$wavedamping = Formula("utt+c*ut");
-
-$laplaceleft = Formula("uxx+uyy");
-$homogeneous = Compute("0");
 
 
+Context("ImplicitEquation");
+Context()->variables->add(t=>"Real",L=>"Real"); 
+Context()->constants->add(a=>1,b=>1);
 
-$u0 = Compute(random(0,100));
-$u1 = Compute(random(0,100));
-$initialtemp = Formula("$u1");
-$f = Formula("e^(x*(L-x))");
+parserFunction("u(x,t)"=>"x+t");
+parserFunction("ut(x,t)"=>"x-t");
+parserFunction("ux(x,t)"=>"-2x+3t");
+parserFunction("uxx(x,t)"=>"2x-3t");
 
-
+$um = random(0,100);
+$initialtemp = random(1,100);
 
 ##############################################################
 #
@@ -90,27 +65,29 @@ $f = Formula("e^(x*(L-x))");
 Context()->texStrings;
 BEGIN_TEXT
 Translate the following into a PDE with boundary conditions
+$PAR
+The ends of a homogeneous rod of length L are insulated, but heat leaks from the lateral surface of the rod into the surrounding medium, which is at temperature \($um\). Heat travels through the rod's surface much more slowly than within the rod so, at any particular time, on any cross section of the rod, the temperature difference between the center and the edge of the cross section is negligible.  The initial temperature is \($initialtemp\) throughout the rod.
+
+\{knowlLink("How to enter the answers.",
+  value => 'Use x to represent distance from the left end of the rod, t for time, u for temperature, and ux, ut, uxx, etc for its partial derivatives.  '.
+  'Include independent variables, e.g. write ux(x,t) not just ux.  '.
+  'Use a and b for constants not explicitly named in the problem or just assume they equal 1.')\}
+
+$PAR
+The PDE is \{ans_rule(20)\}
 $BR
-The ends of a rod of length L are insulated, and there is heat transfer from the lateral surface into the surrounding medium at temperature \($um\). The initial temperature is \($initialtemp\) throughout.
+The boundary values / initial conditions are:
 $BR
+Left end is insulated \($u0\): \{ans_rule(15)\}
 $BR
-$BBOLD PDE $EBOLD
+Right end is insulated \($u1\): \{ans_rule(15)\}
 $BR
-$BCENTER \{$heatwithtransfer->ans_rule\} = \{$heatright->ans_rule\} $ECENTER
-$BR
-$BBOLD Boundary/Initial Conditions $EBOLD
-$BR
-Left end is insulated: \{ans_rule(6)\} = \{ans_rule(1)\}
-$BR
-Right end is insulated: \{ans_rule(6)\} = \{ans_rule(1)\}
-$BR
-Initial temperature is \($initialtemp\): \{ans_rule(6)\} = \{ans_rule(10)\}
-$BR
-$BR
-Use proper notation for 
-\{ helpLink("entering PDE's")\}.
+Initial temperature is \($initialtemp\): \{ans_rule(15)\} 
+
 END_TEXT
+
 Context()->normalStrings;
+
 
 ##############################################################
 #
@@ -118,32 +95,20 @@ Context()->normalStrings;
 #
 #
 
-## PDE
-ANS($heatwithtransfer->cmp);
-ANS($heatright->cmp);
+$pde = ImplicitEquation("a*uxx(x,t) - b*(u(x,t)-$um) = ut(x,t)",limits=>[[-2,$um/2-10],[2,$um/2+10]]);
+ANS($pde->cmp());
 
-## BC/IC
-Context("Numeric");
-Context()->variables->add(t=>"Real",L=>"Real");
-parserFunction("u(x,t)" => "(-1.5 * cos(3*t) - 5*pi/3 + arctan(t))(0.5 * cos(3*x) + pi/3 + arctan(2x))");
-parserFunction("ux(x,t)" => "(1.5 * cos(3*t) + 5*pi/3 + arctan(t))(1.5 * cos(3*x) + 5*pi/3 + arctan(x))");
+$heatleft = ImplicitEquation("ux(0,t)=0");
+ANS($heatleft->cmp());
 
-$boundaryu = Formula("u(x,t)");
-$leftu = $boundaryu->substitute(x=>"0",t=>"t");
-$rightu = $boundaryu->substitute(x=>"L",t=>"t");
+$heatright = ImplicitEquation("ux(L,t)=0");
+ANS($heatright->cmp());
 
-$boundaryux = Formula("ux(x,t)");
-$leftux = $boundaryux->substitute(x=>"0",t=>"t");
-$rightux = $boundaryux->substitute(x=>"L",t=>"t");
+Context()->variables->set(
+  x=>{limits=>[$initialtemp - 2, $initialtemp +2]}
+);
+$initcond = ImplicitEquation("u(x,0)=$initialtemp");
+ANS($initcond->cmp());
 
-$initial = $boundaryu->substitute(x=>"x",t=>"0");
 
-ANS($leftux->cmp);
-ANS($homogeneous->cmp);
-
-ANS($rightux->cmp);
-ANS($homogeneous->cmp);
-
-ANS($initial->cmp);
-ANS($initialtemp->cmp);
 ENDDOCUMENT();        

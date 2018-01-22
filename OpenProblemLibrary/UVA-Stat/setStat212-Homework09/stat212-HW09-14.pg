@@ -1,5 +1,6 @@
 ##DESCRIPTION
 ##
+## ERROR TOLERANCES may need to be adjusted; see below 
 ## CMMK tagged this problem
 
 ## DBsubject(Statistics)
@@ -11,6 +12,7 @@
 ## MLT(rejectionRegion)
 ## MLTleader(1)
 ## Level(2)
+## MO(1)
 ## TitleText1('Statistics for Management and Economics')
 ## AuthorText1('Keller, Warrack')
 ## EditionText1('6')
@@ -24,29 +26,53 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGnumericalmacros.pl",
-"PGstatisticsmacros.pl",
-"extraAnswerEvaluators.pl"
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGstatisticsmacros.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
-$showPartialCorrectAnswers = 0;
-install_problem_grader(~~&std_problem_grader);
+Context("Interval");
 
-$mu = random(4500,5500,100);
-$xbar = $mu+random(5,100,1);
-$samp = random(90,110,1);
-$sigma = random(300,500,10);
-$conf = random(90,99,1);
-$alpha = 1-0.01*$conf;
-$zstat = ($xbar-$mu)/($sigma/sqrt($samp));
-$zcrit = udistr($alpha);
-$pval = (normal_prob($zstat,infty,mean=>0,deviation=>1));
+$showPartialCorrectAnswers = 0;
+
+## ERROR TOLERANCES: edit tolerances as necessary 
+## Error tolerances should be large enough to enable students to use 
+## standard normal instead of t distribution because N>=90. 
+## Tolerances may need to be increased if students use tables.  
+
+# tolerance for tstatistic $tstat  
+
+  $tstatTol = .01;  # relative tolerance, fraction of $tstat
+
+# tolerance for t-dist critical value, so 
+# t-distribution interval: ($tcrit, infinity), right-hand area < alpha
+  
+  $tcritTol = .02;  # relative tolerance, fraction of $tcrit
+
+# p-value for t-statistic = area to right of $tstat on t-distribution
+
+  $pvalTol = .005;  # absolute tolerance 
+
+## END OF ERROR TOLERANCES  
+
+# avoid cases where hypothesis test result could be affected by errors 
+# within allowed $pval tolerance
+
+do {
+  $mu = random(4500,5500,100);
+  $xbar = $mu+random(5,100,1);
+  $samp = random(90,110,1);
+  $sigma = random(300,500,10);
+  $conf = random(90,99,1);
+  $alpha = 1-0.01*$conf;
+
+  $tstat = Compute(($xbar-$mu)/($sigma/sqrt($samp - 1)));
+  $tcrit = Compute(tdistr($samp-1,$alpha));
+
+  $pval = Compute(tprob($samp-1,$tstat));
+} while ( abs($alpha-$pval) <= $pvalTol );
 
 $mc = new_multiple_choice();
 
@@ -59,6 +85,10 @@ $mc -> qa('D. Your decision for the hypothesis test:', $ans[$tag]);
 
 $mc -> extra($ans[1-$tag],$ans[2],$ans[3]);
 
+$tinterval=Interval("($tcrit,infinity)");
+
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 $PAR
 A manufacturer of light bulbs advertises that, on average, 
@@ -77,9 +107,9 @@ $PAR
 $PAR
 
 $BBOLD Note:$EBOLD For the next part, your answer should use interval notation.  An
-answer of the form \((-\infty, a)\) is expressed (-infty, a), an answer of the 
-form \((b, \infty)\) is expressed (b, infty), and an answer of the 
-form \((-\infty, a) \cup (b, \infty)\) is expressed (-infty, a)U(b, infty).
+answer of the form \((-\infty, a)\) is expressed (-inf, a), an answer of the 
+form \((b, \infty)\) is expressed (b, inf), and an answer of the 
+form \((-\infty, a) \cup (b, \infty)\) is expressed (-inf, a)U(b, inf).
 
 $PAR
 B. The rejection region for the standardized test statistic: \{ ans_rule(25) \} $PAR 
@@ -90,10 +120,25 @@ C. The p-value is \{ ans_rule(25) \} $PAR
 \{ $mc ->print_a() \}
 
 END_TEXT
+Context()->normalStrings;
 
-ANS(num_cmp($zstat));
-ANS(interval_cmp("($zcrit,infty)", sloppy=>'yes'));
-ANS(num_cmp($pval,tol=>0.005));
+# t-statistic 
+ANS($tstat->cmp(
+  tolType => 'relative',
+  tolerance => $tstatTol 
+));
+# t-distribution interval: ($tcrit, infinity), right-hand area < alpha
+ANS($tinterval->cmp(
+  tolType => 'relative',
+  tolerance => $tcritTol
+));
+# p-value for t-statistic = area to right of tstat on t-distribution
+ANS($pval->cmp(
+  tolType => 'absolute',
+  tolerance => $pvalTol 
+));
 ANS(radio_cmp($mc->correct_ans));
+
+COMMENT("Error tolerances may need to be increased if students use tables.");
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.

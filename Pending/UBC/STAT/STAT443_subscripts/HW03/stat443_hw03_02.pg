@@ -1,0 +1,217 @@
+## DBsubject(Statistics)
+## DBchapter(Time series)
+## DBsection(Autocorrelation)
+## Level(4)
+## level(4)
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGgraphmacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "unionTables.pl",
+  "parserPopUp.pl",
+  "RserveClient.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+## do not need to download data
+
+rserve_eval("set.seed($seed)");
+## do not need to download data
+@data = rserve_eval('
+alpha1 <- round( runif(1, min=0.2, max=0.8), 3)
+alpha2 <- round( runif(1, min=-0.8, max=-0.2), 3)
+b <- (1+ alpha1) / (1-alpha1)
+diff <- b/200 - 1/100 
+
+ans = c(rep(NA, 3))
+if(diff > 0) {  
+  ans[1]= "higher variance."
+  ans[2]= "lower variance."
+  ans[3]= "the same variance."
+}
+if(diff < 0) {  
+  ans[1] = "lower variance."
+  ans[2]= "higher variance."
+  ans[3]= "the same variance."
+}
+if(diff == 0) { 
+  ans[1]= "the same varianc."
+  ans[2]= "lower variance."
+  ans[3]= "higher variance."
+}
+
+c(alpha1, alpha2, ans[1],ans[2],ans[3])
+');
+
+$alpha1 = $data[0];
+$alpha2 = $data[1];
+
+
+$q1mc = new_multiple_choice();
+$q1mc -> qa(
+"Suppose \( \alpha = $alpha1 \). Compared to the sample mean of a sample of size 200 taken at random from a random variable with the same variance as {\( X_t \)}, \( \bar{X}\)  will have",
+"higher variance."
+);
+$q1mc -> extra(
+"lower variance.", 
+"the same variance.",
+);
+
+$q2mc = new_multiple_choice();
+$q2mc -> qa(
+"Compared to the sample mean of a sample of size 100 taken at random from a random variable with the same variance as {\( X_t \)}, \( \bar{X}\)  will have",
+"$data[2]"
+);
+$q2mc -> extra(
+"$data[3]",
+"$data[4]",
+);
+
+$q3mc = new_multiple_choice();
+$q3mc -> qa(
+"Now suppose \( \alpha = $alpha2 \). Compared to the sample mean of a sample of size 200 taken at random from a random variable with the same variance as {\( X_t \)}, \( \bar{X}\)  will have",
+"lower variance."
+);
+$q3mc -> extra(
+"higher variance.", 
+"the same variance.",
+);
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+
+BEGIN_TEXT
+Suppose  {\(Z_t\)} is white noise with mean zero. Define the stochastic process {\(X_t\)}, \(t=1,2,3\ldots \) by
+\[ X_t = \alpha X_{t-1} + Z_t. \]
+Consider a sample \( X_1 ,X_2 ,\) \(\dots ,\) \(X_{200} \) taken from {\( X_t\)} on 200 consecutive time points. Let the mean of these observations be \(\bar{X}\). 
+$BR
+$BR
+$BBOLD Part (a) $EBOLD
+\{ $q1mc -> print_q() \}
+$BR
+\{ $q1mc -> print_a() \}
+$PAR
+
+$BBOLD Part (b) $EBOLD
+\{ $q2mc -> print_q() \}
+$BR
+\{ $q2mc -> print_a() \}
+$PAR
+
+$BBOLD Part (c) $EBOLD
+\{ $q3mc -> print_q() \}
+$BR
+\{ $q3mc -> print_a() \}
+$PAR
+$BR
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( radio_cmp( $q1mc -> correct_ans() ) );
+ANS( radio_cmp( $q2mc -> correct_ans() ) );
+ANS( radio_cmp( $q3mc -> correct_ans() ) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+
+BEGIN_SOLUTION
+Recall for i.i.d. data of size \(N\) from a random
+variable with variance \(\sigma _{X}^{2}\), 
+\[
+\begin{equation*}
+\text{Var}\left( \bar{X}\right) =\frac{\sigma _{X}^{2}}{N}.
+\end{equation*}
+\]
+In general.
+\[
+\begin{eqnarray*}
+\text{Var}\left( \sum_{i=1}^{n}X_{i}\right)  &=&\sum_{i=1}^{n}\text{Var}
+(X_{i})+2\sum_{i,j\,:\,i<j}\text{Cov}(X_{i},X_{j}) \\
+&=&\sum_{i=1}^{n}\text{Var}(X_{i})+\sum_{i\neq j}\text{Cov}(X_{i},X_{j}),
+\end{eqnarray*}
+\]
+from which it follows that
+\[
+\begin{equation*}
+\text{Var}\left( \bar{x}\right) =\frac{\sigma _{X}^{2}}{N}\left(
+1+2\sum_{k=1}^{N-1}\left( 1-\frac{k}{N}\right) \rho \left( k\right) \right) 
+\end{equation*}
+\]
+where the data are from a stationary process with variance 
+\(\sigma_{X}^{2}\) and acf \(\rho \left( \cdot \right) \). The stochastic process here,
+\[
+\begin{equation*}
+X_t =\alpha X_{t-1} +Z_t ,
+\end{equation*}
+\]
+is a stationary AR(1), provided that \(\left\vert \alpha \right\vert <1\), and we have \( \rho \left( k\right) = \alpha^{\left\vert k \right\vert}\). Using the result above, the variance of the mean of a sample \( x_1 ,\dots ,x_N \)
+  from \( X_t \) would be
+\[
+\begin{equation*}
+\text{Var}\left( \bar{X}\right) =\frac{\sigma _{X}^{2}}{N}\left( 1+2\left(
+\sum_{k=1}^{N-1}\alpha ^{k}-\frac{1}{N}\sum_{k=1}^{N-1}k\alpha ^{k}\right)
+\right) .
+\end{equation*}
+\]
+The above is approximately 
+\[
+\begin{equation*}
+\frac{\sigma _{X}^{2}}{N}\left( \frac{1+\alpha }{1-\alpha }\right) 
+\end{equation*}
+\]
+for large N, although exact values can be computed here.
+$BR
+$BBOLD Part (a) $EBOLD
+In the case \( \alpha = $alpha1, N = 200 \), we have 
+\[
+\begin{eqnarray*}
+\text{Var}\left( \bar{X}\right)  &=&\frac{\sigma _{X}^{2}}{200}\left(
+1+2\left( \sum_{k=1}^{199}\left( $alpha1 \right) ^{k}-
+\frac{1}{200}\sum_{k=1}^{199}k\times \left( $alpha1 \right)^{k}\right) \right) \\
+&>&\frac{\sigma _{X}^{2}}{200}.
+\end{eqnarray*}
+\]
+$BR
+$BBOLD Part (b) $EBOLD
+Now the variance of the sample mean of a sample of size 100 from a
+r.v. with variance \(\sigma _{X}^{2}\) is \(\sigma _{X}^{2}/100\), which we are to compare with \( Var \left( \bar{X}\right) \) from above. The correct answer here depends on
+the value of \(\alpha\).
+$BR
+$BBOLD Part (c) $EBOLD
+In the case \( \alpha = $alpha2, N = 200 \), we have 
+\[
+\begin{eqnarray*}
+\text{Var}\left( \bar{X}\right)  &=&\frac{\sigma _{X}^{2}}{200}\left(
+1+2\left( \sum_{k=1}^{199}\left( $alpha2 \right) ^{k}-
+\frac{1}{200}\sum_{k=1}^{199}k\times \left( $alpha2 \right)^{k}\right) \right) \\
+&<&\frac{\sigma _{X}^{2}}{200}.
+\end{eqnarray*}
+\]
+
+END_SOLUTION
+
+ENDDOCUMENT();

@@ -7,6 +7,7 @@
 ## Author(Utah ww group)
 ## MLT(var_par_01)
 ## Level(4)
+## MO(1)
 ## Static(1)
 ## TitleText1('Calculus')
 ## AuthorText1('Dale Varberg, Edwin J. Purcell, and Steve E. Rigdon')
@@ -18,21 +19,60 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGauxiliaryFunctions.pl"
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-TEXT( beginproblem() ); 
 
 $showPartialCorrectAnswers = 1;
 
-$ans1 = "sin(x)/4 + sin(3*x)/20";
-$ans2 = "cos(2*x)";
-$ans3 = "sin(2*x)";
+Context("Numeric");
 
+$ans1 = Compute("sin(x)/4 + sin(3*x)/20");
+$ans2 = Compute("cos(2*x)");
+$ans3 = Compute("sin(2*x)");
+
+$multians = MultiAnswer($ans2,$ans3)->with(
+  singleResult => 0,
+  checker => sub {
+    my ($correct,$student,$self)=@_;
+    my ($stu1,$stu2)=@{$student};
+    my $df1 = $stu1->D('x');
+    my $df2 = $stu2->D('x');
+    my $ddf1 = $df1->D('x');
+    my $ddf2 = $df2->D('x');
+    my $homoDE1 = Formula($ddf1+4*$stu1);
+    my $homoDE2 = Formula($ddf2+4*$stu2);
+    my $zero = Formula(0);
+    my $chk1 = ( $homoDE1 == $zero);
+    my $chk2 = ( $homoDE2 == $zero);
+    my $wron = $stu1*$df2-$stu2*$df1;
+    if ( $chk1 && $chk2 ){
+      if ( ($wron->eval(x=>0) )->isZero ){
+        $self->setMessage(1,"Solutions to homogeneous equation must be independent.");
+        $self->setMessage(2,"Solutions to homogeneous equation must be independent.");
+        return [0,0];
+      }
+      else{ 
+        return [1,1];
+      }
+    }
+    else {
+      if ( ! $chk1 ){
+	$self->setMessage(1,"Must satisfy the homogeneous version of the differential equation.");
+      }
+      if ( ! $chk2 ){
+	$self->setMessage(2,"Must satisfy the homogeneous version of the differential equation.");
+      } 
+      return [$chk1,$chk2];
+    }
+  }
+);
+
+TEXT( beginproblem() ); 
+Context()->texStrings;
 BEGIN_TEXT
 
 Solve the following
@@ -43,12 +83,24 @@ differential equation:
 Answer: \( y(x) = \) \{ans_rule(40)\} \( + C_{1} \) \{ans_rule(25)\} \( + C_{2} \) \{ans_rule(25)\}.
 
 END_TEXT
+Context()->normalStrings;
 
-#Answer: \( y(x) = C_{1} \) \{NAME_ANS_RULE(second_answer,25)\} \( + C_{2} \) \{NAMED_ANS_RULE(answer_rule,25)\}.
-
-
-ANS(fun_cmp($ans1, vars=>"x"));
-ANS(fun_cmp($ans2, vars=>"x"));
-ANS(fun_cmp($ans3, vars=>"x"));
+ANS($ans1->cmp(
+  checker => sub {
+    my ($correct,$student,$ansHash)=@_;
+    my $df = $student->D('x');
+    my $ddf = $df->D('x');
+    my $DE = Formula("$ddf+4*$student - (sin(x))^3");
+    my $zero = Formula(0);
+    if ($DE == $zero){
+      return 1;
+    }
+    else {
+      Value::Error("Particular solution must satisfy the given differential equation.");
+      return 0;
+    }
+  }
+));
+ANS($multians->cmp());
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.

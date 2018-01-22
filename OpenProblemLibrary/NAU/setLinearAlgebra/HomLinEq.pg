@@ -2,8 +2,6 @@
 ## Linear Algebra
 ## ENDDESCRIPTION
 
-
-
 ## DBsubject(Linear algebra)
 ## DBchapter(Systems of linear equations)
 ## DBsection(Systems with 3 variables)
@@ -12,37 +10,113 @@
 ## Author(Nandor Sieben)
 ## Level(2)
 
-
 DOCUMENT();
-
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl"
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "AnswerFormatHelp.pl",
+  "MatrixReduce.pl",
+  "rank.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
+TEXT(beginproblem()); 
+
+Context("Fraction");
+Context() -> parens -> set ("[" => {formMatrix => 1});
 
 $a = non_zero_random(-9,9,1);
 $b = non_zero_random(-8,8,2);
 $c = non_zero_random(-9,9,2);
 
+$A = Matrix([[$b],[- $a],[0]]);
+$B = Matrix([[$c],[0],[- $a]]);
+
+$multians = MultiAnswer($A, $B)->with(
+singleResult => 1,
+checker => sub {
+my ( $correct, $student, $self ) = @_;
+Context("Fraction");
+my @s = @{$student};
+my @c = @{$correct};
+my $s0 = Matrix($s[0]); 
+my $s1 = Matrix($s[1]);
+
+my $M1=Matrix(
+      [$s0->element(1,1),$s0->element(2,1),$s0->element(3,1)],
+      [$b,- $a,0],
+      [$c,0,- $a] 
+      );
+
+if (rank($M1)!=2) {
+  $self->setMessage(1,"Not a solution.");
+  return 0;
+}
+
+my $M2=Matrix(
+      [$s1->element(1,1),$s1->element(2,1),$s1->element(3,1)],
+      [$b,- $a,0],
+      [$c,0,- $a] 
+      );
+
+if (rank($M2)!=2) {
+  $self->setMessage(2,"Not a solution.");
+  return 0;
+}
+
+my $M3=Matrix(
+      [$s0->element(1,1),$s0->element(2,1),$s0->element(3,1)],
+      [$s1->element(1,1),$s1->element(2,1),$s1->element(3,1)]
+      );
+
+if (rank($M3)!=2) {
+  $self->setMessage(1,"Not independent.");
+  $self->setMessage(2,"Not independent.");
+  return 0;
+}
+
+return 1;
+}
+);
+
+Context()->texStrings;
 BEGIN_TEXT
-
 Solve the equation \[ $a x + $b y + $c z = 0 \] 
-
 $BR
-\{ mbox(display_matrix([['\(x\)'], ['\(y\)'], ['\(z\)']]) , '\( = s \)', ans_array(3,1,5), ' \(+\)  \( t\)' ,ans_array_extension(3,1,5) ) \} 
+\( 
+\left[ 
+\begin{array}{c}
+x \\
+y \\
+z
+\end{array} 
+\right] 
+= s \)
+
+\{ $multians->ans_array(3) \}
+
++ \( t \)
+
+\{ $multians->ans_array(3) \}
+
 
 END_TEXT
+Context()->normalStrings;
 
-ANS(basis_cmp([[$b, - $a, 0], [$c, 0, - $a]]));
+ANS( $multians->cmp() );
 
 ENDDOCUMENT();
+
+
+sub rank {
+   my $R = rref(apply_fraction_to_matrix_entries(shift));
+   my ($row,$col) = $R->dimensions;
+   my ($r,$c) = (1,1);
+   while (($r <= $row) && ($c <= $col)) {
+      $r++ if ($R->element($r,$c) > 0.5);
+      $c ++;
+   }
+   $r - 1;
+}

@@ -22,10 +22,9 @@
 DOCUMENT();
 
 loadMacros(
-"PGstandard.pl",
-"MathObjects.pl",
-"MatrixCheckers.pl",
-"PGcourse.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGcourse.pl"
 );
 
 
@@ -34,70 +33,88 @@ $showPartialCorrectAnswers = 1;
 
 Context('Matrix');
 
-# create an invertible matrix with det either 1  or -1
-
-$a11 = random(-1,1,1);
-$a21 = random(-1,1,2);
-$a31 = random(-1,1,2);
-
-$b1 = random(-1,1,2);
-$a12 = $b1 * $a11;
-$m = non_zero_random(-1,1,2);
-$a22 = $b1 * $a21 + $m;
-$a32 = $b1 * $a31;
-
-$c = random(-1,1,1);
-$d = random(-1,1,2);
-$n = random(-1,1,2);
-$a13 = $c * $a11 + $d * $a12 + $n;
-$a23 = $c * $a21 + $d * $a22;
-$a33 = $c * $a31 + $d * $a32;
-
-$det = - $a31 * $m * $n;
-
-$a = Matrix([
-[$a11,$a12,$a13],
-[$a21,$a22,$a23],
-[$a31,$a32,$a33],
-]);
-
-# define inverse matrix
-
-$b = $a->inverse;
-
-# define eigenvalues
-
-$e1 = Compute(random(-5,-2,1));
-$e2 = Compute(non_zero_random(-1,5,1));
-
-$e = Matrix([
-[$e1,0,0],
-[0,$e1,0],
-[0,0,$e2],
-]);
+do {
+  # create an invertible change of basis matrix $a 
+  $a11 = random(-1,1,1);
+  $a21 = random(-1,1,2);
+  $a31 = random(-1,1,2);
+  
+  $b1 = random(-1,1,2);
+  $a12 = $b1 * $a11;
+  $m = non_zero_random(-1,1,2);
+  $a22 = $b1 * $a21 + $m;
+  $a32 = $b1 * $a31;
+  
+  $c = random(-1,1,1);
+  $d = random(-1,1,2);
+  $n = random(-1,1,2);
+  $a13 = $c * $a11 + $d * $a12 + $n;
+  $a23 = $c * $a21 + $d * $a22;
+  $a33 = $c * $a31 + $d * $a32;
+  
+  # det of $a is  - $a31 * $m * $n;  (not zero)
+  
+  $a = Matrix([
+  [$a11,$a12,$a13],
+  [$a21,$a22,$a23],
+  [$a31,$a32,$a33],
+  ]);
+  
+  # define inverse matrix
+  
+  $b = $a->inverse;
+  
+  # define eigenvalues
+  
+  $e1 = Compute(random(-5,-2,1));
+  $e2 = Compute(non_zero_random(-1,5,1));
+  
+  $e = Matrix([
+  [$e1,0,0],
+  [0,$e1,0],
+  [0,0,$e2],
+  ]);
+  
+  
+  # define final matrix
+  $matrix = $a * $e *$b;
+  
+  $m11=$matrix->element(1,1);
+  $m13=$matrix->element(1,3);
+  $m31=$matrix->element(3,1);
+  $m33=$matrix->element(3,3);
+} until ($m11*$m13*$m31*$m33 != 0);  # so it's not triangular
 
 # define eigenvectors
-$v1 = $a->column(1);
-$v2 = $a->column(3);
-
-
-# define final matrix
-$matrix = $a * $e *$b;
+$v1 = ColumnVector($a->column(1));
+$v2 = ColumnVector($a->column(3));
 
 Context()->texStrings;
 BEGIN_TEXT
 The matrix \[ A = $matrix \]
 has \(\lambda = $e1\) as an eigenvalue with multiplicity \(2\) and \( \lambda = $e2 \) as an eigenvalue with multiplicity \(1\).  Find the associated eigenvectors.
-$BR
-$BR
+$PAR
 The eigenvalue \( $e1 \) has associated eigenvector \{$v1->ans_array\}.
-$BR
-$BR
+$PAR
 The eigenvalue \( $e2 \) has associated eigenvector \{$v2->ans_array\}.
 END_TEXT
 Context()->normalStrings;
 
-ANS($v1->cmp(checker=>~~&basis_checker_one_column));
-ANS($v2->cmp(checker=>~~&basis_checker_one_column));
+ANS($v1->cmp(
+  showCoordinateHints=>0,
+  checker => sub{
+    my ($correct,$student,$ansHash) = @_;
+    # get coordinates of student's answer 
+    my ($sx,$sy,$sz) = $student->value;
+    # check that student's answer is in span of first two columns of $a
+    my $m = Matrix([
+      [$a11, $a12, $sx],
+      [$a21, $a22, $sy],
+      [$a31, $a32, $sz]
+    ]);
+    return !($student->isZero) && ($m->det == 0);
+  }
+));
+ANS($v2->cmp(parallel=>1));
 ;
 ENDDOCUMENT() ; 

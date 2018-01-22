@@ -1,0 +1,190 @@
+# DESCRIPTION
+# Problem from 'Mathematics: The Language of Electrical and Computer Engineering', Viniotis and Trussell, 3rd ed.
+# WeBWorK problem written by Joel Trussell, <hjt@ncsu.edu>
+# ENDDESCRIPTION
+
+## DBsubject(Electrical Engineering)
+## DBchapter(Laplace Transforms)
+## DBsection(Problems)
+## Institution(North Carolina State University)
+## Author(H. J. Trussell)
+## MO(1)
+## TitleText1('Mathematics: The Language of Electrical and Computer Engineering')
+## AuthorText1('Viniotis and Trussell')
+## EditionText1('3')
+## Section1('.')
+## Problem1('8 16 21')
+## KEYWORDS('Laplace','Differential Equation','Inverse')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "AnswerFormatHelp.pl",
+  "unorderedAnswer.pl",
+  "parserMultiAnswer.pl",
+  "parserFunction.pl",
+  "unionLists.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+
+#############################
+#  Setup
+
+Context("Complex");
+Context()->variables->are(
+s=>"Real",
+t=>"Real"
+);
+
+# Redefine the Heaviside function so the answer checker will take either 1 or #h(t).
+#parserFunction("h(t)" => "1");
+# skip above and use step - need to assign it
+## required to use step function
+Context()->functions->add(
+  step => {
+    class => 'Parser::Legacy::Numeric',
+    perl => 'Parser::Legacy::Numeric::do_step'
+  },
+);
+parserFunction("u(t)" => "step(t)");
+
+Context()->flags->set(
+  tolerance => 0.001,
+  tolType => "absolute",
+);
+
+
+# create differential equation with roots below
+# complex roots for system, real for input
+# PFE of c1/(s+r1) + c2/(s-r2) + c3/(s-r3)
+
+$ra = -random(1,9,1); # real part  - assure stable r1 < 0
+$w =  random(1,6,1); # imaginary part - frequency
+$r1 = $ra + $w*i;
+$r2 = $ra - $w*i; #complex conjugate
+$r3 = -random(1,9,1); ; # third root
+
+
+# c1 and c2 are complex conjugates
+$c1r = non_zero_random(-6,6,1); # constant multiplying complex exp.
+$c1i = non_zero_random(0,6,1); # constant multiplying complex exp.
+$c1 = $c1r + $c1i*i;
+$c2 = $c1r - $c1i*i; 
+$c3 = non_zero_random(-6,6,1); # constant multiplying real exp. 
+
+# combine first two roots into quadratic   (a*s - b)/(s^2 - d1*s + d0)
+$a = $c1 + $c2;
+$b = $c1*$r2 + $c2*$r1;
+$d1 = ($r1 + $r2);
+$d0 = $r1*$r2;
+
+# combine with third root to get form (f2*s^2 -f1*s+f0)/(s^2 - d1*s + d0)/(s-r3)
+# this is the form of the Laplace transform of the solution
+$f2 = $a + $c3;
+$f1 = $b + $a*$r3 + $c3*$d1;
+$f0 = $b*$r3 + $c3*$d0;
+
+# constants for DiffEq 
+$a1 = -($r1 + $r2);
+$a0 = $r1*$r2; 
+
+# solve for coefficients of diffEq  y'' +a1*y'+a0 = A y_s
+# where Y_s(s) = A/(s-r3) r3 is real
+#we can change this for a 1st order DE and Y_s(s) = (bs+c)/(s-r1)/(s-r2)
+# need to solve for A, y(0), y'(0)
+
+$y0 = $c1+$c2+$c3;
+$ydot0 = $r3*$y0 - $y0*$d1 -($c1*($r2+$r3)+$c2*($r1+$r3)+$c3*($r1+$r2));
+$A = $r3*($ydot0+$y0*(-$r1-$r2)) + $c1*$r2*$r3 + $c2*$r1*$r3 + $c3*$r2*$r1;
+
+# calculate directly: since answer is PFE of c1/(s+r1) + c2/(s-r2) + c3/(s-r3)
+# y(t) = c1*e^(r1*t) + c2*e^(r2*t) + c3*e^(r3*t)
+$y0 = $c1 + $c2 + $c3;
+$ydot0 = $r1*$c1 + $r2*$c2 + $r3*$c3;
+$A = $c3*(($r3)**2 + $a1*$r3 + $a0); 
+
+
+$frac = Formula(" ($f2 s^2 - $f1*s + $f0 )/[(s-$r3)*(s^2 - $d1*s + $d0)] ")->reduce;
+
+$fac1 = Formula("$c1/(s-$r1)")->reduce;
+$fac2 = Formula("$c2/(s-$r2)")->reduce;
+$fac3 = Formula("$c3/(s-$r3)")->reduce;
+
+$mag = abs($c1)*2;
+# compute phi in range [-pi,pi]
+if ($c1r > 0 ) {$phi = atan($c1i/$c1r);} 
+elsif ($c1i > 0) {$phi = atan($c1i/$c1r) + pi;}
+else {$phi = atan($c1i/$c1r) - pi;}
+
+$ft = Compute("($mag*e^($ra * t)*cos($w*t+$phi)  + $c3*e^($r3*t))*u(t)");
+
+
+#############################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+This problem is related to Problems 8.16-21 in the text.
+
+$PAR
+Consider the differential equation \( y''(t) + $a1 y'(t) + $a0 y(t) = $A e^{$r3 t} u(t) \), 
+$BR with initial conditions \( y(0) = $y0,\) and \(y'(0) = $ydot0. \)
+
+$PAR
+Find the Laplace transform of the solution  \( Y(s). \) Write the solution as a single fraction in \( s \)
+$BR
+\( Y(s) = \) \{ ans_rule(60)\} \{ AnswerFormatHelp("formulas") \}
+$PAR
+END_TEXT
+
+ANS( $frac-> cmp());
+
+BEGIN_TEXT
+
+Find the partial fraction decomposition of \( Y(s) \). Enter all factors as first order terms in \( s \), that is, all terms should be of the form \( \frac{c}{s-p} \), where \( c \) is a constant and the root \( p \) is a constant. Both \( c \) and \( p \) may be complex. 
+$BR
+$BR
+\( \displaystyle Y(s) = \) \{ ans_rule(20)\}  \(+\)  \{ ans_rule(20)\}  \(+\) \{ ans_rule(20)\}
+END_TEXT
+
+UNORDERED_ANS(  $fac1->cmp(), $fac2->cmp(), $fac3->cmp() );
+
+BEGIN_TEXT
+
+$PAR Find the inverse Laplace transform of \( \displaystyle Y(s) \). The solution must consist of all real terms. (Remember to use \( u(t).\))
+$BR
+$BR
+\( \displaystyle y(t) = {\mathcal L}^{-1} \left\lbrace Y(s) \right\rbrace = \)
+\{ ans_rule(50) \}
+\{ AnswerFormatHelp("formulas") \}
+
+
+END_TEXT
+Context()->normalStrings;
+
+
+##############################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+# note that ALL answers in a problem must be unordered!!
+# in this case, the terms are unordered and checked as such, but it is 
+# highly unlikely anyone would enter the last answer in the wrong place
+# but so what if they did
+
+ANS(  $ft->cmp() );
+
+
+ENDDOCUMENT();
+

@@ -24,11 +24,11 @@
 DOCUMENT();      
 
 loadMacros(
-   "PGstandard.pl",     # Standard macros for PG language
-   "MathObjects.pl",
-   "parserFunction.pl",
-   #"source.pl",        # allows code to be displayed on certain sites.
-   "PGcourse.pl",      # Customization file for the course
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserFunction.pl",
+  "parserImplicitEquation.pl",
+  "PGcourse.pl"
 );
 
 # Print problem number and point value (weight) for the problem
@@ -42,43 +42,24 @@ $showPartialCorrectAnswers = 1;
 #  Setup
 #
 #
-Context("Point");
-Context()->variables->add(L=>"Real",t=>"Real",);
-$leftend = Point("(0,t)");
-$rightend = Point("(L,t)");
-$initial = Point("(x,0)");
 
-Context("Numeric");
-Context()->variables->add(a=>"Real",c=>"Real",h=>"Real",k=>"Real",L=>"Real",t=>"Real",u=>"Real",um=>"Real",ux=>"Real",uxx=>"Real",ut=>"Real",utt=>"Real",uy=>"Real",uyy=>"Real");
-Context()->variables->set(um=>{TeX => '{u_m}'},ux=>{TeX => '{\frac{\partial u}{\partial x}}'},uxx=>{TeX => '{\frac{\partial^2 u}{\partial x^2}}'},ut=>{TeX => '{\frac{\partial u}{\partial t}}'},utt=>{TeX => '{\frac{\partial^2 u}{\partial t^2}}'},uy=>{TeX => '{\frac{\partial u}{\partial y}}'},uyy=>{TeX => '{\frac{\partial^2 u}{\partial y^2}}'});
 
-$u = Formula("u");
-$ux = Formula("ux");
-$uxx = Formula("uxx");
-$ut = Formula("ut");
-$utt = Formula("utt");
-$uy = Formula("uy");
-$uyy = Formula("uyy");
+Context("ImplicitEquation");
+Context()->variables->add(t=>"Real",L=>"Real"); 
+Context()->constants->add(a=>1);
 
-$um = Compute(random(0,100));
-$heatleft = Formula("k*uxx");
-$heatwithtransfer = Formula("k*uxx-h*(u-$um)");
-$heatright = Formula("ut");
-
-$waveleft = Formula("a^2*uxx");
-$waveright = Formula("utt");
-$wavedamping = Formula("utt+c*ut");
-
-$laplaceleft = Formula("uxx+uyy");
-$homogeneous = Compute("0");
+parserFunction("u(x,t)"=>"x+t");
+parserFunction("ut(x,t)"=>"x-t");
+parserFunction("uxx(x,t)"=>"-2x+3t");
+parserFunction("utt(x,t)"=>"2x-3t");
 
 $initialdispl = Formula("x*(L-x)");
 
-$u0 = Compute(random(0,100));
-$u1 = Compute(random(0,100));
-$f = Formula("e^(x*(L-x))");
-
-
+$pde = ImplicitEquation("a*uxx(x,t)=utt(x,t)");
+$leftend = ImplicitEquation("u(0,t)=0");
+$rightend = ImplicitEquation("u(L,t)=0");
+$atrest = ImplicitEquation("ut(x,0)=0");
+$initdisplEq = ImplicitEquation("u(x,0)=$initialdispl");
 
 ##############################################################
 #
@@ -88,28 +69,26 @@ $f = Formula("e^(x*(L-x))");
 
 Context()->texStrings;
 BEGIN_TEXT
-Translate the following into a PDE with boundary conditions
+Translate the following into a PDE with boundary conditions.
+$PAR
+The ends of a horizontal string of length L are secured at both ends. The string is held motionless with initial vertical displacement \($initialdispl\), then released.
+\{knowlLink("How to enter the answers.",
+  value => 'Use x to represent distance from the left end of the string, t for time, u for vertical displacement, and ux, ut, uxx, etc for its partial derivatives.  '.
+  'Include independent variables, e.g. write ux(x,t) not just ux.  '.
+  'Use a for constants not explicitly named in the problem or just assume they equal 1.')\}
+
+$PAR
+The PDE is \{ans_rule(20)\}
 $BR
-The ends of a string of length L are secured at both ends. The string is released from rest with initial displacement \($initialdispl\).
+The boundary values / initial conditions are:
 $BR
+Left end is secured: \{ans_rule(15)\}
 $BR
-$BBOLD PDE $EBOLD
+Right end is secured: \{ans_rule(15)\}
 $BR
-$BCENTER \{$waveleft->ans_rule\} = \{$waveright->ans_rule\} $ECENTER
+Released from rest: \{ans_rule(15)\}
 $BR
-$BBOLD Boundary/Initial Conditions $EBOLD
-$BR
-Left end is secured: \{ans_rule(6)\}= \{ans_rule(1)\}
-$BR
-Right end is secured: \{ans_rule(6)\} = \{ans_rule(1)\}
-$BR
-Released from rest: \{ans_rule(6)\} = \{ans_rule(1)\}
-$BR
-Initial displacement is \($initialdispl\): \{ans_rule(6)\} = \{ans_rule(10)\}
-$BR
-$BR
-Use proper notation for 
-\{ helpLink("entering PDE's")\}.
+Initial displacement is \($initialdispl\): \{ans_rule(15)\}
 END_TEXT
 Context()->normalStrings;
 
@@ -119,36 +98,10 @@ Context()->normalStrings;
 #
 #
 
-## PDE
-ANS($waveleft->cmp);
-ANS($waveright->cmp);
+ANS($pde->cmp());
+ANS($leftend->cmp());
+ANS($rightend->cmp());
+ANS($atrest->cmp());
+ANS($initdisplEq->cmp());
 
-## BC/IC
-Context("Numeric");
-Context()->variables->add(t=>"Real",L=>"Real");
-parserFunction("u(x,t)" => "(-1.5 * cos(3*t) - 5*pi/3 + arctan(t))(0.5 * cos(3*x) + pi/3 + arctan(2x))");
-parserFunction("ut(x,t)" => "(1.5 * cos(3*t) + 5*pi/3 + arctan(t))(1.5 * cos(3*x) + 5*pi/3 + arctan(x))");
-
-$boundaryu = Formula("u(x,t)");
-$leftu = $boundaryu->substitute(x=>"0",t=>"t");
-$rightu = $boundaryu->substitute(x=>"L",t=>"t");
-
-$boundaryut = Formula("ut(x,t)");
-$leftux = $boundaryut->substitute(x=>"0",t=>"t");
-$rightux = $boundaryut->substitute(x=>"L",t=>"t");
-
-$initial = $boundaryu->substitute(x=>"x",t=>"0");
-$initialut = $boundaryut->substitute(x=>"x",t=>"0");
-
-ANS($leftu->cmp);
-ANS($homogeneous->cmp);
-
-ANS($rightu->cmp);
-ANS($homogeneous->cmp);
-
-ANS($initialut->cmp);
-ANS($homogeneous->cmp);
-
-ANS($initial->cmp);
-ANS($initialdispl->cmp);
 ENDDOCUMENT();        

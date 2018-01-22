@@ -1,18 +1,16 @@
 #########################################################
-##KEYWORDS('Sampling theory'; 'ratio estimators', 'sampling for a
-##characteristic'; 'determine an estimate of the total in a sample possessing a
-##characteristic', 'using a sample from the population and data on correlated
-##variable', 'provide a standard error for the estimate'.) 
+##KEYWORDS('Inference'; 'confidence intervals for proportion', 'confidence
+##intervals for population size'; 'find a 95% confidence interval for a
+##population proportion', 'find approximate confidence interval for a population
+##size given the count within the population with the characteristic of interest.) 
 # DESCRIPTION
-## DBsubject('Statistics')
-## DBchapter('Sample survey methods')
-## DBsection('Ratio estimators')
-## Date('2015/09/23')
-## Author('Nelson Chen')
+## DBsubject('Statistics')
+## DBchapter('Confidence intervals')
+## DBsection('Concepts')
+## Date('2016/07/12')
+## Author('Bo Chang')
 ## Institution('University of British Columbia')
 ## level('5')
-## 3 Attempts. 
-
 
 #########################################################
 DOCUMENT();
@@ -46,143 +44,101 @@ $seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
 ####Call R server
 rserve_eval("set.seed($seed)"); ## can not combine with the rest
 
-@j_tmp=rserve_eval('
-j.tmp <- rbinom(25, size=1, prob=.5)
+## @n is a array of size 2, @n[0] is n_1 and @n[2] is n_2.
+@n=rserve_eval('
+n <- 100*sample(10:20, size=2)
+n1 <- n[1]
+n2 <- n[2]
+n
+');
+
+@y1=rserve_eval('
+y1 <- rbinom(1, size=n1, prob=.35)
+');
+
+@y2=rserve_eval('
+y2 <- rbinom(1, size=n2, prob=.4)
+');
+
+@p1Hat=rserve_eval('
+p1.hat <- y1/n1
+round(p1.hat, 4)
+');
+
+@p2Hat=rserve_eval('
+p2.hat <- y2/n2
+round(p2.hat, 4)
+');
+
+@diff=rserve_eval('
+diff <- p2.hat - p1.hat
+round(diff, 4)
+');
+
+@se=rserve_eval('
+se.sq1 <- p1.hat * (1 - p1.hat) / n1
+se.sq2 <- p2.hat * (1 - p2.hat) / n2
+se <- sqrt(se.sq1 + se.sq2)
+round(se, 4)
+');
+
+@lb=rserve_eval('
+lb <- diff - 1.96 * se
+round(lb, 3)
+');
+
+@ub=rserve_eval('
+ub <- diff + 1.96 * se
+round(ub, 3)
 ');
 
 
-@w_tmp=rserve_eval('
-w.tmp <- rnorm(25, 1+0.5*j.tmp, 0.25)
-');
-
-
-@sd_w=rserve_eval('
-sd.w <- round(sqrt(var(w.tmp)),2)
-');
-
-
-@j_bar=rserve_eval('
-j.bar <- sum(j.tmp)/25
-');
-
-
-@j_bar_display=rserve_eval('
-round(j.bar * (1-j.bar), 2)  
-');
-
-
-@w_bar=rserve_eval('
-w.bar <- round(mean(w.tmp),2)
-');
-
-
-@sd_1=rserve_eval('
-sd.1 <- round(sqrt(var(w.tmp-(w.bar/j.bar)*j.tmp)),2)
-');
-
-
-@sd_2=rserve_eval('
-sd.2 <- round(sqrt(var(j.tmp-(j.bar/w.bar)*w.tmp)),2)
-');
-
-
-####Build table
-$Table = 
-"\(       
-\begin{array}{c|cc}
-& \text{mean} & \text{SD}  \\
-\hline
-J &  @j_bar[0] & @j_bar_display[0] \\
-W & @w_bar[0] & @sd_w[0]  \\
-W-(\bar{W}/\bar{J})J  & 0  & @sd_1[0] \\
-J-(\bar{J}/\bar{W})W  & 0  & @sd_2[0] \\
-\end{array}
-\)"
-;
-
-
-#######answers_q1
-@q1=rserve_eval('
-tmp=(j.bar/w.bar)*1250
-round(tmp, 2)
-');
-
-
-#######answers_q2
-@q2=rserve_eval('
-tmp<-1250*(1/w.bar)*sqrt(sd.2^2/25)
-round(tmp, 2)
-');
+$q1ans =@lb[0];
+$q2ans =@ub[0];
 
 #########################################################
 ## Main Text: where all text goes (Required)
 Context()->texStrings;
 BEGIN_TEXT
-A fishing boat docks with a large number of fish in its hold. At random,
-25 fish are selected for examination, which includes a determination of
-juvenile (J = 1) or adult (J = 0) status, and a measurement of weight
-(W), in kilograms. Note: the "large" above is a cue to ignore the FPC- that, plus the fact that the number of fish in the hold is not known.
-Some summary statistics of this sample are below.
-$BR
-$BR
-$BCENTER
-$Table
-$ECENTER
-$BR
-Additionally, the total catch was weighed as a whole, and found to be 1250 Kg. Provide answers to the following to two decimal places.
+Last month in a simple random sample of @n[0] eligible voters, @y1[0] were found to support the Liberal party.
+This month, in an independent simple random sample of @n[1] eligible voters, @y2[0] were found to support the Liberal party.
+
 $BR
 $BR
 
-$BBOLD(a) $EBOLD Give a ratio estimate of the number of juvenile fish caught. 
-\{  ans_rule(7) \} 
-$BR
+Give a 95% confidence interval for the proportion of eligible voters supporting the Liberal party now minus the proportion who supported them last month.  Report the interval endpoints to three decimal places. 
+
 $BR
 
-$BBOLD(b) $EBOLD Give a standard error for your estimate. \{  ans_rule(7) \}  
-$BR
-$BR
-
+ (\{  ans_rule(7) \}, \{  ans_rule(7) \}).   
+ 
 END_TEXT
 #########################################################
 ## Answers evaluation (Required)
-ANS( num_cmp(@q1[0], tol=> 0.105) );
-ANS( num_cmp(@q2[0], tol=> 0.105) );
+ANS( num_cmp($q1ans, tol=> 0.005) );
+ANS( num_cmp($q2ans, tol=> 0.005) );
+
 
 #########################################################
 ## Solution (Optional but recommended)
 Context()->texStrings;
 BEGIN_SOLUTION
-$BBOLD (a) $EBOLD To match typical notation for ratio estimation, write
-y and x in place of J and W, and let 
-$BR
-$BCENTER
-\(
-B= B_P=\frac{\bar{y}_P}{\bar{x}_P} 
-\)
-$ECENTER
-$BR
-$BCENTER
-\(
-\hat{B}= \hat{B}_S=\frac{\bar{y}_S}{\bar{x}_S} 
-\)
-$ECENTER
-$BR
-The fact that \( T_y/T_x=B\) motivates \( \hat{T}_y=\hat{B} \times T_x
-=(@j_bar[0]/@w_bar[0]) \times 1250=@q1[0] \).   
-$BR
-$BR
 
-$BBOLD (b) $EBOLD Also 
-$BR
-$BR
-$BCENTER
-\begin{align*}
-SE(\hat{T}_y)  &=T_x \times SE(\hat{B}) \\ 
-&= T_x \times ( \frac{1}{\bar{x}_S}) \times \sqrt{\frac{s_e^2}{n}}  \\
-&= 1250 \times (1/@w_bar[0]) \times \sqrt{@sd_2^2/25} \\
-&=@q2[0]. 
-\end{align*}
-$ECENTER
-$BR
+We have \(\hat{p}_{1} - \hat{p}_{0} = @y2[0]/@n[1] - @y1[0]/@n[0]= @p2Hat[0]-@p1Hat[0] = @diff[0]\) as the estimated change in proportion.  And the corresponding standard error is
+
+
+\[ 
+\begin{eqnarray*}
+SE[\hat{p}_{1}-\hat{p}_{0}] &=& \left\lbrace SE^{2}[\hat{p}_{1}] + SE^{2}[\hat{p}_{0}] \right\rbrace^{1/2} \\
+&=& \left\lbrace \frac{\hat{p}_{1}(1-\hat{p}_{1})}{n_1} +   \frac{\hat{p}_{0}(1-\hat{p}_{0})}{n_0} \right\rbrace^{1/2} \\
+& = &  @se[0]
+\end{eqnarray*}
+\]
+
+Thus our confidence interval for \(p_{1}-p_{0}\)
+runs from \( (\hat{p}_{1}-\hat{p}_{0}) - 1.96 SE = @lb[0]\) to 
+\( (\hat{p}_{1}-\hat{p}_{0}) + 1.96 SE = @ub[0]\).
+
+
 END_SOLUTION
 ENDDOCUMENT();

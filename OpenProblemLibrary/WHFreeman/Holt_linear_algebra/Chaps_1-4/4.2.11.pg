@@ -24,6 +24,7 @@ DOCUMENT();
 ## Author(Richard Bayne)
 ## MLT(find_basis_with_instructions)
 ## Level(3)
+## MO(1)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
@@ -37,20 +38,13 @@ DOCUMENT();
 DOCUMENT();
 
 loadMacros(
-"PGstandard.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
-
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
+Context("Vector");
 
 $a11 =random(1,5,2);
 $a21 = random(4,7,3);
@@ -58,23 +52,61 @@ $mult = random(2,4,1);
 $a12 = $mult * $a11;
 $a22 = -$mult * $a21;
 
+$C1 = ColumnVector($a11,$a21);
+$C2 = ColumnVector($a12,$a22);
+
 $b22 = $a22 - $a12*$a21;
 
+$multians = MultiAnswer($C1,$C2)->with(
+  singleResult => 1,
+  checker => sub {
+    my ($correct,$student,$self) = @_;
+    my ($cor1, $cor2) = @{$correct};
+    my ($stu1, $stu2) = @{$student};
+    # convert to rows
+    $cor1 = Vector($cor1);
+    $cor2 = Vector($cor2);
+    $stu1 = Vector($stu1);
+    $stu2 = Vector($stu2);
+    my $M = Matrix([
+     [@{$stu1->{data}}],
+     [@{$stu2->{data}}]
+    ]);
+    if ($M->det->isZero){
+      Value::Error("Basis vectors must be linearly independent.");
+      return 0;
+    }
+    elsif (($cor1==$stu1 && $cor2==$stu2) || ($cor1==$stu2 && $cor2==$stu1)){
+      return 1;
+    }
+    else {
+      Value::Error("Must be a subset of the given set.");
+      return 0;
+    }
+  }
+);
 
+
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
-Suppose a subspace is spanned by the set of vectors shown. Find a basis for the subspace, using the method of transforming a matrix to echelon form, where the columns of the matrix represent vectors spanning the subspace.
-\{ mbox( ' {' ,display_matrix( [ [$a11],[$a21] ] ) ,  display_matrix([ [$a12],[$a22] ]) , '} ' ) \}
-$BR
+Suppose a subspace is spanned by the set \(S\) of vectors shown below. $BR 
+\(S = \Bigg $LBRACE\)\($C1\), \($C2\)\(\Bigg $RBRACE\)
+Find a subset of \(S\) that forms a basis for the subspace, using the method of transforming a matrix to echelon form, where the columns of the matrix represent vectors spanning the subspace. $BR
 
- \{ mbox( '\( {\rm Basis\ } = \)', '{', ans_array(2,1,5), ans_array_extension(2,1,5), '}' ) \}
+$PAR
 
-$BR
-What is the dimension of the basis? \{ans_rule(5) \}
+A basis is \(\Bigg $LBRACE\)\{ $multians->ans_array\}, \{ $multians->ans_array\} \(\Bigg $RBRACE\)
+
+$PAR
+What is the dimension of the subspace? \{ans_rule(5) \}
 END_TEXT
+Context()->normalStrings;
 
-ANS(basis_cmp([[$a11,$a21],[$a12,$a22]]));
-ANS(num_cmp(1));
+ANS($multians->cmp());
+ANS(Real(2)->cmp());
 
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR$PAR{BBOLD}SOLUTION:${EBOLD} $PAR
 Row-reduce the matrix which has the given vectors as columns.
@@ -84,52 +116,9 @@ $a21 & $a22 \end{array}\right] \sim \left[ \begin{array}{cc} $a11 & $a12 \\
 0 & $b22 \end{array} \right]  \)$PAR
 so that a basis for the subspace is given by columns 1 and 2 of the original matrix corresponding to the pivot columns of the row-reduced matrix. Thus a basis for \(S\) is
 $PAR
- \(\left$LBRACE \left [ \begin{array}{c} $a11 & $a21 \end{array} \right] , \left [ \begin{array}{c} $a12 & $a22 \end{array} \right]\right$RBRACE \)
-
+\(\Bigg $LBRACE\)\($C1\), \($C2\)\(\Bigg $RBRACE\)
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();
 
-loadMacros(
-"PGstandard.pl",
-#"MathObjects.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
-
-);
-
-TEXT(beginproblem());
-
-$a11 =random(1,5,2);
-$a21 = random(4,7,3);
-$mult = random(2,4,1);
-$a12 = $mult * $a11;
-$a22 = -$mult * $a21;
-
-
-BEGIN_TEXT
-Suppose a subspace is spanned by the set of vectors shown. Find a basis for the subspace, using the method of transforming a matrix to echelon form, where the columns of the matrix represent vectors spanning the subspace.
-\{ mbox( ' {' ,display_matrix( [ [$a11],[$a21] ] ) ,  display_matrix([ [$a12],[$a22] ]) , '} ' ) \}
-$BR
-
- \{ mbox( '\( {\rm Basis\ } = \)', '{', ans_array(2,1,5), ans_array_extension(2,1,5), '}' ) \}
-
-$BR
-What is the dimension of the basis? \{ans_rule(5) \}
-END_TEXT
-
-#ANS(num_cmp($a11) );
-#ANS(num_cmp($a21) );
-ANS(basis_cmp([[$a11,$a21],[$a12,$a22]]));
-
-
-ANS(num_cmp(1));
-
-ENDDOCUMENT();

@@ -9,9 +9,9 @@ answers and allows for custom help links.
 
 =head1 DESCRIPTION
 
-There are 15 predefined help links: angles, decimals, equations, 
+There are 16 predefined help links: angles, decimals, equations, 
 exponents, formulas, fractions, inequalities, intervals, limits, 
-logarithms, numbers, points, syntax, units, vectors.
+logarithms, matrices, numbers, points, syntax, units, vectors.
 
 Usage:
 
@@ -34,7 +34,7 @@ is unaffected.
 
 =head1 AUTHOR
 
-Paul Pearson, Fort Lewis College, Department of Mathematics
+Paul Pearson, Hope College, Department of Mathematics
 
 =cut
 
@@ -611,6 +611,62 @@ if (!$customstring) { $helpstring = "help (logarithms)"; } else { $helpstring = 
 if ($main::displayMode ne "TeX") { 
     return htmlLink( "#", "$helpstring","onClick='return openhelpLogarithms()';");
 } else { return $helpstring; }
+
+
+
+
+
+
+
+
+
+###########################################
+#  Matrices
+
+} elsif ($helptype =~ m/matri/i) {
+
+if ($matricesHelpExists != 1) {
+
+HEADER_TEXT(<<END_HEADER_TEXT);
+<script type="text/javascript">
+<!--
+function openhelpMatrices() {
+OpenWindow=window.open("","answer_format_help","width=550,height=550,status=0,toolbar=0,location=0,menubar=0,directories=0,resizeable=1,scrollbars=1");
+OpenWindow.document.write("<title>Help Entering Matrices</title>")
+OpenWindow.document.write("<body bgcolor='#ffffff'>")
+OpenWindow.document.write("<center><h2>Help Entering Matrices</h2></center>")
+OpenWindow.document.write("<center><h3>When there is one big answer box</h3></center>")
+OpenWindow.document.write("<ul>")
+OpenWindow.document.write("<li>If the matrix has only one row, enter a list.  For example, enter a 1 x 3 matrix as a comma separated list enclosed by square brackets: <blockquote><code>[1, 2, 3]</code></blockquote> </li>")
+OpenWindow.document.write("<li>If the matrix has more than one row, enter a list of lists.  For example, enter a 2 x 3 matrix with 1, 2, 3 in the top row and 4, 5, 6 in the bottom row as: <blockquote><code>[ [1, 2, 3], [4, 5, 6] ]</code></blockquote> </li>")
+OpenWindow.document.write("<li>If the matrix has only one column, enter a list of lists.  For example, enter a 2 x 1 matrix with 1 in the top row and 2 in the bottom row as: <blockquote><code>[ [1], [2] ]</code></blockquote> </li>")
+OpenWindow.document.write("<li>Enter <b>DNE</b> (short for Does Not Exist) if the answer is that no matrix with the desired property exists.</li>")
+OpenWindow.document.write("</ul>")
+OpenWindow.document.write("<center><h3>When there are multiple small answer boxes</h3></center>")
+OpenWindow.document.write("<ul>")
+OpenWindow.document.write("<li>In this case, there is one answer box for each entry in the matrix.  Do the obvious thing and enter one item (often a number or a formula) into each answer box.</li>")
+OpenWindow.document.write("</ul>")
+OpenWindow.document.write("</body>")
+OpenWindow.document.write("</html>")
+OpenWindow.document.close()
+self.name="main"
+if (window.focus) {OpenWindow.focus()}
+return false;
+}
+-->
+</script>
+END_HEADER_TEXT
+
+$matricesHelpExists = 1;
+}
+
+if (!$customstring) { $helpstring = "help (matrices)"; } else { $helpstring = $customstring; }
+
+if ($main::displayMode ne "TeX") { 
+    return htmlLink( "#", "$helpstring","onClick='return openhelpMatrices()';");
+} else { return $helpstring; }
+
+
 
 
 

@@ -20,143 +20,105 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl",
-"parserMultiAnswer.pl"
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
+Context("Matrix");
 
-$a= new Matrix(2,2);
 $a11 = random(-1,1,2);
 $a12 = non_zero_random(-3,3,1);
 $mult = non_zero_random(-2,2,1);
 $a21 = $mult * $a11;
 $b1 = non_zero_random(-1,1,2);
-$a22 = $mult * $a12 + $b1;
-$a->assign(1,1, $a11 );
-$a->assign(1,2, $a12 );
-$a->assign(2,1, $a21 );
-$a->assign(2,2, $a22 );
-$a_lr = $a->decompose_LR();
-$a_det = $a11 * $b1;
-$b = $a_lr->invert_LR();
-$e = new Matrix(2,2);
+$a22 = $mult * $a12 + $b1; # so $a is not singular 
+$a=Matrix([
+  [$a11, $a12],
+  [$a21, $a22]
+]);
+
+$b = $a->inverse;
+
+
 $eig1 = non_zero_random(-8,8,1);
 $eig2 = non_zero_random(-8,8,1);
 while ($eig1 == $eig2) { 
    $eig2= non_zero_random(-8,8,1); }
-$e->one();
-$e->assign(1,1, $eig1);
-$e->assign(2,2, $eig2);
-$eig = new Matrix(2,1);
-$eig->one();
-$eig->assign(1,1, $eig1);
-$eig->assign(2,1, $eig2);
+
+$e = Matrix([
+  [$eig1, 0],
+  [0 , $eig2]
+]);
 
 
 $matrix = $a * $e *$b;
-$matrix_lr = $matrix->decompose_LR();
-$matrix_det = $matrix_lr->det_LR();
+
+$multi = MultiAnswer($a,$e,$b);
 
 
-
-## to check that we have a correct answer, just verify that
-##    the appropriate matrix multiplication works
-
-$ev = MultiAnswer( @{ra_flatten_matrix($a)}, @{ra_flatten_matrix($eig)},
-@{ra_flatten_matrix($a)}, )->with(
-    singleResult => 1,
-    checkTypes => 0,
-    allowBlankAnswers =>0,
-    format => "S=(%s, %s; %s, %s),$BR D=(%s, 0; 0, %s),$BR S^{-1}=(%s, %s; %s, %s).",
-    tex_format => "S=(%s, %s; %s, %s), D=(%s, 0; 0, %s), S^{-1}=(%s, %s; %s, %s).",
-    checker => sub {
-	my ( $correct, $student, $self ) = @_;
-	my @corD  = @{$correct}[4..5];
-	my @stuD  = @{$student}[4..5];
-	my @stuS  = @{$student}[0..3];
-        my @stuSI = @{$student}[6..9];
-        my $flag = 0; 
-        my $flagD =0;
-        my $flagI =0;
-
-        my $S = new Matrix(2,2);
-        my $SI = new Matrix(2,2);
-        my $D = new Matrix (2,2);
-        $S->zero();
-        $S->assign(1,1, $stuS[0]);
-        $S->assign(1,2, $stuS[1]);
-        $S->assign(2,1, $stuS[2]);
-        $S->assign(2,2, $stuS[3]);
- 
-        $SI->zero();
-        $SI->assign(1,1, $stuSI[0]);
-        $SI->assign(1,2, $stuSI[1]);
-        $SI->assign(2,1, $stuSI[2]);
-        $SI->assign(2,2, $stuSI[3]);
-
-        $D->zero();
-        $D->assign(1,1, $stuD[0]);
-        $D->assign(2,2, $stuD[1]);
-
-        $I = new Matrix(2,2);
-        $I->zero();
-        $I->assign(1,1,1);
-        $I->assign(2,2,1);
-        
-        if($S * $SI == $I){
-             $flagI=1;
-        }
-
-        if( ($stuD[0]== $eig1 && $stuD[1] == $eig2) || ($stuD[1]== $eig1 && $stuD[0] == $eig2)){
-             $flagD=1;  
-        }           
-        if ($S * $D * $SI == $matrix){
-               $flag=1;
-        }else{
-               if($flagD ==1 && $flagI == 1){
-                   Value::Error("The matrix D is correct, and S* S^{-1}=I, but S is not correct");
-               }
-               if($flagD ==1 && $flagI == 0){
-                   Value::Error("The matrix D is correct, but S^{-1} is not the inverse to S");
-               }
-               if($flagD ==0 && $flagI == 1){
-                   Value::Error("S* S^{-1}=I but the matrix D is incorrect."); 
-               }
-               if($flagD ==0 && $flagI == 0){
-                   Value::Error("D is incorrect and S, S^{-1} are not inverses."); 
-               }
-        
-        } 
-  	return $flag;
-    }
-);
-
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
-\{mbox( 'Let: ', '\(A = \)' , display_matrix($matrix) )\}$BR
+Let \(A\) = \($matrix\) $BR
 
-Find \(S\), \(D\) and \(S^{-1}\) such that \(A=SDS^{-1}\).  
-$BR
-$BR
-\{
-mbox('\(S=\)', display_matrix([[$ev-> ans_rule(5), $ev-> ans_rule(5)],
-[$ev-> ans_rule(5), $ev-> ans_rule(5)]]),
-', \(D=\)',display_matrix([[$ev-> ans_rule(5), 0],
-[0, $ev-> ans_rule(5)]]),
-', \(S^{-1}=\)',display_matrix([[$ev-> ans_rule(5), $ev-> ans_rule(5)],
-[$ev-> ans_rule(5), $ev-> ans_rule(5)]]), '.' )
-\}
+Find a matrix \(S\), a diagonal matrix \(D\) and \(S^{-1}\) such that \(A=SDS^{-1}\).  
+$PAR
+\(S = \) \{ $multi->ans_array\},$SPACE \(D = \) \{$multi->ans_array\},$SPACE \(S^{-1} = \) \{$multi->ans_array\}
 END_TEXT
+Context()->normalStrings;
 
-ANS($ev->cmp() );
+ANS($multi->cmp(
+  singleResult => 0,
+  checker=>sub {
+    my ($correct, $student, $self) = @_;
+    my ($s, $d, $sinv) = @{$student};
+    if ( $d->element(1,2) != 0 || $d->element(2,1) != 0) {
+      Value::Error("D must be a diagonal matrix.");
+      return [0,0,0] ;
+    }
+    else { 
+      #check diagonal of D 
+      if ( Set($d->element(1,1),$d->element(2,2))==Set($eig1,$eig2)){ 
+	$dOK = 1;
+      } 
+      else { 
+        $dOK=0;
+      }
+      #check S and S^{-1} are inverses
+      if ( Matrix([[1,0],[0,1]]) == $s*$sinv ){
+        $sOK = 1;
+      } 
+      else { 
+        $sOK = 0;
+      }
+      # check product, return error messages.
+      if ( $dOK == 1 && $sOK == 1){
+         if ( $matrix == $s*$d*$sinv ){
+           return [1,1,1];
+         }
+         else{
+           Value::Error("The matrix D is correct, and S* S^{-1}=I, but S is not correct");
+           return [0,1,0];
+         }
+      }
+      elsif ($dOK == 1 && $sOK == 0) {
+        Value::Error("The matrix D is correct, but S^{-1} is not the inverse to S");
+        return [0,1,0];
+      }
+      elsif ( $dOK==0 && $sOK == 1 ){
+        Value::Error("S* S^{-1}=I but the matrix D is incorrect.");
+        return [0,0,0];
+      }
+      else {
+        Value::Error("D is incorrect and S, S^{-1} are not inverses.");
+        return [0,0,0];
+      }
+      return 0;
+    }
+  }
+) );
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.
 

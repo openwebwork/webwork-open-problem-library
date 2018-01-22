@@ -1,19 +1,18 @@
 #########################################################
-##KEYWORDS('Sampling theory'; 'ratio estimators', 'sampling for a
-##characteristic'; 'determine an estimate of the proportion in a subpopulation
-##possessing a characteristic', 'using a sample from the population and the
-##population size', 'provide standard error for the estimate', 'modify the
-##estimate given the subpopulation size and estimate its standard deviation'.) 
+##KEYWORDS('Sample surveys'; 'sampling for a proportion', 'sample size
+##selection'; 'find a sample size when estimating a population proportion to a
+##specified accuracy with information on the upper and lower bounds on the
+##counts in the population with the characteristic of interest and bounds on
+##the population size', 'find a sample size when estimating a population
+##proportion to a specified accuracy with no prior information'. ) 
 # DESCRIPTION
-## DBsubject('Statistics')
-## DBchapter('Sample survey methods')
-## DBsection('Ratio estimators')
-## Date('2015/09/23')
+## DBsubject('Statistics')
+## DBchapter('Sample survey methods')
+## DBsection('Sampling for a proportion')
+## Date('2015/08/30')
 ## Author('Nelson Chen')
 ## Institution('University of British Columbia')
 ## level('5')
-## 4 Attempts. 
-## n=79-1 could be used in future. 
 
 #########################################################
 DOCUMENT();
@@ -47,152 +46,220 @@ $seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
 ####Call R server
 rserve_eval("set.seed($seed)"); ## can not combine with the rest
 
-@p=rserve_eval('
-p <- sample(125:135,size=1)/10
+
+@A=rserve_eval('
+A <- sample(seq(from=25, to=40, by=5), size=1)
 ');
 
-my ($remote_file, @problem_data) = rserve_eval(<<CODE);
-  # this is R code
- set.seed(17) ## see comment below
-age <- round(runif(500, 11, 77)) #### 14.2% in 20s
-car <- rbinom(500, size=1,prob= 0 + (age>20)*(.2 + .45*(age-20)/60))
-problem_data<-data.frame(age,car)
-problem_file <- tempfile("cars", fileext = '.csv')
-write.csv(problem_data, problem_file, row.names=F)
-list(problem_file, problem_data)
-CODE
-
-my $local_file = rserve_get_file($remote_file);
-($local_url = $local_file) =~ s|$tempDirectory|$tempURL|;
-
-
-@data=rserve_eval('
-set.seed(17) ## see comment below
-age <- round(runif(500, 11, 77)) #### 14.2% in 20s
-car <- rbinom(500, size=1,prob= 0 + (age>20)*(.2 + .45*(age-20)/60))
+@B=rserve_eval('
+B <- sample(seq(from=10, to=20, by=5), size=1)
 ');
 
-
-@N=rserve_eval('
-N <- 35.16*10^6
+@AB=rserve_eval('
+A - B
 ');
 
-@u=rserve_eval('
-dmn <- (age>19)&(age<30)
-u <- car; u[!dmn] <- 0
+@C=rserve_eval('
+C <- sample(seq(from=2000, to=2500, by=100), size=1)
 ');
 
+@D=rserve_eval('
+D <- sample(seq(from=800, to=1200, by=100), size=1)
+');
 
-#######answers_q1
+@CD=rserve_eval('
+C - D
+');
+
+@n0=rserve_eval('
+n0<-((A/100)*(1-A/100)*1.96^2)/0.04^2
+round(n0, 4)
+');
+
+@q1pre=rserve_eval('
+round(n0*(C/(C+n0)), 4)
+');
+
 @q1=rserve_eval('
-re1<-N*mean(u)
-round(re1, 0)
+ceiling(n0*(C/(C+n0)))
 ');
 
+####
+@q1_tolLB=rserve_eval('
+ceiling(n0*(C/(C+n0)))-1
+');
 
-#######answers_q2
+@q1_tolUB=rserve_eval('
+ceiling(n0*(C/(C+n0)))+1
+');
+
+@q2pre=rserve_eval('
+tem<-(0.5^2*1.96^2)/0.04^2
+round(tem, 4)
+');
+
 @q2=rserve_eval('
-re2<-N*0.1649/sqrt(500)
-round(re2, 0)
+tem<-(0.5^2*1.96^2)/0.04^2
+ceiling(tem)
+');
+
+@q2_tolLB=rserve_eval('
+ceiling(tem)-1
+');
+
+@q2_tolUB=rserve_eval('
+ceiling(tem)+1
 ');
 
 
-#######answers_q3
-@q3=rserve_eval('
-re3<-N*(p/100)*mean(car[dmn])
-round(re3, 0)
-');
-
-
-#######answers_q4
-@q4=rserve_eval('
-re4<-N*(p/100)*sqrt(0.1772*(1-0.1772)/79)
-round(re4, 0)
-');
+$q1ans =List(Real(@q1_tolLB[0]), Real(@q1[0]), Real(@q1_tolUB));
+$q2ans =List(Real(@q2_tolLB[0]), Real(@q2[0]), Real(@q2_tolUB));
 
 #########################################################
 ## Main Text: where all text goes (Required)
 Context()->texStrings;
 BEGIN_TEXT
-A marketing firm is trying to assess how many Canadians aged 20-29
-own a car. A simple random sample of size n = 500 Canadians was
-obtained, yielding the data in cars.csv (linked below). In particular, each respondent
-reported their age, and their car ownership status (coded as 1 for yes,
-0 for no). Census information reports Canada's population to be 35.16
-million people. Round answers to the nearest integers.
+Two wildlife biologists are planning a study to estimate the proportion
+of Roosevelt elk in British Columbia that are infected with brucella (a
+bacterial pathogen). They have come up with a nifty scheme to obtain
+blood samples from a simple random sample of animals in the target
+population. The two agree in wanting an estimate of the percent infected that is accurate to within plus or minus four percentage points
+(or less), nineteen times out of twenty. The first biologist, Amy, is wedded to the notion that the sample size determination should incorporate
+generally accepted belief in the research community. In particular, it
+is believed that somewhere between @AB[0]% and @A[0]% of this elk population are infected. And it is believed that the size of this population
+is between @CD[0] and @C[0]. The second biologist, Stan, is wedded to the
+notion that the present study should stand alone,without drawing
+upon any of the generally accepted wisdom in the research community.
+That is, he wants to proceed as he would if nothing at all was known
+about this population in advance of this study.
 $BR
 $BR
-$BBOLD 
-LINK for cars.csv (\{ htmlLink($local_url, "Download the csv file here") \}) 
-$EBOLD
+$BBOLD(a) $EBOLD What sample size should Amy recommend for this study? 
+\{  ans_rule(7) \} 
 $BR
 $BR
-$BBOLD(a) $EBOLD Give an estimate for the number of Canadians aged 20-29 who
-own a car. \{  ans_rule(7) \} 
+$BBOLD(b) $EBOLD What sample size should Stan recommend for this study? 
+\{  ans_rule(7) \} 
 $BR
-$BR
-
-$BBOLD(b) $EBOLD Give a standard error to accompany this estimate. \{  ans_rule(7) \}  
-$BR
-$BR
-
-
-$BBOLD(c) $EBOLD Now say that you are provided with additional census information
-that @p[0] percent of Canadians are aged 20-29. In light of this further
-information, modify your estimate from part (a).  \{  ans_rule(7) \}  
-$BR
-$BR
-
-
-$BBOLD(b) $EBOLD Give a standard error to accompany the modified estimate. \{  ans_rule(7) \}
+NOTES: Give your answers as integers. You are not being asked
+to take sides here, since it is really impossible to say which of Amy
+and Stan is right or wrong. It is really on open area for discussion
+- to what extent should current belief about a topic should play a
+strong role in planning the next study concerning this topic?
 
 END_TEXT
 #########################################################
 ## Answers evaluation (Required)
-ANS( num_cmp(@q1[0], tol=> 5001) );
-ANS( num_cmp(@q2[0], tol=> 5001) );
-ANS( num_cmp(@q3[0], tol=> 5001) );
-ANS( num_cmp(@q4[0], tol=> 5001) );
+
+ANS($q1ans->cmp(list_checker => sub {
+   my ($correct, $student, $ansHash) = @_;
+   my $score = 0;
+   my @errors; # stores error messages
+   if (scalar(@{$student} == 1)) {
+      my $answer = ${$student}[0];
+
+      # iterate through correct values and compare them to
+      # the student's answer
+      foreach my $value (@{$correct}) {
+         # this uses the currently active tolerance value 
+         # (e.g., as set for the context or the specific Real MathObject)
+         if (($value <=> $answer) == 0) {
+            # WebWork interprets "score" as the number of correct
+            # values in the student's answer. In this case, getting
+            # one value correct should be treated as getting all of
+            # them correct:
+            $score = scalar(@{$correct});
+            last;
+         }
+      }
+      # if we get to here and the score is still 0, the
+      # student's answer didn't match any of the correct values
+      if ($score == 0 && ! $ansHash->{isPreview}) {
+         push @errors, "Not correct";
+      }
+   }
+   elsif (! $ansHash->{isPreview}) {
+      push @errors, "You have to enter a single number";
+   }
+   return ($score, @errors);
+}));
+
+
+ANS($q2ans->cmp(list_checker => sub {
+   my ($correct, $student, $ansHash) = @_;
+   my $score = 0;
+   my @errors; # stores error messages
+   if (scalar(@{$student} == 1)) {
+      my $answer = ${$student}[0];
+
+      # iterate through correct values and compare them to
+      # the student's answer
+      foreach my $value (@{$correct}) {
+         # this uses the currently active tolerance value 
+         # (e.g., as set for the context or the specific Real MathObject)
+         if (($value <=> $answer) == 0) {
+            # WebWork interprets "score" as the number of correct
+            # values in the student's answer. In this case, getting
+            # one value correct should be treated as getting all of
+            # them correct:
+            $score = scalar(@{$correct});
+            last;
+         }
+      }
+      # if we get to here and the score is still 0, the
+      # student's answer didn't match any of the correct values
+      if ($score == 0 && ! $ansHash->{isPreview}) {
+         push @errors, "Not correct";
+      }
+   }
+   elsif (! $ansHash->{isPreview}) {
+      push @errors, "You have to enter a single number";
+   }
+   return ($score, @errors);
+}));
 
 #########################################################
 ## Solution (Optional but recommended)
 Context()->texStrings;
 BEGIN_SOLUTION
-$BBOLD (a) $EBOLD Let u be the indicator variable for a person to both be in the domain (aged 20-29) and own a car. The data give the sample mean and
-standard deviation of u to be 0.028 and 0.1649, respectively. Hence our
-point estimate is \( 35.16 \times 10^6 \times 0.028=@q1[0] \). 
-$BR
-$BR
-
-
-$BBOLD (b) $EBOLD The standard error of the estimate in (a) is 
- \( 35.16 \times 10^6 \times 0.1649/\sqrt{500}=@q2[0] \). 
-$BR
-$BR
-
-
-$BBOLD (c) $EBOLD In the 79 sample members aged 20-29, 14 own
-cars, so the mean of the car ownership variable is \(14/79 = 0.1772\)
-with a standard deviation of \(  \sqrt{0.1772 \times (1-0.1772)/79 } = 0.04296 \). Thus our estimate is 
+$BBOLD (a) $EBOLD For Amy, the worst-case (that with the widest confidence interval) informed guess is @A[0]% infected. So if she assumed
+an infinite population size she would recommend a sample size of \(n_0\) where 
 $BR
 $BR
 $BCENTER
 \(
-35.16 \times 10^6 \times \frac{@p[0]}{100} \times 0.1772=@q3[0]. 
+n_0=\frac{ (@A[0]/100) \times (1-@A[0]/100) \times 1.96^2}{0.04^2}=@n0[0]
 \)
 $ECENTER
 $BR
 $BR
-
-
-$BBOLD (d) $EBOLD The estimate in (c) has a standard error of
+But in fact she is assuming the population size is no more than @C[0]
+(again this is the worst-case for confidence interval width, a size
+of @CD[0] is the best-case). So her proposed sample size is
 $BR
 $BR
 $BCENTER
 \(
-35.16 \times 10^6 \times \frac{@p[0]}{100} \times \frac{\sqrt{0.1772 \times (1-0.1772)}}{\sqrt{79}}=@q4[0]. 
+n_0(\frac{@C[0]}{@C[0]+n_0})=@q1pre[0]
 \)
 $ECENTER
+$BR
+and suggests sampling @q1[0] elks. 
+$BR
+$BR
+
+$BBOLD (b) $EBOLD Stan, who is not willing to use the background information,
+has to go with the worst-cases of 50% infected and an infinite
+population size. So he goes with
+$BR
+$BR
+$BCENTER
+\(
+\frac{0.5^2 \times 1.96^2}{0.04^2}=@q2pre[0]
+\)
+$ECENTER
+$BR
+and proposes a sample size of @q2[0]. 
 
 
 END_SOLUTION

@@ -15,10 +15,15 @@
 
 
 DOCUMENT();
-loadMacros("PGstandard.pl",
-	   "Parser.pl",
-	   "PGnauGraphics.pl"
-	  );
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGnauGraphics.pl",
+  "PGgraphmacros.pl",
+  "PGcourse.pl"
+);
+
 
 COMMENT("Plots the graphs of the answer and goal functions.");
 
@@ -40,44 +45,11 @@ $f = Formula("$a sin(x-$b $PI) + $c")->reduce;
 $f->{limits} =[-$dom, $dom];
 
 $graphf = init_graph(@opts);
-# $fr = new Fun( sub {my $x = shift; $f->perl});
-$fr = new Fun($f->perlFunction);
-$fr->domain(-$dom,$dom);
-$fr->steps(500);
-$graphf->fn($fr);
+($name)=plot_functions($graphf,"$f for x in <-$dom,$dom> using color:blue and steps:250");
+$name->steps(250);
 $labelf = new Label(@gr_lab, 'f', 'blue' , 'center', 'center');
 $graphf->lb($labelf);
 
-#####################################################
-
-$graph_eval = sub{
-  my ($orig_in) = @_;
-  
-  my ($h, $view, $intex, $score, $ans_hash);
-  
-  $myeval = $f->cmp;    
-  $ans_hash = $myeval->evaluate($orig_in);
-
-  if ($orig_in ne ''){
-    $h = Formula($orig_in)->reduce;
-    $h->{limits} =[-$dom, $dom];
-    $hr = new Fun($h->perlFunction);
-    $hr->domain(-$dom,$dom);
-    $hr->steps(500);
-    $graph = init_graph(@opts);
-    $graph->new_color('dkgreen',0,102,0);
-    $hr->color('dkgreen');
-    $graph->fn($fr);
-    $graph->fn($hr);
-    $tm = time;
-    $graph->gifName($graph->gifName()."-$tm");
-    $view = Plot($graph);
-    $$ans_hash{student_ans} = $view;
-  }
-  $ans_hash;	      
-};
-
-#####################################################
 BEGIN_TEXT
 \{ Plot($graphf) \}
 $PAR
@@ -86,5 +58,21 @@ $PAR
 \(f(x)=\) \{ ans_rule(30) \}
 
 END_TEXT
-ANS($graph_eval);
+    ANS($f->cmp->withPostFilter(sub {
+      my $ans = shift;
+      my ($correct,$student) = ($ans->{correct_value},$ans->{student_value});
+      if ($student && $correct->typeMatch($student)) {
+        my $graph = init_graph(@opts);
+        $graph->new_color('dkgreen',0,102,0);
+        ($name)=plot_functions($graph,
+          "$correct for x in <-$dom,$dom> using color:blue and steps:250",
+          "$student for x in <-$dom,$dom> using color:dkgreen and steps:250",
+        );
+        $name->steps(250);
+        $graph->gifName($graph->gifName()."-$student");
+        $ans->{student_ans} = Plot($graph);
+      }
+      return $ans;
+    }));
+
 ENDDOCUMENT();

@@ -21,17 +21,15 @@
 
 DOCUMENT();
 loadMacros(
-"PGstandard.pl",
-"PGchoicemacros.pl",
-"PGgraphmacros.pl",
-"MathObjects.pl",
-"weightedGrader.pl",
-#           "PGanswermacros.pl",
-#           "PGnumericalmacros.pl",
-#           "extraAnswerEvaluators.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserPopUp.pl",
+  "PGgraphmacros.pl",
+  "weightedGrader.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
+Context("Numeric");
 
 install_weighted_grader();
 
@@ -53,7 +51,8 @@ $graphL->lb(new Label ( 0.25,8.5,'y','black','center','middle'));
 
 $c = random(8,12,1); # a constant for scaling the function
 $f = FEQ("x**2/$c for x in <-1,9> using color:blue and weight:2");
-$ftex = "\frac{x^2}{$c}";
+#$ftex = "\frac{x^2}{$c}";
+$ftex = Compute("x^2/$c");
 # the parentheses around $fRefL are necessary
 ($fRefL) = plot_functions( $graphL, $f );
 
@@ -117,17 +116,30 @@ foreach $k (1..$n) {
    $graphR->im->rectangle($xpixR[$k-1],$ypixR[$k],$xpixR[$k],$xaxisR,$darkblue);
 }
 
+#answers 
 
+$LeftRiemannSum = 0;
+foreach $k (0..$n-1) { $LeftRiemannSum = $LeftRiemannSum + $y[$k]; }
+$LeftRiemannSum = Real("$deltax * $LeftRiemannSum");
+
+$LeftCompare = PopUp(['[select an answer]','an overestimate of','equal to','an underestimate of','there is ambiguity'],'an underestimate of');
+
+$RightRiemannSum = 0;
+foreach $k (1..$n) { $RightRiemannSum = $RightRiemannSum + $y[$k]; }
+$RightRiemannSum = Real("$deltax * $RightRiemannSum");
+
+$RightCompare = PopUp(['[select an answer]','an overestimate of','equal to','an underestimate of','there is ambiguity'],'an overestimate of');
 
 #################################################
 #  Main text
 
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 The rectangles in the graph below illustrate a left endpoint Riemann sum for \( \displaystyle f(x) = $ftex \) on the interval \( \lbrack $a, $b \rbrack \).  
 $BR
-The value of this left endpoint Riemann sum is \{NAMED_ANS_RULE('optional1',30)\}, 
-and this Riemann sum is an \{ NAMED_POP_UP_LIST('optional2',['?','overestimate
-of','equal to','underestimate of','there is ambiguity']) \} the area of the region enclosed by \(\displaystyle y = f(x) \), the x-axis, and the vertical lines x = $a and x = $b.
+The value of this left endpoint Riemann sum is \{ans_rule(30)\}, 
+and this Riemann sum is \{ $LeftCompare->menu() \} the area of the region enclosed by \(\displaystyle y = f(x) \), the x-axis, and the vertical lines x = $a and x = $b.
 $BR
 $BR
 $BCENTER
@@ -141,8 +153,8 @@ $HR
 $BR
 The rectangles in the graph below illustrate a right endpoint Riemann sum for \( \displaystyle f(x) = $ftex \) on the interval \( \lbrack $a, $b \rbrack \).
 $BR
-The value of this right endpoint Riemann sum is \{NAMED_ANS_RULE('optional3',30)\}, 
-and this Riemann sum is an \{ NAMED_POP_UP_LIST('optional4',['?','overestimate of','equal to','underestimate of','there is ambiguity']) \} the area of the region enclosed by \(\displaystyle y = f(x) \), the x-axis, and the vertical lines x = $a and x = $b.
+The value of this right endpoint Riemann sum is \{ans_rule(30)\}, 
+and this Riemann sum is \{ $RightCompare->menu() \} the area of the region enclosed by \(\displaystyle y = f(x) \), the x-axis, and the vertical lines x = $a and x = $b.
 $BR
 $BR
 $BCENTER
@@ -152,21 +164,24 @@ $BCENTER
 \{ endtable() \}
 $ECENTER
 END_TEXT
+Context()->normalStrings;
 
-$LeftRiemannSum = 0;
-foreach $k (0..$n-1) { $LeftRiemannSum = $LeftRiemannSum + $y[$k]; }
-$LeftRiemannSum = Real("$deltax * $LeftRiemannSum");
-NAMED_WEIGHTED_ANS('optional1',$LeftRiemannSum->cmp(),45);
+WEIGHTED_ANS(
+   $LeftRiemannSum->cmp(), 45,
+   $LeftCompare->cmp(), 5,
+   $RightRiemannSum->cmp(), 45,
+   $RightCompare->cmp(), 5
+);  
 
-NAMED_WEIGHTED_ANS('optional2',str_cmp("underestimate of"),5);
+#NAMED_WEIGHTED_ANS('optional1',$LeftRiemannSum->cmp(),45);
 
-$RightRiemannSum = 0;
-foreach $k (1..$n) { $RightRiemannSum = $RightRiemannSum + $y[$k]; }
-$RightRiemannSum = Real("$deltax * $RightRiemannSum");
-NAMED_WEIGHTED_ANS('optional3',$RightRiemannSum->cmp(),45);
+#NAMED_WEIGHTED_ANS('optional2',str_cmp("underestimate of"),5);
 
-NAMED_WEIGHTED_ANS('optional4',str_cmp("overestimate of"),5);
+#NAMED_WEIGHTED_ANS('optional3',$RightRiemannSum->cmp(),45);
 
+#NAMED_WEIGHTED_ANS('optional4',str_cmp("overestimate of"),5);
+
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $BR
 $HR
@@ -185,6 +200,7 @@ $BR
 = ( $y[1] + $y[2] + \cdots + $y[$n] ) \cdot 0.5  = $RightRiemannSum.\)
 
 END_SOLUTION
+Context()->normalStrings;
 
 ;
 ENDDOCUMENT();

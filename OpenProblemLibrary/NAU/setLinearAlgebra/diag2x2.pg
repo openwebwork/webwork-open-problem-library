@@ -4,7 +4,7 @@
 ## DBsection(Diagonalization)
 ## Institution(NAU)
 ## Author(Nandor Sieben)
-## MLT(diag2x2)
+## MLT(diag3x3)
 ## Level(3)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
@@ -17,96 +17,74 @@
 DOCUMENT();  
 
 loadMacros(
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl",
-"PGmorematrixmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "AnswerFormatHelp.pl",
+  "PGcourse.pl"
 );
 
 TEXT(beginproblem());
 
-do{
-$e1 = non_zero_random(-5,5);
-$e2 = non_zero_random(-5,5);
+Context('Matrix');
+
+$showPartialCorrectAnswers = 0;
+
+do {
+$e1 = non_zero_random(-2,2);
+$e2 = non_zero_random(-3,3);
 } while ($e1 == $e2);
 
-$D = Matrix->new_from_array_ref([[$e1,0],[0,$e2]]);
+$D = Matrix([[$e1,0],[0,$e2]]);
 
-do {
+
 do {
   $a = random(-9,9);
-  $b = random(-9,9);
-  $c = random(-9,9);
-  $d = random(-9,9);
-  $P = Matrix->new_from_array_ref([[$a,$b],[$c,$d]]);
-  $LR_P = $P->decompose_LR();
-} while (abs($LR_P->det_LR) != 1 );
+  $b = random(-3,3);
+  $c = random(-3,3);
+  $d = random(-3,3);
+  $P = Matrix([[$a,$b],[$c,$d]]);
+} while (abs($P->det) != 1 );
 
-$PI = $LR_P->invert_LR();
+$PI = $P->inverse();
 $A= $P*$D*$PI;
-for ($ii =1; $ii<=2; $ii++) {
-  for ($jj =1; $jj<=2; $jj++) {
-     $A->assign($ii,$jj,round($A->element($ii,$jj)));
-  }
+
+
+$multians = MultiAnswer($P, $D)->with(
+singleResult => 1,
+checker => sub {
+my ( $correct, $student, $self ) = @_;
+my @s = @{$student};
+my @c = @{$correct};
+$sP = Matrix($s[0]);
+if ($sP->det == 0) {
+  $self->setMessage(1,"Not invertible.");
+  return 0;
 }
-} while ($A->element(2,1)==0 and $A->element(1,2)==0);
 
-
-my $ae = new AnswerEvaluator;
-
-$ae->{debug} = 0;
-
-$ae->ans_hash( 	correct_ans 		=> 	
-mbox(display_matrix([[ $a,$b],[$c,$d]],'left'=>'.','right'=>'.'), 
-display_matrix([[$e1,0],[0,$e2]],'left'=>'.','right'=>'.') )
-,
-		'zeroLevelTol'		=>	$main::functZeroLevelTolDefault,
-	       	'debug'			=>	0,
+$sPI = $sP->inverse;
+$sD = Matrix($s[1]);
+if ($sD->element(1,2)!=0 or 
+    $sD->element(2,1)!=0 
+) {
+  $self->setMessage(2,"Not diagonal.");
+  return 0;
+}
+return 0 if ($sD != $sPI*$A*$sP);
+return 1;
+}
 );
 
-$ae->install_pre_filter(~~&ans_array_filter);
-
-$ae->install_evaluator(sub{
-	my $rh_ans = shift;
-	my $invertible = $rh_ans->{ra_student_ans}->[0];
-	$invertible = Matrix->new_from_array_ref($invertible);
-	my $lr_mat = $invertible->decompose_LR();
-
-	my $diagonal   = $rh_ans->{ra_student_ans}->[1];
-	
-	if( abs($lr_mat->det_LR()) > $rh_ans->{zeroLevelTol} && is_diagonal( $diagonal ) ){
-		if( abs($A * $invertible - $invertible * Matrix->new_from_array_ref($diagonal) ) < 
-		    $rh_ans->{zeroLevelTol} ){
-			$rh_ans->{score}=1;
-		}			
-	}
-	$rh_ans;
-});
-
-$ae->install_post_filter(sub{
-	my $rh_ans = shift;
-	$rh_ans->clear_error('EVAL');
-	$rh_ans->clear_error('SYNTAX');
-	$rh_ans;
-});
-
-
-#\{mbox( 'P', display_matrix($P), 'PI' ,display_matrix($PI),'D', display_matrix($D) )\}
-
+Context()->texStrings;
 BEGIN_TEXT
 
-\{mbox( 'Let ', '\(A = \)' , display_matrix($A) , '.') \} 
-Find an invertible matrix \( P \) and a diagonal matrix \( D \) such that \( PDP^{-1} = A \).
-\{mbox('\(P=\)',ans_array(2,2,3),'\(D=\)',ans_array_extension(2,2,3))\}
+Let \(A = $A \). Find an invertible matrix \( P \) and a diagonal matrix \( D \) such that \( D = P^{-1}AP \).
+$BR
+\(P=\) \{$multians->ans_array(5)\}, \(D=\) \{$multians->ans_array(5)\}
 END_TEXT
 
-ANS($ae);
+ANS($multians->cmp());
 
-COMMENT("Two different eigenvalues.");
-ENDDOCUMENT();     
+COMMENT('Eigenvalues are small integers, lambda1 != lambda2 ');
+ENDDOCUMENT();      
 

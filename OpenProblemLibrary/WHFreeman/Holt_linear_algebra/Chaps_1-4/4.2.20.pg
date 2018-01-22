@@ -12,6 +12,7 @@
 ## Author(Richard Bayne)
 ## MLT(basis_by_deleting_vectors)
 ## Level(3)
+## MO(1)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
@@ -30,47 +31,14 @@
 DOCUMENT();
 
 loadMacros(
-"PGstandard.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
-
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "MatrixReduce.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
-
-$a11 =random(2,10,4);
-$a21 =-($a11 + 4);
-$mult1 = random(-7/2,-3/2,1);
-$b11 = $a11*$mult1;
-$b21 = $a21*$mult1;
-$ans1 = 1;
-
-$c11 =random(9,13,1);
-$c21 =-($c11 - 4);
-$mult2 = random(-3,-2,1);
-$d11 = $c11*$mult2-1;
-$d21 = $c21*$mult2;
-$ans2 =2;
-
-$e11 =random(1,3,1);
-$e21 = $e11;
-$e31 = $e11;
-$mult3 = random(-3,-1,2);
-$mult4 = random(1,4,1);
-$f11 = $e11*$mult3;
-$f21 = $f11;
-$f31 = $f11;
-$g11 = $e11 + $mult4;
-$g21 = $g11;
-$g31 = $g11;
-$ans3 =3;
+Context("Matrix");
 
 $h11 = random(1,3,2);
 $h21 = -$h11;
@@ -82,33 +50,60 @@ $j32 = $mult5 * $h31;
 $k13 = 2*$h11;
 $k23 = $h21 +8;
 $k33 = $h31 +7;
-$ans4 = 2;
 
-$n11 = 0;
-$n12 = random(2,5,1);
-$n13 = random(3,7,2);
-$n14 = 1;
-$n21 = 0;
-$n22 = 0;
-$n23 = random(-1,-3,1);
-$n24 = $n13;
-$n31 = 0;
-$n32 = 0;
-$n33 = 0;
-$n34 = $n13;
-$ans5 = 3;
+$V1 = ColumnVector($h11, $h21, $h31);
+$V2 = ColumnVector($j12, $j22, $j32);
+$V3 = ColumnVector($k13, $k23, $k33);
+
+$multians = MultiAnswer($V1,$V3)->with(
+  singleResult => 1,
+  checker => sub { 
+    my ($correct,$student,$self) = @_;
+    my ($cor1,$cor2)=@{$correct};
+    my ($stu1,$stu2)=@{$student};
+    $cor1alt = $V2;
+    if ( ($cor1 == $stu1 && $cor2 == $stu2) || 
+         ($cor1 == $stu2 && $cor1 == $stu2) ||
+         ($cor1alt == $stu1 && $cor2 == $stu2) ||
+         ($cor1alt == $stu2 && $cor2 == $stu1) ){
+         return 1;
+    } 
+    else {
+      $stu1 = Vector($stu1);
+      $stu2 = Vector($stu2);
+      $stu = Matrix([
+	[@{$stu1->{data}}],
+	[@{$stu2->{data}}]
+      ]);
+      $stu = rref($stu);
+      if ($stu->row(2)->isZero){
+	Value::Error("The vectors in a basis must be linearly independent.");
+      }
+      else {
+        Value::Error("Answer should be a subset of S.");
+      }
+      return 0;
+    }
+  }
+);
 
 
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
-Find a basis of the given subspace by deleting linearly dependent vectors.
-$BR
-\{ mbox('\(S\) = span of   {' , display_matrix( [ [$h11],[$h21],[$h31] ]) ,  display_matrix([ [$j12],[$j22],[$j32] ] ), display_matrix( [ [$k13],[$k23],[$k33] ]),   '} ' ) \}
-\{ mbox( '\( {\rm A\ basis\ is \ } = \)', '{' , ans_array(3,1,5), ans_array_extension(3,1,5), '}' ) \}
+Find a basis of the subspace \(V = \text{ span of } S\) by deleting linearly dependent vectors from the set.  Your answer should be a subset of \(S\).
+$PAR
+S = span of \(\Bigg $LBRACE\)\($V1\), \($V2\), \($V3\)\(\Bigg $RBRACE\)
+
+$PAR
+A basis is \(\Bigg $LBRACE\)\{$multians->ans_array\}, \{$multians->ans_array\}\(\Bigg $RBRACE\)
 
 END_TEXT
+Context()->normalStrings;
 
-ANS(basis_cmp([[$h11,$h21, $h31],[$k13,$k23, $k33]]));
+ANS($multians->cmp());
 
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR$PAR{BBOLD}SOLUTION:${EBOLD} $PAR
 The second vector is $mult5 times the first, and is eliminated as a dependent vector. Since the remaining vectors are linearly dependent, a basis is
@@ -116,6 +111,7 @@ $PAR
  \(\left$LBRACE \left [ \begin{array}{c} $h11 \\ $h21 \\ $h31 \end{array} \right], \left [ \begin{array}{c} $k13 \\ $k23 \\ $k33 \end{array} \right] \right$RBRACE \)
 
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();
 

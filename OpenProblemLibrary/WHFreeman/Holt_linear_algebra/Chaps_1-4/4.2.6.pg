@@ -10,6 +10,7 @@
 ## DBsection(Basis and dimension)
 ## Institution(Howard University)
 ## Author(Richard Bayne)
+## MO(1)
 ## MLT(find_basis_with_instructions)
 ## Level(3)
 ## TitleText1('Linear Algebra with Applications')
@@ -25,22 +26,14 @@
 DOCUMENT();
 
 loadMacros(
-"PGstandard.pl",
-#"MathObjects.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
-
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-#Context("Matrix");
-TEXT(beginproblem());
+Context("Vector");
+
 
 $a11 = random(3,7,2);
 $a21 = $a11 +2;
@@ -49,20 +42,49 @@ $a12 = 3 * $a11;
 $a22 = random(-6,-2,2);
 $aa = $a22- 3*$a21;
 
+$V1=ColumnVector($a11,$a21);
+$V2=ColumnVector($a12,$a22);
+$V3=ColumnVector(0,$aa);  
 
+$multians = MultiAnswer($V1,$V3)->with(
+  singleResult =>1,
+  checker => sub {
+    my ($correct,$student,$self)=@_;
+    my ($stu1,$stu2)=@{$student};
+    # convert to rows
+    $stu1 = Vector($stu1);
+    $stu2 = Vector($stu2);
+    $stu = Matrix([
+      [@{$stu1->{data}}],
+      [@{$stu2->{data}}]
+    ]);
+    if ($stu->det->isZero ){
+      Value::Error("Basis vectors must be linearly independent.");
+      return 0;
+    }
+    else {
+      return 1;
+    }
+  }
+);
+
+
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 Suppose a subspace is spanned by the set of vectors shown. Find a basis for the subspace, using the method of transforming a matrix to echelon form, where the rows of the matrix represent vectors spanning the subspace.
-\{ mbox( ' {' ,display_matrix( [ [$a11],[$a21] ] ) ,  display_matrix([ [$a12],[$a22] ]) , '} ' ) \}
+$PAR
+\(\Bigg $LBRACE $V1\), \($V2 \Bigg $RBRACE\)
+$PAR
+\(\Bigg $LBRACE\)\{$multians->ans_array\}, \{$multians->ans_array\} \(\Bigg $RBRACE \)
 $BR
-
- \{ mbox( '\( {\rm Basis\ } = \)', '{' ,ans_array(2,1,5), ans_array_extension(2,1,5), '}' ) \}
-
-$BR
-What is the dimension of the basis? \{ans_rule(5) \}
+What is the dimension of the subspace? \{ans_rule(5) \}
 END_TEXT
 
-ANS(basis_cmp([[$a11,$a21], [0,$aa] ]));
+ANS($multians->cmp());
+ANS(Real(2)->cmp());
 
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR$PAR{BBOLD}SOLUTION:${EBOLD} $PAR
 Row-reduce the matrix which has the given vectors as rows.
@@ -70,12 +92,13 @@ $BR$BR
 \(\left[ \begin{array}{cc} $a11 & $a21 \\ 
 $a12 & $a22 \end{array}\right] \sim \left[ \begin{array}{cc} $a11 & $a21 \\ 
 0 & $aa \end{array} \right]  \)$PAR
-so that a basis for the subspace is given by the non-zero row vectors
+so that a basis for the subspace is given by converting the non-zero row vectors
 $PAR
  \(\left$LBRACE \left [ \begin{array}{c} $a11 & $a21 \end{array} \right] , \left [ \begin{array}{c} 0 & $aa \end{array} \right]\right$RBRACE \)
+$PAR
+into column vectors.
 
 END_SOLUTION
-
-ANS(num_cmp(2));
+Context()->normalStrings;
 
 ENDDOCUMENT();

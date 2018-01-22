@@ -627,8 +627,8 @@ sub RationalExpEvaluator {
 
 #--------------Split off the numerator/denominator
          my @student_factors = split(q[/], $student_ans_text);
-		 map { s|^\(+|| } @student_factors;
-		 map { s|\)+$|| } @student_factors;
+		 #map { s|^\(+|| } @student_factors;
+		 #map { s|\)+$|| } @student_factors;
          my $student_num = Formula($student_factors[0]);  
          my $student_den = Formula("1");
          if ($#student_factors>0) {$student_den = Formula($student_factors[1]);}     

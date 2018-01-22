@@ -1,0 +1,224 @@
+## DBsubject(Statistics)
+## DBchapter(Time series)
+## DBsection(Autocorrelation)
+## Level(4)
+## MO(1)
+## level(4)
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGgraphmacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "unionTables.pl",
+  "parserPopUp.pl",
+  "RserveClient.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+## do not need to download data
+@data = rserve_eval('
+alpha1 <- runif(1, min=1.05, max=1.95)
+alpha2 <- runif(1, min=-0.98, max=1-alpha1)
+alpha1 <- round(alpha1, 2)
+alpha2 <- round(alpha2, 2)
+
+
+# part (a)
+ans.b <- round( alpha1^2 / (1 - alpha2) + alpha2, 4)
+
+c(ans.b,alpha1,alpha2)
+');
+
+$alpha1= $data[1];
+$alpha2= $data[2];
+
+# Answers to part d
+# For the plot in the answer
+$file = rserve_start_plot('png');
+rserve_eval("plot(0:7,ARMAacf(c(alpha1,alpha2), lag.max = 7), xlab='Lag', ylab='Acf')");
+$filepath1 = rserve_finish_plot($file);
+
+$file = rserve_start_plot('png');
+rserve_eval("plot(0:7,ARMAacf(c(alpha2,alpha1-1), lag.max = 7), xlab='Lag', ylab='Acf')");
+$filepath2 = rserve_finish_plot($file);
+
+$file = rserve_start_plot('png');
+rserve_eval("plot(0:7,ARMAacf(c(alpha1-1,alpha2), lag.max = 7), xlab='Lag', ylab='Acf')");
+$filepath3 = rserve_finish_plot($file);
+
+$file = rserve_start_plot('png');
+rserve_eval("plot(0:7,ARMAacf(alpha2, lag.max = 7), xlab='Lag', ylab='Acf')");
+$filepath4 = rserve_finish_plot($file);
+
+rserve_finish();
+
+# Part d
+$img_file[0] =$filepath1;
+$img_file[1] =$filepath2;
+$img_file[2] =$filepath3;
+$img_file[3] =$filepath4;
+
+
+for $i (0..3) {
+  $fig[$i]=image($img_file[$i], width=>400, height=>400);
+}
+
+$k = 0;
+
+@perm = shuffle(4);
+@fig = @fig[@perm];
+@inv = invert(@perm);
+
+@letter = ("A", "B", "C","D");
+
+$popup = PopUp(["?????","A","B","C","D"], $letter[$inv[$k]]);
+
+
+$q1mc = new_multiple_choice();
+$q1mc -> qa(
+"Is \(X_t\) stationary?",
+"Yes."
+);
+$q1mc -> extra(
+"No.", 
+"It is impossible to tell from the information given."
+);
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+
+BEGIN_TEXT
+Let the stochastic process \(X_t\) be defined as
+\[
+X_t= $alpha1 X_{t-1} + $alpha2 X_{t-2} + Z_t,
+\]
+where \(Z_t\) is white noise with mean zero and variance 1. Define 
+$BR
+$BR
+$BBOLD Part (a) $EBOLD
+\{ $q1mc -> print_q() \}
+$BR
+\{ $q1mc -> print_a() \}
+$PAR
+
+$BBOLD Part (b)  $EBOLD
+Find the autocorrelation of \(X_t\) at lag 2, to two decimal places. 
+$BR
+\{ans_rule(7)\}
+$BR
+$BR
+
+$BBOLD Part (c) $EBOLD
+Which of the following is the autocorrelation function of \(X_t\)?
+$BR
+$BR
+\{ $popup->menu() \}
+$BR
+$BR
+$BCENTER
+\{
+BeginTable().
+  AlignedRow([$fig[0],$fig[1]]).
+  TableSpace(5,0).
+  AlignedRow(["A","B"]).
+  TableSpace(25,6).
+  AlignedRow([$fig[2], $fig[3]]).
+  TableSpace(5,0).
+  AlignedRow(["C","D"]).
+EndTable();
+\}
+$BR
+(Click on a graph to enlarge it.)
+$ECENTER
+
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( radio_cmp( $q1mc -> correct_ans() ) );
+ANS( num_cmp($data[0], tol=> 0.02) );
+ANS( $popup->cmp() );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+
+BEGIN_SOLUTION
+$BBOLD Part (a) $EBOLD
+The process \(X_t\) is an AR(2) of the form
+$BR
+\[ 
+\phi(B) = (1 - $alpha1 B - $alpha2 B^2) X_t = Z_t.
+\]
+Such a process if stationary if the roots of \(\phi(B)\) lie outside the unit circle. In this case the two roots are 
+\[
+\frac{-$alpha1 \pm \sqrt{($alpha1)^2 + 4($alpha2)}}{2*($alpha2)},
+\]
+which can be seen to both lie outside the unit circle. Hence \(X_t\) is stationary.
+$BR
+$BR
+$BBOLD Part (b) $EBOLD
+We take the defining equation
+\[
+X_t = $alpha1 X_{t-1} + $alpha2 X_{t-2} + Z_t
+\]
+multiply both side by \(X_{t-k}\) and take expectations to give
+\[
+\begin{eqnarray*}
+E(X_{t-k}X_t) &=& $alpha1 E(X_{t-k}X_{t-1})\\
+ &+& $alpha2 E(X_{t-k}X_{t-2}) + E(X_{t-k}Z_{t}).
+\end{eqnarray*}
+\]
+For \(K \geq 1\) the above can be written 
+\[
+\gamma(k) = $alpha1 \gamma(k-1) + $alpha2 \gamma(k-2).
+\]
+Hence the acf is found by dividing \(Var(X_t)\),
+\[
+\rho(k) = $alpha1 \rho(k-1) + $alpha2 \rho(k-2).
+\]
+When \(k = 1\), the above becomes
+\[
+\rho(1) = $alpha1 + $alpha2 \rho(1),
+\]
+implying that 
+\[
+\rho(1) = \frac{$alpha1}{1 - $alpha2}, 
+\]
+and when \(k= 2\), 
+\[
+\rho(2) = $alpha1 \rho(1) + $alpha2 = \frac{$alpha1^2}{1 - $alpha2} + $alpha2 = $data[0]
+\]
+$BR
+$BR
+
+$BBOLD Part (c) $EBOLD
+The information given by the (Yule Walker) equations above
+is sufficient to identify the acf from the four provided.
+
+
+END_SOLUTION
+
+ENDDOCUMENT();

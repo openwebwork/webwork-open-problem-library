@@ -1,0 +1,92 @@
+##DESCRIPTION
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Diagonalization)
+## Institution(NAU)
+## Author(Nandor Sieben)
+## Date(11/27/2016)
+## Level(3)
+## MO(1)
+
+##ENDDESCRIPTION
+
+DOCUMENT();  
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "AnswerFormatHelp.pl",
+  "MatrixReduce.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+# Context("Matrix");
+Context("Fraction");
+Context() -> parens -> set ("[" => {formMatrix => 1});
+
+$showPartialCorrectAnswers = 1;
+
+do {
+$e1 = 9*non_zero_random(-2,2);
+$e2 = 9*non_zero_random(-3,3);
+$e3 = $e2;
+} while ($e1 == $e2);
+
+$D = Matrix([[$e1,0,0],[0,$e2,0],[0,0,$e3]]);
+
+$I=Matrix([[1,0,0],[0,1,0],[0,0,1]]);
+@values = ([2,-2,1],[1,2,2],[2,1,-2]);
+@pvalues = @values [shuffle(3)];
+$P = apply_fraction_to_matrix_entries(Matrix([@pvalues]))/3;
+$P = $P->transpose if (random(0,1)==1);
+# $P = apply_fraction_to_matrix_entries(Matrix([[2,-2,1],[1,2,2],[2,1,-2]]))/3;
+# $P = Matrix([[2,-2,1],[1,2,2],[2,1,-2]])/3;
+$PT = $P->transpose;
+
+$A= $P*$D*$PT;
+
+$multians = MultiAnswer($P, $D)->with(
+singleResult => 1,
+checker => sub {
+my ( $correct, $student, $self ) = @_;
+my @s = @{$student};
+my @c = @{$correct};
+$sP = Matrix($s[0]);
+$sPT = $sP->transpose;
+if ($sP*$sPT != $I) {
+  $self->setMessage(1,"Not orthogonal.");
+  return 0;
+}
+
+$sD = Matrix($s[1]);
+if ($sD->element(1,2)!=0 or 
+    $sD->element(1,3)!=0 or 
+    $sD->element(2,1)!=0 or
+    $sD->element(2,3)!=0 or
+    $sD->element(3,1)!=0 or
+    $sD->element(3,2)!=0
+) {
+  $self->setMessage(2,"Not diagonal.");
+  return 0;
+}
+return 0 if ($sD != $sPT*$A*$sP);
+return 1;
+}
+);
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \(A = $A \). Find an orthogonal matrix \( P \) and a diagonal matrix \( D \) such that \( D = P^TAP \).
+$BR
+\(P=\) \{$multians->ans_array(5)\}, \(D=\) \{$multians->ans_array(5)\}
+END_TEXT
+
+ANS($multians->cmp());
+
+COMMENT('Eigenvalues are small integers, lambda1 != lambda2 = lambda3 ');
+ENDDOCUMENT();      
+

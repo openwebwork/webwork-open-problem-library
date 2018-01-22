@@ -1,0 +1,188 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Diagonalization)
+## Date(11/9/2016)
+## Institution(NAU)
+## Author(Nandor Sieben)
+## Level(4)
+## MO(1)
+## KEYWORDS('linear algebra','recurrence')
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "AnswerFormatHelp.pl",
+  "PGcourse.pl"
+);
+
+$showPartialCorrectAnswers = 1;
+TEXT(beginproblem()); 
+
+Context('Matrix');
+Context()->variables->add(n=>"Real");
+
+{
+$la=non_zero_random(-20,20,1);
+$mu=non_zero_random(-20,20,1);
+$di=4*$la+$mu*$mu;
+redo if ($di <=0);
+$th=round(sqrt($di));
+redo if ($th*$th != $di);
+$eig1=0.5*($mu-$th);
+$eig2=0.5*($mu+$th);
+redo if ($eig1 < 2 );
+redo if ($eig2 < 2 );
+$P=Matrix([[$eig2,$eig1],[-$la,-$la]]);
+$D=Matrix([[$eig1,0],[0,$eig2]]);
+$dt = $P->det();
+}
+$ddd=$P->det;
+
+$Pinv=Compute("[[-($la/$dt),-($eig1/$dt)],[$la/$dt,$eig2/$dt]]");
+$PR=Matrix($P*$D*$Pinv);
+$mat = Matrix([[0,1],[$la,$mu]]);
+$pow=5;
+$powinc=$pow+1;
+$d11=Compute("($eig1)^$pow");
+$d22=Compute("($eig2)^$pow");
+$Dton = Compute("[[$d11,0],[0,$d22]]");
+$matton = $P*$Dton*$Pinv;
+
+$a1=non_zero_random(-2,2,1);
+$a2=non_zero_random(-2,2,1);
+$a=Matrix([[$a1],[$a2]]);
+
+$aninc=($matton*$a)->element(1,1);
+
+$Pinva=$Pinv*$a;
+$q1=$Pinva->element(1,1);
+$q2=$Pinva->element(2,1);
+$qq1=$P->element(1,1);
+$qq2=$P->element(1,2);
+
+Context()->variables->add(k => 'Real');
+$formula = Formula("$qq1*$q1*($eig1)^(k-1)+$qq2*$q2*($eig2)^(k-1)");
+
+$I = Matrix([[1,0],[0,1]]);
+
+$multians2 = MultiAnswer($D, $P)->with(
+singleResult => 1,
+checker => sub {
+my ( $correct, $student, $self ) = @_;
+my @s = @{$student};
+my @c = @{$correct};
+$sD = Matrix($s[0]); 
+$sP = Matrix($s[1]);
+return 0 if ($sD != $sP->inverse*$mat*$sP); 
+return 0 if ($sD->element(1,2)!=0); 
+return 0 if ($sD->element(2,1)!=0);
+return 1;
+}
+);
+
+sub mycheck {
+  my ($correct, $student, $ansHash) = @_;
+  $sPinv=Matrix($student);
+  return 0 if ($sP*$sPinv != $I);
+  return 1;
+}
+
+
+Context()->texStrings;
+# $dt M= \( $mat \) P=\( $P \) D= \( $D \) Pinv=\( $Pinv \) PR=\( $PR \)
+BEGIN_TEXT
+Consider the sequence defined recursively by \(a_1=$a1\), \(a_2=$a2\), \(a_{n+1}=$la a_{n-1}+$mu a_n\). 
+We can use matrix diagonalization to find an explicit formula for \( a_n \).
+$BR
+a. Find a matrix that satisfies
+\( 
+\left[ 
+\begin{array}{c}
+a_n  \\
+a_{n+1} 
+\end{array} 
+\right] = M 
+\left[ 
+\begin{array}{c}
+a_{n-1}  \\
+a_n 
+\end{array} 
+\right] 
+\)
+$BR
+\( M= \) \{ $mat->ans_array(5)  \}
+
+$BR
+b. Find the appropriate exponent \( k \) such that 
+$BR
+\( 
+\left[ 
+\begin{array}{c}
+a_n  \\
+a_{n+1} 
+\end{array} 
+\right] = M ^ { k } 
+\left[ 
+\begin{array}{c}
+a_1  \\
+a_2 
+\end{array} 
+\right] 
+\)
+$BR
+\( k= \) \{ans_rule(5)\}
+
+
+$BR
+c. Find a diagonal matrix \( D \) and an invertible matrix \( P \) such that \( M = P D P^{-1} \).
+$BR
+\( D  = \) \{ $multians2->ans_array(3) \},  
+\( P  = \) \{ $multians2->ans_array(3) \},
+
+$BR
+d. Find \( P^{-1} \).
+$BR
+\( P^{-1}  = \) \{ $Pinv->ans_array(3) \}
+
+$BR
+e. Find \( M^{$pow}=PD^{$pow}P^{-1} \).
+$BR
+\( M^{$pow}  = \) \{ $matton->ans_array(6) \}
+
+$BR
+f. Use parts b. and e. to find \( a_{$powinc} \).
+$BR
+\( a_{$powinc}  = \) \{ ans_rule(30) \}
+
+$BR
+g. Develop an explicit formula for \( a_n \) using part b. and a formula for \( M^k = PD^kP^{-1}\).
+$BR
+\{ ans_rule(30) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $mat->cmp() );
+ANS( Formula("n-1")->cmp() );
+ANS( $multians2->cmp() );
+ANS( $Pinv->cmp( checker=>~~&mycheck ) );
+ANS( $matton->cmp() );
+ANS( $aninc->cmp() );
+ANS( $formula->cmp() );
+
+;
+
+ENDDOCUMENT();
+
+\( $formula \)
+$BR
+\( $ddd $P $Pinv \)
+\( $Pinva \)
+$br

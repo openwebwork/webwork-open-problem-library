@@ -12,6 +12,7 @@
 ## Author(Richard Bayne)
 ## MLT(basis_row_col_nul_given_rref)
 ## Level(3)
+## MO(1)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
@@ -25,21 +26,17 @@
 
 DOCUMENT();
 
-loadMacros(
-"PGstandard.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
+DOCUMENT();
 
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "MatrixReduce.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
+Context("Matrix");
 
 $k = random(2,4,1);
 
@@ -69,54 +66,162 @@ $b32 = 0;
 $b33 = 0;
 $b34 = 0;
 
+$mA = Matrix([
+  [$a11,$a12,$a13,$a14],
+  [$a21,$a22,$a23,$a24],
+  [$a31,$a32,$a33,$a34]
+]);
 
-$mA =new Matrix(3,4);
-$mA->assign(1,1,$a11);
-$mA->assign(1,2,$a12);
-$mA->assign(1,3,$a13);
-$mA->assign(1,4,$a14);
-$mA->assign(2,1,$a21);
-$mA->assign(2,2,$a22);
-$mA->assign(2,3,$a23);
-$mA->assign(2,4,$a24);
-$mA->assign(3,1,$a31);
-$mA->assign(3,2,$a32);
-$mA->assign(3,3,$a33);
-$mA->assign(3,4,$a34);
+$mB = Matrix([
+  [$b11,$b12,$b13,$b14],
+  [$b21,$b22,$b23,$b24],
+  [$b31,$b32,$b33,$b34]
+]);
 
-$mB =new Matrix(3,4);
-$mB->assign(1,1,$b11);
-$mB->assign(1,2,$b12);
-$mB->assign(1,3,$b13);
-$mB->assign(1,4,$b14);
-$mB->assign(2,1,$b21);
-$mB->assign(2,2,$b22);
-$mB->assign(2,3,$b23);
-$mB->assign(2,4,$b24);
-$mB->assign(3,1,$b31);
-$mB->assign(3,2,$b32);
-$mB->assign(3,3,$b33);
-$mB->assign(3,4,$b34);
+# column space basis
+$C1 = ColumnVector($mA->column(1));
+$C2 = ColumnVector($mA->column(2));
+
+# row space basis
+$R1 = $mB->row(1);
+$R2 = $mB->row(2);
+
+# null space basis
+$N1 = ColumnVector(-$b13, -$b23, 1,0); 
+$N2 = ColumnVector(-$b14, -$b24, 0,1); 
+
+$colans = MultiAnswer($C1,$C2)->with(
+  singleResult =>1,
+  checker => sub {
+    my ($correct,$student,$self)=@_;
+    my ($cor1,$cor2)=@{$correct};
+    my ($stu1,$stu2)=@{$student};
+    # convert to rows
+    $cor1 = Vector($cor1);
+    $cor2 = Vector($cor2);
+    $stu1 = Vector($stu1);
+    $stu2 = Vector($stu2);
+    $cor = Matrix([
+      [@{$cor1->{data}}],
+      [@{$cor2->{data}}]
+    ]);
+    $stu = Matrix([
+      [@{$stu1->{data}}],
+      [@{$stu2->{data}}]
+    ]);
+    $cor = rref($cor);
+    $stu = rref($stu);
+    $diff = $cor-$stu;
+    if ($diff->isZero ){
+      return 1;
+    }
+    else {
+      if ( $stu->row(2)->isZero ){
+        Value::Error("Basis vectors must be linearly independent.");
+      }
+      else { 
+        Value::Error("The vectors are independent but they don't span the column space.");
+      }
+      return 0;
+    }
+  }
+);
+
+$rowans = MultiAnswer($R1,$R2)->with(
+  singleResult =>1,
+  checker => sub {
+    my ($correct,$student,$self)=@_;
+    my ($cor1,$cor2)=@{$correct};
+    my ($stu1,$stu2)=@{$student};
+    $cor = Matrix([
+      [@{$cor1->{data}}],
+      [@{$cor2->{data}}]
+    ]);
+    $stu = Matrix([
+      [@{$stu1->{data}}],
+      [@{$stu2->{data}}]
+    ]);
+    $cor = rref($cor);
+    $stu = rref($stu);
+    $diff = $cor-$stu;
+    if ($diff->isZero ){
+      return 1;
+    }
+    else {
+      if ( $stu->row(2)->isZero ){
+        Value::Error("Basis vectors must be linearly independent.");
+      }
+      else { 
+        Value::Error("The vectors are independent but they don't span the row space.");
+      }
+      return 0;
+    }
+  }
+);
 
 
+$nullans = MultiAnswer($N1,$N2)->with(
+  singleResult =>1,
+  checker => sub {
+    my ($correct,$student,$self)=@_;
+    my ($cor1,$cor2)=@{$correct};
+    my ($stu1,$stu2)=@{$student};
+    # convert to rows
+    $cor1 = Vector($cor1);
+    $cor2 = Vector($cor2);
+    $stu1 = Vector($stu1);
+    $stu2 = Vector($stu2);
+    $cor = Matrix([
+      [@{$cor1->{data}}],
+      [@{$cor2->{data}}]
+    ]);
+    $stu = Matrix([
+      [@{$stu1->{data}}],
+      [@{$stu2->{data}}]
+    ]);
+    $cor = rref($cor);
+    $stu = rref($stu);
+    $diff = $cor-$stu;
+    if ($diff->isZero ){
+      return 1;
+    }
+    else {
+      if ( $stu->row(2)->isZero ){
+        Value::Error("Basis vectors must be linearly independent.");
+      }
+      else { 
+        Value::Error("The vectors are independent but they don't span the null space.");
+      }
+      return 0;
+    }
+  }
+);
+
+
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 Find bases for the column space, the row space, and the null space of matrix A. You should verify that the Rank-Nullity Theorem holds. An equivalent echelon  form  of matrix A is given to make your work easier.
-$BR
-\{ mbox('A = ', display_matrix($mA), '~', display_matrix($mB)  ) \}
+$PAR
+A = \($mA \sim $mB\)
 
-$BR
-\{ mbox( 'Basis for the column space of \(A\) =  {', ans_array(3,1,5), ans_array_extension(3,1,5), '}' ) \}
-$BR
-\{ mbox( 'Basis for the row space of  \(A\) =  {', ans_array(4,1,5), ans_array_extension(4,1,5), '}' ) \}
-$BR
-\{ mbox( 'Basis for the null space of  \(A\) =  {', ans_array(4,1,5), ans_array_extension(4,1,5),  '}' ) \}
+$PAR
+A basis for the column space of \(A\) is  \(\Bigg $LBRACE \)\{$colans->ans_array\}, \{$colans->ans_array\}\(\Bigg $RBRACE\).
+$PAR
+A basis for the row space of  \(A\) is $BR
+\(\Bigg $LBRACE\)\{$rowans->ans_array\},$BR
+\{$rowans->ans_array\}\(\Bigg $RBRACE \)
+$PAR
+A basis for the null space of \(A\) is  \(\Bigg $LBRACE \)\{$nullans->ans_array\}, \{$nullans->ans_array\}\(\Bigg $RBRACE\).
 
 END_TEXT
+Context()->normalStrings;
 
-ANS(basis_cmp([ [$a11, $a21, $a31] ,  [$a12,$a22,$a32] ]));
-ANS(basis_cmp([ [$b11, $b12, $b13, $b14] ,  [$b21, $b22, $b23, $b24] ]));
-ANS(basis_cmp([ [-$b13, -$b23, 1,0], [-$b14, -$b24,0,1] ]));
+ANS($colans->cmp());
+ANS($rowans->cmp());
+ANS($nullans->cmp());
 
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR$PAR{BBOLD}SOLUTION:${EBOLD} $PAR
 A basis for the column space, determined from the pivot columns 1 and 2, is
@@ -128,5 +233,6 @@ $PAR
 Solve \( A{\bf x} = {\bf 0}\), to obtain \({\bf x} = s_1\left[ \begin{array}{c} -$b13 \\ -$b23 \\ 1 \\ 0 \end{array} \right] + s_2\left[ \begin{array}{c} -$b14 \\ -$b24 \\  0 \\ 1 \end{array} \right] \), and so the nullspace basis is \( \left $LBRACE \left[ \begin{array}{c} -$b13 \\ -$b23 \\ 1 \\ 0 \end{array} \right], \left[ \begin{array}{c} -$b14 \\ -$b24 \\ 0 \\ 1 \end{array} \right] \right $RBRACE\).
 
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();

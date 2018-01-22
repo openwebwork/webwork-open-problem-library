@@ -6,6 +6,7 @@
 ## DBchapter(Systems of linear equations)
 ## DBsection(Systems with 3 variables)
 ## Institution(Rochester)
+## MO(1)
 ## MLT(3infsol)
 ## MLTleader(1)
 ## Level(2)
@@ -17,10 +18,10 @@
 ###########################################################################
 DOCUMENT();        
 loadMacros(
-  "PGmatrixmacros.pl", 
-  "PGmorematrixmacros.pl",
   "PGstandard.pl",
   "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
 TEXT(beginproblem());
@@ -30,7 +31,8 @@ $showPartialCorrectAnswers = 1;
 ###########################################################################
 # setup contexts and variables 
 ###########################################################################
-Context("Numeric");
+Context("Matrix");
+
 $sign1 = random(-1,1,2);
 $a = random(2,5,1) * $sign1;
 $b = random(3,9,1) * $sign1;
@@ -46,11 +48,26 @@ $g = $m * ($e + $d);
 $h = $m * ($e * $a + $b);
 $i = $m * ($e * $c + $f);
 
+# matrix representing left hand side of equation
+
+$A = Matrix([
+  [1 ,-1,$a],
+  [$d,$e,$b],
+  [$g, 0,$h]
+]);
+
 # for answer
+
 $k = $a + $epd * ($b - $a*$d);
 $l = $epd * ($b - $a*$d);
-$m = $c + $epd * ($f - $c*$d);
+$mm = $c + $epd * ($f - $c*$d);
 $n = $epd * ($f - $c*$d);
+
+#expected answers 
+$V1=ColumnVector($mm,$n,0);
+$V2=ColumnVector(-$k,-$l,1);
+
+#for tex display
 
 $pm1 = ($a < 0) ? "-" : "+";
 $pm2 = ($e < 0) ? "-" : "+";
@@ -61,6 +78,28 @@ $c1 = abs($a);
 $c2 = abs($e);
 $c3 = abs($b);
 $c4 = abs($h);
+
+
+$multians = MultiAnswer($V1,$V2)->with(
+  singleResult => 0,
+  checker => sub {
+    my ($correct, $student, $self)=@_;
+    my ($stu1,$stu2)= @{$student};
+    $check1 = ( $A*$stu1 == Matrix([[$c],[$f],[$i]]) );
+    $check2a = ( $A*$stu2 == Matrix([[ 0],[ 0],[ 0]]) );
+    $check2b = ($stu2->isZero);
+    if ( ! $check1 ){
+      $self->setMessage(1,"Doesn't satisfy the given equation.");
+    }
+    if ( ! $check2a){
+      $self->setMessage(2,"This vector points in the wrong direction.");
+    }
+    elsif ( $check2b ){
+	$self->setMessage(2,"Can't be zero; equation has infinitely many solutions.");
+    }
+    return [ $check1, $check2a && ! $check2b ];
+  }
+);
 
 
 ###########################################################################
@@ -77,18 +116,22 @@ $PAR
 \end{array} \right. \]
 $PAR
 $BCENTER
-\{ mbox('\(\left[\begin{array}{c} x_1 \\ x_2 \\ x_3 \end{array} \right]\)',  
-'\(\quad =\)', ans_array(3,1,5), '\(+\)', ans_array_extension(3,1,5), '\(s\).' ) \}
+\(\left[\begin{array}{c} x_1 \\ x_2 \\ x_3 \end{array} \right]\)  
+ \(=\) \{$multians->ans_array\} \(\ +\ s\ \)\{$multians->ans_array\}  
 $ECENTER
 END_TEXT
 Context()->normalStrings;
+
+#\{ mbox('\(\left[\begin{array}{c} x_1 \\ x_2 \\ x_3 \end{array} \right]\)',  
+#'\(\quad =\)', ans_array(3,1,5), '\(+\)', ans_array_extension(3,1,5), '\(s\).' ) \}
 
 
 ###########################################################################
 # check the answer  
 ###########################################################################
-ANS(vec_solution_cmp([[$m, $n, 0], [- $k , -$l, 1]]));
+#ANS(vec_solution_cmp([[$m, $n, 0], [- $k , -$l, 1]]));
 
+ANS($multians->cmp());
 
 ###########################################################################
 # solution
@@ -103,7 +146,7 @@ By using the Gauss-Jordan reduction, we can find the reduced row echelon form of
 $PAR
 \[ \left[
 \begin{array}{rrr|r}
-1   & 0   & $k & $m \cr
+1   & 0   & $k & $mm \cr
 0 & 1 & $l & $n \cr
 0 &  0  & 0 &  0
 \end{array} 
@@ -112,10 +155,10 @@ $PAR
 Hence, \(x_1,x_2\) are lead variables and \(x_3\) is the only free variable. By writing down the system corresponding to the RRE form, we get that 
 $PAR
 \[
-x_1 = $m + $e1 x_3 \qquad \mbox{and} \qquad  x_2 = $n + $e2 x_3,
+x_1 = $mm + $e1 x_3 \qquad \mbox{and} \qquad  x_2 = $n + $e2 x_3,
 \]
 $PAR 
-where \(x_3\) is free (can take any value). Therefore all solutions are of the form
+where \(x_3\) is free (can take any value). Therefore every vector of the form 
 $PAR
 \[
 \left[
@@ -126,7 +169,7 @@ x_1 \\ x_2 \\ x_3
  = 
 \left[
 \begin{array}{r}
-$m \\ $n \\ 0
+$mm \\ $n \\ 0
 \end{array}
 \right] 
 + 
@@ -137,7 +180,7 @@ $e1 \\ $e2 \\ 1
 \right] s
 \] 
 $PAR
-for any value of \(s\)
+is a solution, and every solution has that form for some value of \(s\). 
 END_SOLUTION
 Context()->normalStrings;
 

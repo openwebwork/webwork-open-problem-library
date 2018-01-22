@@ -21,13 +21,12 @@
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
-loadMacros("PG.pl",
-           "PGbasicmacros.pl",
-           "PGchoicemacros.pl",
-           "PGanswermacros.pl",
-           "PGauxiliaryFunctions.pl",
-           "unionTables.pl",
-           "MathObjects.pl");
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
+);
 
 TEXT(beginproblem());
 #########################################################
@@ -35,76 +34,216 @@ TEXT(beginproblem());
 ## Set up the context to allow ' in variable names
 ##
 Context()->variables->{namePattern} = qr/[a-z][a-z0-9_]*'*/i;
-Context()->variables->are("x"=>"Real","y"=>"Real","t"=>"Real","X"=>"Real","X'"=>"Real","X''"=>"Real","T"=>"Real","T'"=>"Real","T''"=>"Real","Y'"=>"Real","Y''"=>"Real","k"=>"Real","lambda"=>"Real","alpha"=>"Real","a"=>"Real",b=>"Real","c"=>"Real","d"=>"Real");
-Context()->variables->set(lambda => {TeX => '{\lambda}'});
+Context()->variables->are(x=>"Real",y=>"Real",t=>"Real",X=>"Real","X'"=>"Real","X''"=>"Real",T=>"Real","T'"=>"Real","T''"=>"Real", w=> "Real",A=>"Real",B=>"Real",C=>"Real",D=>"Real",p=>"Parameter");
+Context()->constants->add(k=>8.765,L=>4.321);  # hard-to-guess values
 
+$w=Formula("w");
+$k=Formula("k");
 
 $Xdiff1 = Formula("X''/X")->reduce;
-$Tdiff1 = Formula("T'/(k*T)")->reduce;
+$Tdiff1 = Compute("(1/k^2)(T''/T)");
 
-$Xdiff2 = Formula("X''+lambda*X")->reduce;
-$Tdiff2 = Formula("T'+k*lambda*T")->reduce;
+$Xdiff2 = Formula("p*(X''+L*X)")->reduce;
+$Tdiff2 = Formula("p*(T''+k^2*L*T)")->reduce;
 
-## Sturm-Louiville problem
-$Xequal = Formula("a+bx");
-$Tequal = Formula("c+dt");
+## Sturm-Liouville problem
+$Xequal = Formula("A+Bx");
+$Tequal = Formula("C+Dt");
 $uequal = $Xequal*$Tequal;
 
-$Xless = Formula("a*cosh(alpha*x)+b*sinh(alpha*x)");
-$Tless = Formula("c*cosh(alpha*t/k)+d*sinh(alpha*t/k)");
+$multiansEqual = MultiAnswer($Xequal,$Tequal,$uequal)->with(
+  singleResult => 0,
+  checker => sub {
+    my ($correct,$student,$ansHash) = @_;
+    my ($Xstu,$Tstu,$Ustu) = @{$student};
+    #check X
+    my $X1 = $Xstu->substitute(A=>1,B=>0);
+    my $X2 = $Xstu->substitute(A=>0,B=>1);
+    my $Xscore = 1;  #optimistic!
+    # check diff. eq. for X
+    if (!($X1->D('x','x')==Formula(0))){ $Xscore = 0; }
+    if (!($X2->D('x','x')==Formula(0))){ $Xscore = 0; }
+    # check X wronskiian
+    my $dX1 = $X1->D('x');
+    my $dX2 = $X2->D('x');
+    my $wX11 = $X1->eval(x=>0);
+    my $wX12 = $X2->eval(x=>0);
+    my $wX21 = $dX1->eval(x=>0);
+    my $wX22 = $dX2->eval(x=>0);
+    if ($wX11*$wX22-$wX12*$wX21 == 0){ $Xscore = 0;}
+    #check T
+    my $T1 = $Tstu->substitute(C=>1,D=>0);
+    my $T2 = $Tstu->substitute(C=>0,D=>1);
+    my $Tscore = 1;
+    # check diff. eq. 
+    if (!($T1->D('t','t')==Formula(0))){ $Tscore = 0; }
+    if (!($T2->D('t','t')==Formula(0))){ $Tscore = 0; }
+    # check wronskiian
+    my $dT1 = $T1->D('t');
+    my $dT2 = $T2->D('t');
+    my $wT11 = $T1->eval(t=>0);
+    my $wT12 = $T2->eval(t=>0);
+    my $wT21 = $dT1->eval(t=>0);
+    my $wT22 = $dT2->eval(t=>0);
+    if ($wT11*$wT22-$wT12*$wT21 == 0){ $Tscore = 0;}
+    my $Uscore = 0;
+    if ( $Xscore && $Tscore ){
+      $Uscore = ( $Xstu*$Tstu == $Ustu );
+    }
+    return [$Xscore,$Tscore,$Uscore];
+  });
+
+$Xless = Formula("A*cosh($w*x)+B*sinh($w*x)");
+$Tless = Formula("C*cosh($w*t*k)+D*sinh($w*t*k)");
 $uless = $Xless*$Tless;
 
-$Xgreater =  Formula("a*cos(alpha*x)+b*sin(alpha*x)");
-$Tgreater = Formula("c*cos(alpha*t/k)+d*sin(alpha*t/t)");
+$multiansLess = MultiAnswer($Xless,$Tless,$uless)->with(
+  singleResult => 0,
+  checker => sub {
+    my ($correct,$student,$ansHash) = @_;
+    my ($Xstu,$Tstu,$Ustu) = @{$student};
+    #check X
+    my $X1 = $Xstu->substitute(A=>1,B=>0);
+    my $X2 = $Xstu->substitute(A=>0,B=>1);
+    my $Xscore = 1;  #optimistic!
+    # check diff. eq. for X
+    my $dX1 = $X1->D('x');    
+    my $dX2 = $X2->D('x');    
+    my $ddX1 = $dX1->D('x');
+    my $ddX2 = $dX2->D('x');
+    if ( !($ddX1 == $w**2*$X1)){ $Xscore = 0; }
+    if ( !($ddX2 == $w**2*$X2)){ $Xscore = 0; }
+    # check wronskiian
+    my $wX11 = $X1->substitute(x=>0);
+    my $wX12 = $X2->substitute(x=>0);
+    my $wX21 = $dX1->substitute(x=>0);
+    my $wX22 = $dX2->substitute(x=>0);
+    if ($wX11*$wX22-$wX12*$wX21 == 0){ $Xscore = 0;}
+    #check T
+    my $T1 = $Tstu->substitute(C=>1,D=>0);
+    my $T2 = $Tstu->substitute(C=>0,D=>1);
+    my $Tscore = 1;
+    # check diff. eq. 
+    my $dT1 = $T1->D('t');    
+    my $dT2 = $T2->D('t');    
+    my $ddT1 = $dT1->D('t');
+    my $ddT2 = $dT2->D('t');
+    if ( !($ddT1 == $k**2*$w**2*$T1)){ $Tscore = 0; }
+    if ( !($ddT2 == $k**2*$w**2*$T2)){ $Tscore = 0; }
+    # check wronskiian
+    my $wT11 = $T1->substitute(t=>0);
+    my $wT12 = $T2->substitute(t=>0);
+    my $wT21 = $dT1->substitute(t=>0);
+    my $wT22 = $dT2->substitute(t=>0);
+    if ($wT11*$wT22-$wT12*$wT21 == 0){ $Tscore= 0;}
+    my $Uscore = 0;
+    if ( $Xscore && $Tscore ){
+      $Uscore = ( $Xstu*$Tstu == $Ustu );
+    }
+    return [$Xscore,$Tscore,$Uscore];
+  });
+
+$Xgreater =  Formula("A*cos($w*x)+B*sin($w*x)");
+$Tgreater = Formula("C*cos($w*t*k)+D*sin($w*t*k)");
 $ugreater = $Xgreater*$Tgreater;
+
+$multiansGreater = MultiAnswer($Xgreater,$Tgreater,$ugreater)->with(
+  singleResult => 0,
+  checker => sub {
+    my ($correct,$student,$ansHash) = @_;
+    my ($Xstu,$Tstu,$Ustu) = @{$student};
+    #check X
+    my $X1 = $Xstu->substitute(A=>1,B=>0);
+    my $X2 = $Xstu->substitute(A=>0,B=>1);
+    my $Xscore = 1;  #optimistic!
+    # check diff. eq. for X
+    my $dX1 = $X1->D('x');    
+    my $dX2 = $X2->D('x');    
+    my $ddX1 = $dX1->D('x');
+    my $ddX2 = $dX2->D('x');
+    if ( !($ddX1 == -$w**2*$X1)){ $Xscore = 0; }
+    if ( !($ddX2 == -$w**2*$X2)){ $Xscore = 0; }
+    # check wronskiian
+    my $wX11 = $X1->substitute(x=>0);
+    my $wX12 = $X2->substitute(x=>0);
+    my $wX21 = $dX1->substitute(x=>0);
+    my $wX22 = $dX2->substitute(x=>0);
+    if ($wX11*$wX22-$wX12*$wX21 == 0){ $Xscore = 0;}
+    #check T
+    my $T1 = $Tstu->substitute(C=>1,D=>0);
+    my $T2 = $Tstu->substitute(C=>0,D=>1);
+    my $Tscore = 1;
+    # check diff. eq. 
+    my $dT1 = $T1->D('t');    
+    my $dT2 = $T2->D('t');    
+    my $ddT1 = $dT1->D('t');
+    my $ddT2 = $dT2->D('t');
+    if ( !($ddT1 == -$k**2*$w**2*$T1)){ $Tscore = 0; }
+    if ( !($ddT2 == -$k**2*$w**2*$T2)){ $Tscore = 0; }
+    # check wronskiian
+    my $wT11 = $T1->substitute(t=>0);
+    my $wT12 = $T2->substitute(t=>0);
+    my $wT21 = $dT1->substitute(t=>0);
+    my $wT22 = $dT2->substitute(t=>0);
+    if ($wT11*$wT22-$wT12*$wT21 == 0){ $Tscore = 0;}
+    my $Uscore = 0;
+    if ( $Xscore && $Tscore ){
+      $Uscore = ( $Xstu*$Tstu == $Ustu );
+    }
+    return [$Xscore,$Tscore,$Uscore];
+  });
+
 
 Context()->texStrings;
 BEGIN_TEXT
-
 $PAR
 The PDE \[k^2\frac{\partial^2 u}{\partial x^2}=\frac{\partial^2 u}{\partial t^2}\]
-is separable, so we look for solutions of the form \(u(x,t) = X(x)T(t)\)
+is separable, so we'll look for solutions of the form 
+\[u(x,t) = X(x)T(t).\]  
+This leads us to a Sturm-Liouville problem.
+$PAR Plug the formula for \(u\) into the PDE, then separate the variables.  
+$BR $BBOLD Note: $EBOLD In your answer, put all the \(X\)'s on the left answer blank. Put all the \(T\)'s and the constant \(k\) in the right answer blank.  Use the prime notation for derivatives, so the derivative of \(X\) is written as \(X^\prime\). Do NOT use \(X^\prime(x)\)
+$BR The result is  
 $BR
-The PDE can be rewritten using this solution as (placing constants in the DE for T) into 
+\{ans_rule\} = \{ans_rule\} = \(-L\)
 $BR
-\{$Xdiff1->ans_rule\} = \{$Tdiff1->ans_rule\} = \(-\lambda\)
+where \(L\) is a constant.
 $BR
+$PAR
+This separates into two independent ordinary differential equations, which can be solved separately 
 $BR
-$BBOLD Note: $EBOLD Use the prime notation for derivatives, so the derivative of \(X\) is written as \(X^\prime\). Do NOT use \(X^\prime(x)\)
+DE in X: \{ans_rule\} \( = 0\)
 $BR
+DE in T: \{ans_rule\} \( = 0\)
+$PAR
+ 
+$PAR  Find the general solutions for the these these ODEs, and use them to find the solution \(u(x,t)\).  $BR Use \(A\) and \(B\) for arbitrary constants in the general solution for \(X\).
+$BR Use \(C\) and \(D\) for arbitary constants in the general solution for \(T\). 
+$BR There are three cases:
 $BR
-Since these differential equations are independent of each other, they can be separated 
+$BBOLD Case 1: $EBOLD \(L = 0\)
 $BR
-DE in X: \{$Xdiff2->ans_rule\} \( = 0\)
+\(X(x) = \) \{$multiansEqual->ans_rule(40)\} (A,B are constants.)
 $BR
-DE in T: \{$Tdiff2->ans_rule\} \( = 0\)
+\(T(t) = \) \{$multiansEqual->ans_rule(40)\} (C,D are constants.)
 $BR
+\(u = \) \{$multiansEqual->ans_rule(60)\}
 $BR
-This leads us to a Sturm-Louiville problem. In each case the general solution in X is written with constants a and b and the general solution in Y is written with constants c and d.
+$BBOLD Case 2: $EBOLD \(L = -w^2\) where \(w\) is some positive number. 
 $BR
-$BBOLD Case 1: $EBOLD \(\lambda = 0\)
+\(X(x) = \) \{$multiansLess->ans_rule(40)\} (A,B are constants.)
 $BR
-\(X(x) = \) \{$Xequal->ans_rule(70)\}
+\(T(t) = \) \{$multiansLess->ans_rule(40)\} (C,D are constants.)
 $BR
-\(T(t) = \) \{$Tequal->ans_rule(70)\}
+\(u = \) \{$multiansLess->ans_rule(60)\}
 $BR
-\(u = \) \{$uequal->ans_rule(70)\}
+$BBOLD Case 3: $EBOLD \(L = w^2 \) where \(w\) is some positive number.
 $BR
-$BBOLD Case 2: $EBOLD \(\lambda = -\alpha^2\)
+\(X(x) = \) \{ans_rule(40)\} (A,B are constants.)
 $BR
-\(X(x) = \) \{$Xless->ans_rule(70)\}
+\(T(t) = \) \{ans_rule(40)\} (C,D are constants.)
 $BR
-\(T(t) = \) \{$Tless->ans_rule(70)\}
-$BR
-\(u = \) \{$uless->ans_rule(70)\}
-$BR
-$BBOLD Case 3: $EBOLD \(\lambda = \alpha^2 \)
-$BR
-\(X(x) = \) \{$Xgreater->ans_rule(70)\}
-$BR
-\(T(t) = \) \{$Tgreater->ans_rule(70)\}
-$BR
-\(u = \) \{$ugreater->ans_rule(70)\}
+\(u = \) \{ans_rule(60)\}
 $BR
 END_TEXT
 Context()->normalStrings;
@@ -113,15 +252,11 @@ ANS($Xdiff1->cmp);
 ANS($Tdiff1->cmp);
 ANS($Xdiff2->cmp);
 ANS($Tdiff2->cmp);
-## Sturm-Louiville
-ANS($Xequal->cmp);
-ANS($Tequal->cmp);
-ANS($uequal->cmp);
-ANS($Xless->cmp);
-ANS($Tless->cmp);
-ANS($uless->cmp);
-ANS($Xgreater->cmp);
-ANS($Tgreater->cmp);
-ANS($ugreater->cmp);
+
+# Sturm-Louiville
+
+ANS($multiansEqual->cmp());
+ANS($multiansLess->cmp());
+ANS($multiansGreater->cmp());
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.

@@ -10,6 +10,7 @@
 ## Institution(TCNJ)
 ## MLT(indep2Q)
 ## Level(2)
+## MO(1)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
@@ -19,137 +20,92 @@
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
-           "PGbasicmacros.pl",
-           "PGchoicemacros.pl",
-           "PGanswermacros.pl",
-           "PGgraphmacros.pl",
-           "PGnumericalmacros.pl",
-           "PGmatrixmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "parserPopUp.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-
-TEXT(beginproblem());
+Context("Vector");
 
 $showPartialCorrectAnswers = 1;
 
 $flip = random(0,1,1);  # choose between dependent and independent vectors
-$lambda = new Matrix(3,1);
+
+$vec[0] = Vector( non_zero_random(-5,5,1), random(-5,5,1), non_zero_random(-5,5,1));
+
+$vec[1] = 
+  Real(non_zero_random(-2,2,1)) * $vec[$slice[0]] + 
+     Vector( 0, non_zero_random(-3,3,1), non_zero_random(-3,3,1));
+
+if ($flip==0) {
+  $vec[2] = Real(non_zero_random(-2,2,1)) * $vec[0]  
+           + Real(random(-2,2,1)) * $vec[1]  
+           + Vector( 0, 0, non_zero_random(-5,5,1) );
+  @lambda = (0,0,0);
+} else {
+  @lambda = ( Real(non_zero_random(-5,5,1)), Real(non_zero_random(-5,5,1)), Real(-1));
+  $vec[2] = $lambda[0]*$vec[0] + $lambda[1]*$vec[1];
+}
+
 # we'll scramble the vectors and coefficients
 @slice = NchooseK(3,3);
  
-$v01 = non_zero_random(-5,5,1);
-$v02 = random(-5,5,1);
-$v03 = non_zero_random(-5,5,1);
 
-$vec[$slice[0]] = Matrix->new_column_matrix([$v01, $v02, $v03]);
+($vec0,$vec1,$vec2)=@vec[@slice];  
+($lam0,$lam1,$lam2)=@lambda[@slice];
 
-$mult = non_zero_random(-2,2,1);
-$d1 = non_zero_random(-3,3,1);
-$d2 = non_zero_random(-3,3,1);
-
-$v11 = $mult*$v01;
-$v12 = $mult*$v02+$d1;
-$v13 = $mult*$v03+$d2;
-
-$vec[$slice[1]] = Matrix->new_column_matrix([ $v11, $v12, $v13 ]);
-
-if ($flip==0) {
-        $mult2 = non_zero_random(-2,2,1);
-        $mult3 = random(-2,2,1);
-        $d3 = non_zero_random(-5,5,1);
-        $vec[$slice[2]] = Matrix->new_column_matrix([ $mult2*$v01+$mult3*$v11, $mult2*$v02+$mult3*$v12, $mult2*$v03+$mult3*$v13+$d3 ]);
-    $lambda->assign($slice[0]+1 ,1,0);
-    $lambda->assign($slice[1]+1 ,1,0);
-    $lambda->assign($slice[2]+1 ,1,0);
-} else {
-	$lambda->assign($slice[0]+1 ,1,non_zero_random(-5,5,1) );
-	$lambda->assign($slice[1]+1 ,1,non_zero_random(-5,5,1) );
-	$vec[$slice[2]] = ( $lambda->element($slice[0]+1,1) )*$vec[$slice[0]] +( $lambda->element($slice[1]+1,1) ) *$vec[$slice[1]];
-	$lambda->assign($slice[2]+1,1,-1);
-}
-
-
-$sl = new_pop_up_select_list();
-$sl->qa(
-"Determine whether or not the three vectors listed above are linearly independent or linearly dependent.",
-($flip==0) ? 'Linearly_Independent' : 'Linearly_Dependent',
+$multians = MultiAnswer($lam0,$lam1,$lam2)->with(
+  singleResult => 1,
+  checker => sub {
+    my ($correct,$student,$self)=@_;
+    my @cor; my @stu;
+    @cor[@slice] = @{$correct};  # unscramble correct lambdas
+    @stu[@slice] = @{$student};  # unscramble student's lambdas
+    if ($flip == 0){
+      if ( $stu[0] == 0 && $stu[1] == 0 && $stu[2] == 0 ){
+        return 1;
+      } 
+      else {
+        return 0;
+      }
+    }
+    else {
+      if ( $stu[2] !=0 && $stu[0]*$cor[2] == $cor[0]*$stu[2] && $stu[1]*$cor[2] == $cor[1]*$stu[2] ){
+        return 1;
+      }
+      else { 
+        return 0;
+      } 
+    }
+  }
 );
-$sl->choose(1);
-$sl->ra_pop_up_list(['No_Answer_Entered' => 'Select an Answer', 'Linearly_Independent' => 'Linearly Independent', 'Linearly_Dependent' => 'Linearly
-Dependent']);
 
+$selection = ($flip==0) ? "Linearly Independent" : "Linearly Dependent";
+$popUp = PopUp(["Select an answer:", "Linearly Independent", "Linearly Dependent"], $selection);
+
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
-\{ mbox( 'Let \( A = \)', display_matrix(~$vec[0]), ', \(B=\)', display_matrix(~$vec[1]), ', and \( C = \)', display_matrix(~$vec[2]), '.' ) \} 
-$BR
-\{$sl->print_q()\}  
-$BR
+Let A = \($vec0\), B = \($vec1\), and C = \($vec2 \) 
+
+$PAR
+Determine whether or not the three vectors listed above are linearly independent or linearly dependent.
+$BR \{$popUp->menu()\}
+
+$PAR
 If they are linearly dependent, determine a non-trivial linear relation.
-Otherwise, if the vectors are linearly independent, enter 0's for 
+Otherwise, if the vectors are linearly independent enter 0's for 
 the coefficients, since that relationship $BBOLD always $EBOLD holds.
 $BR
-\{NAMED_ANS_RULE(vec1,10)\}\(A+\) \{NAMED_ANS_RULE_OPTION(vec1,10)\}\(B+\)
-\{NAMED_ANS_RULE_OPTION(vec1,10)\} \(C = 0\).
-
+\(0\) = \{$multians->ans_rule(5)\}\(A+\) \{$multians->ans_rule(5)\}\(B+\) \{$multians->ans_rule(5)\} \(C\).
 
 END_TEXT
-ANS str_cmp($sl->ra_correct_ans);
-NAMED_ANS vec1=> vec_cmp2($lambda);
+Context()->normalStrings;
 
-
-sub vec_cmp2{    #check to see that the submitted vector is a non-zero multiple of the correct vector
-    my $correct_matrix = shift;
-    my %options = @_;
-    $ans_eval = new AnswerEvaluator;
-    $ans_eval->{debug} = $options{debug};
-    set_default_options( ~~%options,
-						 debug			=>	0,
-	);
-
-    $ans_eval->ans_hash( correct_ans  => "a multiple of ( " . join(", ", $correct_matrix->list() ) . " )",  
-    					 type		  => 'vec_cmp2'
-    );
-    $ans_eval->install_pre_filter(~~&is_array);
- 	$ans_eval->install_pre_filter(~~&std_num_array_filter);
- 
- 	$ans_eval->install_evaluator(sub { my $rh_ans = shift;
- 									   my %options  = @_;
- 									   my @in_vec=@{$rh_ans->input()};
-									   unless (@in_vec ) {
- 	                                   		return($rh_ans); # return blank answers
- 	                                   		# make sure the vectors are the same dimension
- 	                                   }
- 									   my $input_vec = Matrix->new_column_matrix($rh_ans->input());
- 									   my ($param,$inv);
-									   if ($flip == 0) { #case of independent vectors
- 									   		$param = new Matrix(1,1);
- 									   		$param->zero;
- 									   } else {
- 									   		$param = $correct_matrix->proj_coeff($input_vec);
- 									   		$param->assign(1,1,1) if $param->element(1,1)==0; # don't allow identically zero answer
- 									   }
- 									    my $out_vec = $input_vec - $correct_matrix*$param;
-								 	    my @diff = $out_vec->list();  # lists a column vector
-								 		$rh_ans->{score} = zero_check(~~@diff,tol=>.001);
-								 		$rh_ans;
-
- 								 	
- 	});
-    $ans_eval->install_post_filter( sub { my $rh_ans= shift;
- 											  my %options = @_;
- 											  if ($rh_ans->catch_error('NOTARRAY') ) {
- 												  $rh_ans->{ans_message} = "This answer is supposed to be an array";  
- 											  }
- 											  $rh_ans;
- 	});
- 	$ans_eval->install_post_filter( sub { 	  my $rh_ans= shift;
-  											  my %options = @_;
- 											  if ($rh_ans->catch_error('SYNTAX') ) {
- 												  $rh_ans->{ans_message} .= $rh_ans->{error_message};
- 												  $rh_ans->clear_error('SYNTAX');
- 											  }
-											  $rh_ans;
-  	});
-    $ans_eval;
-}
+ANS($popUp->cmp());
+ANS($multians->cmp());
 
 ENDDOCUMENT() ;        

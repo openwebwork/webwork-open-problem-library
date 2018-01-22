@@ -10,6 +10,7 @@
 ## DBsection(Basis and dimension)
 ## Institution(Howard University)
 ## Author(Richard Bayne)
+## MO(1)
 ## MLT(basis_by_deleting_vectors)
 ## MLTleader(1)
 ## Level(3)
@@ -31,59 +32,13 @@
 DOCUMENT();
 
 loadMacros(
-"PGstandard.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
-
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
-
-$a11 =random(2,10,4);
-$a21 =-($a11 + 4);
-$mult1 = random(-7/2,-3/2,1);
-$b11 = $a11*$mult1;
-$b21 = $a21*$mult1;
-$ans1 = 1;
-
-$c11 =random(9,13,1);
-$c21 =-($c11 - 4);
-$mult2 = random(-3,-2,1);
-$d11 = $c11*$mult2-1;
-$d21 = $c21*$mult2;
-$ans2 =2;
-
-$e11 =random(1,3,1);
-$e21 = $e11;
-$e31 = $e11;
-$mult3 = random(-3,-1,2);
-$mult4 = random(1,4,1);
-$f11 = $e11*$mult3;
-$f21 = $f11;
-$f31 = $f11;
-$g11 = $e11 + $mult4;
-$g21 = $g11;
-$g31 = $g11;
-$ans3 =3;
-
-$h11 = random(1,3,2);
-$h21 = -$h11;
-$h31 = $h11;
-$mult5 = random(-5,-3,1);
-$j12 = $mult5 * $h11;
-$j22 = $mult5 *$h21;
-$j32 = $mult5 * $h31;
-$k13 = 2*$h11;
-$k23 = $h21 +8;
-$k33 = $h31 +7;
-$ans4 = 2;
+Context("Vector");
 
 $n11 = 0;
 $n12 = random(2,5,1);
@@ -97,29 +52,72 @@ $n31 = 0;
 $n32 = 0;
 $n33 = 0;
 $n34 = $n13;
-$ans5 = 3;
 
+$N1 = ColumnVector([$n11,$n21,$n31]);
+$N2 = ColumnVector([$n12,$n22,$n32]);
+$N3 = ColumnVector([$n13,$n23,$n33]);
+$N4 = ColumnVector([$n14,$n24,$n34]);
 
+$multians = MultiAnswer($N2,$N3,$N4) -> with(
+  singleResult => 1,
+  checker => sub {
+    my ($correct, $student, $self) = @_;
+    my ($corvec1, $corvec2, $corvec3) = @{$correct};
+    my ($stuvec1, $stuvec2, $stuvec3) = @{$student};
+    if ( List($corvec1,$corvec2,$corvec3) == List($stuvec1,$stuvec2,$stuvec3) ||
+         List($corvec1,$corvec2,$corvec3) == List($stuvec1,$stuvec3,$stuvec2) ||
+         List($corvec1,$corvec2,$corvec3) == List($stuvec2,$stuvec1,$stuvec3) ||
+         List($corvec1,$corvec2,$corvec3) == List($stuvec2,$stuvec3,$stuvec1) ||
+         List($corvec1,$corvec2,$corvec3) == List($stuvec3,$stuvec1,$stuvec2) ||
+         List($corvec1,$corvec2,$corvec3) == List($stuvec3,$stuvec2,$stuvec1)  
+       ){
+      return 1;
+    }
+    else {
+      # extract the coordinates from student vectors
+      my ( $s11,$s21, $s31 ) = ($stuvec1.i, $stuvec1.j, $stuvec1.k);
+      my ( $s12,$s22, $s32 ) = ($stuvec2.i, $stuvec2.j, $stuvec2.k);
+      my ( $s13,$s23, $s33 ) = ($stuvec3.i, $stuvec3.j, $stuvec3.k);
+      my $stumatrix = Matrix([
+        [ $s11,$s21, $s31 ],
+        [ $s12,$s22, $s32 ],
+        [ $s13,$s23, $s33 ]
+      ]);
+      # check that student's vectors are linearly independent
+      if ($stumatrix->det == 0){
+        Value::Error("Basis vectors must be linearly independent");
+      }
+      else {
+        Value::Error("The basis vectors must be taken from the given set.");
+      }
+      return 0;
+    }
+  }
+);
+
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 Find a basis of the given subspace by deleting linearly dependent vectors.
 $BR
-\{ mbox('\(S\) = span of {' ,display_matrix( [ [$n11],[$n21],[$n31] ]) ,',', display_matrix( [ [$n12],[$n22],[$n32] ]),',',  display_matrix( [ [$n13],[$n23],[$n33] ]),',',  display_matrix( [ [$n14],[$n24],[$n34] ]), '} ' ) \}
-
-\{ mbox( '\( {\rm A\ basis\ is \ } = \)', '{' , ans_array(3,1,5),',', ans_array_extension(3,1,5),',', ans_array_extension(3,1,5), '}' ) \}
-
+span of \(\Bigg $LBRACE $N1, $N2, $N3, $N4 \Bigg $RBRACE\)
+$PAR
+A basis is \(\Bigg $LBRACE\)\{$multians->ans_array\}, \{$multians->ans_array\}, \{$multians->ans_array\}\(\Bigg $RBRACE\)
 END_TEXT
+Context()->normalStrings;
 
-ANS(basis_cmp([[$n12, $n22, $n32],[$n13, $n23, $n33],[$n14, $n24, $n34]]));
+ANS($multians->cmp());
 
-SOLUTION(EV3(<<'END_SOLUTION'));
+Context()->texStrings;
+BEGIN_SOLUTION
 $PAR$PAR{BBOLD}SOLUTION:${EBOLD} $PAR
 The first vector is eliminated since the zero vector is always linearly dependent. The remaining vectors are linearly dependent since the correspondng matrix
 $PAR
  \[ \left[ \begin{array}{ccc}  $n12 & $n13 & $n14 \\ $n22 & $n23 & $n24 \\ $n32 & $n33 & $n34 \end{array} \right] \] is row-reduced with 3 pivots. Hence, a basis is
 $PAR
  \[\left$LBRACE \left [ \begin{array}{c} $n12 \\ $n22 \\ $n32 \end{array} \right], \left [ \begin{array}{c} $n13 \\ $n23 \\ $n33 \end{array} \right], \left [ \begin{array}{c} $n14 \\ $n24 \\ $n34 \end{array} \right] \right $RBRACE \]
-
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();
 

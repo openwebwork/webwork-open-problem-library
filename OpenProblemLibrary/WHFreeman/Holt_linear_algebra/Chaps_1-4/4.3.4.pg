@@ -12,6 +12,7 @@
 ## Author(Richard Bayne)
 ## MLT(basis_row_col_nul_given_rref)
 ## MLTleader(1)
+## MO(1)
 ## Level(4)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
@@ -27,20 +28,14 @@
 DOCUMENT();
 
 loadMacros(
-"PGstandard.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
-
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "MatrixReduce.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
+Context("Matrix");
 
 $a = random(2,3,1);
 $b = random(3,5,2);
@@ -52,80 +47,137 @@ $g = random(5,7,1);
 $h = random(2,3,1);
 $k = random(3,5,2);
 
+do {
+  $a11 = $h+1;
+  $a12 = $g*$k +1;
+  $a13 = $k;
+  $a21 = $h;
+  $a22 = 1;
+  $a23 = 0;
+  $a31 = $f;
+  $a32 = $d;
+  $a33 = $b;
+  $a41 = $a;
+  $a42 = $e;
+  $a43 = $c;
+  $a51 = $f;
+  $a52 = $g+$b;
+  $a53 = $b+1;
 
-$a11 = $h+1;
-$a12 = $g*$k +1;
-$a13 = $k;
-$a21 = $h;
-$a22 = 1;
-$a23 = 0;
-$a31 = $f;
-$a32 = $d;
-$a33 = $b;
-$a41 = $a;
-$a42 = $e;
-$a43 = $c;
-$a51 = $f;
-$a52 = $g+$b;
-$a53 = $b+1;
+  $ma=Matrix([
+    [$a11, $a12, $a13],
+    [$a21, $a22, $a23],
+    [$a31, $a32, $a33],
+    [$a41, $a42, $a43],
+    [$a51, $a52, $a53]
+  ]);
+} while (rref($ma)->row(3)->isZero);  #ensure rank = 3
 
-$mA =new Matrix(5,3);
-$mA->assign(1,1,$a11);
-$mA->assign(1,2,$a12);
-$mA->assign(1,3,$a13);
-$mA->assign(2,1,$a21);
-$mA->assign(2,2,$a22);
-$mA->assign(2,3,$a23);
-$mA->assign(3,1,$a31);
-$mA->assign(3,2,$a32);
-$mA->assign(3,3,$a33);
-$mA->assign(4,1,$a41);
-$mA->assign(4,2,$a42);
-$mA->assign(4,3,$a43);
-$mA->assign(5,1,$a51);
-$mA->assign(5,2,$a52);
-$mA->assign(5,3,$a53);
+$col1 = ColumnVector($ma->column(1));
+$col2 = ColumnVector($ma->column(2));
+$col3 = ColumnVector($ma->column(3));
+
+$colcheck = MultiAnswer($col1,$col2,$col3)->with(
+  singleResult => 1,
+  checker=> sub {
+    my ($correct,$student,$self)=@_;
+    my ($cor1,$cor2,$cor3) = @{$correct};
+    my ($stu1,$stu2,$stu3) = @{$student};
+    #convert columns into rows
+    $cor1=Vector($cor1);
+    $cor2=Vector($cor2);
+    $cor3=Vector($cor3);
+    $stu1=Vector($stu1);
+    $stu2=Vector($stu2);
+    $stu3=Vector($stu3);
+    my $stu=Matrix([
+     [@{$stu1->{data}}],
+     [@{$stu2->{data}}],
+     [@{$stu3->{data}}]
+    ]);
+    if ( rref($stu)->row(3)->isZero ){
+      Value::Error("Basis vectors must be linearly independent.");
+      return 0;
+    }
+    my $spancheck = Matrix([
+     [@{$cor1->{data}}],
+     [@{$cor2->{data}}],
+     [@{$cor3->{data}}],
+     [@{$stu1->{data}}],
+     [@{$stu2->{data}}],
+     [@{$stu3->{data}}]
+    ]);
+    if ( rref($spancheck)->row(4)->isZero){
+      return 1;
+    }
+    else {
+      Value::Error("Basis vectors must all be in the column space.");
+      return 0;
+    }
+  }
+);
 
 
-$mB =new Matrix(5,3);
-$mB->assign(1,1,1);
-$mB->assign(1,2,0);
-$mB->assign(1,3,0);
-$mB->assign(2,1,0);
-$mB->assign(2,2,1);
-$mB->assign(2,3,0);
-$mB->assign(3,1,0);
-$mB->assign(3,2,0);
-$mB->assign(3,3,1);
-$mB->assign(4,1,0);
-$mB->assign(4,2,0);
-$mB->assign(4,3,0);
-$mB->assign(5,1,0);
-$mB->assign(5,2,0);
-$mB->assign(5,3,0);
+$mb = Matrix([
+  [1,0,0],
+  [0,1,0],
+  [0,0,1],
+  [0,0,0],
+  [0,0,0]
+]);
 
+$eye1 = Vector($mb->row(1));
+$eye2 = Vector($mb->row(2));
+$eye3 = Vector($mb->row(3));
 
-$ans1 = 0;
-$ans2 = 1;
-$ans3 = 2;
+$rowcheck = MultiAnswer($eye1,$eye2,$eye3)->with(
+  singleResult => 1,
+  checker => sub {
+    my ($correct,$student,$self)=@_;
+    my ($stu1,$stu2,$stu3) = @{$student};
+    my $stu=Matrix([
+     [@{$stu1->{data}}],
+     [@{$stu2->{data}}],
+     [@{$stu3->{data}}]
+    ]);
+    if ( rref($stu)->row(3)->isZero) {
+      Value::Error("Basis vectors must span the row space");
+      return 0;
+    }
+    else {
+     return 1;
+    }
+  }
+);
 
+# question
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 Find bases for the column space, the row space, and the null space of matrix A. You should verify that the Rank-Nullity Theorem holds. An equivalent echelon  form  of matrix A is given to make your work easier.
+$PAR
+\(A = $ma\) \(\sim\) \( $mb \)
 $BR
-\{ mbox('A = {', display_matrix($mA), '~', display_matrix($mB),  '}'  ) \}
-
-$BR
-\{ mbox( 'Basis for the column space of  \(A\) =  {', ans_array(5,1,5), ans_array_extension(5,1,5), ans_array_extension(5,1,5), '}' ) \}
-$BR
-\{ mbox( 'Basis for the row space of  \(A\) =  {', ans_array(3,1,5), ans_array_extension(3,1,5), ans_array_extension(3,1,5), '}' ) \}
-$BR
+Basis for the column space of  \(A\) is $BR
+\(\Bigg $LBRACE\) \{$colcheck->ans_array\}, \{$colcheck->ans_array\}, \{$colcheck->ans_array\}\(\Bigg $RBRACE\)
+$PAR
+Basis for the row space of \(A\) is $BR 
+\( \Big $LBRACE\) \{$rowcheck->ans_array\},$BR
+\{$rowcheck->ans_array\},$BR
+\{$rowcheck->ans_array\}\(\Big $RBRACE\)
+$PAR
 Note that since the only solution to \(A{\bf x} = {\bf 0}\) is the zero vector, there is no basis for the null space of \(A\).
-
 END_TEXT
+Context()->normalStrings;
 
-ANS(basis_cmp([ [$a11, $a21, $a31, $a41, $a51] ,  [$a12,$a22,$a32,$a42,$a52], [$a13,$a23,$a33,$a43,$a53] ]));
-ANS(basis_cmp([ [1,0,0] , [0,1,0], [0,0,1] ]));
+#answer
 
+ANS($colcheck->cmp());
+ANS($rowcheck->cmp());
+
+#solution
+
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR$PAR{BBOLD}SOLUTION:${EBOLD} $PAR
 A basis for the column space, determined from the pivot columns 1,2 and 3, is
@@ -135,8 +187,7 @@ $PAR
 A basis  for the row space is determined from the nonzero rows of the echelon form,
 $PAR
  \(\left$LBRACE \left[ \begin{array}{c} 1 \\ 0 \\ 0 \end{array} \right] , \left [ \begin{array}{c} 0 \\ 1 \\ 0 \end{array} \right], \left[ \begin{array}{c} 0 \\ 0 \\ 1 \end{array} \right]\right$RBRACE \)
-
-
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();

@@ -11,6 +11,7 @@
 ## Institution(Howard University)
 ## Author(Richard Bayne)
 ## Level(4)
+## MO(1)
 ## MLT(basis_null_space)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
@@ -25,20 +26,14 @@
 DOCUMENT();
 
 loadMacros(
-"PGstandard.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
-
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "MatrixReduce.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
 );
 
-TEXT(beginproblem());
+Context("Matrix");
 
 $c11 = 1;
 $c21 = 0;
@@ -56,60 +51,108 @@ $c15 = random(-1,1,1);
 $c25 = 0;
 $c35 = random(2,4,1);
 
-$mC = new Matrix(3,5);
-$mC->assign(1,1,$c11);
-$mC->assign(1,2,$c12);
-$mC->assign(1,3,$c13);
-$mC->assign(1,4,$c14);
-$mC->assign(1,5,$c15);
-$mC->assign(2,1,$c21);
-$mC->assign(2,2,$c22);
-$mC->assign(2,3,$c23);
-$mC->assign(2,4,$c24);
-$mC->assign(2,5,$c25);
-$mC->assign(3,1,$c31);
-$mC->assign(3,2,$c32);
-$mC->assign(3,3,$c33);
-$mC->assign(3,4,$c34);
-$mC->assign(3,5,$c35);
+#$mC = new Matrix(3,5);
+#$mC->assign(1,1,$c11);
+#$mC->assign(1,2,$c12);
+#$mC->assign(1,3,$c13);
+#$mC->assign(1,4,$c14);
+#$mC->assign(1,5,$c15);
+#$mC->assign(2,1,$c21);
+#$mC->assign(2,2,$c22);
+#$mC->assign(2,3,$c23);
+#$mC->assign(2,4,$c24);
+#$mC->assign(2,5,$c25);
+#$mC->assign(3,1,$c31);
+#$mC->assign(3,2,$c32);
+#$mC->assign(3,3,$c33);
+#$mC->assign(3,4,$c34);
+#$mC->assign(3,5,$c35);
 
+$mc=Matrix([
+  [$c11,$c12,$c13,$c14,$c15],
+  [$c21,$c22,$c23,$c24,$c25],
+  [$c31,$c32,$c33,$c34,$c35]
+]);
 
-$ans1 = -$c13;
-$ans2 = 0;
-$ans3 = 1;
-$ans4 = 0;
-$ans5 = 0; 
-$ans6 = -$c15 + $c35*$c14;
-$ans7 = -$c25 + $c35*$c24;
-$ans8 =  0;
-$ans9 = -$c35;
-$ans10 = 1;
+$mctrans=$mc->transpose;
 
+#$ans1 = -$c13;
+#$ans2 = 0;
+#$ans3 = 1;
+#$ans4 = 0;
+#$ans5 = 0; 
+#$ans6 = -$c15 + $c35*$c14;
+#$ans7 = -$c25 + $c35*$c24;
+#$ans8 =  0;
+#$ans9 = -$c35;
+#$ans10 = 1;
+
+$V1 = ColumnVector(-$c13,0,1,0,0);
+$V2 = ColumnVector(-$c15 + $c35*$c14, -$c25 + $c35*$c24, 0, -$c35, 1);
+
+$multians = MultiAnswer($V1,$V2)->with(
+  singleResult=>1,
+  checker => sub {
+    my ($correct, $student, $self)=@_;
+    my ($cor1,$cor2)=@{$correct};
+    my ($stu1,$stu2)=@{$student};
+    #make row vectors
+    $cor1 = Vector($cor1);
+    $cor2 = Vector($cor2);
+    $stu1 = Vector($stu1);
+    $stu2 = Vector($stu2);
+    my $stu = Matrix([
+     [@{$stu1->{data}}],
+     [@{$stu2->{data}}]
+    ]);
+    my $cor = Matrix([
+     [@{$cor1->{data}}],
+     [@{$cor2->{data}}]
+    ]);
+    my $redStu = rref($stu);
+    my $redCor = rref($cor);
+    if ($redStu->row(2)->isZero){
+      Value::Error("Basis vectors must be linearly independent.");
+      return 0;
+    }
+    if ( ($redCor - $redStu)->isZero ){
+      return 1;
+    }
+    else {
+      return 0;
+    }
+  }
+);
+
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 Find a basis for the null space of matrix A.
 $BR
-\{mbox( 'A = ', display_matrix($mC) ) \}
-$BR
- \{ mbox( '\( {\rm Basis\ } = \)', '{' , ans_array(5,1,5), ans_array_extension(5,1,5), '}' ) \}
+A = \($mc\)
+$PAR
+A basis is \(\Bigg $LBRACE\)\{$multians->ans_array\}, \{$multians->ans_array\} 
+\(\Bigg $RBRACE\)
 $BR
 
 END_TEXT
+Context()->normalStrings;
 
+ANS($multians->cmp());
 
-ANS(basis_cmp([ [$ans1, $ans2, $ans3, $ans4, $ans5] , [$ans6, $ans7, $ans8, $ans9, $ans10] ]) );
+Context()->texStrings;
 
 SOLUTION(EV3(<<'END_SOLUTION'));
-$PAR$PAR{BBOLD}SOLUTION:${EBOLD} $PAR
-Row-reduce the matrix which has the given vectors as columns.
-$BR$BR
-\(A\) is already row-reduced, thus \(A{\bf x}= {\bf 0}\) has solutions of the form 
+${BBOLD}SOLUTION:${EBOLD} $PAR
+\(A\) already is row-reduced, though perhaps not in echelon form. Its pivots are in the first, second and fourth columns, so the third and fifth variables are free; call them \(s_1\) and \(s_2\). Solving for the other variables one finds that the general solution to the equation \(A{\bf x}= {\bf 0}\) has the form  
 $PAR
-\[ {\bf x} = s_1 \left [ \begin{array}{c} $ans1 & $ans2 & $ans3 & $ans4 & $ans5 \end{array} \right] + s_2 \left [ \begin{array}{c} $ans6 & $ans7 & $ans8 & $ans9 & $ans10 \end{array} \right] \]
+\[ {\bf x} = s_1 $V1 + s_2 $V2 \]
 $PAR
-so that a basis for the subspace is 
+so  
 $PAR
-\[ \left$LBRACE \left [ \begin{array}{c} $ans1 & $ans2 & $ans3 & $ans4 & $ans5 \end{array} \right], \left [ \begin{array}{c} $ans6 & $ans7 & $ans8 & $ans9 & $ans10 \end{array} \right] \right$RBRACE \]
-
+\[ \Bigg $LBRACE $V1, $V2 \Bigg $RBRACE \]
+is a basis for the nullspace. 
 END_SOLUTION
+Context()->normalStrings;
 
 ENDDOCUMENT();

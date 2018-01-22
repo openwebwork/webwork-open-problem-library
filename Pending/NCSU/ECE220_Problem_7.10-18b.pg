@@ -1,0 +1,200 @@
+# DESCRIPTION
+# Problem from 'Mathematics: The Language of Electrical and Computer Engineering', Viniotis and Trussell, 3rd ed.
+# WeBWorK problem written by Joel Trussell, <hjt@ncsu.edu>
+# ENDDESCRIPTION
+
+## DBsubject(Electrical Engineering)
+## DBchapter(Differential equations)
+## DBsection(Problems)
+## Institution(North Carolina State University)
+## Author(H. J. Trussell)
+## MO(1)
+## TitleText1('Mathematics: The Language of Electrical and Computer Engineering')
+## AuthorText1('Viniotis and Trussell')
+## EditionText1('3')
+## Section1('.')
+## Problem1('7 10 7 18')
+## KEYWORDS('differential equations')
+## Keywords('differential equations')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "AnswerFormatHelp.pl",
+  "unionLists.pl",
+  "answerHints.pl",
+  "parserFunction.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+
+#############################
+#  Setup
+
+
+## required to use step function
+Context("Numeric")->functions->add(
+  step => {
+    class => 'Parser::Legacy::Numeric',
+    perl => 'Parser::Legacy::Numeric::do_step'
+  },
+);
+Context()->variables->add(
+t=>"Real", C1=>"Real", C2=>"Real",
+);
+
+# Change tolerance to account for difference in Matlab and Webwork computations
+# I don't know the problem yet
+
+Context()->flags->set(
+  tolerance => 0.001,
+  tolType => "absolute",
+);
+parserFunction("u(t)" => "step(t)");
+
+# problem has real roots
+# sinusoidal driving function
+
+$root1 = random(2,9,1);
+do { $root2 = random(1,9,1); } until ($root2 != $root1);
+$r1 = min($root1,$root2);
+$r2 = max($root1,$root2);
+$b = $r1 + $r2;
+$c = $r1*$r2;
+
+$A = random(2,9,1);
+$w = random(2,9,1);
+$theta = list_random(0, pi/6, pi/4, pi/3, pi/2);
+$y0 = random(1,15,1);
+$ydot0 = random(1,15,1);
+
+# set free parameters of complementary solution for total solution
+# from initial conditions
+
+$Hre1 = $c-$w**2;
+$mag = $A/sqrt( ($c-$w**2)**2 + ($b*$w)**2);
+if ($Hre1 == 0) {$phase = $theta - pi/2;}
+elsif ($Hre1 < 0) {$phase = $theta - atan(($b*$w)/($c-$w**2)) + (-1)*pi;}
+else {$phase = $theta - atan(($b*$w)/($c-$w**2));}
+
+$b1 = $y0 - $mag*cos($phase);
+$b2 = $ydot0 + $w*$mag*sin($phase);
+$denom = $r1 - $r2;
+$D1 = (-$r2*$b1 - $b2)/$denom;
+$D2 = ($r1*$b1 + $b2)/$denom;
+
+
+Context()->flags->set(
+  reduceConstants=>0, # no decimals
+  reduceConstantFunctions=>1, # combine 4+5*2?
+  formatStudentAnswer=>'parsed', # no decimals
+);
+
+# complementary solution
+$answer[0] = Formula("(C1 e^(-$r1 t) + C2 e^(-$r2 t) )u(t) ")->reduce;
+# particular solution
+
+$answer[1] = Formula("$mag cos($w t + $phase) u(t)")->reduce;
+
+# total solution
+$C = $y0 -$mag*cos($phase);
+$answer[2] = Formula("($D1 e^(-$r1 t) + $D2 e^(-$r2 t) + $mag cos($w t + $phase)) u(t) ")->reduce;
+
+
+
+#############################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+This problem is related to Problems 7.10-7.18 in the text. 
+$PAR
+Instructions for forms of answers in differential equation problems:
+$BR For second order DEs, the roots of the characteristic equation may be real or complex. If the roots are real, the complementary solution is the weighted sum of real exponentials. Use C1 and C2 for the weights, where C1 is associated with the root with smaller magnitude. If the roots are complex, the complementary solution is the weighted sum of complex conjugate exponentials, which can be written as a constant times a decaying exponential times a cosine with phase. Use C1 for the constant and Phi for the phase.
+
+$PAR All numerical angles(phases) should be given in radian angles (not degrees). 
+
+Given the differential equation \( y'' + $b y' + $c y = $A cos($w t + $theta) u(t) \)  .  
+\{ BeginList("OL",type=>"a") \}
+
+$ITEM Find the functional form of the complementary solution, \( y_c(t) \).
+$BR
+\( y_c(t) = \) \{ ans_rule(30) \}
+\{ AnswerFormatHelp("formulas") \}
+
+$ITEMSEP
+$ITEM  Find the particular solution, \( y_p(t) \).
+$BR
+\( y_p(t) = \) \{ ans_rule(30) \}
+\{ AnswerFormatHelp("formulas") \}
+
+$ITEMSEP
+$ITEM  Find the total solution, \( y(t) \) for the initial condition \( y(0)  = $y0 \) and \( y'(0)  = $ydot0 \).
+$BR
+\( y(t) = \) \{ ans_rule(30) \}
+\{ AnswerFormatHelp("formulas") \}
+
+
+
+\{ EndList("OL") \}
+END_TEXT
+Context()->normalStrings;
+
+
+############################
+#  Answers
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $answer[0]->cmp() );
+ANS( $answer[1]->cmp() );
+ANS( $answer[2]->cmp() );
+
+COMMENT("MathObject version.");
+
+SOLUTION(EV3(<<'END_SOLUTION'));
+Let's review the procedure for solving all differential equations: Find the form of the complementary solution, solve for the particular solution, find the coefficients of the complementary solution as part of the total solution from a system of equations determined by the initial conditions. 
+
+To find the form of the complementary solution, we find the roots of the characteristic equation \( \lambda^2 + $b\lambda + $c = 0\).For this example, the roots are real and are given by \( -$r1 \) and \( -$r2 \). This means the complementary solution has the form \( v_c(t) = C_1 e^{-$r1 t} + C_2 e^{-$r2 t} \).
+$PAR
+To find the particular solution, we know the form of the particular solution is the same as that of the driving function. In this case, the driving force is sinusoidal of the form \( v_s(t) = A \cos(\omega_0 t + \theta) u(t) = $A \cos($w t + $theta) u(t) \), so the particular solution takes the form \( v_p(t) =  B \cos(\omega_0 t + \theta + \phi) u(t) =  B \cos($w t + $theta + \phi) u(t) \), where 
+$PAR
+\( B = \frac{A}{\sqrt{(c-\omega_0^2)^2 + (b\omega_0)^2}}  = \frac{$A}{\sqrt{($c-$w^2)^2 + ($b*$w)^2}} = $mag \) 
+$PAR 
+\( \phi = -\arctan(\frac{b*\omega_0}{c - \omega_0^2}) = -\arctan(\frac{$b*$w}{$c - $w^2}) = $phi \)
+$PAR
+so
+$PAR
+\( v_p(t) =  $mag \cos($w t + \theta + \phi) u(t) = $mag \cos($w t + $phase) u(t) \)
+$PAR
+The formulas for \( B \) and \( \phi \) are derived in the text on p.379, with alternative derivations on p.380-383.
+$PAR
+Now, we determine the coefficients of the complementary solution. The total solution has the form, \( v_t(t) = C_1 e^{-$r1 t} + C_2 e^{-$r2 t} +  $mag \cos($w t + $phase) \), where we are leaving off the step function, \( u(t) = step(t) \) for now. We differentiate the total solution as needed and substitute into the equations for the initial conditions. This gives
+$PAR
+\( C_1 e^{-$r1 t} + C_2 e^{-$r2 t} +  $mag \cos($w t + $phase)|_{t=0} = $y0 \) and for the derivative
+$PAR
+\( -$r1*C_1 e^{-$r1 t} - $r2*C_2 e^{-$r2 t} - $w*$mag \sin($w t + $phase)|_{t=0} = $ydot0 \)
+Evaluating the functions at \( t = 0\), we have 
+$PAR
+\( C_1 + C_2 + $mag \cos($phase) = $y0 \) and
+$PAR
+\( -$r1*C_1 - $r2*C_2 - $w*$mag \sin($phase) = $ydot0 \)
+$PAR
+So \( C_1 + C_2 = $b1 \) and \( -$r1*C_1 - $r2*C_2 = $b2 \). This is a linear system of equations for \( C_1 \) and \( C_2 \). We can write \( C_2 \) in terms of \( C_1 \) as \( C_2 = $b1 - C_1 \), then substitute \( C_2 \) into the derivative equation, and obtain
+$PAR
+\( -$r1*C_1 - $r2*($b1 - C_1) = $b2 \), therefore \( C_1 = $D1 \), and (substituting back into \( C_1 + C_2 = $b1 \) ), \( C_2 = $b1 - $D1 = $D2 \).
+$PAR
+Substituting into the total solution and including the step function, we have 
+\( ($D1 e^{-$r1 t} + $D2 e^{-$r2 t} +  $mag \cos($w t + $phase))u(t) \)
+
+END_SOLUTION
+
+ENDDOCUMENT();

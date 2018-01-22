@@ -1,20 +1,18 @@
 #########################################################
-##KEYWORDS('Sampling theory'; 'stratified sampling', 'proportional
-##allocation', 'optimal allocation'; 'compare the width of a confidence interval
-##for an estimate of the population mean using stratified sampling with
-##proportional allocation to that of an estimate based on a simple random
-##sample', 'compare the width of a confidence interval for an estimate of the
-##population mean using stratified sampling with optimal allocation to that of
-##an estimate based on proportional allocation.) 
+##KEYWORDS('Sampling theory'; 'ratio estimators', 'sampling for a
+##characteristic'; 'determine an estimate of the total in a sample possessing a
+##characteristic', 'using a sample from the population and data on correlated
+##variable', 'provide a standard error for the estimate'.) 
 # DESCRIPTION
-## DBsubject('Statistics')
-## DBchapter('Sample survey methods')
-## DBsection('Stratified sampling')
-## Date('2015/10/13')
+## DBsubject('Statistics')
+## DBchapter('Sample survey methods')
+## DBsection('Ratio estimators')
+## Date('2015/09/23')
 ## Author('Nelson Chen')
 ## Institution('University of British Columbia')
-## level('4')
-## 3 Attempts
+## level('5')
+## 3 Attempts. 
+
 
 #########################################################
 DOCUMENT();
@@ -48,154 +46,143 @@ $seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
 ####Call R server
 rserve_eval("set.seed($seed)"); ## can not combine with the rest
 
-
-@a=rserve_eval('
-a <- sample(seq(from=4000,to=8000,by=500),size=1)
-');
-
-@b=rserve_eval('
-b <- sample(7:13, size=1)
-');
-
-@c=rserve_eval('
-c <- sample(18:25, size=1)
+@j_tmp=rserve_eval('
+j.tmp <- rbinom(25, size=1, prob=.5)
 ');
 
 
-@s2_btwn=rserve_eval('
-s2_btwn <- a^2/4
-round(s2_btwn, 3)
+@w_tmp=rserve_eval('
+w.tmp <- rnorm(25, 1+0.5*j.tmp, 0.25)
 ');
 
-@s2_wthn=rserve_eval('
-s2_wthn <- 0.5*b*10^6 + 0.5*c*10^6
+
+@sd_w=rserve_eval('
+sd.w <- round(sqrt(var(w.tmp)),2)
 ');
 
-@s2_ttl=rserve_eval('
-s2_ttl <- s2_btwn + s2_wthn
+
+@j_bar=rserve_eval('
+j.bar <- sum(j.tmp)/25
 ');
 
-@w=rserve_eval('
-w <- sqrt(b)/(sqrt(b)+sqrt(c))
-round(w, 3)
+
+@j_bar_display=rserve_eval('
+round(j.bar * (1-j.bar), 2)  
 ');
+
+
+@w_bar=rserve_eval('
+w.bar <- round(mean(w.tmp),2)
+');
+
+
+@sd_1=rserve_eval('
+sd.1 <- round(sqrt(var(w.tmp-(w.bar/j.bar)*j.tmp)),2)
+');
+
+
+@sd_2=rserve_eval('
+sd.2 <- round(sqrt(var(j.tmp-(j.bar/w.bar)*w.tmp)),2)
+');
+
+
+####Build table
+$Table = 
+"\(       
+\begin{array}{c|cc}
+& \text{mean} & \text{SD}  \\
+\hline
+J &  @j_bar[0] & @j_bar_display[0] \\
+W & @w_bar[0] & @sd_w[0]  \\
+W-(\bar{W}/\bar{J})J  & 0  & @sd_1[0] \\
+J-(\bar{J}/\bar{W})W  & 0  & @sd_2[0] \\
+\end{array}
+\)"
+;
 
 
 #######answers_q1
 @q1=rserve_eval('
-tem<-round(100*(1-sqrt(s2_wthn/s2_ttl)),1)
+tmp=(j.bar/w.bar)*1250
+round(tmp, 2)
 ');
 
-@q1_pre=rserve_eval('
-tem<-round(sqrt(s2_wthn/s2_ttl), 4)
-');
 
 #######answers_q2
 @q2=rserve_eval('
-tem<- round(100*(1-sqrt( (b/w+c/(1-w))/(2*b+2*c) )),1)
-');
-
-@q2_pre=rserve_eval('
-tem<- sqrt(0.5*b/w + 0.5*c/(1-w))/sqrt( 0.5*b/0.5 +0.5*c/0.5)
-round(tem, 4)
+tmp<-1250*(1/w.bar)*sqrt(sd.2^2/25)
+round(tmp, 2)
 ');
 
 #########################################################
 ## Main Text: where all text goes (Required)
 Context()->texStrings;
 BEGIN_TEXT
-A large population of interest is known to be comprised of 50% females,
-50% males. A study is being planned to estimate the average annual
-income in this population. The study team suspects that:
+A fishing boat docks with a large number of fish in its hold. At random,
+25 fish are selected for examination, which includes a determination of
+juvenile (J = 1) or adult (J = 0) status, and a measurement of weight
+(W), in kilograms. Note: the "large" above is a cue to ignore the FPC- that, plus the fact that the number of fish in the hold is not known.
+Some summary statistics of this sample are below.
 $BR
 $BR
-$BBOLD 1. $EBOLD the average annual female and male incomes differ by $ @a[0];
+$BCENTER
+$Table
+$ECENTER
 $BR
-$BBOLD 2. $EBOLD the variance of female incomes is \(@b[0] \times10^6\) (dollars-squared);
-$BR
-$BBOLD 3. $EBOLD the variance of male incomes is \(@c[0] \times10^6\) (dollars-squared). 
-$BR
-$BR
-$BBOLD(a) $EBOLD Based on these suppositions, how much of a reduction in confidence interval width would you anticipate if you carry out a stratified
-sample using proportional allocation rather than a simple
-random sample (with the same total sample size in either case)?
-Express your answer as a percent reduction, to one decimal place.
-(For instance, if the ratio of the two interval widths happened to
-be 0.6, you would enter an answer of 40.0, since this corresponds
-to a 40.0 percent reduction.)  \{  ans_rule(7) \}  
+Additionally, the total catch was weighed as a whole, and found to be 1250 Kg. Provide answers to the following to two decimal places.
 $BR
 $BR
 
-$BBOLD(b) $EBOLD Based on these suppositions, how much of a reduction in confidence interval width would you anticipate if you carry out a
-stratified sample using optimal allocation rather than a stratified
-sample using proportional allocation (with the same total sample
-size in either case)? Again express your answer as a percent reduction,
-to one decimal place.  \{  ans_rule(7) \}   
+$BBOLD(a) $EBOLD Give a ratio estimate of the number of juvenile fish caught. 
+\{  ans_rule(7) \} 
+$BR
+$BR
+
+$BBOLD(b) $EBOLD Give a standard error for your estimate. \{  ans_rule(7) \}  
 $BR
 $BR
 
 END_TEXT
 #########################################################
 ## Answers evaluation (Required)
-ANS( num_cmp(@q1[0], tol=> 0.11) );
-ANS( num_cmp(@q2[0], tol=> 0.11) );
-
+ANS( num_cmp(@q1[0], tol=> 0.105) );
+ANS( num_cmp(@q2[0], tol=> 0.105) );
 
 #########################################################
 ## Solution (Optional but recommended)
 Context()->texStrings;
 BEGIN_SOLUTION
-$BBOLD (a) $EBOLD With the 50-50 population proportions, the fact that
-the two guessed stratum means differ by @a[0] implies that each differs
-from the guessed population mean by @a[0]/2. Hence the guessed
-between-stratum variance in income is 
+$BBOLD (a) $EBOLD To match typical notation for ratio estimation, write
+y and x in place of J and W, and let 
 $BR
+$BCENTER
+\(
+B= B_P=\frac{\bar{y}_P}{\bar{x}_P} 
+\)
+$ECENTER
 $BR
-$BBOLD
-\begin{align*}
-\frac{1}{2} \times \left(\frac{@a[0]}{2} \right)^2 + \frac{1}{2} \times \left(\frac{@a[0]}{2}\right)^2 &= \frac{@a[0]^2}{4}
-=@s2_btwn[0]. 
-\end{align*}
-$EBOLD
+$BCENTER
+\(
+\hat{B}= \hat{B}_S=\frac{\bar{y}_S}{\bar{x}_S} 
+\)
+$ECENTER
 $BR
-$BR
-The guessed within-stratum variance is
-$BR
-$BR
-$BBOLD
-\begin{align*}
-\frac{1}{2} @b[0] \times 10^6 + \frac{1}{2} @c[0] \times 10^6  &=@s2_wthn[0]. 
-\end{align*}
-$EBOLD
-$BR
-$BR
-Summing the between-stratum and within-stratum guesses gives @s2_ttl[0] as the guessed total variance in annual income. So the ratio of interval widths (stratified with proportional allocation over SRS) will be
-$BR
-$BR
-$BBOLD
-\begin{align*}
-\frac{  \sqrt{s^2_{\text{guess, within}}}  }{  \sqrt{s^2_{\text{guess, total}}} } &= 
-\sqrt{\frac{@s2_wthn[0]}{ @s2_ttl[0]}} = @q1_pre[0], 
-\end{align*}
-$EBOLD
-$BR
-which is a @q1[0] percent reduction.
+The fact that \( T_y/T_x=B\) motivates \( \hat{T}_y=\hat{B} \times T_x
+=(@j_bar[0]/@w_bar[0]) \times 1250=@q1[0] \).   
 $BR
 $BR
 
-   
-$BBOLD (b) $EBOLD Whereas proportional allocation would use stratum-specific sample
-sizes of n/2 and n/2, optimal allocation would use sample sizes of  \(  \left( \sqrt{@b[0]}/ (\sqrt{@b[0]} + \sqrt{@c[0]}) \right) \times  n \) and  \(  \left( \sqrt{@c[0]}/ (\sqrt{@b[0]} + \sqrt{@c[0]}) \right) \times n  \), i.e.,  \( @w[0] \times n\) and \( (1-@w[0]) \times n\). Hence the ratio of anticipated interval widths is
+$BBOLD (b) $EBOLD Also 
 $BR
 $BR
-$BBOLD
+$BCENTER
 \begin{align*}
-\frac{   \sqrt{  0.5^2 \times @b[0] / @w[0]  + 0.5^2 \times @c[0] /(1-@w[0])} } {  \sqrt{ 0.5^2 \times @b[0] /0.5 +0.5^2 \times @c[0]/0.5 }  } &=@q2_pre[0],
+SE(\hat{T}_y)  &=T_x \times SE(\hat{B}) \\ 
+&= T_x \times ( \frac{1}{\bar{x}_S}) \times \sqrt{\frac{s_e^2}{n}}  \\
+&= 1250 \times (1/@w_bar[0]) \times \sqrt{@sd_2^2/25} \\
+&=@q2[0]. 
 \end{align*}
-$EBOLD
+$ECENTER
 $BR
-which is a @q2[0] percent reduction.
-    
-
 END_SOLUTION
 ENDDOCUMENT();

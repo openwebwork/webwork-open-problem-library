@@ -10,6 +10,7 @@
 ## Author(Paul Pearson)
 ## MLT(graphs)
 ## Level(2)
+## MO(1)
 ## TitleText1('Calculus: Early Transcendentals')
 ## AuthorText1('Stewart')
 ## EditionText1('6')
@@ -18,16 +19,16 @@
 ## KEYWORDS('Integrals', 'Area and Distance','Riemann sums','area')
 
 DOCUMENT();
-loadMacros("PGbasicmacros.pl",
-           "PGchoicemacros.pl",
-           "PGanswermacros.pl",
-           "PGgraphmacros.pl",
-           "PGnumericalmacros.pl",
-           "extraAnswerEvaluators.pl",
-           "weightedGrader.pl"
-           );
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserPopUp.pl",
+  "PGgraphmacros.pl",
+  "weightedGrader.pl",
+  "PGcourse.pl"
+);
 
-TEXT(beginproblem());
+Context("Numeric");
 
 install_weighted_grader();
 
@@ -38,7 +39,8 @@ $showPartialCorrectAnswers = 1;
 $graphL = init_graph(-1,-1,9,9,ticks=>[10,10],axes=>[0,0],pixels=>[400,400]);
 $c = random(4,6,1); # a constant for scaling the function
 $f = FEQ("- x**2 / $c + 2 * x for x in <-1,9> using color:blue and weight:2");
-$ftex = "-\frac{x^2}{$c} + 2 x";
+#$ftex = "-\frac{x^2}{$c} + 2 x";
+$ftex = Compute("-x^2/$c + 2x");
 # the parentheses around $fRefL are necessary
 ($fRefL) = plot_functions( $graphL, $f );
 
@@ -99,15 +101,56 @@ foreach $k (1..$n) {
 $graphR->lb(new Label ( 8.5,0,'x','black','right','top'));
 $graphR->lb(new Label ( -0.25,8.5,'y','black','right','top'));
 
+# answers
+
+$LeftRiemannSum = 0;
+foreach $k (0..$n-1) { $LeftRiemannSum = $LeftRiemannSum + $y[$k]; }
+$LeftRiemannSum = Real($deltax * $LeftRiemannSum);
+
+$LeftCompare = PopUp(['[select an answer]','an overestimate of','equal to','an underestimate of','there is ambiguity'],'there is ambiguity');
+
+$RightRiemannSum = 0;
+foreach $k (1..$n) { $RightRiemannSum = $RightRiemannSum + $y[$k]; }
+$RightRiemannSum = Real($deltax * $RightRiemannSum);
+
+$RightCompare = PopUp(['[select an answer]','an overestimate of','equal to','an underestimate of','there is ambiguity'],'there is ambiguity');
+
+# answer checker for LeftCompare and RightCompare.  Original version required 'there is ambiguity' in every case.
+
+$integrate_f = Compute("-x^3/(3*$c) + x^2");
+$area = ($integrate_f->eval(x=>$b))-($integrate_f->eval(x=>$a));
+
+$compareCheck = sub {
+  my ($correct,$student,$ansHash)=@_;
+  my $truearea = $ansHash->{truearea};
+  my $riemannsum = $ansHash->{riemannsum}; 
+  my $alt;
+  if ($riemannsum < $truearea){
+    $alt = 'an underestimate of';
+  }
+  elsif ($riemannsum > $truearea){
+    $alt = 'an overestimate of';
+  }
+  else {
+    $alt = 'equal to';
+  }
+  if ( ($student eq $alt) or ($student eq 'there is ambiguity') ){
+    return 1;
+  }
+  else {
+    return 0;
+  }
+};
 
 
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 
 The rectangles in the graph below illustrate a left endpoint Riemann sum for \( \displaystyle f(x) = $ftex \) on the interval \( \lbrack $a, $b \rbrack \).  
 $BR
-The value of this left endpoint Riemann sum is \{NAMED_ANS_RULE('optional1',30)\}, 
-and this Riemann sum is an \{ NAMED_POP_UP_LIST('optional2',['?','overestimate
-of','equal to','underestimate of','there is ambiguity']) \} the area
+The value of this left endpoint Riemann sum is \{ans_rule(30)\}, 
+and this Riemann sum is \{ $LeftCompare->menu() \} the area
 of the region enclosed by \(\displaystyle y = f(x) \), the x-axis, and
 the vertical lines x = $a and x = $b.
 $BR
@@ -126,8 +169,8 @@ $BR
 
 The rectangles in the graph below illustrate a right endpoint Riemann sum for \( \displaystyle f(x) = $ftex \) on the interval \( \lbrack $a, $b \rbrack \).
 $BR
-The value of this right endpoint Riemann sum is \{NAMED_ANS_RULE('optional3',30)\}, 
-and this Riemann sum is an \{ NAMED_POP_UP_LIST('optional4',['?','overestimate of','equal to','underestimate of','there is ambiguity']) \} the area of the region enclosed by \(\displaystyle y = f(x) \), the x-axis, and the vertical lines x = $a and x = $b.
+The value of this right endpoint Riemann sum is \{ans_rule(30)\}, 
+and this Riemann sum is \{ $RightCompare->menu() \} the area of the region enclosed by \(\displaystyle y = f(x) \), the x-axis, and the vertical lines x = $a and x = $b.
 $BR
 $BR
 
@@ -139,22 +182,20 @@ $BCENTER
 $ECENTER
 
 END_TEXT
+Context()->normalStrings;
 
-$LeftRiemannSum = 0;
-foreach $k (0..$n-1) { $LeftRiemannSum = $LeftRiemannSum + $y[$k]; }
-$LeftRiemannSum = $deltax * $LeftRiemannSum;
-NAMED_WEIGHTED_ANS('optional1',num_cmp($LeftRiemannSum),45);
+WEIGHTED_ANS( $LeftRiemannSum->cmp(),45);
+WEIGHTED_ANS( $LeftCompare->cmp( checker => $compareCheck, truearea => $area, riemannsum => $LeftRiemannSum ),5);
+WEIGHTED_ANS( $RightRiemannSum->cmp(),45);
+WEIGHTED_ANS( $RightCompare->cmp(checker => $compareCheck, truearea => $area, riemannsum => $RightRiemannSum ),5);
 
-NAMED_WEIGHTED_ANS('optional2',str_cmp("there is ambiguity"),5);
+#NAMED_WEIGHTED_ANS('optional2',str_cmp("there is ambiguity"),5);
 
-$RightRiemannSum = 0;
-foreach $k (1..$n) { $RightRiemannSum = $RightRiemannSum + $y[$k]; }
-$RightRiemannSum = $deltax * $RightRiemannSum;
-NAMED_WEIGHTED_ANS('optional3',num_cmp($RightRiemannSum),45);
+#NAMED_WEIGHTED_ANS('optional3',num_cmp($RightRiemannSum),45);
 
-NAMED_WEIGHTED_ANS('optional4',str_cmp("there is ambiguity"),5);
+#NAMED_WEIGHTED_ANS('optional4',str_cmp("there is ambiguity"),5);
 
-
+Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $BR
 $HR
@@ -173,7 +214,7 @@ $BR
 = ( $y[1] + $y[2] + \cdots + $y[$n] ) \cdot 0.5  = $RightRiemannSum.\)
 
 END_SOLUTION
-
+Context()->normalStrings;
 
 ENDDOCUMENT();
 

@@ -14,10 +14,15 @@
 
 
 DOCUMENT();
-loadMacros("PGstandard.pl",
-	   "Parser.pl",
-	   "PGnauGraphics.pl"
-	  );
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGnauGraphics.pl",
+  "PGgraphmacros.pl",
+  "PGcourse.pl"
+);
+
+    $showPartialCorrectAnswers = 1;
 
 COMMENT("Plots the graphs of the answer and goal functions.");
 
@@ -25,10 +30,13 @@ TEXT(&beginproblem) ;
 
 Context('Numeric');
 
-$a = non_zero_random(-2,2,1);
-$x1 = random(-4,4,1);
-$x2 = random(-4,4,1);
-
+$a = list_random(-1/2,1/2,1/4,-1/4,1/3,-1/3);
+{
+$x1 = random(-10,10,1);
+$x2 = random(-10,10,1);
+redo if (abs($x1-$x2)<3);
+redo if (abs($x1-$x2)>9);
+}
 
 $dom = 12;
 @gr_lab=(-$dom+1,$dom-1);
@@ -39,51 +47,37 @@ $f = Formula("$a(x-$x1)(x-$x2)")->reduce;
 $f->{limits} =[-$dom, $dom];
 
 $graphf = init_graph(@opts);
-# $fr = new Fun( sub {my $x = shift; $f->perl});
-$fr = new Fun($f->perlFunction);
-$fr->domain(-$dom,$dom);
-$fr->steps(500);
-$graphf->fn($fr);
+($name)=plot_functions($graphf,"$f for x in <-$dom,$dom> using color:blue and steps:250");
+$name->steps(250);
 $labelf = new Label(@gr_lab, 'f', 'blue' , 'center', 'center');
 $graphf->lb($labelf);
 
-#####################################################
-
-$graph_eval = sub{
-  my ($orig_in) = @_;
-  
-  my ($h, $view, $intex, $score, $ans_hash);
-  
-  $myeval = $f->cmp;    
-  $ans_hash = $myeval->evaluate($orig_in);
-
-  if ($orig_in ne ''){
-    $h = Formula($orig_in)->reduce;
-    $h->{limits} =[-$dom, $dom];
-    $hr = new Fun($h->perlFunction);
-    $hr->domain(-$dom,$dom);
-    $hr->steps(500);
-    $graph = init_graph(@opts);
-    $graph->new_color('dkgreen',0,102,0);
-    $hr->color('dkgreen');
-    $graph->fn($fr);
-    $graph->fn($hr);
-    $tm = time;
-    $graph->gifName($graph->gifName()."-$tm");
-    $view = Plot($graph);
-    $$ans_hash{student_ans} = $view;
-  }
-  $ans_hash;	      
-};
-
-#####################################################
 BEGIN_TEXT
 \{ Plot($graphf) \}
 $PAR
 Find the formula for \(f\).
 $PAR
 \(f(x)=\) \{ ans_rule(30) \}
+$PAR
+Hint: Search for the function in the form \( a(x-c)(x-d) \).
+
 
 END_TEXT
-ANS($graph_eval);
+    ANS($f->cmp->withPostFilter(sub {
+      my $ans = shift;
+      my ($correct,$student) = ($ans->{correct_value},$ans->{student_value});
+      if ($student && $correct->typeMatch($student)) {
+        my $graph = init_graph(@opts);
+        $graph->new_color('dkgreen',0,102,0);
+        ($name)=plot_functions($graph,
+          "$correct for x in <-$dom,$dom> using color:blue and steps:250",
+          "$student for x in <-$dom,$dom> using color:dkgreen and steps:250",
+        );
+        $name->steps(250);
+        $graph->gifName($graph->gifName()."-$student");
+        $ans->{student_ans} = Plot($graph);
+      }
+      return $ans;
+    }));
+
 ENDDOCUMENT();

@@ -15,23 +15,31 @@
 
 DOCUMENT();
 loadMacros(
-"PGstandard.pl",
-"MathObjects.pl",
-"parserMultiAnswer.pl",
-# "AnswerFormatHelp.pl",
-"PGcourse.pl",
-"MatrixReduce.pl",
-"rank.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "MatrixReduce.pl",
+  "rank.pl",
+  "PGcourse.pl"
 );
 $showPartialCorrectAnswers = 1;
 TEXT(beginproblem()); 
 
-Context('Matrix');
+Context("Fraction");
+Context() -> parens -> set ("[" => {formMatrix => 1});
+# Context("Matrix");
 
 $B1 = Matrix([[1,0],[0,1]]);
 $B2 = Matrix([[0,1],[1,0]]);
 $M1 = Matrix([[1,1],[1,1]]);
 $ML = Matrix([[0,-1],[-1,0]]);
+
+$a = non_zero_random(-9,9,1);
+$b = non_zero_random(-9,9,1);
+$A = Matrix([[$a,$b],[$b,$a]]);
+$sA = Compute($a+$b);
+$LA = Matrix([[-$b,-$a],[-$a,-$b]]);
+
 
 sub magic {
 my ($m) = @_;
@@ -45,12 +53,6 @@ return 0 if ($s5 != $s1);
 return 1;
 }
 
-$a = non_zero_random(-9,9,1);
-$b = non_zero_random(-9,9,1);
-$A = Matrix([[$a,$b],[$b,$a]]);
-$sA = Formula("$a+$b");
-$LA = Matrix([[-$b,-$a],[-$a,-$b]]);
-
 $multians = MultiAnswer($B1, $B2)->with(
 singleResult => 1,
 checker => sub {
@@ -59,6 +61,8 @@ my @s = @{$student};
 my @c = @{$correct};
 $s0 = Matrix($s[0]); 
 $s1 = Matrix($s[1]);
+
+$goodbasis=0;
 
 if (! magic($s0)) {
   $self->setMessage(1,"Not half-magic.");
@@ -80,12 +84,14 @@ if (rank(Matrix(
   $self->setMessage(2,"Not independent.");  
   return 0;
 }
+$goodbasis=1;
 return 1;
 }
 );
 
 sub mycheck {
   my ($correct, $student, $ansHash) = @_;
+  return 0 if (! $goodbasis);
   my $t  = Matrix($student);
   my $Ls0=$s0-($s0->element(1,1)+$s0->element(1,2))*$M1;
   if ($Ls0 != ($t->element(1,1)*$s0 + $t->element(2,1)*$s1) ) {

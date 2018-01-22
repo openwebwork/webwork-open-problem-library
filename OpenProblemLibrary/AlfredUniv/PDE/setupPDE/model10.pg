@@ -24,11 +24,11 @@
 DOCUMENT();      
 
 loadMacros(
-   "PGstandard.pl",     # Standard macros for PG language
-   "MathObjects.pl",
-   "parserFunction.pl",
-   #"source.pl",        # allows code to be displayed on certain sites.
-   "PGcourse.pl",      # Customization file for the course
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserFunction.pl",
+  "parserImplicitEquation.pl",
+  "PGcourse.pl"
 );
 
 # Print problem number and point value (weight) for the problem
@@ -42,40 +42,24 @@ $showPartialCorrectAnswers = 1;
 #  Setup
 #
 #
-Context("Point");
-Context()->variables->add(L=>"Real",t=>"Real",a=>"Real",b=>"Real");
-$left = Point("(0,y)");
-$right = Point("(a,y)");
-$bottom = Point("(x,0)");
-$top = Point("(x,b)");
 
-Context("Numeric");
-Context()->variables->add(a=>"Real",b=>"Real",c=>"Real",h=>"Real",k=>"Real",L=>"Real",t=>"Real",u=>"Real",um=>"Real",ux=>"Real",uxx=>"Real",ut=>"Real",utt=>"Real",uy=>"Real",uyy=>"Real",y=>"Real");
-Context()->variables->set(um=>{TeX => '{u_m}'},ux=>{TeX => '{\frac{\partial u}{\partial x}}'},uxx=>{TeX => '{\frac{\partial^2 u}{\partial x^2}}'},ut=>{TeX => '{\frac{\partial u}{\partial t}}'},utt=>{TeX => '{\frac{\partial^2 u}{\partial t^2}}'},uy=>{TeX => '{\frac{\partial u}{\partial y}}'},uyy=>{TeX => '{\frac{\partial^2 u}{\partial y^2}}'});
 
-$u = Formula("u");
-$ux = Formula("ux");
-$uxx = Formula("uxx");
-$ut = Formula("ut");
-$utt = Formula("utt");
-$uy = Formula("uy");
-$uyy = Formula("uyy");
+Context("ImplicitEquation");
+Context()->variables->add(a=>"Real",b=>"Real"); 
+Context()->constants->add(c=>1);   
 
-$um = Compute(random(0,100));
-$heatleft = Formula("k*uxx");
-$heatwithtransfer = Formula("k*uxx-h*(u-$um)");
-$heatright = Formula("ut");
-
-$waveleft = Formula("a^2*uxx");
-$waveright = Formula("utt");
-$wavedamping = Formula("utt+c*ut");
-
-$laplaceleft = Formula("uxx+uyy");
-$homogeneous = Compute("0");
+parserFunction("u(x,y)"=>"x+y");
+parserFunction("uy(x,y)"=>"3x+2y");
+parserFunction("uxx(x,y)"=>"-2x+3y");
+parserFunction("uyy(x,y)"=>"4x-3y");
 
 $leftbc = Formula("e^(-y)");
 $rightbc = Compute(random(1,100));
+
+$bottombctex = "e^{-(2x/b)^2}";
 $bottombc= Formula("e^(-(2x/b)^2)");
+
+
 
 ##############################################################
 #
@@ -85,29 +69,28 @@ $bottombc= Formula("e^(-(2x/b)^2)");
 
 Context()->texStrings;
 BEGIN_TEXT
-Translate the following into a PDE with boundary conditions
+Translate the following into a PDE with boundary conditions.
+$PAR
+A thin, homogeneous, rectangular plate coincides with the region defined by \(0\leq x\leq a,0\leq y\leq b\). The left end is held at temperature \($leftbc\), and the right end is held at temperature \($rightbc\). The bottom of the plate is held at temperature \($bottombc\) and the top of the plate is insulated.  The temperature is at a steady state throughout the plate.
+\{knowlLink("How to enter the answers.",
+  value => 'Use x to represent distance from the left end of the plate, y for distance from the bottom, u for temperature, and ux, uy, uxx, etc for its partial derivatives.  '.
+  'Include independent variables, e.g. write ux(x,y) not just ux.  '.
+  'Use c for constants not explicitly named in the problem or just assume they equal 1.')\}
+
+$PAR
+The PDE is \{ans_rule(20)\}
 $BR
-A thin rectangular plate coincides with the region defined by \(0\leq x\leq a,0\leq y\leq b\). The left end is held at temperature \($leftbc\), and the right end is held at temperature \($rightbc\). The bottom of the plate is held at temperature \($bottombc\) and the top of the plate is insulated.
+When \(t\geq 0\) the boundary values / initial conditions are:
 $BR
+Left end is held at temperature \($leftbc\) \{ans_rule(15)\}
 $BR
-$BBOLD PDE $EBOLD
+Right end is held at temperature \($rightbc\): \{ans_rule(15)\}
 $BR
-$BCENTER \{$laplaceleft->ans_rule\} = \{$homogeneous->ans_rule\} $ECENTER
+Bottom of the plate is held at temperature \($bottombc\): \{ans_rule(15)\} 
 $BR
-$BBOLD Boundary/Initial Conditions $EBOLD
-$BR
-Left end is held at temperature \($leftbc\): \{ans_rule(6)\} = \{$leftbc->ans_rule(3)\}
-$BR
-Right end is held at temperature \($rightbc\):  \{ans_rule(6)\}= \{ans_rule(1)\}
-$BR
-Bottom of the plate is held at temperature \($bottombc\): \{ans_rule(6)\} = \{ans_rule(10)\}
-$BR
-Top of the plate is insulated:  \{ans_rule(6)\} = \{ans_rule(1)\}
-$BR
-$BR
-Use proper notation for 
-\{ helpLink("entering PDE's")\}.
+Top of the plate is insulated: \{ans_rule(15)\} 
 END_TEXT
+
 Context()->normalStrings;
 
 ##############################################################
@@ -116,40 +99,25 @@ Context()->normalStrings;
 #
 #
 
-## PDE
-ANS($laplaceleft->cmp);
-ANS($homogeneous->cmp);
+$pde = ImplicitEquation("uxx(x,y)+uyy(x,y)=0");
+ANS($pde->cmp());
 
-## BC/IC
-Context("Numeric");
-Context()->variables->add(y=>"Real",a=>"Real",b=>"Real");
-parserFunction("u(x,y)" => "(-1.5 * cos(3*x) - 5*pi/3 + arctan(x))(0.5 * cos(3*y) + pi/3 + arctan(2y))");
-parserFunction("ux(x,y)" => "(1.5 * cos(3*x) + 5*pi/3 + arctan(x))(1.5 * cos(3*y) + 5*pi/3 + arctan(y))");
-parserFunction("uy(x,y)" => "(0.75 * cos(2*x) + 5*pi/3 + arctan(2x))(0.75 * cos(2*y) + 4*pi/3 + arctan(2y))");
+$left = ImplicitEquation("u(0,y)=e^(-y)",
+  solutions=>[[-1,-1,-1,0.567143],[-0.5,-0.5,-0.5,0.567143],
+    [0,0,0,0.567143],[.5,.5,.5,0.567143],[1,1,1,0.567143]
+  ]
+);
+ANS($left->cmp());
 
-$heat = Formula("u(x,y)");
-$leftu = $heat->substitute(x=>"0",y=>"y");
-$rightu = $heat->substitute(x=>"a",y=>"y");
-$topu = $heat->substitute(x=>"x",y=>"b");
-$bottomu = $heat->substitute(x=>"x",y=>"0");
+Context()->variables->set(a => {limits => [$rightbc-1,$rightbc+1]});
 
-$insulatedx = Formula("ux(x,y)");
-$leftux = $insulatedx->substitute(x=>"0",y=>"y");
-$rightux = $insulatedx->substitute(x=>"a",y=>"y");
+$right = ImplicitEquation("u(a,y)=$rightbc");
+ANS($right->cmp());
 
-$insulatedy = Formula("uy(x,y)");
-$topuy= $insulatedy->substitute(x=>"x",y=>"b");
-$bottomuy = $insulatedy->substitute(x=>"x",y=>"0");
+$bottom = ImplicitEquation("u(x,0)=$bottombc");
+ANS($bottom->cmp());
 
-ANS($leftu->cmp);
-ANS($leftbc->cmp);
+$top = ImplicitEquation("uy(x,b)=0");
+ANS($top->cmp());
 
-ANS($rightu->cmp);
-ANS($rightbc->cmp);
-
-ANS($bottomu->cmp);
-ANS($bottombc->cmp);
-
-ANS($topuy->cmp);
-ANS($homogeneous->cmp);
 ENDDOCUMENT();        
