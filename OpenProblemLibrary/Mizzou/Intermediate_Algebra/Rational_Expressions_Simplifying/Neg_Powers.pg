@@ -18,6 +18,7 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "contextLimitedPowers.pl",
   "parserMultiAnswer.pl",
   "PGunion.pl",
   "PGcourse.pl"
@@ -31,6 +32,7 @@ $showPartialCorrectAnswers = 1;
 # setup contexts and variables 
 ###########################################################################
 Context("Numeric");
+
 @vars = ("x","y","z","a","b","c");
 $ch = random(0,5,1);
 $v = $vars[$ch];
@@ -53,20 +55,20 @@ if ($p1 == $p2) {
   $n = $e1/gcd($e1,$e2);
   $d = $e2/gcd($e1,$e2);
   $num = Formula("$n")->reduce;
-  $den = Formula("$d $v^$p1")->reduce;
-} elsif ($p1 > $p2) {
-  $e1 = $a**$p1;
-  $e2 = $b**$p2;
-  $e3 = $e1*$e2;
-  $num = Formula("$e1 $v + $e2")->reduce;
-  $den = Formula("$e3 $v^$p1")->reduce;
-} elsif ($p2 > $p1) {
-  $e1 = $a**$p1;
-  $e2 = $b**$p2;
-  $e3 = $e1*$e2;
-  $num = Formula("$e2 $v + $e1")->reduce;
-  $den = Formula("$e3 $v^$p2")->reduce;
-}
+  $den = Formula("$d*$v^$p1")->reduce;
+} else {
+  $d = gcd($a**$p1,$b**$p2);
+  $e1 = $a**$p1/$d;
+  $e2 = $b**$p2/$d;
+  $e3 = $a**$p1*$b**$p2/$d;
+  if ($p1 > $p2){
+    $num = Formula("$e1*$v+$e2")->reduce;
+    $den = Formula("$e3*$v^$p1")->reduce;
+  } else {
+    $num = Formula("$e2*$v+$e1")->reduce;
+    $den = Formula("$e3*$v^$p2")->reduce;
+  }
+} 
 
 $multians = MultiAnswer($num, $den)->with(
   singleResult => 0,
@@ -83,11 +85,6 @@ $multians = MultiAnswer($num, $den)->with(
           return [1,0];
       } elsif ( $f2==$f2stu || -$f2==$f2stu ) {
           return [0,1];
-      } elsif ( ($numbogus==$f1stu || -$numbogus==$f1stu) ||
-                ($denbogus==$f2stu || -$denbogus==$f2stu) ) {
-          $self->setMessage(1,"Both answer blanks must be filled");
-          $self->setMessage(2,"Both answer blanks must be filled");
-          return [0,0];
       } elsif ( $f1*$f2stu==$f1stu*$f2 ) {
           $self->setMessage(1,"Simplify your answer further");
           $self->setMessage(2,"Simplify your answer further");
@@ -110,6 +107,7 @@ if ($displayMode eq 'TeX') {
   );
 }
 
+LimitedPowers::OnlyNonNegativeIntegers();
 
 ###########################################################################
 # state the problem 
