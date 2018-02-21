@@ -18,16 +18,15 @@
 DOCUMENT();      
 
 loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "PGcourse.pl"
+   "PGstandard.pl",    
+   "MathObjects.pl",,"parserMultiAnswer.pl"
 );
 
 # Print problem number and point value (weight) for the problem
 TEXT(beginproblem());
 
 # Show which answers are correct and which ones are incorrect
-$showPartialCorrectAnswers = 0;
+$showPartialCorrectAnswers = 1;
 
 ##############################################################
 #
@@ -38,7 +37,9 @@ Context("Numeric");
 
 $angle = random(95,175,10); 
 
-$ans = Real("$angle")->with(period=>360);
+#$ans = Real("$angle")->with(period=>360);
+
+#$ans  = $angle;
 
 ##############################################################
 #
@@ -46,12 +47,36 @@ $ans = Real("$angle")->with(period=>360);
 #
 #
 
-BEGIN_TEXT
+$multians = MultiAnswer($angle, $angle,$angle)->with(
+  singleResult => 0,
+  allowBlankAnswers=>1,
+  # checkTypes => 0,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my @s = @{$student};
+      my @c = @{$correct};
+      @history = ();
+      @ret = ();
+      foreach (0..$#c){@ret = (@ret,0);}
+      foreach $i (0..$#c){
+	if (  ref($c[$j]) eq ref($s[$i]) && $s[$i] %360 == $c[$i]){
+           $ret[$i] = 1;
+           foreach $h  (0 .. $#history){
+              if(ref($history[$h]) eq ref($s[$i]) && $s[$i] == $history[$h]){ $ret[$i] = 0};
+           }
+           @history = ($s[$i], @history);
+        }
+      }
+      return [@ret];
+  }
+);
 
-Determine three $BBOLDdifferent$EBOLD angles which are coterminal with \($angle^{\circ}\):
+
+BEGIN_TEXT
+Determine three $BBOLD different$EBOLD angles which are coterminal with \($angle^{\circ}\):
 $PAR
 $BCENTER
- \{ans_rule(5)\}\(^{\circ}\), \{ans_rule(5)\}\(^{\circ}\), \{ans_rule(5)\}\(^{\circ}\)
+ \{$multians->ans_rule(5)\}\(^{\circ}\), \{$multians->ans_rule(5)\}\(^{\circ}\), \{$multians->ans_rule(5)\}\(^{\circ}\)
 $ECENTER
 
 END_TEXT
@@ -63,8 +88,6 @@ Context()->normalStrings;
 #
 #
 
-ANS( $ans->cmp() );
-ANS( $ans->cmp() );
-ANS( $ans->cmp() );
+ANS( $multians->cmp() ); 
 
 ENDDOCUMENT();        
