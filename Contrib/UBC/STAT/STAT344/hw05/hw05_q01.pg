@@ -1,0 +1,195 @@
+#########################################################
+##KEYWORDS('Inference'; 'confidence intervals for proportion', 'confidence
+##intervals for population size'; 'find a 95% confidence interval for a
+##population proportion', 'find approximate confidence interval for a population
+##size given the count within the population with the characteristic of interest.) 
+# DESCRIPTION
+## DBsubject('Statistics')
+## DBchapter('Sample survey methods')
+## DBsection('Cluster sampling')
+## Date('2016/07/25')
+## Author('Bo Chang')
+## Institution('University of British Columbia')
+## level('5')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@mArray = rserve_eval('
+m <- sample(10:20, size=6, replace=T)
+');
+
+@tArray = rserve_eval('
+t <- round(m*exp(rnorm(6, log(30), ((log(30)-log(20))/2))),1)
+');
+
+@mBar = rserve_eval('
+mBar <- mean(m)
+round(mBar, 3)
+');
+
+@mStar = rserve_eval('
+n <- 6
+N <- 30
+mStar <- N * mBar
+round(mStar, 1)
+'); 
+
+@varM = rserve_eval('
+varM <- var(m)
+round(varM, 5)
+'); 
+
+@seB = rserve_eval('
+seB <- N * sqrt((1 - n / N) * varM / n)
+round(seB, 1)
+'); 
+
+@tBar = rserve_eval('
+tBar <- mean(t)
+round(tBar, 3)
+');
+
+@tBarOverMBar = rserve_eval('
+tBarOverMBar <- tBar / mBar
+round(tBarOverMBar, 1)
+');
+
+@seD = rserve_eval('
+e <- t - tBarOverMBar * m
+varE <- var(e)
+seD <- 1 / mBar * sqrt((1 - n / N) * varE / n)
+round(seD, 1)
+');
+
+$q1ans = @mStar[0];
+$q2ans = @seB[0];
+$q3ans = @tBarOverMBar[0];
+$q4ans = @seD[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+A semi-professional soccer league is comprised of 30  teams.   Each team has a roster of 25 players, some of whom are paid to play (professionals), and others who are not (amateurs).   The number of professional players can vary from team to team.
+
+$BR
+$BR
+
+Due to complicated circumstances, you have access to information on 6 randomly selected teams, but not the other 24.   The number of professional players on these teams are @mArray[0], @mArray[1], @mArray[2], @mArray[3], @mArray[4], and @mArray[5] respectively.  And, in the same order, the annual amounts these teams pay to these players, in thousands of dollars, are @tArray[0], @tArray[1], @tArray[2], @tArray[3], @tArray[4], and @tArray[5] respectively.
+
+$BR
+$BR
+
+$BBOLD [A] $EBOLD
+Estimate the number of professional players in the league (reported to one decimal place).
+$BR
+\{  ans_rule(7) \}
+
+$BR
+$BR
+
+$BBOLD [B] $EBOLD
+Give a standard error to accompany your estimate in  part [A] (also to one decimal place).
+$BR
+\{  ans_rule(7) \}
+
+$BR
+$BR
+
+$BBOLD [C] $EBOLD
+Estimate the average annual salary of professional players in the league (in thousands of dollars, reported to one decimal place).
+$BR
+\{  ans_rule(7) \}
+
+
+$BR
+$BR
+
+$BBOLD [D] $EBOLD
+Give a standard error to accompany your estimate in  part [C] (also to one decimal place).
+$BR
+\{  ans_rule(7) \}
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.5) );
+ANS( num_cmp($q2ans, tol=> 2) );
+ANS( num_cmp($q3ans, tol=> 0.5) );
+ANS( num_cmp($q4ans, tol=> 0.5) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+For the \(i\)-th of the \(N=30\) teams, let \(m_{i}\) and \(t_{i}\) be the number of professional players and the corresponding wage bill.
+
+$BR
+$BR
+
+We estimate the the total number of players \(m_{*}\) by \(N \bar{m}_{\cal S} = 30 \times @mBar[0]=@mStar[0]\).
+
+$BR
+$BR
+
+Correspondingly,
+\[
+\begin{eqnarray*}
+SE &=& N\sqrt{ (1-n/N) s^{2}_{m}/n }  \\
+&=& 30\sqrt{ (1-6/30) @varM[0] / 6 }  \\
+&=& @seB[0]
+\end{eqnarray*}
+\]
+
+$BR
+$BR
+
+We estimate the average professional player salary to be  
+\(\bar{t}_{\cal S} / \bar{m}_{\cal S} = @tBar[0]/@mBar[0] = @tBarOverMBar[0]\).
+
+$BR
+$BR
+
+Letting \(e_{i}= t_{i}- (  \bar{t}_{\cal S} / \bar{m}_{\cal S} ) m_{i}\), we have
+\[
+\begin{eqnarray*}
+SE &=& \frac{1}{\bar{m}_{\cal S}} \sqrt{ (1-n/N) s^{2}_{e} / n } \\
+&=& @seD[0]
+\end{eqnarray*}
+\]
+
+END_SOLUTION
+ENDDOCUMENT();

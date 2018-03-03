@@ -1,0 +1,377 @@
+## DESCRIPTION
+## Systems of ODEs: Writing solutions given eigenvalues and eigenvectors 
+## ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Systems of differential equations)
+## DBsection(Complex eigenvalues)
+## Date(11/06/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## Static(1)
+## MO(1)
+## KEYWORDS('differential equations','systems of ODEs')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGmatrixmacros.pl",
+"parserMultiAnswer.pl",
+"PGcourse.pl",
+"unionTables.pl"
+);
+
+TEXT(beginproblem());
+
+#############################
+#  Setup
+
+# eigenvector = a + b i
+my $a0 = non_zero_random(-5,5,1);   my $b0 = 0; #random(-5,5,1);    
+my $a1 = random(-5,5,1);            my $b1 = non_zero_random(-5,5,1);
+
+# eigenvalue = alpha + beta i
+my $alpha = random(-5,5,1);
+my $beta  =  random(1,5,1);
+
+Context("Complex");
+$lambda1 = Complex("$alpha+$beta i");  
+$lambda2 = Complex("$alpha-$beta i");
+
+$evec10 = Complex("$a0+$b0 i");  $evec20 = Complex("$a0-$b0 i");  
+$evec11 = Complex("$a1+$b1 i");  $evec21 = Complex("$a1-$b1 i");
+
+Context("Complex-Matrix");
+
+my $A = Matrix([$evec10, $evec20], [$evec11, $evec21]) *
+        Matrix([$lambda1, 0], [0, $lambda2]) *
+        Matrix([$evec10, $evec20], [$evec11, $evec21])->inverse;
+
+my $A11 = Re($A->element(1,1)); my $A12 = Re($A->element(1,2));
+my $A21 = Re($A->element(2,1)); my $A22 = Re($A->element(2,2));
+
+
+Context("Numeric");
+Context()->variables->are(
+   t=>"Real",
+'c1'=>"Real",
+'c2'=>"Real",
+);
+
+
+# first fundamental solution 
+my $sol10 = Formula("e^{$alpha*t}*($a0*cos($beta*t) - $b0*sin($beta*t))")->reduce(); 
+my $sol11 = Formula("e^{$alpha*t}*($a1*cos($beta*t) - $b1*sin($beta*t))")->reduce(); 
+
+# second fundamental solution 
+my $sol20 = Formula("e^{$alpha*t}*($a0*sin($beta*t) + $b0*cos($beta*t))")->reduce();
+my $sol21 = Formula("e^{$alpha*t}*($a1*sin($beta*t) + $b1*cos($beta*t))")->reduce();
+
+# solution functions
+my $x = Formula("$sol10*c1 + $sol20*c2")->reduce();
+my $y = Formula("$sol11*c1 + $sol21*c2")->reduce();
+
+my $cosbt = Formula("cos($beta t)");
+my $sinbt = Formula("sin($beta t)");
+
+$multiansA = MultiAnswer(
+               $a0,$a1,$cosbt,$b0,$b1,$sinbt,$alpha, 
+               $a0,$a1,$sinbt,$b0,$b1,$cosbt,$alpha
+             )->with(
+  singleResult => 1,
+  allowBlankAnswers => 0,
+  checkTypes => 1,
+  format =>  "<table border='0'><tr>
+    <td> \(c_1\ \Biggl( \biggl\lbrack\) </td>
+    <td><table border='0' cellspacing='10'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack\ %s - \biggl\lbrack \)</td>  
+    <td><table border='0' cellspacing='10'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack\ %s \Biggr) e^{%s t} \ \ +  \ \ c_2\ \Biggl( \biggl\lbrack\)  </td>
+    <td><table border='0' cellspacing='10'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack\ %s - \biggl\lbrack \)</td>  
+    <td><table border='0' cellspacing='10'><tr><td> %s </td></tr><tr><td> %s </td></tr></table></td>
+    <td> \(\biggr\rbrack\ %s \Biggr) e^{%s t} \) </td> 
+  </tr></table>",
+  tex_format => "c_1 \left(  \left\lbrack\begin{array}{r} %s \\ %s \end{array}\right\rbrack %s
+                           - \left\lbrack\begin{array}{r} %s \\ %s \end{array}\right\rbrack %s
+                      \right) e^{%s t} \ + \
+                 c_2 \left(  \left\lbrack\begin{array}{r} %s \\ %s \end{array}\right\rbrack %s
+                           + \left\lbrack\begin{array}{r} %s \\ %s \end{array}\right\rbrack %s
+                      \right) e^{%s t}",
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my $S_sol10 = Formula("($s[0]*$s[2] - $s[3]*$s[5])*e^{$s[6]*t}");
+      my $S_sol11 = Formula("($s[1]*$s[2] - $s[4]*$s[5])*e^{$s[6]*t}");
+      my $S_sol20 = Formula("($s[7]*$s[9] + $s[10]*$s[12])*e^{$s[13]*t}");
+      my $S_sol21 = Formula("($s[8]*$s[9] + $s[11]*$s[12])*e^{$s[13]*t}");
+      my @score = (0,0);
+      if ((($S_sol10 != 0) || ($S_sol11 != 0)) &&
+          ($S_sol10*$sol11 == $S_sol11*$sol10) &&
+          ($s[6] == $alpha)) {
+        $score[0] = 1;
+      } 
+      if ((($S_sol20 != 0) || ($S_sol21 != 0)) &&
+          ($S_sol20*$sol21 == $S_sol21*$sol20) &&
+          ($s[13] == $alpha)) {
+        $score[1] = 1;
+      } 
+      return (($score[0] == 1) && ($score[1] == 1)) ? 1 : 0;
+   }
+);
+
+
+$multiansB = MultiAnswer($sol10, $sol20, $sol11, $sol21)->with(
+  singleResult => 1,
+  allowBlankAnswers => 0,
+  checkTypes => 1,
+  format =>  "<table border='0'><tr>
+    <td> \( \biggl\lbrack \)</td>
+    <td><table border='0' cellspacing='10'>
+           <tr><td> %s $SPACE </td><td> $SPACE %s</td></tr>
+           <tr><td> %s $SPACE </td><td> $SPACE %s</td></tr></table></td>
+    <td> \(\biggr\rbrack\ \biggl\lbrack\)</td>
+    <td><table border='0' cellspacing='10'><tr><td> \(c_1\) </td></tr>
+                                           <tr><td> \(c_2\) </td></table></td>
+    <td> \(\biggr\rbrack\) </td>
+   </tr></table>",
+  tex_format => "\left\lbrack\begin{array}{rr} 
+                      %s & %s \\ %s & %s 
+                 \end{array}\right\rbrack \  
+                 \left\lbrack\begin{array}{r} 
+                      c_1 \\ c_2 
+                 \end{array}\right\rbrack",
+
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my @score = (0,0);
+      if ($c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) && 
+          $c[2]->typeMatch($s[2]) && $c[3]->typeMatch($s[3])) {
+        if ((($s[0] != 0) || ($s[2] != 0)) && 
+            (Formula("$A11*$s[0] + $A12*$s[2]") == Formula("$s[0]")->D('t')) &&
+            (Formula("$A21*$s[0] + $A22*$s[2]") == Formula("$s[2]")->D('t')) ) {
+          $score[0] = 1;
+        } else {
+          Value::Error("First fundamental solution is incorrect!");
+        } if ((($s[1] != 0) || ($s[3] != 0)) && 
+            (Formula("$A11*$s[1] + $A12*$s[3]") == Formula("$s[1]")->D('t')) &&
+            (Formula("$A21*$s[1] + $A22*$s[3]") == Formula("$s[3]")->D('t')) &&
+            ($s[1]*$s[2] != $s[0]*$s[3]) ) {
+          $score[1] = 1;
+        } else {
+          Value::Error("Second fundamental solution is incorrect!");
+        }
+      }
+      return (($score[0] == 1) && ($score[1] == 1)) ? 1 : 0;
+  }
+);
+
+$multiansC = MultiAnswer($x, $y)->with(
+  singleResult => 1,
+  allowBlankAnswers => 0,
+  checkTypes => 1,
+  format => "<table border='0'>
+         <tr><td style='text-align:left'>\(x(t) = \) %s </td></tr> 
+         <tr><td style='text-align:left'>\(y(t) = \) %s </td></tr> </table>",
+  tex_format => "\begin{array}{l} x(t) = %s \\ y(t) = %s\end{array}",
+  checker => sub {
+      my ( $correct, $student, $answerHash ) = @_;
+      my @S = @{$student};
+      my @c = ($sol10, $sol20, $sol11, $sol21);      
+      my @score = (0,0);
+      if ($c[0]->typeMatch($S[0]) && $c[1]->typeMatch($S[1])) {  
+        $S[0] = Formula("$S[0] + c1c2");   $S[1] = Formula("$S[1] + c1c2");
+        my @s = ($S[0]->substitute(c1=>1,c2=>0),$S[0]->substitute(c1=>0,c2=>1),
+                 $S[1]->substitute(c1=>1,c2=>0),$S[1]->substitute(c1=>0,c2=>1));
+        if ((($s[0] != 0) || ($s[2] != 0)) && 
+            (Formula("$A11*$s[0] + $A12*$s[2]") == Formula("$s[0]")->D('t')) &&
+            (Formula("$A21*$s[0] + $A22*$s[2]") == Formula("$s[2]")->D('t')) ) {
+           $score[0] = 1;
+         } 
+         if ((($s[1] != 0) || ($s[3] != 0)) && 
+            (Formula("$A11*$s[1] + $A12*$s[3]") == Formula("$s[1]")->D('t')) &&
+            (Formula("$A21*$s[1] + $A22*$s[3]") == Formula("$s[3]")->D('t')) &&
+            ($s[1]*$s[2] != $s[0]*$s[3]) ) {
+           $score[1] = 1; 
+         }
+      }
+      return (($score[0] == 1) && ($score[1] == 1)) ? 1 : 0;
+  }
+);
+
+Context()->texStrings;
+
+$v11 = $multiansA->ans_rule(2); $v12 = $multiansA->ans_rule(2); $cos1 = $multiansA->ans_rule(5);
+$v21 = $multiansA->ans_rule(2); $v22 = $multiansA->ans_rule(2); $sin1 = $multiansA->ans_rule(5);
+if ($displayMode eq 'TeX') {
+  $exp1 =
+  "\( \displaystyle  e^{" .  $multiansA->ans_rule(2) . "t}\)";
+} else {
+  $exp1 =
+    ColumnTable(
+     "\( \displaystyle e\)",
+     $multiansA->ans_rule(2)."\(t\)".$BR.$BR,
+     indent => 0, separation => 0, valign => "BOTTOM"
+    );
+} 
+
+$v31 = $multiansA->ans_rule(2); $v32 = $multiansA->ans_rule(2); $sin2 = $multiansA->ans_rule(5);
+$v41 = $multiansA->ans_rule(2); $v42 = $multiansA->ans_rule(2); $cos2 = $multiansA->ans_rule(5);
+if ($displayMode eq 'TeX') {
+  $exp2 =
+  "\( \displaystyle  e^{" .  $multiansA->ans_rule(2) . "t}\)";
+} else {
+ $exp2 =
+    ColumnTable(
+     "\( \displaystyle e\)",
+     $multiansA->ans_rule(2)."\(t\)".$BR.$BR,
+     indent => 0, separation => 0, valign => "BOTTOM"
+    );
+}
+Context()->normalStrings;
+
+######################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+Suppose that the matrix \(\mathrm{A}\) has the following eigenvalues and eigenvectors:
+$BR
+$SPACE $SPACE \(\lambda_1 = $lambda1 \) with 
+  \( \displaystyle\boldsymbol{\vec{v}_1} = 
+    \left\lbrack
+    \begin{array}{r}
+     $evec10  \\
+     $evec11  
+    \end{array}
+  \right\rbrack. \)
+$BR
+and
+$BR
+$SPACE $SPACE \(\lambda_2 = $lambda2 \) with 
+  \( \displaystyle\boldsymbol{\vec{v}_2} = 
+    \left\lbrack
+    \begin{array}{r}
+     $evec20  \\
+     $evec21  
+    \end{array}
+  \right\rbrack. \)
+$PAR
+Write the solution to the linear system 
+  \(\boldsymbol{\vec{r}\,'} = \mathrm{A}\boldsymbol{\vec{r}}\)
+in the following forms.
+
+$BR
+$PAR
+$BR
+
+$BBOLD A.$EBOLD
+ In eigenvalue/eigenvector form:
+$BR
+\{ mbox(
+ "\(\qquad \displaystyle \biggl\lbrack\begin{array}{c} x(t) \\ y(t)\end{array}\biggr\rbrack = c_1 \Biggl( \)",
+  display_matrix([
+  [$v11],[$v12] 
+  ], align=>'c'),
+  $cos1,
+  "\( - \)",
+  display_matrix([
+  [$v21],[$v22] 
+  ], align=>'c'),
+  $sin1,
+  "\(\Biggr) \)", 
+  $exp1,
+); \}
+$BR
+\{ mbox(
+  "$SPACE \(\phantom{X} \qquad \hspace{1cm}\) $SPACE",
+  "\( \quad + \ c_2 \Biggl( \)",
+  display_matrix([
+  [$v31],[$v32] 
+  ], align=>'c'),
+  $sin2,
+  "\( + \)",
+  display_matrix([
+  [$v41],[$v42] 
+  ], align=>'c'),
+  $cos2,
+  "\(\Biggr) \)", 
+  $exp2
+); \}
+
+$BR
+$PAR
+$BR
+
+
+$BBOLD B.$EBOLD
+ In fundamental matrix form: 
+$BR
+\{ mbox(
+ "\(\qquad \displaystyle \biggl\lbrack\begin{array}{c} x(t) \\ y(t)\end{array}\biggr\rbrack = \)",
+ display_matrix([
+ [$multiansB->ans_rule(20),$multiansB->ans_rule(20)],
+ [$multiansB->ans_rule(20),$multiansB->ans_rule(20)]
+ ], align=>'cc'),
+ "\( \displaystyle
+    \left\lbrack
+    \begin{array}{r}
+     c_1  \\
+     c_2 
+    \end{array}
+  \right\rbrack \)"
+); \}
+
+$BR
+$PAR
+$BR
+
+$BBOLD C.$EBOLD
+ As two equations: $BITALIC (write "c1" and "c2" for \(c_1\) and \(c_2\) ) $EITALIC
+$BR
+\{ mbox(
+ "\(\qquad x(t) = \)", $multiansC->ans_rule(50) 
+); \}
+$BR
+\{ mbox(
+ "\(\qquad y(t) = \)", $multiansC->ans_rule(50) 
+); \}
+
+$BR
+$PAR
+$BR
+
+$BBOLD Note:$EBOLD if you are feeling adventurous you could use other
+eigenvectors like \(4\,\boldsymbol{\vec{v}_1}\) or
+\(-3\,\boldsymbol{\vec{v}_2}\).
+
+
+  
+END_TEXT
+Context()->normalStrings;
+
+
+######################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $multiansA->cmp() );
+ANS( $multiansB->cmp() );
+ANS( $multiansC->cmp() );
+
+COMMENT("MathObject version. ");
+
+ENDDOCUMENT();
+

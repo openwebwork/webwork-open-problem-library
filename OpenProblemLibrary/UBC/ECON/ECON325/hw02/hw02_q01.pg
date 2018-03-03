@@ -1,0 +1,165 @@
+#########################################################
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Exploratory data analysis/descriptive statistics)
+## DBsection(Summary statistics)
+## Date(2015/06/22)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## KEYWORDS('Exploratory data analysis', 'summary statistics', 'finance', 'find the geometric mean of a set of numbers', 'find numbers of years over which an inflation factor doubles prices' )
+## level('4')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@dat=rserve_eval('
+x <- round(runif(4, min=2, max=10), 0)
+');
+
+@Prave_percentage = rserve_eval('
+y <- 1+x/100
+rave <- prod(y)^(1/4)-1
+round(100*rave, 2)
+');
+
+@n=rserve_eval('
+round( (log(2)/log(1+rave)), 2)
+');
+
+$q1ans = @Prave_percentage[0];
+$q2ans = $n[0];
+
+
+####Build table
+$Table = 
+"\(       
+\begin{array}{cccc}
+$dat[0] &  $dat[1] & $dat[2] & $dat[3] 
+\end{array}
+\)"
+;
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Inflation rate percentages in a small country for the past four years have been:
+$BR
+$BCENTER
+$Table
+$ECENTER
+$BBOLD(a) $EBOLD Use the geometric mean to find the average annual rate (in percent) of inflation. Round your answer to two decimal places.  \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD If this rate of inflation continued, how many years would be required for prices to double? Round off your answer to two decimal places. (Note that you should NOT use the rounded answer in (a) for use in (b).) \{  ans_rule(7) \} 
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.03) );
+ANS( num_cmp($q2ans, tol=> 0.03) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD Due to compounding of interest the appropriate average here is not the usual sense of arithmetic averaging-- as used when finding the mean of a set of numbers-- but rather an average of geometrical type. Consider four inflation rates $dat[0], $dat[1], $dat[2], $dat[3] (in percent) compounding over the four years. The inflation factor would therefore be 
+$BR
+$BR
+$BCENTER
+\( 
+(1+ $dat[0]/100) \times ( 1+ $dat[1]/100 ) \times ( 1+ $dat[2]/100 )  \times
+(1+$dat[3]/100).   
+\)
+$ECENTER
+$BR
+$BR
+The 4 th root of this value, 
+$BR
+$BR
+$BCENTER
+\(
+( (1+ $dat[0]/100) \times ( 1+ $dat[1]/100 ) \times ( 1+ $dat[2]/100 )  \times
+(1+$dat[3]/100) )^{1/4}
+\)
+$ECENTER
+$BR
+$BR
+can be taken as the mean inflation factor across the four time periods. Hence an average rate over the whole period could sensibly be defined by
+$BR
+$BR
+$BCENTER
+\(
+1+ r_{ave}= ( (1+ $dat[0]/100) \times ( 1+ $dat[1]/100 ) \times ( 1+ $dat[2]/100 )  \times (1+$dat[3]/100) )^{1/4}
+\)
+$ECENTER
+$BR
+$BR
+implying
+$BR
+$BR
+$BCENTER
+\(
+r_{ave}=( (1+ $dat[0]/100) \times ( 1+ $dat[1]/100 ) \times ( 1+ $dat[2]/100 )  \times
+(1+$dat[3]/100) )^{1/4}-1.
+\)
+$ECENTER
+$BR
+$BR
+In this case, as a percentage the geometric mean is \( 100 \times r_{ave} \)=$q1ans. 
+$BR
+$BR
+$BBOLD (b) $EBOLD We seek the number of years \( n \) such that 
+$BR
+$BR
+$BCENTER
+\(
+\left( 1+r_{ave} \right) ^{n}=2.
+\)
+$ECENTER
+$BR
+$BR
+Taking logarithms, this suggests
+$BR
+$BR
+$BCENTER
+\(
+n=\frac{\log \left( 2 \right) }{ \log \left( 1+r_{ave} \right) }= $q2ans.
+\)
+$ECENTER
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

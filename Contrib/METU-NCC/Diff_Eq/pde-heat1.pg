@@ -1,0 +1,564 @@
+##DESCRIPTION
+##  Modified version of problem from Alfred University 
+##ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Partial differential equations)
+## DBsection(Heat equation)
+## Date(20/12/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(5)
+## TitleText1('Differential Equations')
+## KEYWORDS('PDE', 'heat', 'equation')
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",   
+   "MathObjects.pl",
+   "answerHints.pl",
+   "parserMultiAnswer.pl",
+   "unionLists.pl",
+   "scaffold.pl"
+);
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 1;
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+Context()->variables->are(
+  "x"=>"Real","y"=>"Real","t"=>"Real",
+  "n"=>["Real",limits=>[1,6],resolution=>1],"gamma"=>"Real",
+  "a"=>"Real","b"=>"Real","c"=>"Real","d"=>"Real");
+Context()->variables->set(gamma => {TeX => '{\gamma}'});
+Context()->functions->undefine("acos","acosh","asin","asinh");
+Context()->{error}{msg}{"Function 'asin' is not allowed in this context"} 
+   = "Do you mean arcsin, or a*sin?";
+Context()->{error}{msg}{"Function 'acos' is not allowed in this context"} 
+   = "Do you mean arccos, or a*cos?";
+$Default = Context()->copy;
+Context()->variables->remove("x");
+$Default_nox = Context()->copy;
+Context()->variables->remove("t");  Context()->variables->add("x"=>"Real");
+$Default_not = Context()->copy;
+
+Context("Numeric");
+Context()->variables->{namePattern} = qr/[a-z][a-z0-9_]*'*/i;
+Context()->variables->are(
+  "X"=>"Real","X'"=>"Real","X''"=>"Real",
+  "T"=>"Real","T'"=>"Real",
+  "lambda"=>"Real");
+Context()->variables->set(lambda => {TeX => '{\lambda}'});
+$DEcontext = Context()->copy;
+
+Context("Numeric");
+Context()->variables->are(
+  "a"=>"Real","b"=>"Real",
+  "n"=>["Real",limits=>[1,6],resolution=>1],"gamma"=>"Real");
+Context()->variables->set(gamma => {TeX => '{\gamma}'});
+Context()->functions->undefine("acos","acosh","asin","asinh");
+Context()->{error}{msg}{"Function 'asin' is not allowed in this context"} 
+   = "Do you mean arcsin, or a*sin?";
+Context()->{error}{msg}{"Function 'acos' is not allowed in this context"} 
+   = "Do you mean arccos, or a*cos?";
+$simplify = Context()->copy;
+
+##########
+##
+## Separate Variables
+
+$L = random(2,10,2);
+$halfL = $L/2;
+$k = random(2,6,1);
+
+$Xdiff1 = Formula($DEcontext,"X''/X")->reduce;
+$Tdiff1 = Formula($DEcontext,"T'/($k*T)")->reduce;
+
+$Xdiff2 = Formula($DEcontext,"X''+lambda*X")->reduce;
+$Tdiff2 = Formula($DEcontext,"T'+$k*lambda*T")->reduce;
+
+$multians_DE = MultiAnswer($Xdiff1, $Tdiff1)->with(
+  singleResult => 1,
+  checkTypes => 1,
+  allowBlankAnswers => 0,
+  format => "%s = %s = \(-\lambda\)",
+  tex_format => "%s = %s = -\lambda",
+
+  checker => sub {
+      my ( $correct, $student, $ansHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+
+      if (($s[0]== 1/$c[0]) || ($s[1]== 1/$c[1]) || # check if student entered
+          ($s[0]==-1/$c[0]) || ($s[1]==-1/$c[1]) || #  answer upside-down
+          ($s[0]== 1/$c[1]) || ($s[1]== 1/$c[0]) ||
+          ($s[0]==-1/$c[1]) || ($s[1]==-1/$c[0])) {   
+        Value::Error("Separate so that ${BBOLD}X''${EBOLD} and ${BBOLD}T '${EBOLD} are on top!");
+      }
+
+      if (($s[0]==-$c[0]) || ($s[0]==-$c[1]) ||
+          ($s[1]==-$c[0]) || ($s[1]==-$c[1])) {
+        Value::Error("Simplify so that terms are positive!");
+      }
+
+      if ((($c[0]==$s[0]) && ($c[1]==$s[1])) ||    # check if student entered 
+          (($c[1]==$s[0]) && ($c[0]==$s[1]))) {    #  answer in either order
+        return 1;
+      } else { 
+        Value::Error("At least one answer is incorrect!${BR}Check if $k is in the ${BBOLD}T${EBOLD} equation!");
+      }
+    }
+);
+
+
+$multians_zero = MultiAnswer(
+     Formula($Default_not,"a+b*x"),
+     Formula($simplify,"a"),
+     Formula($simplify,"a+b*$L"))->with(
+  singleResult => 1,
+  checkTypes => 1,
+  allowBlankAnswers => 0,
+  format => 
+   "<table border='0' cellspacing='0' style='margin-left:auto;margin-right:auto;'>
+     <tr><td>\(X(x) = \) %s</td></tr>
+     <tr><td>\(X(0) = \) %s</td></tr>
+     <tr><td>\(X($L) = \) %s</td></tr>
+    </table>",
+  tex_format =>
+   "\begin{array}{l} 
+     X(x) = %s \\ X(0) = %s \\ X($L) = %s
+    \end{array}",
+
+  checker => sub {
+    my ( $correct, $student, $ansHash ) = @_;
+    my @c = @{$correct};
+    my @s = @{$student};    
+
+    if ($s[0]->usesOneOf("x")==0) {
+      Value::Error("\(X(x)\) formula must involve ${BBOLD}x${EBOLD}");
+    }
+    $s0_a = Formula($Default_not,$s[0])->substitute(a=>1,b=>0); 
+    $s0_b = Formula($Default_not,$s[0])->substitute(a=>0,b=>1); 
+    if (( $s0_a->D('x','x') != Compute("0") ) ||
+        ( $s0_b->D('x','x') != Compute("0") ) ||
+        ( $s0_a*$s0_b->D('x') == $s0_b*$s0_a->D('x') )) { 
+      Value::Error("\(X(x)\) is incorrect!");
+    }
+    $s0_0 = Formula($simplify,Formula($Default_not,$s[0])->substitute(x=>0));
+    $s0_L = Formula($simplify,Formula($Default_not,$s[0])->substitute(x=>$L)); 
+
+    $msg = "";
+
+    if ($s0_0 != $s[1]) {  $msg = "\(X(0)\) incorrect!${BR} ";   }
+    if ($s0_L != $s[2]) {  $msg = $msg . "\(X($L)\) incorrect!"; }
+    if (!($msg eq ""))  {  Value::Error($msg);                   }
+    
+    return 1;
+  }
+);
+
+$multians_neg = MultiAnswer(
+     Formula($Default_not,"a*e^{gamma*x} + b*e^{-gamma*x}"),
+     Formula($simplify,"a+b"),
+     Formula($simplify,"a*e^{gamma*$L} + b*e^{-gamma*$L}"))->with(
+  singleResult => 1,
+  checkTypes => 1,
+  allowBlankAnswers => 0,
+  format => 
+   "<table border='0' cellspacing='0' style='margin-left:auto;margin-right:auto;'>
+     <tr><td>\(X(x) = \) %s</td></tr>
+     <tr><td>\(X(0) = \) %s</td></tr>
+     <tr><td>\(X($L) = \) %s</td></tr>
+    </table>",
+  tex_format =>
+   "\begin{array}{l} 
+     X(x) = %s \\ X(0) = %s \\ X($L) = %s
+    \end{array}",
+
+  checker => sub {
+    my ( $correct, $student, $ansHash ) = @_;
+    my @c = @{$correct};
+    my @s = @{$student};    
+
+    if ($s[0]->usesOneOf("x")==0) {
+      Value::Error("\(X(x)\) formula must involve ${BBOLD}x${EBOLD}");
+    }
+    $s0_a = Formula($Default_not,$s[0])->substitute(a=>1,b=>0); 
+    $s0_b = Formula($Default_not,$s[0])->substitute(a=>0,b=>1); 
+    $gamma2 = Formula($Default_not,"gamma^2");
+    if (( $s0_a->D('x','x') - Formula($Default_not,"$gamma2*$s0_a") != Compute("0") ) ||
+        ( $s0_b->D('x','x') - Formula($Default_not,"$gamma2*$s0_b") != Compute("0") ) ||
+        ( $s0_a*$s0_b->D('x') == $s0_b*$s0_a->D('x') )) { 
+      Value::Error("\(X(x)\) is incorrect!");
+    }
+    $s0_0 = Formula($simplify,Formula($Default_not,$s[0])->substitute(x=>0));
+    $s0_L = Formula($simplify,Formula($Default_not,$s[0])->substitute(x=>$L)); 
+
+    if ($s0_0 != $s[1]) {  $msg = "\(X(0)\) incorrect!${BR} ";   }
+    if ($s0_L != $s[2]) {  $msg = $msg . "\(X($L)\) incorrect!"; }
+    if (!($msg eq ""))  {  Value::Error($msg);                   }
+    
+    return 1; 
+  }
+);
+
+$multians_pos = MultiAnswer(
+     Formula($Default_not,"a*cos(gamma*x) + b*sin(gamma*x)"),
+     Formula($simplify,"a"),
+     Formula($simplify,"a*cos(gamma*$L) + b*sin(gamma*$L)"))->with(
+  singleResult => 1,
+  checkTypes => 1,
+  allowBlankAnswers => 0,
+  format => 
+   "<table border='0' cellspacing='0' style='margin-left:auto;margin-right:auto;'>
+     <tr><td>\(X(x) = \) %s</td></tr>
+     <tr><td>\(X(0) = \) %s</td></tr>
+     <tr><td>\(X($L) = \) %s</td></tr>
+    </table>",
+  tex_format =>
+   "\begin{array}{l} 
+     X(x) = %s \\ X(0) = %s \\ X($L) = %s
+    \end{array}",
+
+  checker => sub {
+    my ( $correct, $student, $ansHash ) = @_;
+    my @c = @{$correct};
+    my @s = @{$student};    
+
+    if ($s[0]->usesOneOf("x")==0) {
+      Value::Error("\(X(x)\) formula must involve ${BBOLD}x${EBOLD}");
+    }
+    $s0_a = Formula($Default_not,$s[0])->substitute(a=>1,b=>0); 
+    $s0_b = Formula($Default_not,$s[0])->substitute(a=>0,b=>1); 
+    $gamma2 = Formula($Default_not,"gamma^2");
+    if (( $s0_a->D('x','x') + Formula($Default_not,"$gamma2*$s0_a") != Compute("0") ) ||
+        ( $s0_b->D('x','x') + Formula($Default_not,"$gamma2*$s0_b") != Compute("0") ) ||
+        ( $s0_a*$s0_b->D('x') == $s0_b*$s0_a->D('x') )) { 
+      Value::Error("\(X(x)\) is incorrect!");
+    }
+    $s0_0 = Formula($simplify,Formula($Default_not,$s[0])->substitute(x=>0));
+    $s0_L = Formula($simplify,Formula($Default_not,$s[0])->substitute(x=>$L)); 
+
+    if ($s0_0 != $s[1]) {  $msg = "\(X(0)\) incorrect!${BR} ";   }
+    if ($s0_L != $s[2]) {  $msg = $msg . "\(X($L)\) incorrect!"; }
+    if (!($msg eq ""))  {  Value::Error($msg);                   }
+    
+    return 1; 
+  }
+);
+
+if (random(0,1,1)) {
+  $f1 = random(2,4,1); $f2 = 0;
+  $le1 = "\le";        $le2 = "<";
+} else {
+  $f1 = 0;     $f2 = random(2,4,1);
+  $le1 = "<";  $le2 = "\le";
+}
+
+$lower = ($f1 == 0) ? $halfL : 0;
+$upper = ($f1 == 0) ? $L : $halfL;
+
+$Fcoeff = ($f1 == 0) ? 
+  Formula($simplify,"-($f1+$f2)*2/(n*pi)*(cos(n*pi) - cos(n*pi/2))")->reduce :
+  Formula($simplify,"-($f1+$f2)*2/(n*pi)*(cos(n*pi/2) - 1)")->reduce  ;
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+${BITALIC}In your answers below,
+for the variable \(\lambda\) type the word 
+${EITALIC}${BBOLD}lambda${EBOLD}${BITALIC}, 
+for \(\gamma\) type the word
+${EITALIC}${BBOLD}gamma${EBOLD}${BITALIC}; 
+otherwise treat these as you would any other variable.${EITALIC}
+
+$PAR
+$HR
+$PAR
+We will solve the heat equation
+
+\[\displaystyle u_t = $k\, u_{xx}, \quad  0< x < $L, \quad  t \ge 0\]
+
+with boundary/initial conditions:
+
+\[\displaystyle  
+\begin{aligned}
+   u(0,t) &= 0,\\
+  u($L,t) &= 0,
+\end{aligned}
+\quad \mathrm{and} \quad 
+u(x,0) = 
+ \begin{cases}
+  $f1, &      0    <  x $le1 $halfL \\
+  $f2, &  $halfL $le2 x   <  $L 
+ \end{cases}
+\]
+
+$PAR
+
+This models temperature in a thin rod of length \(L = $L\) 
+with thermal diffusivity 
+\(\alpha = $k\) where the temperature at the ends is fixed at \(0\)
+and the initial temperature distribution is \(u(x,0)\). $BR
+
+For extra practice we will solve this problem from scratch.
+
+
+END_TEXT
+
+
+Scaffold::Begin(can_open=>"always");
+#################################################################
+Section::Begin("${BBOLD}Separate Variables.${EBOLD}");
+
+
+BEGIN_TEXT
+
+
+Assume \(u(x,t) = X(x)\,T(t)\) and split the PDE into two 
+differential equations, one with \(X\) and one with \(T\). 
+$BR
+\{$multians_DE->ans_rule(10)\} = \{$multians_DE->ans_rule(10)\} = \(-\lambda\)
+$BR
+$SPACE $SPACE 
+  (${BBOLD}Notation:${EBOLD} Write ${BBOLD}X''${EBOLD} and ${BBOLD}T '${EBOLD} for derivatives.  
+   Place all constants in the differential equation with ${BBOLD}T${EBOLD}).
+
+\{ BeginList('UL') \}
+
+$ITEM
+  DE for \(X(x)\): \{ans_rule(20)\} \( = 0\)
+  $BR 
+  Boundary conditions for \(X(x)\): 
+
+  $BR $SPACE $SPACE $SPACE 
+  \{ ans_rule(10) \}
+
+  $BR $SPACE $SPACE $SPACE 
+  \{ ans_rule(10) \}
+
+  $BR
+  $SPACE $SPACE ${BITALIC}(Enter boundary equations: e.g. "\(X'(0)=10\)")${EITALIC}
+
+$ITEMSEP
+
+$ITEM
+DE for \(T(t)\): \{ans_rule(20)\} \( = 0\)
+
+\{ EndList('UL') \}
+
+
+END_TEXT
+
+Section::End();
+##############################################################
+Section::Begin("${BBOLD}Find Eigenfunctions for \(X(x)\).${EBOLD}");
+
+BEGIN_TEXT
+
+The problem splits into cases based on the sign of \(\lambda\).$BR
+$SPACE $SPACE 
+(${BBOLD}Notation:${EBOLD} For the cases below, use constants ${BBOLD}a${EBOLD} and ${BBOLD}b${EBOLD}) 
+
+\{ BeginList('UL') \}
+
+$ITEM
+$BBOLD Case 1: $EBOLD \(\lambda = 0\)  $BR
+
+  \(X(x) = \) \{$multians_zero->ans_rule(40)\}  $BR
+
+Plugging the boundary values into this formula gives $BR
+
+  $SPACE $SPACE $SPACE
+  \(0 = X(0) = \)\{$multians_zero->ans_rule(1)\}  $BR
+
+  $SPACE $SPACE $SPACE
+  \(0 = X($L) = \)\{$multians_zero->ans_rule(1)\}  $BR
+
+So \(X(x) = \)\{ans_rule(1)\} 
+which means \(u(x,t) = \)\{ans_rule(1)\} $BR
+
+We can ignore this case.
+
+$ITEMSEP
+
+$ITEM
+$BBOLD Case 2: $EBOLD \(\lambda = -\gamma^2\) 
+ $SPACE $SPACE (In your answers below use ${BBOLD}gamma${EBOLD} 
+                instead of ${BBOLD}lambda${EBOLD}) $BR
+
+  \(X(x) = \) \{$multians_neg->ans_rule(40)\} $BR
+
+Plugging the boundary values into this formula gives $BR
+
+  $SPACE $SPACE $SPACE
+  \(0 = X(0) = \)\{$multians_neg->ans_rule(40)\}  $BR
+
+  $SPACE $SPACE $SPACE
+  \(0 = X($L) = \)\{$multians_neg->ans_rule(40)\}  $BR
+ 
+So \(X(x) = \)\{ans_rule(1)\} 
+which means \(u(x,t) = \)\{ans_rule(1)\} $BR
+
+We can ingore this case.
+
+$ITEMSEP
+
+$ITEM
+$BBOLD Case 3: $EBOLD \(\lambda = \gamma^2 \) 
+ $SPACE $SPACE (In your answers below use ${BBOLD}gamma${EBOLD} 
+                instead of ${BBOLD}lambda${EBOLD}) $BR
+
+  \(X(x) = \) \{$multians_pos->ans_rule(40)\} $BR
+
+Plugging in the boundary values into this formula gives $BR
+
+  $SPACE $SPACE $SPACE
+  \(0 = X(0) = \)\{$multians_pos->ans_rule(40)\} $BR
+
+  $SPACE $SPACE $SPACE
+  \(0 = X($L) = \)\{$multians_pos->ans_rule(40)\} $BR
+
+$BR
+Which leads us to the eigenvalues \(\gamma_n =\)\{ans_rule\} $BR
+and eigenfunctions \( X_n(x) =\)\{ans_rule\}
+$BR 
+
+  $SPACE $SPACE
+  (${BBOLD}Notation:${EBOLD} Eigenfunctions should not include any constants 
+   ${BBOLD}a${EBOLD} or ${BBOLD}b${EBOLD}.)
+
+\{ EndList('UL') \}
+
+
+END_TEXT
+
+Section::End();
+#########################################################
+Section::Begin("${BBOLD}Solve for \(T(t)\).${EBOLD}");
+
+BEGIN_TEXT
+
+Plug the eigenvalues \(\lambda_n = \gamma_n^2\) from ${BBOLD}Case 3${EBOLD} into the 
+differential equation for \(T(t)\) and solve:  $BR
+
+$SPACE $SPACE
+\(T_n(t) = \) \{ans_rule(30)\}  $BR
+
+$SPACE $SPACE $SPACE 
+(${BBOLD}Notation:${EBOLD} use ${BBOLD}c${EBOLD} for the unknown constant.)
+
+$PAR
+
+Combining all of the \(X_n\) and \(T_n\) we get that $BR
+
+$SPACE $SPACE
+\(u(x,t)=\displaystyle\sum\limits_{n=1}^\infty \;B_n\)\{ans_rule(30)\} $BR
+
+where \(B_n\) are unknown constants.
+
+
+END_TEXT
+
+Section::End();
+############################################################
+Section::Begin("${BBOLD}Fourier Coefficients.${EBOLD}");
+
+BEGIN_TEXT
+
+
+We compute \(B_n\) by plugging \(t=0\) into the formula for \(u(x,t)\) 
+and setting equal to the initial heat distribution given in the problem. $BR
+
+$SPACE $SPACE
+\(u(x,0) = \displaystyle
+  \sum\limits_{n=1}^\infty B_n\)\{ans_rule(20)\}
+\( = \begin{cases}
+  $f1, &      0   <  x $le1 $halfL \\
+  $f2, & $halfL $le2 x   <  $L
+\end{cases} \)
+
+$PAR
+
+So the \(B_n\) are Fourier coefficients. $BR
+
+$SPACE $SPACE
+\(\displaystyle
+B_n=\frac{2}{$L}\int_{$lower}^{$upper}\)\{ans_rule(20)\} \(\hskip 3pt dx\)
+$BR $BR $SPACE $SPACE
+\(\hskip 16pt =\) \{ans_rule(40)\}
+
+$PAR
+$SPACE $SPACE
+Remember that \(\cos(n\pi) = (-1)^n\). 
+
+END_TEXT
+
+
+Section::End();
+###########################################################
+Scaffold::End();
+
+
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+#####
+# Separate Variables
+#
+ANS($multians_DE->cmp() );
+ANS($Xdiff2->cmp);
+ANS(str_cmp(["X(0)=0", "X($L)=0"],filters=>'remove_whitespace'));
+ANS($Tdiff2->cmp);
+
+## Case 1:  lambda = 0 
+
+ANS($multians_zero->cmp() );
+ANS(Formula($Default_not,"0")->cmp);
+ANS(Formula($Default,"0")->cmp);
+
+## Case 2: lambda < 0
+
+ANS($multians_neg->cmp() );
+ANS(Formula($Default_not,"0")->cmp);
+ANS(Formula($Default,"0")->cmp);
+
+## Case 3: lambda > 0
+
+ANS($multians_pos->cmp() );
+ANS(Formula($simplify,"n*pi/$L")->cmp);
+ANS(Formula($Default_not,"sin(n*pi*x/$L)")->cmp);
+
+## Solve for T
+
+ANS(Formula($Default_nox,"c*e^(-$k*(n*pi/$L)^2*t)")->cmp);
+ANS(Formula($Default,"e^(-$k*(n*pi/$L)^2*t)*sin(n*pi*x/$L)")->cmp);
+
+## Compute B_n
+
+ANS(Formula($Default_not,"sin(n*pi*x/$L)")->cmp);
+ANS(Formula($Default_not,"($f1+$f2)*sin(n*pi*x/$L)")->cmp); 
+ANS($Fcoeff->cmp);
+
+COMMENT("Modified version of problem from D. Cook at Alfred Univ.  This version uses multians with pretty formatting and custom answer checkers to accept any correct answers (using sinh or exp).");
+
+ENDDOCUMENT();        

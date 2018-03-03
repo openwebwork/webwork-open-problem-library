@@ -1,0 +1,161 @@
+#########################################################
+##KEYWORDS('Probability'; 'hypergeometric distribution', 'sampling'; 'compute
+##the probability that a hypergeometric variable is less than two, for two
+##different population sizes'.) 
+# DESCRIPTION
+## DBsubject(Probability)
+## DBchapter(Discrete distributions)
+## DBsection(Hypergeometric)
+## Date(2015/07/30)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@Na=rserve_eval('
+Na=sample(seq(from=150, to=250, by=10),1) 
+');
+
+@q1=rserve_eval('
+tem<-choose(0.3*Na, 0) * choose(0.7*Na, 15) +  choose(0.3*Na, 1) * choose(0.7*Na, 14)    
+lower=tem/choose(Na, 15)
+re1=round(lower, 3)
+');
+
+@q2=rserve_eval('
+tem1<-choose(0.3*Na*2, 0) * choose(0.7*Na*2, 15) +  choose(0.3*Na*2, 1) * choose(0.7*Na*2, 14)    
+upper=tem1/choose(Na*2, 15)
+re2=round(upper, 3)
+');
+
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Say that a simple random sample of size 15 will be drawn from a population comprised of N members, exactly 30% of whom own a car.
+Provide answers to the following to three decimal places.
+$BR
+$BR
+$BBOLD(a) $EBOLD Computing directly using the definition of a probability sample,
+and presuming that the population size is N =$Na[0], what is the
+chance that at most one of those sampled owns a car? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD And if instead the population size is N =2*$Na[0], what is the chance that at most one of those sampled owns a car? \{  ans_rule(7) \} 
+$BR
+NOTE: It is worth comparing your answers to (a) and (b). Is the size of
+the population playing an important role in the chance of getting
+a very non-representative sample?
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.01) );
+ANS( num_cmp($q2ans, tol=> 0.01) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+There are
+$BR
+$BR
+$BCENTER
+\(
+\binom{N}{15}
+\)
+$ECENTER
+$BR
+$BR
+different possible samples from the population, all of which are
+equally likely. Of these
+$BR
+$BR
+$BCENTER
+\(
+\binom{0.3N}{0}\binom{0.7N}{15}
+\)
+$ECENTER
+$BR
+$BR
+have zero car-owners, while
+$BR
+$BR
+$BCENTER
+\(
+\binom{0.3N}{1}\binom{0.7N}{14}
+\)
+$ECENTER
+$BR
+$BR
+have exactly one car-owner. Thus the chance of obtaining a
+sample with zero or one car-owners is
+$BR
+$BR
+$BCENTER
+\(
+\frac{\binom{0.3N}{0}\binom{0.7N}{15}+\binom{0.3N}{1}\binom{0.7N}{14}}{
+\binom{N}{15}}
+\)
+$ECENTER
+$BR
+$BR
+$BBOLD (a) $EBOLD The required probability is 
+$BR
+$BR
+$BCENTER
+\(
+\frac{\binom{0.3 * $Na[0] }{0}\binom{0.7 * $Na[0] }{15}+\binom{0.3 * $Na[0] }{1}\binom{0.7 * $Na[0] }{14}}{
+\binom{ $Na[0] }{15}} = $q1ans. 
+\)
+$ECENTER
+$BR
+$BR
+$BBOLD (b) $EBOLD With \(N=2 \times $Na[0] \) we have the probability is
+$BR
+$BR
+$BCENTER
+\(
+\frac{\binom{0.3 * 2* $Na[0] }{0}\binom{0.7 * 2* $Na[0] }{15}+\binom{0.3 * 2* $Na[0] }{1}\binom{0.7 * 2* $Na[0] }{14}}{
+\binom{ 2* $Na[0] }{15}} = $q2ans. 
+\)
+$ECENTER
+END_SOLUTION
+ENDDOCUMENT();

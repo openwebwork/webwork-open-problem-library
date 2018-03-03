@@ -52,7 +52,8 @@ sub _contextLimitedFactor_init {
     $correct = $correct->{original_formula} if defined $correct->{original_formula};
     # check for equivalence when bizarro arithmetic is enforced
     Context()->flags->set(bizarroSub=> 1,bizarroAdd=> 1, bizarroDiv=> 1);
-    delete $correct->{test_values}, $student->{test_values};
+    delete $correct->{test_values};
+    delete $student->{test_values};
     my $OK = ($correct == $student); # check if equal when arithmetic is replace by bizarro arithmetic
     Context()->flags->set(bizarroSub=> 0,bizarroAdd=> 0, bizarroDiv=> 0);
     $factorableObject = Context()->flag("factorableObject");

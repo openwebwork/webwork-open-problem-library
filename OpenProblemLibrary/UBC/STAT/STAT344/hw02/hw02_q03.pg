@@ -1,0 +1,193 @@
+#########################################################
+##KEYWORDS('Sampling theory'; 'ratio estimators', 'sampling for a
+##characteristic'; 'determine an estimate of the total in a sample possessing a
+##characteristic', 'using a sample from the population and data on correlated
+##variable', 'provide a standard error for the estimate'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Sample survey methods)
+## DBsection(Ratio estimators)
+## Date(2015/09/23)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(4)
+## level('5')
+## 3 Attempts. 
+
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@j_tmp=rserve_eval('
+j.tmp <- rbinom(25, size=1, prob=.5)
+');
+
+
+@w_tmp=rserve_eval('
+w.tmp <- rnorm(25, 1+0.5*j.tmp, 0.25)
+');
+
+
+@sd_w=rserve_eval('
+sd.w <- round(sqrt(var(w.tmp)),2)
+');
+
+
+@j_bar=rserve_eval('
+j.bar <- sum(j.tmp)/25
+');
+
+
+@j_bar_display=rserve_eval('
+round(j.bar * (1-j.bar), 2)  
+');
+
+
+@w_bar=rserve_eval('
+w.bar <- round(mean(w.tmp),2)
+');
+
+
+@sd_1=rserve_eval('
+sd.1 <- round(sqrt(var(w.tmp-(w.bar/j.bar)*j.tmp)),2)
+');
+
+
+@sd_2=rserve_eval('
+sd.2 <- round(sqrt(var(j.tmp-(j.bar/w.bar)*w.tmp)),2)
+');
+
+
+####Build table
+$Table = 
+"\(       
+\begin{array}{c|cc}
+& \text{mean} & \text{SD}  \\
+\hline
+J &  $j_bar[0] & @j_bar_display[0] \\
+W & $w_bar[0] & @sd_w[0]  \\
+W-(\bar{W}/\bar{J})J  & 0  & @sd_1[0] \\
+J-(\bar{J}/\bar{W})W  & 0  & @sd_2[0] \\
+\end{array}
+\)"
+;
+
+
+#######answers_q1
+@q1=rserve_eval('
+tmp=(j.bar/w.bar)*1250
+round(tmp, 2)
+');
+
+
+#######answers_q2
+@q2=rserve_eval('
+tmp<-1250*(1/w.bar)*sqrt(sd.2^2/25)
+round(tmp, 2)
+');
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+A fishing boat docks with a large number of fish in its hold. At random,
+25 fish are selected for examination, which includes a determination of
+juvenile (J = 1) or adult (J = 0) status, and a measurement of weight
+(W), in kilograms. Note: the $BITALIC large $EITALIC above is a cue to ignore the FPC- that, plus the fact that the number of fish in the hold is not known.
+Some summary statistics of this sample are below.
+$BR
+$BR
+$BCENTER
+$Table
+$ECENTER
+$BR
+Additionally, the total catch was weighed as a whole, and found to be 1250 Kg. Provide answers to the following to two decimal places.
+$BR
+$BR
+
+$BBOLD(a) $EBOLD Give a ratio estimate of the number of juvenile fish caught. 
+\{  ans_rule(7) \} 
+$BR
+$BR
+
+$BBOLD(b) $EBOLD Give a standard error for your estimate. \{  ans_rule(7) \}  
+$BR
+$BR
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1[0], tol=> 0.105) );
+ANS( num_cmp($q2[0], tol=> 0.105) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD To match typical notation for ratio estimation, write
+y and x in place of J and W, and let 
+$BR
+$BCENTER
+\(
+B= B_P=\frac{\bar{y}_P}{\bar{x}_P} 
+\)
+$ECENTER
+$BR
+$BCENTER
+\(
+\hat{B}= \hat{B}_S=\frac{\bar{y}_S}{\bar{x}_S} 
+\)
+$ECENTER
+$BR
+The fact that \( T_y/T_x=B\) motivates \( \hat{T}_y=\hat{B} \times T_x
+=($j_bar[0]/$w_bar[0]) \times 1250=$q1[0] \).   
+$BR
+$BR
+
+$BBOLD (b) $EBOLD Also 
+$BR
+$BR
+$BCENTER
+\begin{align*}
+SE(\hat{T}_y)  &=T_x \times SE(\hat{B}) \\ 
+&= T_x \times ( \frac{1}{\bar{x}_S}) \times \sqrt{\frac{s_e^2}{n}}  \\
+&= 1250 \times (1/$w_bar[0]) \times \sqrt{@sd_2^2/25} \\
+&=$q2[0]. 
+\end{align*}
+$ECENTER
+$BR
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

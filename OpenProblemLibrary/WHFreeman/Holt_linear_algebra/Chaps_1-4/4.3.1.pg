@@ -10,6 +10,7 @@
 ## DBsection(Row, column, and null spaces)
 ## Institution(Howard University)
 ## Author(Richard Bayne)
+## MO(1)
 ## MLT(basis_row_col_nul_given_rref)
 ## Level(4)
 ## TitleText1('Linear Algebra with Applications')
@@ -27,19 +28,15 @@ DOCUMENT();
 
 loadMacros(
 "PGstandard.pl",
-"PG.pl",
-"PGbasicmacros.pl",
-"PGchoicemacros.pl",
-"PGanswermacros.pl",
-"PGgraphmacros.pl",
-"PGmatrixmacros.pl", 
-"PGmorematrixmacros.pl",
-"PGnumericalmacros.pl",
-"PGauxiliaryFunctions.pl"
-
+     "MathObjects.pl",
+     "parserMultiAnswer.pl",
+     "MatrixCheckers.pl",
+     "PGcourse.pl"
 );
 
-TEXT(beginproblem());
+Context("Matrix");
+
+$showPartialCorrectAnswers = 0;
 
 $a = random(2,3,1);
 $b = random(3,5,2);
@@ -55,60 +52,89 @@ $a31 = $c;
 $a32 = 2+2*$c;
 $a33 = $a*$c + 2*$b*$c + 2*$b;
 
-$mA =new Matrix(3,3);
-$mA->assign(1,1,$a11);
-$mA->assign(1,2,$a12);
-$mA->assign(1,3,$a13);
-$mA->assign(2,1,$a21);
-$mA->assign(2,2,$a22);
-$mA->assign(2,3,$a23);
-$mA->assign(3,1,$a31);
-$mA->assign(3,2,$a32);
-$mA->assign(3,3,$a33);
+$mA=Matrix([[$a11,$a12,$a13],[$a21,$a22,$a23],[$a31,$a32,$a33]]);
+$colA1=$mA->column(1); $colA2=$mA->column(2);
 
-$mB =new Matrix(3,3);
-$mB->assign(1,1,1);
-$mB->assign(1,2,0);
-$mB->assign(1,3,$a);
-$mB->assign(2,1,0);
-$mB->assign(2,2,1);
-$mB->assign(2,3,$b);
-$mB->assign(3,1,0);
-$mB->assign(3,2,0);
-$mB->assign(3,3,0);
 
-$ans1 = 0;
-$ans2 = 1;
-$ans3 = 2;
+# answer checker for column basis
 
+$columnbasis = MultiAnswer( $colA1,$colA2)->with(
+   singleResult => 1, 
+   separator => ', ', 
+   tex_separator => ', ', 
+   allowBlankAnswers=>0, 
+   checker => ~~&basis_checker_columns, );
+
+# row echelon form of mA
+
+$b11 = 1;
+$b12 = 0;
+$b13 = $a;
+$b21 = 0;
+$b22 = 1;
+$b23 = $b;
+$b31 = 0;
+$b32 = 0;
+$b33 = 0;
+
+$mB=Matrix([[$b11,$b12,$b13],[$b21,$b22,$b23],[$b31,$b32,$b33]]);
+$rowB1=$mB->row(1); $rowB2=$mB->row(2);
+
+$nullvector = ColumnVector(-$b13,-$b23,1);
+
+# answer checker for row basis
+
+$rowbasis = MultiAnswer( $rowB1, $rowB2 )->with( 
+  singleResult => 1, 
+  separator => ', ', 
+  tex_separator => ', ', 
+  allowBlankAnswers=>0, 
+  checker => ~~&basis_checker_rows, );
+
+
+TEXT(beginproblem());
+Context()->texStrings;
 BEGIN_TEXT
 Find bases for the column space, the row space, and the null space of matrix A. You should verify that the Rank-Nullity Theorem holds. An equivalent echelon  form  of matrix A is given to make your work easier.
-$BR
-\{ mbox('A = ', display_matrix($mA), '~', display_matrix($mB)  ) \}
 
-$BR
-\{ mbox( 'Basis for the column space of \(A\) =  {', ans_array(3,1,5), ans_array_extension(3,1,5), '}' ) \}
-$BR
-\{ mbox( 'Basis for the row space of  \(A\) =  {', ans_array(3,1,5), ans_array_extension(3,1,5), '}' ) \}
-$BR
-\{ mbox( 'Basis for the null space of  \(A\) =  {', ans_array(3,1,5),  '}' ) \}
+$PAR
+\( A=$mA \sim $mB \).
+
+
+$PAR
+A basis for the column space of \(A\) is  
+\(\Bigg$LBRACE\)\{$columnbasis->ans_array(5)\}, \{$columnbasis->ans_array(5)\}\(\Bigg$RBRACE\).
+
+$PAR
+
+A basis for the row space of \(A\) is $BR
+\(\Bigg$LBRACE\)\{$rowbasis->ans_array(5)\}, \{$rowbasis->ans_array(5)\}\(\Bigg$RBRACE\).
+
+$PAR
+
+A basis for the null space of  \(A\) is 
+\(\Bigg$LBRACE\)\{$nullvector->ans_array(5)\}\(\Bigg$RBRACE\).
 
 END_TEXT
+Context()->normalStrings;
 
-ANS(basis_cmp([ [$a11, $a21, $a31] ,  [$a12,$a22,$a32] ]));
-ANS(basis_cmp([ [1,0,$a] ,  [0,1,$b] ]));
-ANS(basis_cmp([ [$a,$b,1] ]));
+ANS($columnbasis->cmp());
+ANS($rowbasis->cmp());
+ANS($nullvector->cmp(parallel=>1));
 
-SOLUTION(EV3(<<'END_SOLUTION'));
+Context()->texStrings;
+BEGIN_SOLUTION
 $PAR$PAR{BBOLD}SOLUTION:${EBOLD} $PAR
 A basis for the column space, determined from the pivot columns 1 and 2, is
 $BR
- \(\left$LBRACE \left [ \begin{array}{c} $a11 & $a21 & $a31 \end{array} \right] , \left [ \begin{array}{c} $a12 \\ $a22 \\ $a32 \end{array} \right]\right$RBRACE \)
+ \(\left$LBRACE $colA1 , $colA2 \right$RBRACE \).
 $PAR
-A basis  for the row space is determined from the nonzero rows of the echelon form, \(\left$LBRACE \left [ \begin{array}{c} 1 \\ 0 \\ $a \end{array} \right] , \left [ \begin{array}{c} 0 \\ 1 \\ $b \end{array} \right]\right$RBRACE \)
+A basis  for the row space is determined from the nonzero rows of the echelon form,  
+\(\left$LBRACE $rowB1 , $rowB2\right$RBRACE \).
 $PAR
-Solve \( A{\bf x} = {\bf 0}\), to obtain \({\bf x} = s\left[ \begin{array}{c} $a \\ $b \\ 1 \end{array} \right] \), and so the nullspace basis is \( \left $LBRACE \left[ \begin{array}{c} $a \\ $b \\ 1 \end{array} \right] \right $RBRACE\).
+Solve \( A{\bf x} = {\bf 0}\), to obtain \({\bf x} = s $nullvector\), so a nullspace basis is 
+\( \left$LBRACE $nullvector \right$RBRACE\).
 
 END_SOLUTION
-
+Context()->normalStrings;
 ENDDOCUMENT();

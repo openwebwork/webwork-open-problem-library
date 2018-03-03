@@ -1,0 +1,211 @@
+#########################################################
+##KEYWORDS('Sample surveys'; 'estimating population mean', 'stratified
+##population'; 'give an estimate and confidence for the mean of a population in
+##two strata given the population mean in one stratum and the mean of a sample
+##from the other'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Sample survey methods)
+## DBsection(Stratified sampling)
+## Date(2015/08/30)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(4)
+## level('5')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@N=rserve_eval('
+N <- 10000*sample(6:9, size=1)
+');
+
+@N1=rserve_eval('
+N1 <- N*sample(25:35, size=1)/100
+');
+
+@A=rserve_eval('
+A <- 1000*sample(120:140, size=1)
+');
+
+@B=rserve_eval('
+B <- 1000*sample(50:65, size=1)
+');
+
+@q1=rserve_eval('
+re1=(1-N1/N)*B + (N1/N)*A 
+round(re1, 4)
+');
+
+@q2=rserve_eval('
+re2<- (1-N1/N)* (B -1.96* 7000/10) + (N1/N)*A 
+round(re2, 4)
+');
+
+@q3=rserve_eval('
+re3<- (1-N1/N)* (B +1.96* 7000/10) + (N1/N)*A 
+round(re3, 4)
+');
+
+$ans_e_correct = "Yes";
+
+$qu_e = "It might not be so easy to collect a simple random sample of those
+university employees not on the sunshine list. Thinking about
+the definition of a simple random sample, would it work to draw
+a simple random sample from all university employees and then
+simply discard the responses of those who report an income of
+100,000 dollars or more?";
+
+
+@ans_e_all = ("Yes",
+"No"
+);
+
+
+$mc_e = new_multiple_choice();
+$mc_e->qa(
+  $qu_e,
+  $ans_e_correct
+);
+
+$mc_e->makeLast(
+$ans_e_all[0], $ans_e_all[1]
+);
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+$q3ans =$q3[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+In Ontario, public-sector employers are required to make public the
+salaries of all employees earning more than $100,000 per year (this is
+often referred to as the "sunshine list"). Say you have been tasked with
+estimating the average salaries of employees in a segment of the public-
+sector. For instance, say that all employees of Ontario universities
+is your target population. To start, from basic information provided
+by the universities, you know the size of your target population is $N[0]
+employees. Next, you consult the sunshine list and find that $N1[0] of
+these employees are listed there, with those listed having an average
+salary of $$A[0] per year. Then you are able to collect information from a
+simple random sample of 100 of those university employees not on the sunshine list. The mean income in those sampled is $$B[0] per year, with a
+standard deviation of $7,000. Provide answers to the following to two
+decimal places.
+
+$BR
+$BR
+$BBOLD(a) $EBOLD With the information at hand, give your estimate of the average income amongst all employees of Ontario universities. \{  ans_rule(7) \} 
+
+$BR
+$BR
+$BBOLD(b) $EBOLD Give a 95% confidence interval to accompany your estimate.
+$BR
+ (\{  ans_rule(7) \}, \{  ans_rule(7) \} )
+
+$BR
+$BR
+$BBOLD (c) $EBOLD
+\{ $mc_e->print_q() \}
+$BR
+\{ $mc_e->print_a() \}
+$BR
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 1) );
+ANS( num_cmp($q2ans, tol=> 1) );
+ANS( num_cmp($q3ans, tol=> 1) );
+ANS(radio_cmp($mc_e->correct_ans()) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD The population has two parts - "non-sunshine" and "sunshine".
+From the survey data we estimate the mean income in the first part, 
+\( \bar{y}_{P, 1} \) by the sample mean \( \bar{y}_{S, 1} = \) $$B[0], with a 95% 
+confidence interval being $ (\($B[0] \pm 1.96 \times 7000/10 \)). We also have that the mean income in the whole population must be
+$BR
+$BR
+$BCENTER
+\(
+\bar{y}_{P} = (1-\frac{$N1[0]}{$N[0]}) \times \bar{y}_{P, 1} +  (\frac{$N1[0]}{$N[0]}) \times \bar{y}_{P, 2} 
+\)
+$ECENTER
+$BR
+$BR
+where \( \bar{y}_{P, 1} \) is the mean salary of the "sunshine" group. So we estimate this
+$BR
+$BR
+$BCENTER
+\(
+ (1-\frac{$N1[0]}{$N[0]}) \times \bar{y}_{S, 1} +  (\frac{$N1[0]}{$N[0]}) \times \bar{y}_{P, 2}
+=$q1ans
+\)
+$ECENTER
+$BR
+dollars. 
+$BR
+$BR
+
+
+
+$BBOLD (b) $EBOLD We can input the endpoints of the confidence interval for 
+\( \bar{y}_{P,1} \) into the estimator found in (a) to yield a 95% confidence interval for \( \bar{y}_{P} \), 
+$BR
+$BR
+$BCENTER
+\(
+( (1-\frac{$N1[0]}{$N[0]}) \times ($B[0] -1.96 \times 7000/10 ) +  (\frac{$N1[0]}{$N[0]}) \times \bar{y}_{P, 2},  (1-\frac{$N1[0]}{$N[0]}) \times ($B[0] + 1.96 \times 7000/10 ) +  (\frac{$N1[0]}{$N[0]}) \times \bar{y}_{P, 2} ) = (  $q2ans, $q3ans ). 
+\)
+$ECENTER
+$BR
+$BR
+
+ 
+
+
+$BBOLD (c) $EBOLD Yes, any subset of those not on the sunshine list would have the same chance of being picked. (Though the plot thickens a bit in that you would
+choose a sample size initially without knowing what the final sample size will
+be, i.e., in advance you do not know exactly how many responses you will
+discard.)
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+
+ENDDOCUMENT();

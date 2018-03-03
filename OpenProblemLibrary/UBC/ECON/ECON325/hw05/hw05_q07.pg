@@ -1,0 +1,105 @@
+#########################################################
+##KEYWORDS('Random variables'; 'normal distribution, binomial distribution';
+##'find the probability that a binomial variable is greater than unity, when
+##the probability of success is determined by a normal distribution'. ) 
+# DESCRIPTION
+## DBsubject(Probability)
+## DBchapter(Sample Space)
+## DBsection(Probability: direct computation, inclusion/exclusion)
+## Date(2015/07/11)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('4')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@m=rserve_eval('
+m <- round(runif(1, min=68, max=74),1)
+');
+
+@s=rserve_eval('
+s <- round(runif(1, min=9, max=15),1)
+');
+
+@n=rserve_eval('
+n <- sample(3:6,1)
+');
+
+@p=rserve_eval('
+p=1-pnorm((80-m)/s) 
+round(p, 4) 
+');
+
+@q1=rserve_eval('
+round(1-(1-p)^n, 2)
+');
+
+$q1ans =$q1[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+An economics test is taken by a large group of students. The test scores are normally distributed with mean \($m[0]\) and standard deviation \($s[0]\).  A sample of \($n[0]\) students is chosen at random. What is the probability that at least one of them scores more than 80 points on the test, rounding your answers to two decimal places?  \{  ans_rule(7) \} 
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.02) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+Assume the student scores are independent, and let \(Y\) denote the score of a student chosen at random. The number of students scoring more than 80 points is a binomial variable, \(X\) say, with \(n = $n[0]\) and the probability of success being \(p\), where
+$BR
+$BR
+$BCENTER
+\( 
+p = P(X >80 ) =P (\frac{Y- $m[0]}{ $s[0]}  > \frac{80- $m[0]}{ $s[0]}) =1-P( Z < \frac{80- $m[0]}{ $s[0]}), 
+\)
+$ECENTER
+$BR
+where \(Z\) is a standard normal variable. Via tables or software, the probability 
+\(p = $p[0] \). To find \(  P(X \ge 1 )  \) note that 
+$BR
+$BR
+$BCENTER
+\( 
+P(X \ge 1) = 1- P(X=0)  = 1- \binom{n}{0} p ^{0} (1-p)^{n} =$q1ans,   
+\)
+$ECENTER
+$BR
+where \( n=$n[0], p=$p[0] \).  
+END_SOLUTION
+ENDDOCUMENT();

@@ -1,0 +1,265 @@
+# WeBWorK problem written by Carl Yao, 2015
+# Portland Community College
+#
+# Template:
+# Solve the following rational equation
+#
+#       a/x+b/(x+c)=d
+#
+# There are two solutions.
+#
+# Last updated: Yao 09/08/15
+# ENDDESCRIPTION
+
+## DBCCSS('A-REI.4.b')
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('equations', 'Simplification')
+## KEYWORDS('solve','rational','equation')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+      "PGstandard.pl",
+      "MathObjects.pl",
+      "parserAssignment.pl",
+      "answerHints.pl",
+      "PGML.pl",
+     "contextFraction.pl",
+   "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+                               
+Context("Fraction")->flags->set(
+            reduceFractions => 0,
+            showMixedNumbers=>0,
+            showExtraParens=>0);
+Context()->noreduce('(-x)-y','(-x)+y');
+parser::Assignment->Allow;
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+Context()->operators->redefine('or',using=>',',from=>'Numeric');
+Context()->operators->set(
+  ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+  'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+);
+Context()->lists->set(List => {separator => " or "});
+Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
+  = "Please simplify your answer further";
+
+$var = RandomVariableName(type=>'variable');
+Context()->variables->are($var=>'Real');
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  "no solution"=>{alias=>'no real solutions'}, 
+  "no solutions"=>{alias=>'no real solutions'}, 
+  );
+
+do {
+   do {
+      $a = non_zero_random(-9,9,1);
+      $b = non_zero_random(-9,9,1);
+      $c = non_zero_random(-9,9,1);
+      do {$d = non_zero_random(-9,9,1);} until ( (gcd(abs($d),abs($a))==1) || (gcd(abs($d),abs($b))==1) );
+      $a1 = $d;
+      $b1 = $c*$d-$a-$b;
+      $c1 = -$a*$c;
+      $d1 = ($b1)**2-4*$a1*$c1;
+   } until ( ($d1>0) && (gcd(gcd(abs($a1),abs($b1)),abs($c1))==1) );
+   $x2 = ( sqrt($d1)==int(sqrt($d1))) ? Fraction(-$b1+sqrt($d1),(2*$a1))->reduce : -100;
+   $x1 = ( sqrt($d1)==int(sqrt($d1))) ? Fraction(-$b1-sqrt($d1),(2*$a1))->reduce : -100;
+} until ( (sqrt($d1)==int(sqrt($d1))) && ($x1!=$x2));
+
+($numX1,$denX1) = $x1->value;
+($numX2,$denX2) = $x2->value;
+
+$commonD = Formula("$var*($var+$c)")->reduce;
+$left = Formula("$a/$var+$b/($var+$c)")->reduce;
+$right = $d;
+
+$ans = Compute("$var = $x2, $var = $x1");
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+
+Solve the following rational equation; the answer could be in the form *[`[$var]`] = ___ *, *no solution*, or *all real numbers*. 
+
+If there are more than one solution, use commas to separate them. For example: [`[$var]=1,[$var]=-1`].
+
+     [`` [$left] = [$right] ``]
+
+     [__________________________________]
+
+END_PGML
+
+##############################################
+
+$showPartialCorrectAnswers = 1;
+ANS($ans->cmp(
+  entry_type => "a solution",
+  checker => sub {
+    my ($correct,$student,$ans,$nth,$value) = @_;
+    if ($correct->type eq "Assignment") {
+      my ($svar,$sfrac) = $student->value; # get the variable and fraction
+      #return 0 unless Value::classMatch($sfrac,'Fraction') && $sfrac->isReduced;
+      if(Value::classMatch($sfrac,'Fraction'))
+      {
+        return 0 unless $sfrac->isReduced;
+      }
+    }
+    return $correct == $student;
+  },
+  extra => sub {
+    my ($student,$ansHash,$nth,$value) = @_;
+    if($student eq "no real solutions")
+    {
+         $student->context->setError("This equation does have some solutions- try using the square root method","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+         return;
+    }
+    if ($student->type ne "Assignment" && $ansHash->{student_formula}->type ne "Assignment") {
+      $student->context->setError("Your $nth solution should be written $var = $US$US$US","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    my ($svar,$sfrac) = $student->value; # get the variable and fraction
+    if (Value::classMatch($sfrac,'Fraction') && !$sfrac->isReduced) {
+      $student->context->setError("Your $nth $value is not reduced","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    return Value::Real->typeMatch($student);
+  }
+)->withPostFilter(AnswerHints(
+  ["$var=$a","$var=-$a"] => "Are you sure you have all the solutions?",
+  [$a,-$a] => ["Your solution is a correct one, but you should write $var = $US$US$US<br>Are you sure you have all the solutions?",replaceMessage=>1],
+  ["$a,-$a","-$a,$a"] => ["Your solutions are correct, but you should write $var = $US$US$US",replaceMessage=>1],
+)));
+
+##############################################
+
+if ($d<0) {
+$s1 = Formula("$a/$var*$commonD+$b/($var+$c)*$commonD")->reduce;
+$s2 = Formula("$d*$commonD")->reduce;
+$s3 = Formula("$a*($var+$c)+$b*$var")->reduce;
+$cd = $c*$d;
+$s4 = Formula("$d*$var**2+$cd*$var")->reduce;
+$ac = $a*$c;
+$s5 = Formula("$a*$var+$ac+$b*$var")->reduce;
+$aPlusB = $a+$b;
+$s6 = Formula("$aPlusB*$var+$ac")->reduce;
+$s7 = Formula("$aPlusB*$var+$ac-$d*$var**2-$cd*$var")->reduce;
+$o = $aPlusB-$cd;
+$s8 = Formula("-$d*$var**2+$o*$var+$ac")->reduce;
+$s9 = Formula("$denX1*$var-$numX1")->reduce;
+$s10 = Formula("$denX2*$var-$numX2")->reduce;
+
+$nc = -$c;
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+To get rid of fractions, we multiply each term in this equation by the common denominator, which is [`[$commonD]`] in this example.
+
+    [``
+\begin{aligned}
+   &[$left] = [$right] \\
+   &[$s1] =[$s2] \\
+   &[$s3] = [$s4] \\
+   &[$s5] = [$s4] \\
+   &[$s6] = [$s4] \\
+   &[$s7] = 0 \\
+   &[$s8] = 0 \\
+   &([$s9])([$s10])=0 \\
+   &[$s9]=0 \:\: or\:\: [$s10]=0 \\
+   &[$var]=[$x1] \:\: or\:\: [$var]=[$x2]
+\end{aligned}
+    ``]
+
+*Checking*
+
+We must check solutions when we solve rational equations. In the original equation, both denominators cannot be [`0`]. We set them to [`0`], so we can find out what values to exclude from the solution set.
+
+    [``
+\begin{aligned}
+   &[$var] = 0 &\;& [$var]+[$c]=0 \\
+   &[$var]=0 &\;& [$var]=[$nc]
+\end{aligned}
+    ``]
+
+We must exclude [`0`] and [`[$nc]`] from the solution set. There is no conflict with those two solutions we got, so the final solution is [`[$var]=[$x1]`] and [`[$var]=[$x2]`].
+
+END_PGML_SOLUTION
+} else {
+$s1 = Formula("$a/$var*$commonD+$b/($var+$c)*$commonD")->reduce;
+$s2 = Formula("$d*$commonD")->reduce;
+$s3 = Formula("$a*($var+$c)+$b*$var")->reduce;
+$cd = $c*$d;
+$s4 = Formula("$d*$var**2+$cd*$var")->reduce;
+$ac = $a*$c;
+$s5 = Formula("$a*$var+$ac+$b*$var")->reduce;
+$aPlusB = $a+$b;
+$s6 = Formula("$aPlusB*$var+$ac")->reduce;
+$s7 = Formula("$aPlusB*$var+$ac-$d*$var**2-$cd*$var")->reduce;
+$o = $aPlusB-$cd;
+$s8 = Formula("-$d*$var**2+$o*$var+$ac")->reduce;
+$s85 = Formula("$d*$var**2-$o*$var-$ac")->reduce;
+$s9 = Formula("$denX1*$var-$numX1")->reduce;
+$s10 = Formula("$denX2*$var-$numX2")->reduce;
+
+$nc = -$c;
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+To get rid of fractions, we multiply each term in this equation by the common denominator, which is [`[$commonD]`] in this example.
+
+    [``
+\begin{aligned}
+   &[$left] = [$right] \\
+   &[$s1] =[$s2] \\
+   &[$s3] = [$s4] \\
+   &[$s5] = [$s4] \\
+   &[$s6] = [$s4] \\
+   &[$s7] = 0 \\
+   &[$s8] = 0 \\
+   &-([$s85])=0 \\
+   &-([$s9])([$s10])=0 \\
+   &[$s9]=0 \:\: or\:\: [$s10]=0 \\
+   &[$var]=[$x1] \:\: or\:\: [$var]=[$x2]
+\end{aligned}
+    ``]
+
+*Checking*
+
+We must check solutions when we solve rational equations. In the original equation, both denominators cannot be [`0`]. We set them to [`0`], so we can find out what values to exclude from the solution set.
+
+    [``
+\begin{aligned}
+   &[$var] = 0 &\;& [$var]+[$c]=0 \\
+   &[$var]=0 &\;& [$var]=[$nc]
+\end{aligned}
+    ``]
+
+We must exclude [`0`] and [`[$nc]`] from the solution set. There is no conflict with those two solutions we got, so the final solution is [`[$var]=[$x1]`] and [`[$var]=[$x2]`].
+
+END_PGML_SOLUTION
+}
+
+
+##############################################
+
+ENDDOCUMENT();

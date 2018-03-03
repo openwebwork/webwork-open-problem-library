@@ -1,0 +1,130 @@
+# DESCRIPTION
+# 
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## Level(2)
+
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "MathObjects.pl",
+  "PGstandard.pl",
+  "contextLimitedPowers.pl",
+  "parserMultiAnswer.pl",
+  "unionTables.pl",
+  "AnswerFormatHelp.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric");
+LimitedPowers::OnlyPositiveIntegers();
+@vars = ("x","y","z","r","s","t","m","n","p","q");
+$ch = random(0,scalar(@vars)-1,1);
+$v = $vars[$ch];
+Context()->variables->are($v=>"Real");
+
+$p1 = list_random(2,3,5,7);
+do {$p2 = list_random(2,3)} until ($p2 != $p1);
+do {$p3 = list_random(2,3,5)} until ($p3 != $p1 && $p3 != $p2);
+do {$a = random(2,7,1)} until (gcd($a,$p1) == 1);
+$q1 = random(2,7,1);
+$q2 = random(-7,-1,1);
+$dn = $p1*($p2**3)*$p3;
+$dd = $p3;
+$aq1 = floor(($q1 - $q2)/2);
+$aq2 = ($q1 - $q2) % 2;
+$anconst = $a*$p2;
+$adconst = $p1;
+$anins = $p1*$p2;
+
+$f = "\displaystyle \frac{$a\sqrt{$dn $v^{$q1}}}{$p1\sqrt{$dd $v^{$q2}}}";
+if ($aq2 == 0) {
+  $num = Formula("$anconst $v^{$aq1} sqrt($anins)");
+  $dnum = "$anconst $v^{$aq1} \sqrt{$anins}";
+} elsif ($aq2 == 1) {
+  $num = Formula("$anconst $v^{$aq1} sqrt($anins $v)");
+  $dnum = "$anconst $v^{$aq1} \sqrt{$anins $v}";
+}
+$den = Formula("$p1")->reduce;
+
+Context()->flags->set(limits=>[0,1]);
+
+$multians = MultiAnswer($num, $den)->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,
+  checker => sub {
+    my ( $correct, $student, $self ) = @_;
+    my ( $c1, $c2 ) = @{$correct};
+    my ( $s1, $s2 ) = @{$student};
+    my ( $r1, $r2 ) = (0,0);
+    $s1 = Formula($s1) unless ($s1->type eq 'Formula' || $s1->type eq 'String');
+    $s2 = Formula($s2) unless ($s2->type eq 'Formula' || $s2->type eq 'String');
+    $s1 = Formula("0.1 $v^{1000}") if ($s1->type eq 'String'); #bogus answer
+    $s2 = Formula("0.01$v^{500}") if ($s2->type eq 'String'); #bogus answer
+    $r1 = 1 if ($c1 == $s1);
+    $r2 = 1 if ($c2 == $s2);
+    ($r1,$r2) = (1,1) if ($c1 == -$s1 && $c2 == -$s2);
+    if ($c1*$s2 == $c2*$s1 && $c1 != $s1 && $c1 != -$s1) {
+      $self->setMessage(1,"Your answer can be simplified further");
+      $self->setMessage(2,"Your answer can be simplified further");
+    }
+    return [$r1,$r2];
+  }
+);
+
+if ($displayMode eq 'TeX') {
+  $displayfrac =
+  "\[ $f = ".$multians->ans_rule(10).$multians->ans_rule(10)." \]";
+} else {
+  $displayfrac =
+  ColumnTable(
+  "\( \displaystyle $f = \)",
+  $multians->ans_rule(20).$BR.$HR.$multians->ans_rule(20),
+  indent => 0, separation => 10, valign => "MIDDLE"
+  );
+}
+
+
+###########################################################################
+# state the problem 
+###########################################################################
+Context()->texStrings;
+BEGIN_TEXT
+Simplify the radical expression.  Assume that all variables represent positive quantities.
+$PAR
+$BCENTER
+$displayfrac
+$ECENTER
+$BR
+Write your answer using radical notation if necessary.  
+END_TEXT
+
+
+###########################################################################
+# check the answer  
+###########################################################################
+ANS($multians->cmp());
+
+
+BEGIN_TEXT
+$PAR
+${BBOLD}Help:${EBOLD}
+\{ AnswerFormatHelp("exponents", "Click here for help writing exponents and square roots.") \}
+$BR
+END_TEXT
+
+ENDDOCUMENT();

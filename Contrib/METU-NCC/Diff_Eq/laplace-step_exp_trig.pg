@@ -1,0 +1,176 @@
+##DESCRIPTION
+## Laplace transforms
+##ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Laplace transforms)
+## DBsection(Step functions)
+## Institution(METU-NCC)
+## Date (11/01/2016)
+## Author (Benjamin Walter)
+## Level(5)
+## KEYWORDS('Laplace transform')
+###################################################
+
+DOCUMENT(); 
+
+loadMacros(
+   "PGstandard.pl",
+   "MathObjects.pl",
+   "PGunion.pl",
+   "answerHints.pl",
+   "parserAssignment.pl",
+   "parserFunction.pl"
+);
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 1;
+###################################################
+##
+##  Setup Contexts
+
+Context("Numeric");
+Context()->variables->are(
+  "s"=>"Real");
+$F_s = Context()->copy;
+
+Context("Numeric");
+Context()->variables->are(
+  "t"=>"Real");
+
+###################################################
+##
+##  Setup Functions 
+
+$k = random(1,6,1);      # constant
+
+$a = non_zero_random(-6,6,1);   # e^(a t)
+$type = random(0,1,1);   #  0 => cos(pi t)   1 => sin(pi t)
+
+$den = random(1,2,1);    #  step at num/den
+$num = random(1,3,1); 
+
+if ($den==1) {           #  add step function to context
+  Context()->variables->add(
+     "u"=>["Real",TeX=>"u_{$num}(t)"]);
+} else {
+  $num = 2*$num+1;
+  Context()->variables->add(
+     "u"=>["Real",TeX=>"u_{$num/$den}(t)"]);
+}
+$f_t = Context()->copy;
+
+if ($type==0) {
+  $yt = Formula($f_t,"u e^($a t) cos(pi t)")->reduce;
+  $y_trig_shift = ($den==1) ?              # used in Hint
+     Formula($f_t,"(-1)^$num cos(pi t)")->reduce         :
+     Formula($f_t,"(-1)^(($num-1)/2) sin(pi t)")->reduce ;
+  $Ys = ($den==1) ?
+     Formula($F_s,"(-1)^$num s / (s^2 + pi^2)")->reduce         :
+     Formula($F_s,"(-1)^(($num-1)/2) pi / (s^2 + pi^2)")->reduce;
+} else {
+  $yt = Formula($f_t,"u e^($a t) sin(pi t)")->reduce;
+  $y_trig_shift = ($den==1) ?              # used in Hint
+     Formula($f_t,"(-1)^$num sin(pi t)")->reduce         :
+     Formula($f_t,"(-1)^(($num+1)/2) cos(pi t)")->reduce ;
+  $Ys = ($den==1) ?
+     Formula($F_s,"(-1)^$num pi / (s^2 + pi^2)")->reduce       :
+     Formula($F_s,"(-1)^(($num+1)/2) s / (s^2 + pi^2)")->reduce;
+}
+
+$Ys = Formula($F_s,"$Ys e^(-($num/$den) s)")->reduce;
+
+$Ys = $Ys->substitute("s"=>"s-$a")->reduce; # exponential shift
+$Ys = Formula($F_s,"$k/s + $Ys");           # add constant term
+
+###################################################
+##
+##  Problem Text
+
+Context()->texStrings;
+BEGIN_TEXT
+Compute the Laplace transform:
+
+$PAR
+
+\(\displaystyle \mathcal{L}\,\biggl\lbrace $k + $yt \biggr\rbrace = \)
+\{ ans_rule(40) \}
+
+END_TEXT
+
+###################################################
+##
+##  Hint Setup
+
+$showHint = 2;
+
+$FORMULA_HINT = 
+  "\(\qquad\displaystyle\begin{aligned}" .
+  "\cos(bt+\pi) &= -\cos(bt) \\ " .
+  "\sin(bt+\pi) &= -\sin(bt) \\ " .
+  "\cos(bt+\tfrac{\pi}{2}) &= -\sin(bt) \\ " .
+  "\sin(bt+\tfrac{\pi}{2}) &=  \cos(bt) \\ " .
+  "\end{aligned}\)" ;
+
+$exp =  Formula($f_t, "e^($a t)")->reduce;
+$u =    Formula($f_t, "u");
+$y_trig = ($type==0) ?
+        Formula($f_t, "cos(pi t)") :
+        Formula($f_t, "sin(pi t)") ;
+$y_trig_shift1 = $y_trig->substitute("t"=>"t+($num/$den)")->reduce;
+$y_trig_shift2 = ($type==0) ?
+        Formula($f_t, "cos(pi t + ($num/$den) pi)") :
+        Formula($f_t, "sin(pi t + ($num/$den) pi)") ;
+ 
+
+##################################################
+##
+BEGIN_TEXT
+$BR $HR $PAR
+You may find the following formulas useful: $BR
+$FORMULA_HINT
+
+$PAR
+
+If you don't get this in $showHint tries, you can get a hint.
+END_TEXT
+###################################################
+##
+##  Hint Text 
+
+BEGIN_HINT
+
+\(\bullet\ \ \) 
+ Remember that 
+ \(\displaystyle \mathcal{L}\,\Bigl\lbrace k \Bigr\rbrace = \frac{k}{s}\) 
+
+$PAR
+
+\(\bullet\ \ \) 
+ For the \($yt\) term, it is probably easiest to first pull \($exp\) out
+ of \(\mathcal{L}\).
+
+$PAR
+
+\(\bullet\ \ \) 
+ When \($u\) comes out of \(\mathcal{L}\), it changes
+ \($y_trig\) to be \($y_trig_shift1 = $y_trig_shift2\)   
+ which simplifies to 
+ \($y_trig_shift\).
+
+END_HINT
+
+Context()->normalStrings;
+
+###################################################
+##
+##  Check answer
+
+ANS( $Ys->cmp() );
+
+
+COMMENT("Laplace with step, exponential, and trig.");
+
+ENDDOCUMENT();

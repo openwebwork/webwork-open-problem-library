@@ -1,0 +1,213 @@
+#########################################################
+##KEYWORDS('Inference'; 'hypothesis test, test for mean, normal
+##distribution with known variance, p-value'; 'find the test statistic for a z
+##test, find the p-value of the test statistic, decide whether or not to
+##reject the null hypothesis at the 5% and 1% significance levels'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One sample mean - z)
+## Date(2015/07/29)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@n=rserve_eval('
+n <- sample(15:25, 1)
+');
+
+@s=rserve_eval('
+s <- round(runif(1, min=0.9, max=1.4),1)
+');
+
+@m=rserve_eval('
+m <- round(runif(1, min=3.2, max=3.6),2)
+');
+
+@q1=rserve_eval('
+re1<-(m-3)/(s/sqrt(n))
+round(re1, 3)
+');
+
+
+@q2=rserve_eval('
+re2<- round(pnorm(re1, lower.tail=F), 3)
+');
+
+#####Qc
+@ans_c_correct = rserve_eval('
+rc<-0
+if(re2<0.05){
+rc<-1  
+}
+rc
+');
+
+$ans_c_correct = $ans_c_correct[0];
+
+$qu_c = "By interpreting the p-value in (b) can the null hypothesis be rejected at a 5% significant level?";
+
+@ans_c_all = ("Do not reject the null hypothesis.",
+"Reject the null hypothesis.");
+
+$ans_c = $ans_c_all[$ans_c_correct];
+
+$mc_c = new_multiple_choice();
+$mc_c->qa(
+  $qu_c,
+  $ans_c
+);
+$mc_c->makeLast(
+$ans_c_all[0], $ans_c_all[1]
+);
+
+
+######Qd
+@ans_d_correct = rserve_eval('
+rd<-0
+if(re2<0.01){
+rd<-1  
+}
+rd
+');
+
+$ans_d_correct = $ans_d_correct[0];
+
+$qu_d = "Can the null hypothesis be rejected at a 1% significant level?";
+
+@ans_d_all = ("Do not reject the null hypothesis.",
+"Reject the null hypothesis.");
+
+$ans_d = $ans_d_all[$ans_d_correct];
+
+$mc_d = new_multiple_choice();
+$mc_d->qa(
+  $qu_d,
+  $ans_d
+);
+$mc_d->makeLast(
+$ans_d_all[0], $ans_d_all[1]
+);
+
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+A courier service advertises that its average delivery time is less than 3
+hours for deliveries in the Vancouver area. The distribution of delivery
+times is known to be normal, with standard deviation $s[0] hours. A random
+sample of $n[0] deliveries yielded a sample mean delivery time of $m[0] hours.
+Consider a test of the null hypothesis that the population mean is 3
+against the one-sided alternative that the population mean delivery
+time is greater than 3. Answer the following, rounding your answers to
+three decimal places where appropriate.
+$BR
+$BR
+$BBOLD(a) $EBOLD What is the test statistic? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD What is the p-value of the test? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD (c) $EBOLD
+\{ $mc_c->print_q() \}
+$BR
+\{ $mc_c->print_a() \}
+$BR
+$BR
+$BBOLD (c) $EBOLD
+\{ $mc_d->print_q() \}
+$BR
+\{ $mc_d->print_a() \}
+
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.01) );
+ANS( num_cmp($q2ans, tol=> 0.01) );
+ANS(radio_cmp($mc_c->correct_ans()) );
+ANS(radio_cmp($mc_d->correct_ans()) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD Interest resides in the population mean, \(\mu\), of the delivery
+times for the company in hours. We have data from a normal
+distribution with known variance, \(\sigma\), and so use as our test
+statistic
+$BR
+$BR
+$BCENTER
+\(
+\frac{\bar{x}-\mu}{\sigma/\sqrt{n}}=\frac{$m[0]-3}{$s[0]/\sqrt{$n[0]}}=$q1ans.
+\)
+$ECENTER
+$BR
+$BR
+to test the null hypothesis that \( \mu=3\). 
+$BR
+$BR
+$BBOLD (b) $EBOLD As we have a one-sided alternative hypothesis, the p-value
+is the probability of observing a value of the test statistic at least as big as that observed, under the null hypothesis. Since under \(H_0\) the test statistic follows the N(0, 1) distribution, the p-value is 
+$BR
+$BR
+$BCENTER
+\(
+P(Z > \frac{$m[0]-3}{$s[0]/\sqrt{$n[0]}}),
+\)
+$ECENTER
+$BR
+$BR
+where \(Z\) is a standard normal variable. From tables or software, the above probability is \($q2ans\). 
+$BR
+$BR
+$BBOLD (c) $EBOLD If  \($q2ans < 0.05  \) we can reject the null hypothesis that the mean delivery time is three hours at the 5% significant level. Otherwise we do not reject the hypothesis that the mean delivery time is 3 hours.
+$BR
+$BR
+$BBOLD (c) $EBOLD If  \($q2ans < 0.01  \) we can reject the null hypothesis that the mean delivery time is three hours at the 1% significant level. Otherwise we do not reject the hypothesis that the mean delivery time is 3 hours at the 1% significant level.
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

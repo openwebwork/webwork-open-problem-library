@@ -1,0 +1,257 @@
+## DESCRIPTION
+## Phase plane matching (real distinct & complex)
+## ENDDESCRIPTION
+
+## DBsubject(Differential equations)
+## DBchapter(Systems of differential equations)
+## DBsection(Phase planes)
+## Date(11/10/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"PGunion.pl",
+"imageChoice.pl",
+);
+
+TEXT(beginproblem());
+
+$refreshCachedImages = 1;
+
+#############################
+#  Setup
+
+Context("Numeric");
+Context()->variables->add(y=>"Real");
+
+my @A;    # Array of matrices
+
+# Create matrices.  
+#  Pick eigenvectors / basic shape, then phase shift to get 
+#      Four matrices: source, sink, saddle, eval=0
+#  Two more complex: spiral source, sink
+
+# Basic shape is
+#  [  0  +-ac ] eigenval   a    and   bc
+#  [-+b  a+bc ]   vect [ c -+1 ]   [ a -+b ]
+#
+sub basicMatrix {
+  my $a; my $b; my $c; my $neg; 
+  do { 
+    $a = non_zero_random(-5,5,1);
+    $b = non_zero_random(-5,5,1); 
+    $c = random(1,4,1);
+  } until ( (abs($b*$c-$a) > 1) &&  # need space for indef shift 
+            (abs($b*$c-$a) < 7) &&  # need space for pos & neg def shift
+            (abs($a*$c) < 11)   &&  # keep off-diag entries small
+            ( ($c*$a+$b)**2 < (1/2*($c**2+1)*($a**2+$b**2)) ) ); 
+                                    # > 45 deg between eigenvect
+
+  $neg = non_zero_random(-1,1,1);    # choose +- in shape
+
+  return (0, $neg*$a*$c, -$neg*$b, $a+$b*$c, $a, $b*$c);
+}  # returns matrix and eigenvalues
+
+
+# "Positive definite" (non-symmetric)
+@M = basicMatrix();
+$min = max(1-$M[4],1-$M[5]);         $max = min(10,10-$M[4],10-$M[5]); 
+$phase = non_zero_random($min,$max,1);  
+$A[0][0][0] = Compute("$M[0]+$phase"); $A[0][0][1] = Compute("$M[1]");
+$A[0][1][0] = Compute("$M[2]");        $A[0][1][1] = Compute("$M[3]+$phase");
+
+
+# "Negative definite" (non-symmetric)
+@M = basicMatrix();
+$min = max(-10,-10-$M[4],-10-$M[5]); $max = min(-1-$M[4],-1-$M[5]);
+$phase = non_zero_random($min,$max,1);  
+$A[1][0][0] = $M[0]+$phase; $A[1][0][1] = $M[1];
+$A[1][1][0] = $M[2];        $A[1][1][1] = $M[3]+$phase;
+
+# "Indefinite" (non-symmetric)
+@M = basicMatrix();
+$min = min(1-$M[4],1-$M[5]);         $max = max(-1-$M[4],-1-$M[5]);
+$phase = non_zero_random($min,$max,1);  
+$A[2][0][0] = $M[0]+$phase; $A[2][0][1] = $M[1];
+$A[2][1][0] = $M[2];        $A[2][1][1] = $M[3]+$phase;
+
+# "Semi-definite"
+@M = basicMatrix();
+$phase = (random(0,1,1)) ? -$M[4] : -$M[5];
+$A[3][0][0] = $M[0]+$phase; $A[3][0][1] = $M[1];
+$A[3][1][0] = $M[2];        $A[3][1][1] = $M[3]+$phase;
+
+#
+# Now create some complex eigenvalued matrices
+#
+
+sub basicMatrix_cx {
+  my @CNum = ([1, 1,1, 1,2,2, 2, 2,3,3,3,3,4, 4, 5,6, 6],
+              [2, 3,3, 7,2,2, 4, 6,3,3,4,6,4, 8, 5,6, 8]);
+  my @OffD = ([1, 1,2, 5,1,2, 2, 4,2,3,5,5,4, 8, 5,8,10],
+              [5,10,5,10,8,4,10,10,9,6,5,9,8,10,10,9,10]);
+  my $cx_i = random(0,16,1);
+  my $cx_k = random(0,1,1);
+  my $cx_sign1 = non_zero_random(-1,1,1);
+  my $cx_sign2 = non_zero_random(-1,1,1);
+
+  my $cx_a = $cx_sign1*$CNum[0][$cx_i];
+  my $cx_b =           $CNum[1][$cx_i];
+
+  my $cx_c = $cx_sign2*$OffD[$cx_k][$cx_i];
+  my $cx_d = $cx_sign2*$OffD[($cx_k+1)%2][$cx_i];
+
+  return(0, -$cx_c, $cx_d, 2*$cx_a, $cx_a, $cx_b)
+}  # returns matrix and re, im parts of eigenvalue
+
+# source (positive real part)
+@M = basicMatrix_cx();
+$phase = non_zero_random( 1-$M[4] , $M[5]-$M[4] , 1);
+$A[4][0][0] = $M[0]+$phase;  $A[4][0][1] = $M[1];
+$A[4][1][0] = $M[2];         $A[4][1][1] = $M[3]+$phase;
+
+# sink  (negative real part)
+@M = basicMatrix_cx();
+$phase = non_zero_random( -$M[5]-$M[4] , -1-$M[4] , 1);
+$A[5][0][0] = $M[0]+$phase;  $A[5][0][1] = $M[1];
+$A[5][1][0] = $M[2];         $A[5][1][1] = $M[3]+$phase;
+
+
+#
+#  Finished creating all matrices!
+#
+
+@systems = (); # TeX Code for Matrices
+
+foreach my $j (0..5) {
+  $systems[$j] = 
+  "\( \displaystyle
+      \boldsymbol{\vec{x}^{\,\prime}} 
+      = 
+      \left\lbrack 
+      \begin{array}{rr} 
+      ".$A[$j][0][0]." & ".$A[$j][0][1]." \\ 
+      ".$A[$j][1][0]." & ".$A[$j][1][1]."  
+      \end{array} 
+      \right\rbrack 
+      \boldsymbol{\vec{x}}
+  \)";
+}
+
+#
+#  Graph canvas setup
+#
+$htmlsize = 300;
+$texsize  = 450;
+
+@gr = ();
+
+foreach my $j (0..5) {
+
+  $gr[$j] = init_graph(-2,-2,2,2,axes=>[0,0],size=>[$htmlsize,$htmlsize]);
+  $gr[$j]->lb('reset');
+  foreach my $i (1) {
+    $gr[$j]->lb( new Label( $i,-0.1, $i,'black','center','middle'));
+    $gr[$j]->lb( new Label(-$i,-0.1,-$i,'black','center','middle'));
+    $gr[$j]->lb( new Label(-0.05, $i, $i,'black','right','middle'));
+    $gr[$j]->lb( new Label(-0.05,-$i,-$i,'black','right','middle'));
+  }
+  $gr[$j]->lb( new Label(1.8,0.15,'x1','black','center','middle'));
+  $gr[$j]->lb( new Label(0.15,1.8,'x2','black','center','middle'));
+  $gr[$j]->new_color("dodgerblue",30, 144, 255); 
+  $gr[$j]->h_ticks(0,"black",-2,-1.75,-1.5,-1.25,-1,-0.75,-0.5,-0.25,0.25,0.5,0.75,1,1.25,1.5,1.75,2);
+  $gr[$j]->v_ticks(0,"black",-2,-1.75,-1.5,-1.25,-1,-0.75,-0.5,-0.25,0.25,0.5,0.75,1,1.25,1.5,1.75,2);
+
+  #  Slope field 
+  $dx[$j] = sub{my ($x,$y) = @_; -1*($A[$j][0][0]*$x + $A[$j][0][1]*$y); };
+  $dy[$j] = sub{my ($x,$y) = @_; -1*($A[$j][1][0]*$x + $A[$j][1][1]*$y); };
+  $vf[$j] = new VectorField( $dx[$j], $dy[$j], $gr[$j] );
+
+  $vectorscale = 0.1;
+
+  $vf[$j]->arrow_weight(2);
+  $vf[$j]->arrow_color("dodgerblue");
+  $vf[$j]->dot_radius(2);
+  $vf[$j]->dot_color("black");
+  $vf[$j]->x_steps(16); 
+  $vf[$j]->y_steps(16); 
+  $vf[$j]->rf_arrow_length( sub{
+    my($dx,$dy)=@_;
+    return(0) if sqrt($dx**2 + $dy**2)==0;
+    $vectorscale*1/sqrt($dx**2 + $dy**2);
+  });
+
+} # end setting up graph
+
+
+@QA = ();
+foreach my $i (0..5) { push( @QA, $systems[$i],  $gr[$i] ); }
+
+$ml = new_image_match_list(
+  link => 1,                #  do not link to separate image
+  size => [300,300],        #  image size in pixels
+  tex_size => 450,          #  tex size in precent times 10
+  columns => 2,             #  number of columns
+  separation => 20,         #  separation between image columns 
+);
+
+$ml->rf_print_q(~~&pop_up_list_print_q); # use pop-up-lists
+$ml->ra_pop_up_list([ No_answer=>"?", A=>"A", B=>"B", C=>"C", D=>"D"] );
+
+$ml->qa(@QA);               #  set the questions and answers
+$ml->choose(4);             #  select 4 of them
+#$ml->choose_extra(0);      #  and show the other 1
+
+
+#############################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+\{
+ColumnTable(
+"Match each linear system with one of the 
+phase plane direction fields.  $BR(The blue
+lines are the arrow shafts, and the black
+dots are the arrow tips.) ".
+$ml->print_q()
+,
+$BCENTER.
+$ml->print_a().
+$BR.
+$ECENTER
+,
+indent => 0, separation => 30, valign => "TOP"
+)
+\}
+
+$PAR
+$BBOLD Note:$EBOLD To solve this problem, you only need to compute eigenvalues.  
+In fact, it is enough to just compute whether the eigenvalues are real or complex
+and positive or negative.
+END_TEXT
+Context()->normalStrings;
+
+
+############################
+#  Answers
+
+install_problem_grader(~~&std_problem_grader);
+
+$showPartialCorrectAnswers = 0;
+
+ANS(str_cmp($ml->ra_correct_ans));
+
+;
+
+ENDDOCUMENT();

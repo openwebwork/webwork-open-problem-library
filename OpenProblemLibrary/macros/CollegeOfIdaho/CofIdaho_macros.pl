@@ -422,7 +422,6 @@ sub FactoringEvaluator {
  	      $ans_hash->setKeys( 'ans_message' =>"You may only use parentheses in your answer.");
               return $ans_hash;
               }
-
          if ($student_ans =~ /[\(][^\)]*[\(]/)
              {  
               $ans_hash->{student_ans} = $student_ans;

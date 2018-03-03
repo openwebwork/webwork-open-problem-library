@@ -1,0 +1,195 @@
+# WeBWorK problem written by Carl Yao, 2015
+# Portland Community College
+#
+# Template:
+# Solve the following rational equation
+#
+#       (x+a)/(x+b) + c/(x+d) = e
+#
+#
+# Last updated: Yao 08/30/15
+# ENDDESCRIPTION
+
+## DBCCSS('A-REI.4.b')
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('equations', 'Simplification')
+## KEYWORDS('solve','rational','equation')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+      "PGstandard.pl",
+      "MathObjects.pl",
+      "parserAssignment.pl",
+      "answerHints.pl",
+      "PGML.pl",
+      "contextLimitedRadical.pl",
+      "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+    
+Context("LimitedRadical");
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->flags->set(reduceConstants=>0, 
+                      reduceConstantFunctions=>0, 
+                      formatStudentAnswer=>parsed,
+                      showExtraParens=>0 );
+
+$var = RandomVariableName(type=>'variable');
+Context()->variables->are($var=>'Real');
+                               
+parser::Assignment->Allow;
+
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+    Context()->operators->redefine('or',using=>',',from=>'Numeric');
+    Context()->operators->set(
+      ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+      'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+    );
+    Context()->lists->set(List => {separator => " or "});
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  "no solution"=>{alias=>'no real solutions'}, 
+  "no solutions"=>{alias=>'no real solutions'}, 
+  );
+
+do {
+   $a = non_zero_random(-9,9,1);
+   do {$b = non_zero_random(-9,9,1);} until ($b!=$a);
+   $c = non_zero_random(-9,9,1);
+   do {$d = non_zero_random(-9,9,1);} until ($b!=$d);
+   do {$e = non_zero_random(-9,9,1);} until ($e!=1);
+   $a1 = 1-$e;
+   $b1 = $a+$c+$d-$b*$e-$e*$d;
+   $c1 = ($a*$d+$b*$c-$b*$d*$e);
+   $d1 = ($b1)**2-4*$a1*$c1;
+   $x1 = ($d1>0) ? (-$b1+sqrt($d1))/(2*$a1) : -100;
+   $x2 = ($d1>0) ? (-$b1-sqrt($d1))/(2*$a1) : -100;
+} until ( (int($x1)==$x1) && (int($x2)==$x2) && ($x1!=$x2) );
+
+$commonD = Formula("($var+$b)($var+$d)")->reduce;
+$left = Formula("($var+$a)/($var+$b)+$c/($var+$d)")->reduce;
+$right = $e;
+
+$ans = List(Formula("$var=$x1"),Formula("$var=$x2"));
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+
+Solve the following rational equation; the answer could be in the form *[`[$var]`] = ___ *, *no solution*, or *all real numbers*. 
+
+If there are more than one solution, use commas to separate them. For example: [`[$var]=1,[$var]=-1`].
+
+     [`` [$left] = [$right] ``]
+
+     [__________________________________]
+
+END_PGML
+
+##############################################
+
+$showPartialCorrectAnswers = 1;
+ANS($ans->cmp(list_checker => ~~&radicalListCheck));
+
+$s1 = Formula("($var+$a)/($var+$b)*$commonD+$c/($var+$d)*$commonD")->reduce;
+$s2 = Formula("$e*$commonD")->reduce;
+$s3 = Formula("($var+$a)($var+$d)+$c*($var+$b)")->reduce;
+$bPlusD = $b+$d;
+$bd = $b*$d;
+$s4 = Formula("$e*($var**2+$bPlusD*$var+$bd)")->reduce;
+$aPlusD = $a+$d;
+$ad = $a*$d;
+$bc = $b*$c;
+$s5 = Formula("$var**2+$aPlusD*$var+$ad+$c*$var+$bc")->reduce;
+$o = $bPlusD*$e;
+$bde = $b*$d*$e;
+$s6 = Formula("$e*$var**2+$o*$var+$bde")->reduce;
+$p = $aPlusD+$c;
+$q = $ad+$bc;
+$s7 = Formula("$var**2+$p*$var+$q")->reduce;
+$s8 = Formula("$var**2+$p*$var+$q-$e*$var**2-$o*$var-$bde")->reduce;
+$r = 1-$e;
+$s = $p-$o;
+$t = $q-$bde;
+$s9 = Formula("$r*$var**2+$s*$var+$t")->reduce;
+$u = $s/$r;
+$v = $t/$r;
+$s10 = Formula("$r*($var**2+$u*$var+$v)")->reduce;
+
+if ($x1 == 0) {
+   $s11 = Formula("$r*$var*($var-$x2)")->reduce;
+   $s12 = Formula("$var");
+   $s13 = Formula("$var-$x2")->reduce;
+   $s14 = 0;
+   $s15 = $x2;
+} elsif ($x2==0) {
+   $s11 = Formula("$r*$var*($var-$x1)")->reduce;
+   $s12 = Formula("$var");
+   $s13 = Formula("$var-$x1")->reduce;
+   $s14 = 0;
+   $s15 = $x1;
+} else {
+   $s11 = Formula("$r*($var-$x1)*($var-$x2)")->reduce;
+   $s12 = Formula("$var-$x1")->reduce;
+   $s13 = Formula("$var-$x2")->reduce;
+   $s14 = $x1;
+   $s15 = $x2;
+}
+
+$nb = -$b;
+$nd = -$d;
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+To get rid of fractions, we multiply each term in this equation by the common denominator, which is [`[$commonD]`] in this example.
+
+    [``
+\begin{aligned}
+   &[$left] = [$right] \\
+   &[$s1] =[$s2] \\
+   &[$s3] = [$s4] \\
+   &[$s5] = [$s6] \\
+   &[$s7] = [$s6] \\
+   &[$s8] = 0 \\
+   &[$s9] = 0 \\
+   &[$s10] = 0 \\
+   &[$s11] = 0 \\
+   &[$s12]=0 \:\: or\:\: [$s13]=0 \\
+   &[$var]=[$s14] \:\: or\:\: [$var]=[$s15]
+\end{aligned}
+    ``]
+
+*Checking*
+
+We must check solutions when we solve rational equations. In the original equation, both denominators cannot be [`0`]. We set them to [`0`], so we can find out what values to exclude from the solution set.
+
+    [``
+\begin{aligned}
+   &[$var]+[$b] = 0 &\;& [$var]+[$d]=0 \\
+   &[$var]=[$nb] &\;& [$var]=[$nd]
+\end{aligned}
+    ``]
+
+We must exclude [`[$nb]`] and [`[$nd]`] from the solution set, so the final solution is [`[$var]=[$x1]`] and [`[$var]=[$x2]`].
+
+END_PGML_SOLUTION
+
+
+##############################################
+
+ENDDOCUMENT();

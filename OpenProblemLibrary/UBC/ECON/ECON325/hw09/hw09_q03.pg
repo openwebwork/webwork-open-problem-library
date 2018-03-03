@@ -1,0 +1,121 @@
+#########################################################
+##KEYWORDS('Inference'; 'estimation of a proportion, sample size selection';
+##'find the smallest sample size to ensure the sample proportion falls within a
+##given tolerance of the population proportion with probability 0.90'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(One sample proportion)
+## Date(2015/08/20)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('4')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@d=rserve_eval('
+d <- round(runif(1, min=0.01, max=0.02),3)
+');
+
+@q1=rserve_eval('
+re1<-(1.645/2)^2/d^2
+ceiling(re1)
+');
+
+$q1ans =$q1[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Statistics Canada wants to know the unemployment rate in Vancouver
+during any part of last year. How large a sample is required if it is
+desired to have 90% confidence that the estimate is within plus or
+minus $d[0] of the true proportion? Round up your answer to a whole
+number. \{  ans_rule(7) \} 
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+If \(n\) denotes the sample size, \(X\) the number in the sample
+unemployed, and \(p\) is the proportion unemployed in Vancouver, we seek
+\(n\) such that
+$BR
+$BCENTER
+\(
+P(|\frac{X}{n}-p|<$d[0]) = P(|X-np| < $d[0] n ) = 0.9
+\)
+$ECENTER
+$BR
+The variable \(X\) is binomially distributed, following the \(B (n, p) \) distribution. Hence, assuming \(n\) is large and \(p\) not too close to 0 or 1, 
+$BR
+$BCENTER
+\(
+\frac{X-np}{\sqrt{np(1-p)}}
+\)
+$ECENTER
+$BR
+is approximately \(N (0, 1) \). Therefore
+$BR
+$BR
+$BCENTER
+\begin{align*}
+P(|X-np| < $d[0] n ) &=  P(  |\frac{X-np}{\sqrt{np(1-p)}}|< \frac{$d[0] n }{\sqrt{np(1-p)}}) \\
+&=P(|Z| < \frac{$d[0] n }{\sqrt{np(1-p)}}   ) \\
+&=P( - \frac{$d[0] n}{\sqrt{np(1-p)}} < Z < \frac{$d[0] n}{\sqrt{np(1-p)}} )
+\end{align*}
+$ECENTER
+$BR
+$BR
+The variance of \(X\) is maximized when \(p = 1/2\), and 90% of the \(N(0, 1) \)
+distribution falls between Â-1.645 and 1.645. Hence
+$BR
+$BCENTER
+\(
+1.645 < \frac{$d[0] n}{\sqrt{n/4}}.  
+\)
+$ECENTER
+$BR
+and so \(2 \sqrt{n} $d[0] > 1.645\) Therefore \( n> (1.645/2)^2/$d[0]^2 \) which implies n=$q1ans. 
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

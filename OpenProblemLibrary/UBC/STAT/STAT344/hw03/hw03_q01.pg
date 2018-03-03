@@ -1,0 +1,273 @@
+#########################################################
+##KEYWORDS('Sampling theory'; 'simple random sampling', 'stratified sampling',
+##'ratio estimators'; 'determine an estimate of population mean from a stratified
+##sample by (i) treating as a simple random sample, (ii) using a stratified
+##estimator with proportional allocation, and (iii) using a ratio estimator';
+##'finding the standard error in each case'. ) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Sample survey methods)
+## DBsection(Stratified sampling)
+## Date(2015/10/13)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(4)
+## level('5')
+## 5 Attempts
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+my ($remote_file, @problem_data) = rserve_eval(<<CODE);
+# this is R code
+n <- 200
+fsa <- sample(1:6, size=n, replace=T)
+scr <- round(60+3*fsa + rnorm(n, sd=7))
+ tmp <- data.frame(Score=scr, FSA=fsa)
+ problem_data<-tmp
+ problem_file <- tempfile("ExamScores", fileext = '.csv')
+ write.csv(problem_data, problem_file, row.names=F)
+ list(problem_file, problem_data)
+CODE
+
+my $local_file = rserve_get_file($remote_file);
+($local_url = $local_file) =~ s|$tempDirectory|$tempURL|;
+
+
+@n_grp=rserve_eval('
+n_grp <- table(fsa)
+');
+
+
+@mn_grp=rserve_eval('
+mn_grp <- tapply(scr, fsa, mean)
+round(mn_grp, 3)
+');
+
+@sd_grp=rserve_eval('
+sd_grp <- sqrt(tapply(scr, fsa, var))
+round(sd_grp, 3)
+');
+
+@tot_grp=rserve_eval('
+tot_grp <- n_grp*mn_grp
+');
+
+@se=rserve_eval('
+se <- round(sqrt(var(tot_grp-(mean(tot_grp)/mean(n_grp))*n_grp)),4)
+');
+
+
+#######answers_q1
+@q1=rserve_eval('
+tem<-  round(mean(scr),2)
+round(tem, 2)
+');
+
+#######answers_q2
+@q2=rserve_eval('
+tem<-  round(sqrt(var(scr)/200),2)
+round(tem, 2)
+');
+
+
+#######answers_q3
+@q3=rserve_eval('
+tem<-  round(mean(scr),2)
+round(tem, 2)
+');
+
+
+#######answers_q4
+@q4=rserve_eval('
+tem<-round(sqrt(sum((n_grp/n)^2*sd_grp^2/n_grp)), 2)
+round(tem, 2)
+');
+
+#######answers_q5
+@q5=rserve_eval('
+tem<-  round(mean(scr),2)
+round(tem, 2)
+');
+
+#######answer_q6
+@q6=rserve_eval('
+se_tem <- sqrt(var(tot_grp-(mean(tot_grp)/mean(n_grp))*n_grp))
+tem<-  (1/mean(n_grp))*se_tem/sqrt(6)
+round(tem, 2)
+');
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+If presented with a dataset, it can be dangerous to try to analyze it
+with little or no idea of how the data were obtained. To help reflect upon this, we consider how answers change for the same dataset, under different assumptions about how that dataset was collected. In the file ExamScores.csv linked below, each row corresponds to a student. The first column gives that student's grade on a standardized test (scored
+on a scale from 0 points to 100 points). The second column gives the
+geographic area in which the student lives. In particular, it indicates in
+which of six forward sortation areas (FSAs) the student lives, simply
+coded as \(1, \ldots, 6\) in the file. (In actuality, each FSA is distinguished by
+the first 3 characters of the 6-character postal code.) In all parts that
+follow, answers are to be given on the scale of exam points, and should
+be reported to two decimal places. 
+$BR
+$BR
+$BBOLD 
+LINK for ExamScores.csv (\{ htmlLink($local_url, "Download the csv file here") \}) 
+$EBOLD
+$BR
+$BR
+$BBOLD(a) $EBOLD Presume that the (large) population of interest corresponds to all
+students in these six FSAs, and that the data arose from a simple
+random sample of size n = 200 from the population. Give an
+estimate of the population average test score. \{  ans_rule(7) \}  
+$BR
+$BR
+
+$BBOLD(b) $EBOLD Give an appropriate standard error to accompany the estimate in
+(a). \{  ans_rule(7) \}  
+$BR
+$BR
+
+
+$BBOLD(c) $EBOLD Presume that the (large) population of interest corresponds to
+all students in these six FSAs, and that the data arose from a stratified random sampling using proportional allocation. Give an estimate of the population average test score.  \{  ans_rule(7) \}.  
+$BR
+$BR
+
+
+$BBOLD(d) $EBOLD Give an appropriate standard error to accompany the estimate in
+(c). \{  ans_rule(7) \}  
+$BR
+$BR
+
+$BBOLD(e) $EBOLD Presume that the (large) population of interest is comprised of all
+students from a large number of small FSAs, and that the data were obtained from a one-stage cluster sample of FSAs. Give an estimate of the population average test score.  \{  ans_rule(7) \}.  
+$BR
+$BR
+
+
+$BBOLD(f) $EBOLD Give an appropriate standard error to accompany the estimate in
+(e). \{  ans_rule(7) \}  
+$BR
+$BR
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1[0], tol=> 0.071) );
+ANS( num_cmp($q2[0], tol=> 0.071) );
+ANS( num_cmp($q3[0], tol=> 0.071) );
+ANS( num_cmp($q4[0], tol=> 0.071) );
+ANS( num_cmp($q5[0], tol=> 0.071) );
+ANS( num_cmp($q6[0], tol=> 0.071) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD Under simple random sampling, the sample mean of
+the scores, \( \bar{y}_S = $q1[0] \), estimates the population mean.
+$BR
+$BR
+
+$BBOLD (b) $EBOLD Since the population is large, the standard error of the sample
+mean is simply \( \sqrt{s^2/n} =$q2[0] \). 
+$BR
+$BR
+
+$BBOLD (c) $EBOLD From the dataset we compute the within-FSA sample sizes to
+be \($n_grp[0], $n_grp[1], \ldots, $n_grp[5]\), the within-FSA mean
+scores to be \($mn_grp[0], $mn_grp[1], \ldots, $mn_grp[5]\), and the within-FSA standard deviations of scores to be \($sd_grp[0], $sd_grp[1], \ldots, $sd_grp[5]\). Since proportional allocation is being used, the population proportions must be the same as the sample proportions, i.e., \(N_h/N = n_h/n\) for \(h=1, 2, \ldots, 6\). Thus
+$BR
+$BR
+$BCENTER
+\begin{align*}
+\bar{y}_{str} &= \sum_{h=1}^{6} \frac{N_h}{N}\bar{y}_h \\
+&=\sum_{h=1}^{6} \frac{n_h}{n}\bar{y}_h \\
+&=\bar{y}_S
+\end{align*}
+$ECENTER
+$BR
+i.e., the estimate is the same as in (a).
+$BR
+$BR
+
+$BBOLD (d) $EBOLD The standard error is
+$BR
+$BR
+$BCENTER
+\begin{align*}
+SE(\bar{y}_{str}) &=\sqrt{ \sum_{h=1}^{6} (\frac{N_h}{N})^2 \frac{s_h^2}{n_h} }  \\
+&= \sqrt{ \sum_{h=1}^{6} (\frac{n_h}{n})^2 \frac{s_h^2}{n_h} }  \\
+&=$q4[0]. 
+\end{align*}
+$ECENTER
+$BR
+$BR
+
+$BBOLD (e) $EBOLD Letting \(t_i\) and \(m_i\) be the total score and the size of the i th FSA, our estimator in this situation is the ratio estimator, \( \bar{t}_S/\bar{m}_S\). But
+this is just the overall sample mean, i.e., the same estimate as in (a) and (c).
+$BR
+$BR
+
+$BBOLD (f) $EBOLD Using ratio estimator theory, we have
+$BR
+$BR
+$BCENTER
+\begin{align*}
+SE( \bar{t}_S/\bar{m}_S ) &= \frac{1}{\bar{m}_S} \frac{s_e}{\sqrt{6}}   \\
+\end{align*}
+$ECENTER
+$BR
+$BR
+where \(s_e^2\) is the sample variance of the residuals
+$BR
+$BR
+$BCENTER
+\begin{align*}
+e_i &=t_i-( \bar{t}_S/\bar{m}_S  ) m_i \\
+\end{align*}
+$ECENTER
+$BR
+$BR
+Thus we compute from the data \(s_e=$se[0] \) and hence 
+\(  SE( \bar{t}_S/\bar{m}_S )  \)= $q6[0]. 
+
+
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+
+ENDDOCUMENT();

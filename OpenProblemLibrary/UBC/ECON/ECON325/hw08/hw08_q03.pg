@@ -1,0 +1,185 @@
+#########################################################
+##KEYWORDS('Inference'; 'hypothesis test, test for mean, normal
+##distribution with known variance'; 'find the test statistic for a z test, find
+##the critical value for a one-sided alternative given the significance level,
+##decide whether or not to reject the null hypothesis'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One sample mean - z)
+## Date(2015/07/29)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@n=rserve_eval('
+n <- sample(20:30, 1)
+');
+
+@s=rserve_eval('
+s <- round(runif(1, min=0.7, max=1.2),2)
+');
+
+@m=rserve_eval('
+m <- round(runif(1, min=29.5, max=30.5),2)
+');
+
+@q1=rserve_eval('
+re1<-(m-30)/(s/sqrt(n))
+round(re1, 2)
+');
+
+@q2=rserve_eval('
+re2<- qnorm(0.1)
+round(re2, 2)
+');
+
+
+@ans_e_correct = rserve_eval('
+tem<-pnorm(re1)
+r<-0
+if(tem<0.1){
+r<-1  
+}
+r
+');
+
+
+$ans_e_correct = $ans_e_correct[0];
+
+$qu_e = "What decision do you make?";
+
+@ans_e_all = ("Do not reject the null hypothesis.",
+"Reject the null hypothesis.");
+
+
+$ans_e = $ans_e_all[$ans_e_correct];
+
+
+$mc_e = new_multiple_choice();
+$mc_e->qa(
+  $qu_e,
+  $ans_e
+);
+$mc_e->makeLast(
+$ans_e_all[0], $ans_e_all[1]
+);
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+A manufacturer of detergent claims that the contents of boxes sold
+weigh on average at least 30 ounces. The distribution of weights is
+known to be normal, with standard deviation $s[0]. A random sample of
+$n[0] boxes yielded an average weight of $m[0] ounces. Suppose an inspector
+wants to test the null hypothesis that the population mean weight is
+at least 30 ounces. That is, test the null hypothesis
+$BR
+$BR
+$BCENTER
+\(
+H_0: \mu = 30  
+\)
+$ECENTER
+$BR
+$BR
+against the alternative hypothesis
+$BR
+$BR
+$BCENTER
+\(
+H_1: \mu < 30  
+\)
+$ECENTER
+$BR
+$BR
+Answer the following, rounding off your answers to two decimal places.
+$BR
+$BR
+$BBOLD(a) $EBOLD What is the test statistic used in the decision rule? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD What is the critical value the inspector will use? Use a 10% level
+of significance. \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD (c) $EBOLD
+\{ $mc_e->print_q() \}
+$BR
+\{ $mc_e->print_a() \}
+$BR
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.02) );
+ANS( num_cmp($q2ans, tol=> 0.02) );
+ANS(radio_cmp($mc_e->correct_ans()) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD Interest resides in the population mean, \( \mu \), of the weight
+of the contents of the detergent boxes (in ounces). We have data from a normal distribution with known variance, \(\sigma\), and so use as our test statistic
+$BR
+$BR
+$BCENTER
+\(
+\frac{\bar{x}-\mu}{\sigma/\sqrt{n}}=\frac{$m[0]-30}{$s[0]/\sqrt{$n[0]}}=$q1ans.
+\)
+$ECENTER
+$BR
+$BR
+to test the null hypothesis that \( \mu=30\). 
+$BR
+$BR
+$BBOLD (b) $EBOLD If using a 10% significance level, we will reject the null
+hypothesis when the test statistic is less than some value, c say, with probability 0.1 when  \( \mu= 30\). Now we know that the test statistic follows the \(N(0, 1)\) distribution under \(H_0\), and (from tables of software) the 10% point of \(N(0, 1)\) is $q2ans.
+$BR
+$BR
+$BBOLD (c) $EBOLD If our test statistic is less than $q2ans, we would reject
+the null hypothesis that the mean content weight is 30 ounces. Otherwise, we do not reject at the 10% significance level.
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

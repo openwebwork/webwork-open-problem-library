@@ -1,0 +1,223 @@
+#########################################################
+##KEYWORDS('Inference'; 'estimation of mean, confidence intervals, normal
+##distribution'; 'find the mean and variance of a sample given the sample sum
+##and sum of squares, find an approximate 95% confidence interval for a
+##normal mean given the sample size using a t distribution'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(One sample mean - t)
+## Date(2015/07/29)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@n=rserve_eval('
+n <- sample(12:25, 1)
+');
+
+@x=rserve_eval('
+x <- round(rnorm(n, mean=70, sd=25),0)
+');
+
+@sumx=rserve_eval('
+sum(x)
+');
+
+@sumxsquare=rserve_eval('
+sum(x^2)
+');
+
+@v=rserve_eval('
+v <- (sum(x^2)-n* (mean(x))^2)/(n-1) 
+round(v, 4)
+');
+
+
+@s=rserve_eval('
+s<- sqrt(v)
+');
+
+
+@crn=rserve_eval('
+crn=qt(0.025, df=n-1, lower.tail=T)
+round(crn, 4)
+');
+
+@q1=rserve_eval('
+re1<-mean(x)
+round(re1, 2)
+');
+
+
+@q2=rserve_eval('
+round(s, 2)
+');
+
+
+@q3=rserve_eval('
+re3<-mean(x) + crn*s/sqrt(n)
+round(re3, 2)
+');
+
+@q4=rserve_eval('
+re4<-mean(x) - crn*s/sqrt(n)
+round(re4, 2)
+');
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+$q3ans =$q3[0];
+$q4ans =$q4[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Statistics calculated from a sample of $n[0] observations are:
+$BR
+$BR
+$BCENTER
+\(
+\sum_{i=1}^{$n[0]}x_{i} = $sumx[0]
+\)
+$ECENTER
+$BR
+$BCENTER
+\(
+\sum_{i=1}^{$n[0]}x^2_{i} = $sumxsquare[0]
+\)
+$ECENTER
+$BR
+$BR
+Provide the following, rounding your answers to two decimal places.
+$BR
+$BR
+$BBOLD(a) $EBOLD Find the sample mean. \{  ans_rule(7) \}
+$BR
+$BR
+$BBOLD(b) $EBOLD What is the sample standard deviation? \{  ans_rule(7) \}
+$BR
+$BR
+$BBOLD(c) $EBOLD Assume that the population distribution is normal. Find a 95%
+confidence interval for the population mean. ( \{  ans_rule(7) \}, \{  ans_rule(7) \} )  
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.02) );
+ANS( num_cmp($q2ans, tol=> 0.02) );
+ANS( num_cmp($q3ans, tol=> 0.02) );
+ANS( num_cmp($q4ans, tol=> 0.02) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+$BBOLD (a) $EBOLD The sample mean is found by taking the sample total and dividing by $n[0], and here we see 
+$BR
+$BR
+$BCENTER
+\begin{align}
+\bar{X} &= \frac{\sum_{i=1}^{$n[0]}x_{i}} {$n[0]} \\
+&= \frac{$sumx[0]}{$n[0]} \\
+&=$q1ans.  
+\end{align}
+$ECENTER
+$BR
+$BR
+
+$BBOLD (b) $EBOLD The sample variance can be found via
+$BR
+$BR
+$BCENTER
+\begin{align}
+s^2 &= \frac{\sum_{i=1}^{n} (x_i-\bar{x})^2 } {n-1} \\
+&= \frac{\sum_{i=1}^{n} (x^2_i- 2x_i\bar{x} + \bar{x}^2) } {n-1} \\
+&= \frac{ (\sum_{i=1}^{n} x^2_i - 2 \bar{x} \sum_{i=1}^{n} x_i + n\bar{x}^2)}  {n-1} \\
+&= \frac{ (\sum_{i=1}^{n} x^2_i - 2 n \bar{x}^2  + n\bar{x}^2)}  {n-1} \\
+&= \frac{ (\sum_{i=1}^{n} x^2_i -  n \bar{x}^2) }  {n-1} \\
+\end{align}
+$ECENTER
+$BR
+$BR
+which in this case is
+$BR
+$BCENTER
+\begin{align}
+s^2 &=  \frac{ $sumx[0] - $n[0] \times (\frac{@sumx}{$n[0]})^2 } {$n[0]-1}  =$v[0].  
+\end{align}
+$ECENTER
+$BR
+Taking square roots gives the standard deviation.
+$BR
+$BR
+
+$BBOLD (c) $EBOLD For a sample of size n=$n[0] from a normal population, an approximate 95% confidence interval for the population mean is 
+$BR
+$BR
+$BCENTER
+\begin{align}
+\bar{x} \pm t_{n-1}(0.025)\frac{s}{\sqrt{n}} 
+\end{align}
+$ECENTER
+$BR
+$BR
+where \(s\) is the sample standard deviation and \( t_{n-1}(0.025) \) is the 2.5-percentile point of the t distribution with \(n-1\) degrees of freedom. The sample size is n=$n[0], and so the 95% confidence interval is
+$BR
+$BR
+$BCENTER
+\begin{align}
+\bar{x} \pm t_{n-1}(0.025)\frac{s}{\sqrt{n}} &=  \frac{@sumx}{$n[0]} \pm t_{n-1}(0.025) \frac{s}{$n[0]}.  
+\end{align}
+$ECENTER
+$BR
+$BR
+Via tables or software, \(  t_{n-1}(0.025)=$crn[0] \), and so the required interval is 
+$BR
+$BR
+$BCENTER
+\begin{align}
+\frac{@sumx}{$n[0]} \pm $crn[0] \frac{\sqrt{$v[0]}}{\sqrt{$n[0]}} = ( $q3ans, $q4ans).
+\end{align}
+$ECENTER
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

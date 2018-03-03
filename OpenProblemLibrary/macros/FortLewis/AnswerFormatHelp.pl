@@ -9,9 +9,9 @@ answers and allows for custom help links.
 
 =head1 DESCRIPTION
 
-There are 15 predefined help links: angles, decimals, equations, 
+There are 16 predefined help links: angles, decimals, equations, 
 exponents, formulas, fractions, inequalities, intervals, limits, 
-logarithms, numbers, points, syntax, units, vectors.
+logarithms, matrices, numbers, points, syntax, units, vectors.
 
 Usage:
 
@@ -34,7 +34,7 @@ is unaffected.
 
 =head1 AUTHOR
 
-Paul Pearson, Fort Lewis College, Department of Mathematics
+Paul Pearson, Hope College, Department of Mathematics
 
 =cut
 
@@ -620,6 +620,62 @@ if ($main::displayMode ne "TeX") {
 
 
 
+###########################################
+#  Matrices
+
+} elsif ($helptype =~ m/matri/i) {
+
+if ($matricesHelpExists != 1) {
+
+HEADER_TEXT(<<END_HEADER_TEXT);
+<script type="text/javascript">
+<!--
+function openhelpMatrices() {
+OpenWindow=window.open("","answer_format_help","width=550,height=550,status=0,toolbar=0,location=0,menubar=0,directories=0,resizeable=1,scrollbars=1");
+OpenWindow.document.write("<title>Help Entering Matrices</title>")
+OpenWindow.document.write("<body bgcolor='#ffffff'>")
+OpenWindow.document.write("<center><h2>Help Entering Matrices</h2></center>")
+OpenWindow.document.write("<center><h3>When there is one big answer box</h3></center>")
+OpenWindow.document.write("<ul>")
+OpenWindow.document.write("<li>If the matrix has only one row, enter a list.  For example, enter a 1 x 3 matrix as a comma separated list enclosed by square brackets: <blockquote><code>[1, 2, 3]</code></blockquote> </li>")
+OpenWindow.document.write("<li>If the matrix has more than one row, enter a list of lists.  For example, enter a 2 x 3 matrix with 1, 2, 3 in the top row and 4, 5, 6 in the bottom row as: <blockquote><code>[ [1, 2, 3], [4, 5, 6] ]</code></blockquote> </li>")
+OpenWindow.document.write("<li>If the matrix has only one column, enter a list of lists.  For example, enter a 2 x 1 matrix with 1 in the top row and 2 in the bottom row as: <blockquote><code>[ [1], [2] ]</code></blockquote> </li>")
+OpenWindow.document.write("<li>Enter <b>DNE</b> (short for Does Not Exist) if the answer is that no matrix with the desired property exists.</li>")
+OpenWindow.document.write("</ul>")
+OpenWindow.document.write("<center><h3>When there are multiple small answer boxes</h3></center>")
+OpenWindow.document.write("<ul>")
+OpenWindow.document.write("<li>In this case, there is one answer box for each entry in the matrix.  Do the obvious thing and enter one item (often a number or a formula) into each answer box.</li>")
+OpenWindow.document.write("</ul>")
+OpenWindow.document.write("</body>")
+OpenWindow.document.write("</html>")
+OpenWindow.document.close()
+self.name="main"
+if (window.focus) {OpenWindow.focus()}
+return false;
+}
+-->
+</script>
+END_HEADER_TEXT
+
+$matricesHelpExists = 1;
+}
+
+if (!$customstring) { $helpstring = "help (matrices)"; } else { $helpstring = $customstring; }
+
+if ($main::displayMode ne "TeX") { 
+    return htmlLink( "#", "$helpstring","onClick='return openhelpMatrices()';");
+} else { return $helpstring; }
+
+
+
+
+
+
+
+
+
+
+
 ##########################################
 #  Numbers
 
@@ -776,7 +832,7 @@ OpenWindow.document.write("<title>Help Entering Vectors</title>")
 OpenWindow.document.write("<body bgcolor='#ffffff'>")
 OpenWindow.document.write("<center><h2>Help Entering Vectors</h2></center>")
 OpenWindow.document.write("<ul>")
-OpenWindow.document.write("<li><font color='#222255'>Predefined vectors i, j, and k</font><blockquote><code>i</code> &nbsp; is the same as &nbsp; <code>&lt;1,0,0&gt;</code> &nbsp;&nbsp; or &nbsp;&nbsp; <code>&lt;1,0&gt;</code><br /><code>j</code> &nbsp; is the same as &nbsp; <code>&lt;0,1,0&gt;</code> &nbsp;&nbsp; or &nbsp;&nbsp; <code>&lt;1,0&gt;</code><br /><code>k</code> &nbsp; is the same as &nbsp; <code>&lt;0,0,1&gt;</code><br /></blockquote></li>")
+OpenWindow.document.write("<li><font color='#222255'>Predefined vectors i, j, and k</font><blockquote><code>i</code> &nbsp; is the same as &nbsp; <code>&lt;1,0,0&gt;</code> &nbsp;&nbsp; or &nbsp;&nbsp; <code>&lt;1,0&gt;</code><br /><code>j</code> &nbsp; is the same as &nbsp; <code>&lt;0,1,0&gt;</code> &nbsp;&nbsp; or &nbsp;&nbsp; <code>&lt;0,1&gt;</code><br /><code>k</code> &nbsp; is the same as &nbsp; <code>&lt;0,0,1&gt;</code><br /></blockquote></li>")
 OpenWindow.document.write("<li><font color='#222255'>A vector may be entered using angle brackes and commas, or adding multiples of i, j, and k:</font><blockquote><code>&lt;4.5, 3/7&gt;</code> &nbsp; and &nbsp; <code>4.5i + 3/7j</code> &nbsp; are valid vectors in 2 dimensions<br /><code>&lt;pi,e,2&gt;</code> &nbsp; and &nbsp; <code>pi i + e j + 2 k</code> &nbsp; are valid vectors in 3 dimensions </blockquote></li>")
 OpenWindow.document.write("<li><font color='#222255'>If the answer is more than one vector:</font><blockquote>Enter your answer as a comma-separated list of vectors, for example: &nbsp;&nbsp;<code>&lt;4,3&gt;, &lt;5,10&gt;</code> </blockquote></li>")
 OpenWindow.document.write("<li><font color='#222255'>If there are no solutions:</font><blockquote>Enter &nbsp; <code>NONE</code> &nbsp; or &nbsp; <code>DNE</code> &nbsp; (this may vary from problem to problem)</blockquote></li>")

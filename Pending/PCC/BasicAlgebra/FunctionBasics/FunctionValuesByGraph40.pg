@@ -1,0 +1,185 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Give a function's graph, find values of f(a).
+# Find domain and range of the function.
+# Graph is a piecewise function.
+#
+# Last update: Carl Yao 06/10/2014
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Function')
+## DBsection()
+## KEYWORDS('function','graph','piecewise')
+## DBCCSS('8.F','F-IF')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+$refreshCachedImages=1;
+
+do {
+$xMin = -4;
+
+$m0 = 1;
+$b0 = random(1,2,1);
+$func0 = Compute("$m0*x+$b0");
+
+$x0 = random($xMin,-1,1);
+$y0 = $func0->eval(x=>$x0);
+
+$x1 = random(1,2,1);
+$y1 = $func0->eval(x=>$x1);
+
+$m1 = -1;
+$b1 = $x1+$y1;
+$func1 = Compute("$m1*x+$b1");
+
+$x2 = random($x1+1,$x1+3,1);
+$y2 = $func1->eval(x=>$x2);
+
+$m2 = 1;
+$b2 = -$x2+$y2;
+$func2 = Compute("$m2*x+$b2");
+
+$x3 = random($x2+1,$x2+3,1);
+$y3 = $func2->eval(x=>$x3);
+
+} until ($y2<0);
+
+$xMin = $x0;
+$xMax = $x3;
+$yMin = min($y0,$y2);
+$yMax = max($y1,$y3);
+
+$xIntercept0 = -$b0/$m0;
+$xIntercept1 = -$b1/$m1;
+$xIntercept2 = -$b2/$m2;
+$xIntercepts = List($xIntercept0);
+if ($y2<=0) {$xIntercepts = $xIntercepts + List($xIntercept1);}
+if (($y2<0) && ($y3>=0)) {$xIntercepts = $xIntercepts + List($xIntercept2);}
+
+Context("Interval");
+$domain = Compute("[$xMin,$xMax]");
+$range = Compute("[$yMin,$yMax]");
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+
+$border = max(abs($xMin),abs($xMax),abs($yMax),abs($yMin));
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([-$border,$border],[-$border,$border],centerOrigin=>1);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+for my $i (0..1) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+
+   add_functions($gr[$i], "$func0 for x in [$x0,$x1] using color:blue and weight:2");
+   add_functions($gr[$i], "$func1 for x in [$x1,$x2] using color:blue and weight:2");
+   add_functions($gr[$i], "$func2 for x in [$x2,$x3] using color:blue and weight:2");
+}
+
+$ALT0 = "This is the graph of a piecewise function with three line segments. The first segment starts from the point ($x0,$y0), and ends at ($x1,$y1). The second segment starts from the point ($x1,$y1), and ends at ($x2,$y2). The third segment starts from the point ($x2,$y2), and ends at ($x3,$y3).";
+
+$shift = $marksep[1]/15;
+
+#the graph used in solution
+$gr[1]->stamps( closed_circle(0,$b0,'red') );
+$gr[1]->lb( new Label($0-$shift,$b0+$shift,"(0,$b0)",'red','right','bottom'));
+
+$gr[1]->stamps( closed_circle($xIntercept0,0,'red') );
+$gr[1]->lb( new Label($xIntercept0,0+$shift,"($xIntercept0,0)",'red','right','bottom'));
+
+$gr[1]->stamps( closed_circle($xIntercept1,0,'red') );
+$gr[1]->lb( new Label($xIntercept1,0+$shift,"($xIntercept1,0)",'red','right','bottom'));
+
+$tempText = "($xIntercept0, 0), ($xIntercept1, 0)";
+
+if ($y3>=0) {
+   $gr[1]->stamps( closed_circle($xIntercept2,0,'red') );
+   $gr[1]->lb( new Label($xIntercept2,0+$shift,"($xIntercept2,0)",'red','right','bottom'));
+   $tempText = "($xIntercept0, 0), ($xIntercept1, 0), ($xIntercept2, 0)";
+   $thirdXInterceptShow = "f($xIntercept2)=0";
+}
+
+$ALT1 = "This is the graph of a piecewise function with three line segments. The first segment starts from the point ($x0,$y0), and ends at ($x1,$y1). The second segment starts from the point ($x1,$y1), and ends at ($x2,$y2). The third segment starts from the point ($x2,$y2), and ends at ($x3,$y3). Its y-intercept (0, $b0), its x-intercepts $tempText are marked.";
+
+##############################################
+Context("LimitedNumeric");
+BEGIN_PGML
+
+The graph of function [`f(x)`] is shown below.
+
+[@EnlargeImageStatementPGML()@]**
+
+
+>>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT0' title = '$ALT0'") @]*<<
+
+Based on the given graph of [`f(x)`], fill in the blanks. If there are more than one answers for a blank, use a comma to separate your answers.
+
+    [`f(0)`]=[_________]{$b0}
+
+    [`f(`][_______]{$xIntercepts}[`)=0`]
+
+The function's domain, in interval notation, is [_____________]{$domain}.
+
+The function's range, in interval notation, is [_____________]{$range}.
+
+END_PGML
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+>>[@image(insertGraph($gr[1]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT1' title = '$ALT1' ") @]*<<
+
+By the graph, [`f(0)=[$b0]`], which is shown by the point [`(0,[$b0])`].
+
+By the graph, [`f([$xIntercept0])=0`], [`f([$xIntercept1])=0`], [`[$thirdXInterceptShow]`]. These are shown by the points [`[$tempText]`].
+
+By the graph, the function's minimum [`x`]-value is [`[$xMin]`], and the maximum [`x`]-value is [`[$xMax]`]. The function's domain is [`[$domain]`].
+
+By the graph, the function's minimum [`y`]-value is [`[$yMin]`], and the maximum [`y`]-value is [`[$yMax]`]. The function's range is [`[$range]`].
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();

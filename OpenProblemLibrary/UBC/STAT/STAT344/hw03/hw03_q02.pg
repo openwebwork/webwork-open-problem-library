@@ -1,0 +1,136 @@
+#########################################################
+##KEYWORDS('Sampling theory'; 'stratified sampling', 'sampling for a
+##characteristic'; 'compute the ratio of expected standard errors of a
+##stratified sampling estimate of a proportion to that of an estimate based on
+##a simple random sample'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Sample survey methods)
+## DBsection(Stratified sampling)
+## Date(2015/10/13)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(4)
+## level('4')
+## 2 Attempts
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+
+@p=rserve_eval('
+p <- sample(seq(from=.08, to=.12, by=.01), size=1)
+');
+
+@q=rserve_eval('
+q <- sample(seq(from=.62, to=.68, by=.01), size=1)
+');
+
+@r=rserve_eval('
+r <- 0.71*p + 0.29*q
+');
+
+
+#######answers_q1
+@q1=rserve_eval('
+tem1<- sqrt(0.71^2*p*(1-p)/100 + 0.29^2*q*(1-q)/100 )
+tem2<-sqrt( r*(1-r)/200)  
+tem<-tem1/tem2
+round(tem, 2)
+');
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+A researcher approaches you for statistical advice. He wants to estimate
+the proportion of senior (aged 65+) Canadians who exceed 172 cm in
+height. He is aware of census information from Statistics Canada that
+71% of the target population is female. He is also aware that for
+study planning purposes he should commit to educated a priori guesses.
+He uses $p[0] and $q[0] as guessed proportions of the female and male subpopulations that exceed 172cm in height. The researcher will sample
+individuals and measure their height very precisely (to compare to the
+172 cm threshold). But he is trying to decide between using a single
+random sample of 200 from the whole population or separate random
+samples of size 100 each from the female and male sub-populations.
+For estimating the target parameter, give the ratio of the anticipated
+standard error using the second sampling scheme to the anticipated
+standard error using the first sampling scheme. Report this ratio to
+two decimal places. \{  ans_rule(7) \}  
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1[0], tol=> 0.051) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+Finite-population correction can be ignored given the very
+large strata. The guessed proportions of "tallness" for the two strata
+imply a guessed proportion of
+$BR
+$BR
+$BCENTER
+\begin{align*}
+0.71 \times $p[0] +0.29 \times $q[0] &= $r[0].  
+\end{align*}
+$ECENTER
+$BR
+$BR
+for the whole population. Thus the ratio of anticipated standard errors
+for the stratified estimator compared to the simple random sample estimator is
+$BR
+$BR
+$BCENTER
+\begin{align*}
+\frac{ \sqrt{ 0.71^2 \times $p[0] \times (1-$p[0])/100 +  0.29^2 \times $q[0] \times (1-$q[0])/100  }  } {  \sqrt{  $r[0] \times (1-$r[0]) /200} } =$q1[0].  
+\end{align*}
+$ECENTER
+$BR
+$BR
+Note that we should not  be surprised that the stratified scheme is a fair
+bit better in the present context. There is considerable across-stratum
+variation in the variable of interest (binary indicator of height exceeding the threshold).
+
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+
+
+ENDDOCUMENT();

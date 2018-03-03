@@ -1,0 +1,205 @@
+#########################################################
+##KEYWORDS('Sampling theory'; 'ratio estimators', 'sampling for a
+##characteristic'; 'determine an estimate of the proportion in a subpopulation
+##possessing a characteristic', 'using a sample from the population and the
+##population size', 'provide standard error for the estimate', 'modify the
+##estimate given the subpopulation size and estimate its standard deviation'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Sample survey methods)
+## DBsection(Ratio estimators)
+## Date(2015/09/23)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(4)
+## level('5')
+## 4 Attempts. 
+## n=79-1 could be used in future. 
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@p=rserve_eval('
+p <- sample(125:135,size=1)/10
+');
+
+my ($remote_file, @problem_data) = rserve_eval(<<CODE);
+  # this is R code
+ set.seed(17) ## see comment below
+age <- round(runif(500, 11, 77)) #### 14.2% in 20Âs
+car <- rbinom(500, size=1,prob= 0 + (age>20)*(.2 + .45*(age-20)/60))
+problem_data<-data.frame(age,car)
+problem_file <- tempfile("cars", fileext = '.csv')
+write.csv(problem_data, problem_file, row.names=F)
+list(problem_file, problem_data)
+CODE
+
+my $local_file = rserve_get_file($remote_file);
+($local_url = $local_file) =~ s|$tempDirectory|$tempURL|;
+
+
+@data=rserve_eval('
+set.seed(17) ## see comment below
+age <- round(runif(500, 11, 77)) #### 14.2% in 20Âs
+car <- rbinom(500, size=1,prob= 0 + (age>20)*(.2 + .45*(age-20)/60))
+');
+
+
+@N=rserve_eval('
+N <- 35.16*10^6
+');
+
+@u=rserve_eval('
+dmn <- (age>19)&(age<30)
+u <- car; u[!dmn] <- 0
+');
+
+
+#######answers_q1
+@q1=rserve_eval('
+re1<-N*mean(u)
+round(re1, 0)
+');
+
+
+#######answers_q2
+@q2=rserve_eval('
+re2<-N*0.1649/sqrt(500)
+round(re2, 0)
+');
+
+
+#######answers_q3
+@q3=rserve_eval('
+re3<-N*(p/100)*mean(car[dmn])
+round(re3, 0)
+');
+
+
+#######answers_q4
+@q4=rserve_eval('
+re4<-N*(p/100)*sqrt(0.1772*(1-0.1772)/79)
+round(re4, 0)
+');
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+A marketing firm is trying to assess how many Canadians aged 20-29
+own a car. A simple random sample of size n = 500 Canadians was
+obtained, yielding the data in cars.csv (linked below). In particular, each respondent
+reported their age, and their car ownership status (coded as 1 for yes,
+0 for no). Census information reports Canada's population to be 35.16
+million people. Round answers to the nearest integers.
+$BR
+$BR
+$BBOLD 
+LINK for cars.csv (\{ htmlLink($local_url, "Download the csv file here") \}) 
+$EBOLD
+$BR
+$BR
+$BBOLD(a) $EBOLD Give an estimate for the number of Canadians aged 20-29 who
+own a car. \{  ans_rule(7) \} 
+$BR
+$BR
+
+$BBOLD(b) $EBOLD Give a standard error to accompany this estimate. \{  ans_rule(7) \}  
+$BR
+$BR
+
+
+$BBOLD(c) $EBOLD Now say that you are provided with additional census information
+that $p[0] percent of Canadians are aged 20-29. In light of this further
+information, modify your estimate from part (a).  \{  ans_rule(7) \}  
+$BR
+$BR
+
+
+$BBOLD(b) $EBOLD Give a standard error to accompany the modified estimate. \{  ans_rule(7) \}
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1[0], tol=> 5001) );
+ANS( num_cmp($q2[0], tol=> 5001) );
+ANS( num_cmp($q3[0], tol=> 5001) );
+ANS( num_cmp($q4[0], tol=> 5001) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD Let u be the indicator variable for a person to both be in the domain (aged 20-29) and own a car. The data give the sample mean and
+standard deviation of u to be 0.028 and 0.1649, respectively. Hence our
+point estimate is \( 35.16 \times 10^6 \times 0.028=$q1[0] \). 
+$BR
+$BR
+
+
+$BBOLD (b) $EBOLD The standard error of the estimate in (a) is 
+ \( 35.16 \times 10^6 \times 0.1649/\sqrt{500}=$q2[0] \). 
+$BR
+$BR
+
+
+$BBOLD (c) $EBOLD In the 79 sample members aged 20-29, 14 own
+cars, so the mean of the car ownership variable is \(14/79 = 0.1772\)
+with a standard deviation of \(  \sqrt{0.1772 \times (1-0.1772)/79 } = 0.04296 \). Thus our estimate is 
+$BR
+$BR
+$BCENTER
+\(
+35.16 \times 10^6 \times \frac{$p[0]}{100} \times 0.1772=$q3[0]. 
+\)
+$ECENTER
+$BR
+$BR
+
+
+$BBOLD (d) $EBOLD The estimate in (c) has a standard error of
+$BR
+$BR
+$BCENTER
+\(
+35.16 \times 10^6 \times \frac{$p[0]}{100} \times \frac{\sqrt{0.1772 \times (1-0.1772)}}{\sqrt{79}}=$q4[0]. 
+\)
+$ECENTER
+
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+
+ENDDOCUMENT();

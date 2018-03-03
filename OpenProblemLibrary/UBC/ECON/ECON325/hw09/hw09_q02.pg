@@ -1,0 +1,165 @@
+#########################################################
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(One sample proportion)
+## Date(2015/05/26)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## KEYWORDS('Statistical inference', 'Confidence interval for a percentage', 'estimate a population percentage given a sample count', 'find an approximate 95% confidence interval for a population percentage')
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); 
+
+####Begin R codes
+@cityP=rserve_eval('
+cities=c("Toronto", "Montreal", "Ottawa", "Vancouver",  "Calgary");
+p_pubtransit=c(23.3, 22.2, 20.1, 19.7, 15.9);
+
+###sample 1 out of 5
+ind =sample(x=seq(1, 5), size=1, replace=F);
+
+###selected city and true p
+p_true = p_pubtransit[ind]/100;
+city = cities[ind];
+');
+
+$cityP=$cityP[0]; 
+
+@nP = rserve_eval('
+n=round(runif(1, min = 800, max= 1200),0);
+');
+$nP=@nP[0];
+
+
+@mP=rserve_eval('
+m = sum(rbinom(n, size=1, prob=p_true));
+');
+$mP=@mP[0];
+
+
+@perchatP=rserve_eval('
+p_hat=m/n;
+perc_hat=round((m/n)*100, 2);
+');
+$perchatP=$perchatP[0];
+
+
+@LB=rserve_eval('
+round(perc_hat-1.96*100*sqrt(p_hat*(1-p_hat)/n), 2); 
+');
+$LB=$LB[0];
+##$LBtolelow=$LB-0.02;
+##$LBtolehigh=$LB+0.02;
+
+
+@UB=rserve_eval('
+round(perc_hat+1.96*100*sqrt(p_hat*(1-p_hat)/n), 2);
+');
+$UB=$UB[0];
+##$UBtolelow=$UB-0.02;
+##$UBtolehigh=$UB+0.02;
+
+$q1ans = $perchatP;
+$q2ansLB = $LB;
+$q2ansUB= $UB;
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Suppose in 2011 a survey of $nP workers in the city of $cityP found that $mP used public transport to commute to work. Give your answers to the following to two decimal places. 
+$BR
+$BR
+$BBOLD Part (a) $EBOLD Estimate the percentage of workers in $cityP who use public transport to commute to work. \{ ans_rule(7) \}. 
+$BR
+$BR
+$BBOLD Part (b) $EBOLD Find a 95% confidence interval for the percentage of workers in $cityP using public transport to commute to work. Use the sample proportion in your estimate of the standard error. Provide the upper and lower bounds for your confidence interval.  ( \{ ans_rule(7) \},~~ \{ ans_rule(7) \} )
+END_TEXT
+
+## Answers evaluation (Required)
+$showPartialCorrectAnswers = 1;
+ANS( num_cmp($q1ans, tol=> 0.02) );
+ANS( num_cmp($q2ansLB, tol=> 0.02) );
+ANS( num_cmp($q2ansUB, tol=> 0.02) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+Context()->{format}{number} = "%.2f";
+BEGIN_SOLUTION
+$BBOLD Part (a) $EBOLD The estimated percentage of public transport users in
+the city is $q1ans. 
+$BR
+$BR
+$BBOLD Part (b) $EBOLD The required approximate confidence interval is of the form
+$BR
+\begin{align*}
+100\hat{p}\pm 1.96 \times \text{se} (100\hat{p})
+\end{align*}
+$BR
+where \( \text{se} ( 100\hat{p}) \) is the estimated standard deviation of the sample proportion. Assuming an independent sample of workers from the city, the number of those using public transport can be
+assumed to be an observation from the \( B \left( $nP, p\right) \) distribution, where \(p\) is the true proportion of workers using public transport. That is, \( \hat{p}=X/$nP, \) where \( X \sim B\left( $nP, p\right) \) and Var \(\left( X\right) =$nP \left( 1-p\right) p.\) Hence 
+$BR
+\begin{align*}
+\text{Var}\left( \hat{p}\right) =\frac{p\left( 1-p\right) }{$nP} \approx \frac{\hat{p}\left( 1-\hat{p} \right) }{$nP}, 
+\end{align*}
+$BR
+and so 
+$BR
+\begin{align*}
+\text{Var}\left( 100\hat{p}\right) \approx \frac{100^{2}\hat{p}\left( 1-\hat{p}\right) }{$nP}. 
+\end{align*}
+$BR
+Therefore an approximate 95% confidence interval for the proportion in the city using public transport to commute to work is 
+$BR
+\begin{align*}
+100\hat{p}\pm 1.96\times 100\sqrt{\frac{\hat{p}\left( 1-\hat{p}\right) }{$nP}}. 
+\end{align*}
+$BR
+In this case \(\hat{p}=$mP/$nP \), and so the required confidence interval is 
+$BR
+\begin{align*}
+\left(100\hat{p}-1.96\times 100\sqrt{\frac{\hat{p}\left( 1-\hat{p}\right) }{
+$nP}},  100\hat{p}+1.96\times 100\sqrt{\frac{\hat{p}\left( 1-\hat{p}
+\right) }{$nP}}  \right)
+\end{align*}
+$BR
+END_SOLUTION
+#########################################################
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

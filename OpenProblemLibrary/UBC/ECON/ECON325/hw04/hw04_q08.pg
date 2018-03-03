@@ -1,0 +1,323 @@
+#########################################################
+##KEYWORDS('Random variables'; 'bivariate distributions, conditional
+##distribution, covariance, independence'; 'find a conditional distribution from
+##a joint discrete distribution, find the covariance, determine if the two
+##variables are independent'. ) 
+# DESCRIPTION
+## DBsubject(Probability)
+## DBchapter(Several variables)
+## DBsection(Joint distribution)
+## Date(2015/07/08)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(2)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@p1=rserve_eval('
+x <-rnorm(n=100, mean=0, sd=1)
+x1 <- x[x>0.5]
+x2 <- x[0<x & x<0.5]
+x3 <- x[-0.2<x & x<0]
+x4 <- 100 - length(c(x1, x2, x3))
+p1 <- round(length(x1)/100, 2)
+');
+
+@p2=rserve_eval('
+p2 <- round(length(x2)/100, 2)
+');
+
+@p3=rserve_eval('
+p3 <- round(length(x3)/100, 2)
+');
+
+@p4=rserve_eval('
+p4 <- round(x4/100, 2)
+');
+
+
+#####answers
+
+@qa1 = rserve_eval('
+round(p2/(p2+p4), 2)
+');
+
+@qa2 = rserve_eval('
+round(p4/(p2+p4), 2)
+');
+
+@exy = rserve_eval('
+exy = p4 
+');
+
+@ex = rserve_eval('
+ex = p4 + p2
+');
+
+@ey = rserve_eval('
+ey = p4 + p3
+');
+
+@qb = rserve_eval('
+round(exy-ex*ey, 2)
+');
+
+####MC
+$mc1 = new_multiple_choice( );
+$mc1 -> qa( "Are X and Y independent?" , "No");
+$mc1 -> extra("Yes");
+
+
+###eve
+$qa1ans = @qa1[0];
+$qa2ans= @qa2[0];
+$qbans = @qb[0]; 
+
+
+
+####Build table
+$Table = 
+"\(    
+\begin{array}{lc}
+& \mbox{X } \\
+\mbox{Y} &
+\begin{array}{c|cc}
+&  0 & 1  \\ 
+\hline
+ 0 & $p1[0] & $p2[0] \\
+1 & $p3[0] & $p4[0]  \\
+\end{array}
+\end{array}
+\)"
+;
+
+
+####Build table
+$Table1 = 
+"\(       
+\begin{array}{lc}
+& \mbox{X } \\
+\mbox{Y} &
+\begin{array}{c|cc|c}
+&  0 & 1 &  \\ 
+\hline
+0 & $p1[0] & $p2[0] &  $p1[0]+ $p2[0] \\
+1 & $p3[0] & $p4[0] &  $p3[0]+ $p4[0] \\
+\hline
+   &  $p1[0]+$p3[0] & $p2[0]+$p4[0] &   
+\end{array}
+\end{array}
+\)"
+;
+
+
+####Build table
+$Table2 = 
+"\(    
+\begin{array}{c}
+xy \\
+\begin{array}{c|cc}
+& 0 & 1   \\
+\hline
+P(XY=xy) & $p1[0] + $p2[0] +$p3[0] & $p4[0] 
+\end{array}
+\end{array}
+\)"
+;
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Define a pair of random variables as follows:
+$BR
+$BR
+$BCENTER
+\(
+X = 
+\begin{cases} 
+1 & \text{ if the US dollar value of the Canadian dollar drops next week}  \\
+0 &  \text{ otherwise} 
+\end{cases}
+\)
+$ECENTER
+$BR
+$BR
+
+$BCENTER
+\(
+Y = 
+\begin{cases} 
+1 & \text{if the Bank of Canada raises interest rates next week}  \\
+0 &  \text{ otherwise} 
+\end{cases}
+\)
+$ECENTER
+$BR
+$BR
+An economist estimates the following joint probability function:
+$BR
+$BR
+$BCENTER
+$Table
+$ECENTER
+$BR
+Answer the following questions, rounding your answers to two decimal places where appropriate.
+$BR
+$BR
+$BBOLD(a) $EBOLD Find the conditional probability function of \(Y\) given \(X = 1\): 
+$BR
+$BR
+i. \( P(Y=0 | X=1) \) \{  ans_rule(7) \} 
+$BR
+$BR
+ii. \( P(Y=1 | X=1) \) \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD What is the covariance between \(X\) and \(Y\) ?  \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(c) $EBOLD \{ $mc1->print_q() \}
+$BR
+\{ $mc1->print_a() \}
+$BR
+$BR
+END_TEXT
+#########################################################
+
+## Answers evaluation (Required)
+ANS( num_cmp($qa1ans, tol=> 0.02) );
+ANS( num_cmp($qa2ans, tol=> 0.02) );
+ANS( num_cmp($qbans, tol=> 0.02) );
+ANS( radio_cmp( $mc1 -> correct_ans( ) ) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+It is helpful to complete the table by computing the marginal distributions of \(X\) and \(Y\) :
+$BR
+$BR
+$BCENTER
+$Table1
+$ECENTER
+$BR
+$BR
+$BBOLD (a) $EBOLD From the above, we see 
+$BR
+$BR
+(i) \( P(Y=0 | X=1)= \frac{$p2[0]}{$p2[0]+$p4[0]}= $qa1ans\). 
+$BR
+$BR
+(ii) \( P(Y=1 | X=1)= \frac{$p4[0]}{$p2[0]+$p4[0]}=$qa2ans\).   
+$BR
+$BR
+
+$BBOLD (b) $EBOLD The covariance between two variables \(X\) and \(Y\) is 
+$BR
+$BR
+$BCENTER
+\( 
+Cov(X, Y) = E((X- E(X))(Y- E(Y)))=E(XY)-E(X)E(Y).  
+\)
+$ECENTER
+$BR
+The second form above can be the easier to apply in practice, and requires finding the distribution of \(XY\). In this case we see
+$BR
+$BR
+$BCENTER
+$Table2
+$ECENTER
+$BR
+Hence 
+$BR
+$BR
+$BCENTER
+\( 
+E(XY)= 0 \times ($p1[0] +$p2[0] +$p3[0]) + 1 \times $p4[0] = $p4[0].    
+\)
+$ECENTER
+$BR
+Now 
+$BR
+$BR
+$BCENTER
+\( 
+E(X)= 0 \times ($p1[0] +$p3[0]) + 1 \times ($p2[0]+ $p4[0]) = $ex[0]. 
+\)
+$ECENTER
+$BR
+$BR
+$BCENTER
+\( 
+E(Y)= 0 \times ($p1[0] +$p2[0]) + 1 \times ($p3[0]+ $p4[0]) = $ey[0]. 
+\)
+$ECENTER
+$BR
+$BR
+So we find
+$BR
+$BR
+$BCENTER
+\( 
+Cov(X, Y)= $p4[0]-$ex[0] \times $ey[0] =$qbans.  
+\)
+$ECENTER
+$BR
+$BR
+
+$BBOLD (c) $EBOLD In general two discrete variables \(X\) and \(Y\) are independent if
+$BR
+$BR
+$BCENTER
+\( 
+P(X=x, Y=y) = P(X=x) \times P(Y=y)   
+\)
+$ECENTER
+$BR
+for all possible values of x and y. To investigate here, consider the special case 
+\( P(X=0, Y=0)=$p1[0]\). Is this equal to \(P (X = 0)  \times P (Y = 0) \)? We see
+$BR
+$BR
+$BCENTER
+\( 
+P(X=0) \times P(Y=0)= ($p1[0] +$p3[0]) \times ($p1[0] +$p2[0]) \ne $p1[0],      
+\)
+$ECENTER
+$BR
+and so the two variables are not independent. Moreover, independence implies uncorrelated, which in turn implies the covariance is zero.
+END_SOLUTION
+ENDDOCUMENT();
+

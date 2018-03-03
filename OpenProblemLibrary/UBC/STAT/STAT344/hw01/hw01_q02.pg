@@ -1,0 +1,159 @@
+#########################################################
+##KEYWORDS('Inference'; 'confidence intervals for proportion', 'confidence
+##intervals for population size'; 'find a 95% confidence interval for a
+##population proportion', 'find approximate confidence interval for a population
+##size given the count within the population with the characteristic of interest.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(Concepts)
+## Date(2015/07/30)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('5')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@n=rserve_eval('
+n <- sample(200:300, 1)
+');
+
+@x=rserve_eval('
+x <- sample(40:60, 1)
+');
+
+@q1=rserve_eval('
+tem<-(x/n)*(1-x/n)/n
+lower=(x/n) - 1.96* sqrt(tem)
+re1=round(lower, 3)
+');
+
+@q2=rserve_eval('
+upper=(x/n) + 1.96* sqrt(tem)
+re2=round(upper, 3)
+');
+
+@q3=rserve_eval('
+q3=800000/(x/n + 1.96*sqrt(tem) )
+re3=round(q3, 3)
+');
+
+@q4=rserve_eval('
+q4=800000/(x/n - 1.96*sqrt(tem) )
+re4=round(q4, 3)
+');
+
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+$q3ans =$q3[0];
+$q4ans =$q4[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+A simple random sample yields questionnaire responses from n = $n[0]
+residents of BC. Of these, $x[0] report being current members of the British
+Columbia Automobile Association (BCAA). Provide answers to the
+following to three decimal places.
+$BR
+$BR
+$BBOLD(a) $EBOLD Give a 95% confidence interval for the proportion of BC residents who are BCAA members.
+$BR
+$BR
+ (\{  ans_rule(7) \}, \{  ans_rule(7) \}).   
+$BR
+$BR
+$BBOLD(b) $EBOLD Combine the survey results with the fact that BCAA reports having 800,000 members, to obtain a 95% confidence interval for the
+population size of British Columbia. Be sure not to round any
+results you may use from (a), and provide the upper and lower
+bounds for your interval.
+$BR
+$BR
+ (\{  ans_rule(7) \}, \{  ans_rule(7) \}).   
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.02) );
+ANS( num_cmp($q2ans, tol=> 0.02) );
+ANS( num_cmp($q3ans, tol=> 25000) );
+ANS( num_cmp($q4ans, tol=> 25000) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD The sample proportion, \($x[0]/$n[0] \), provides a point estimate for the proportion of BCAA members. Approximately this estimator
+is Normal with mean the true proportion \(p\) and variance \(p(1-p)/$n[0] \). 
+Estimating the latter by using the point estimate, an approximate 95%
+confidence interval for p is 
+$BR
+$BR
+$BCENTER
+\(
+\frac{$x[0]}{$n[0]} \pm 1.96\sqrt{ \frac{($x[0]/$n[0]) \times (1-$x[0]/$n[0])}{$n[0]}} = ($q1ans, $q2ans).  
+\)
+$ECENTER
+$BR
+$BR
+
+$BBOLD (b) $EBOLD The population proportion p is taken to be \(800,000/N\), where N is the population size of BC. The confidence interval for p above can be
+inverted to provide an interval estimate for N,  the upper bound being 
+$BR
+$BR
+$BCENTER
+\(
+\frac{800000}{ \frac{$x[0]}{$n[0]} + 1.96\sqrt{ \frac{($x[0]/$n[0]) \times (1-$x[0]/$n[0])}{$n[0]}}   } =$q4ans. 
+\)
+$ECENTER
+$BR
+$BR
+and the lower bound being
+$BR
+$BR
+$BCENTER
+\(
+\frac{800000}{ \frac{$x[0]}{$n[0]} - 1.96\sqrt{ \frac{($x[0]/$n[0]) \times (1-$x[0]/$n[0])}{$n[0]}}   } =$q3ans. 
+\)
+$ECENTER
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+
+ENDDOCUMENT();

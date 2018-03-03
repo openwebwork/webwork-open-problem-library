@@ -1,0 +1,201 @@
+#########################################################
+##KEYWORDS('Inference'; 'hypothesis test, one-sided test for mean, normal
+##distribution with unknown variance, critical value'; 'find the test statistic
+##for a one--sample t test from a sample of size 6, find the critical value
+##for the test, decide whether or not to reject the null hypothesis at the 5%
+##significance level'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One sample mean - t)
+## Date(2015/07/29)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+
+@x=rserve_eval('
+x <- round(rnorm(6, mean=12.7, sd=0.9),2)
+');
+
+@meanx=rserve_eval('
+mean(x)
+round(mean(x), 3)
+');
+
+@sdx=rserve_eval('
+sd(x)
+round(sd(x), 3)
+');
+
+@q1=rserve_eval('
+re1<-mean(x) 
+round(re1, 3)
+');
+
+@q2=rserve_eval('
+re2<-sd(x) 
+round(re2, 3)
+');
+
+@q3=rserve_eval('
+re3<-(mean(x)-13)/(sd(x)/sqrt(6))
+round(re3, 3)
+');
+
+
+@q4=rserve_eval('
+re4<- round(qt(0.05, df=5, lower.tail=T),3)
+');
+
+
+#####Qc
+@ans_c_correct = rserve_eval('
+rc<-0
+if(re3<re4){
+rc<-1  
+}
+rc
+');
+
+$ans_c_correct = $ans_c_correct[0];
+
+$qu_c = "Can the null hypothesis be rejected at a 5% significance level?";
+
+@ans_c_all = ("Do not reject the null hypothesis.",
+"Reject the null hypothesis.");
+
+$ans_c = $ans_c_all[$ans_c_correct];
+
+$mc_c = new_multiple_choice();
+$mc_c->qa(
+  $qu_c,
+  $ans_c
+);
+$mc_c->makeLast(
+$ans_c_all[0], $ans_c_all[1]
+);
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+$q3ans =$q3[0];
+$q4ans =$q4[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+The observations from a random sample of n = 6 from a normal population are:
+$BR
+$BR
+$BCENTER
+$x[0], $x[1], $x[2], $x[3], $x[4], $x[5].
+$ECENTER
+$BR
+$BR
+Test the null hypothesis of \(H_0: \mu=13\) against the alternative hypothesis of \(H_1: \mu < 13\). Use a 5% level of significance. Answer the following, rounding off your answer to three decimal places.
+$BR
+$BR
+$BBOLD(a) $EBOLD What is the sample mean? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD What is the sample standard deviation? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(c) $EBOLD What is the test statistic used in the decision rule? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(d) $EBOLD What is the critical value? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD (e) $EBOLD
+\{ $mc_c->print_q() \}
+$BR
+\{ $mc_c->print_a() \}
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.01) );
+ANS( num_cmp($q2ans, tol=> 0.01) );
+ANS( num_cmp($q3ans, tol=> 0.01) );
+ANS( num_cmp($q4ans, tol=> 0.01) );
+ANS(radio_cmp($mc_c->correct_ans()) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD The sample mean is the sum of the observations divided
+by 6, which is $q1ans. 
+$BR
+$BR
+$BBOLD (b) $EBOLD The sample standard deviation is 
+$BR
+$BR
+$BCENTER
+\(
+s=\sqrt{\frac{1}{5} \sum_{i=1}^{6}(x_i-\bar{x})^2},  
+\)
+$ECENTER
+$BR
+$BR
+which in this example is $q2ans. 
+$BR
+$BR
+$BBOLD (c) $EBOLD Assuming the data are from a normal distribution, we may
+apply a one sample t-test. The test statistic then is
+$BR
+$BR
+$BCENTER
+\(
+\frac{\bar{x}-13}{s/\sqrt{n}}=\frac{$meanx[0]-13}{$sdx[0]/\sqrt{6}} =$q3ans. 
+\)
+$ECENTER
+$BR
+$BR
+$BBOLD (d) $EBOLD As we have a one-sided alternative hypothesis \( H_1: \mu <13 \),
+and since under \(H_0\) the test statistic follows the t distribution with 5 degrees of freedom, the critical value of a test at 5% significance level is the 5-percentile point of \(t_5\). From tables or software, the critical value is $q4ans. 
+$BR
+$BR
+$BBOLD (e) $EBOLD If  \(\frac{\bar{x}-13}{s/\sqrt{n}} < $q4ans  \), we reject the null hypothesis at the 5% significance level. Otherwise we do not reject the hypothesis that the population mean is 13.
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

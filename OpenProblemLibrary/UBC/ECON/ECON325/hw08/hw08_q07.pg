@@ -1,0 +1,167 @@
+#########################################################
+##KEYWORDS('Inference'; 'hypothesis test, two-sided test for mean, normal
+##distribution with unknown variance, p-value'; 'find the test statistic for a
+##one--sample t test from sample statistics, find the p-value for the test,
+##decide whether or not to reject the null hypothesis at the 5% significance
+##level'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One sample mean - t)
+## Date(2015/07/29)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@m1=rserve_eval('
+m1 <- round(runif(1, min=200, max=300),2)
+');
+
+@s=rserve_eval('
+s <- round(runif(1, min=20, max=30),2)
+');
+
+@m2=rserve_eval('
+m2 <- round(runif(1, min=m1-20, max=m1+20),2)
+');
+
+@q1=rserve_eval('
+re1<-(m2-m1)/(s/sqrt(16))
+round(re1, 3)
+');
+
+
+@q2=rserve_eval('
+re2<-round(2*pt(abs((m2-m1)/(s/4)), df=15, lower.tail=F), 3)
+');
+
+#####Qc
+@ans_c_correct = rserve_eval('
+rc<-0
+if(re2<0.05){
+rc<-1  
+}
+rc
+');
+
+$ans_c_correct = $ans_c_correct[0];
+
+$qu_c = "By interpreting the p-value in (b) can the null hypothesis be rejected at a 5% significant level?";
+
+@ans_c_all = ("Do not reject the null hypothesis.",
+"Reject the null hypothesis.");
+
+$ans_c = $ans_c_all[$ans_c_correct];
+
+$mc_c = new_multiple_choice();
+$mc_c->qa(
+  $qu_c,
+  $ans_c
+);
+$mc_c->makeLast(
+$ans_c_all[0], $ans_c_all[1]
+);
+
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+The accounts of a corporation show that, on average, accounts receivable are $ $m1[0]. An auditor checked a random sample of 16 of these accounts. The sample mean was $ $m2[0] and the sample standard deviation
+was $ $s[0]. Assume that the population distribution is normal. Test the
+null hypothesis that the population mean is $ $m1[0], against a two-sided
+alternative. Answer the following, rounding your answers to three decimal places where appropriate.
+$BR
+$BR
+$BBOLD(a) $EBOLD What is the test statistic? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD What is the p-value of the test? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD (c) $EBOLD
+\{ $mc_c->print_q() \}
+$BR
+\{ $mc_c->print_a() \}
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.01) );
+ANS( num_cmp($q2ans, tol=> 0.01) );
+ANS(radio_cmp($mc_c->correct_ans()) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD We are interested in the mean value \(\mu \)  of receivable accounts for the corporation, and take as the null hypothesis that \(H_0: \mu =  $m1[0]\). Given that the data are from a normal distribution, we may apply a one Âsample t-test. The test statistic then is
+$BR
+$BR
+$BCENTER
+\(
+\frac{\bar{x}-$m1[0]}{$s[0]/\sqrt{16}}=\frac{$m2[0]-$m1[0]}{$s[0]/\sqrt{16}}=$q1ans.
+\)
+$ECENTER
+$BR
+$BR
+$BBOLD (b) $EBOLD As we have a two-sided alternative hypothesis, \( H_1: \mu \ne  $m1[0] \), the p-value is the probability of observing a value of the test statistic at least as far from 0 that observed, under the null hypothesis. Since under \(H_0\) the test statistic follows the t distribution with 15 degrees of freedom, the p-value is
+$BR
+$BR
+$BCENTER
+\(
+2P(t > |\frac{$m2[0]-$m1[0]}{$s[0]/\sqrt{16}}| ),
+\)
+$ECENTER
+$BR
+$BR
+where t is a random variable following the \(t_{15}\) distribution. From tables or software, the above probability is \($q2ans\). 
+$BR
+$BR
+$BBOLD (c) $EBOLD If the p-value above is less than 0.05, we can reject the
+null hypothesis that the mean value of receivable accounts for
+the corporation is $ $m1[0] at the 5% significance level. Otherwise,
+we do not reject the null hypothesis.
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

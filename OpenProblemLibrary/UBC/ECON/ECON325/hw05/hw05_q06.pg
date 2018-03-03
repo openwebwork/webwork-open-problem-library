@@ -1,0 +1,175 @@
+#########################################################
+##KEYWORDS('Random variable'; 'normal'; 'find the probability a normal
+##variable is less than a given value, the probability a normal variable lies
+##within a given value of the mean, and the value a normal variables exceeds
+##with a given probability'.) 
+# DESCRIPTION
+## DBsubject(Probability)
+## DBchapter(Continuous distributions)
+## DBsection(Gaussian normal)
+## Date(2015/07/11)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(2)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@m=rserve_eval('
+m <- sample(190:210, 1)
+');
+
+@s=rserve_eval('
+s <- sample(3:8, 1)
+');
+
+@a=rserve_eval('
+a <- runif(1, min=1, max=3)
+');
+
+@x1=rserve_eval('
+x1 <- round(m-a*s, 0)
+');
+
+@x2=rserve_eval('
+x2 <- round(a*s,0)
+');
+
+@p=rserve_eval('
+p <- round(runif(1, min=0.04, max=0.15), 2)
+');
+
+@q1=rserve_eval('
+round( pnorm( (x1- m)/s) , 2)
+');
+
+
+@q2=rserve_eval('
+round( pnorm( x2/s ) - pnorm(-x2/s),  2)
+');
+
+@q3=rserve_eval('
+round(s*qnorm(p, mean = 0, sd = 1, lower.tail = F)+m, 2)
+');
+
+@quan=rserve_eval('
+round(qnorm(p, mean = 0, sd = 1, lower.tail = F),  4)
+');
+
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+$q3ans =$q3[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Let \(X\) be a normal random variable with mean \($m[0]\) units and standard deviation \($s[0]\) units. Answer the following questions, rounding your answers
+to two decimal places.
+$BR
+$BR
+$BBOLD(a) $EBOLD What is the probability that \(X\) will be less than \($x1[0]\) units, \(P(X < $x1[0]) \)? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD What is the probability that \(X\) will be within \($x2[0]\) units of the mean?  \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(c) $EBOLD The probability is \($p[0]\) that \(X\) will be more than how many units? \{  ans_rule(7) \} 
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.021) );
+ANS( num_cmp($q2ans, tol=> 0.021) );
+ANS( num_cmp($q3ans, tol=> 0.031) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+Let \(Z\) denote a standard normal variable.
+$BR
+$BR
+$BBOLD (a) $EBOLD Standardising X, we have
+$BR
+$BR
+$BCENTER
+\( 
+P (X < $x1[0]) =P(\frac{X- $m[0]}{$s[0]} < \frac{$x1[0]- $m[0]}{$s[0]}) = P(  Z < \frac{$x1[0] - $m[0] }{$s[0]} ) =$q1ans.  
+\)
+$ECENTER
+$BR
+via tables or software.
+$BR   
+$BR
+
+$BBOLD (b) $EBOLD Similiar to above,  
+$BCENTER
+\( 
+P ( $m[0] -  $x2[0] < X < $m[0] + $x2[0]) = P(X <$m[0]+$x2[0] ) - P(X < $m[0] -$x2[0] ) =
+P(\frac{X- $m[0]}{ $s[0] } < \frac{$x2[0]}{$s[0]})  -
+P(\frac{X- $m[0]}{ $s[0]  } < \frac{-$x2[0]}{$s[0]}) =$q2ans.
+\)
+$ECENTER
+$BR
+via tables or software.
+$BR
+$BR
+
+$BBOLD (c) $EBOLD We seek the value \(c\) such that
+$BR
+$BR
+$BCENTER
+\( 
+P(X > c ) =$p[0]. 
+\)
+$ECENTER
+$BR
+$BR
+Standardising,
+$BCENTER
+\( 
+P ( Z = \frac{ X-$m[0]}{ $s[0] } > \frac{ c-$m[0]}{ $s[0]} ) =$p[0]. 
+\)
+$ECENTER
+$BR
+Now the \( (1 - $p[0]) \)th percentile of the standard normal distribution is \( $quan[0] \), via tables or software. Hence 
+$BR
+$BR
+$BCENTER
+\( 
+c = $s[0] \times $quan[0] + $m[0] =$q3ans.  
+\)
+$ECENTER
+END_SOLUTION
+ENDDOCUMENT();

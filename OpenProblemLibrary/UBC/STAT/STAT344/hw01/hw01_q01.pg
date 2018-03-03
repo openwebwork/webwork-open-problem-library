@@ -1,0 +1,260 @@
+#########################################################
+##KEYWORDS('Inference'; 'confidence intervals for proportion and mean';
+##'determine the sample size required to satisfy upper bound on width of
+##confidence interval when estimating a mean and proportion', 'determining
+##maximum width of confidence interval where applicable'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(Concepts)
+## Date(2015/07/30)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('5')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@x=rserve_eval('
+x <- sample(30:40, 1)
+');
+
+@y=rserve_eval('
+y <- sample(18:22, 1)
+');
+
+@ymore=rserve_eval('
+1000*y
+');
+
+@n=rserve_eval('
+n <- ceiling(max(((2*1.96)^2)*(x/100)*(1-x/100)/(0.05^2), (2*1.96*y*1000/5000)^2))
+');
+
+@q1=rserve_eval('
+re1<-n
+');
+
+@w2=rserve_eval('
+w2=2*1.96*sqrt(1/(4*n))
+');
+
+@w1=rserve_eval('
+tem<-(x/100)*(1-x/100)/n
+w1=2*1.96*sqrt(tem)
+');
+
+
+@q2=rserve_eval('
+re2<- ((w2-w1)/w1)*100
+round(re2, 2)
+');
+
+
+
+$ans_e_correct = "No guarantee is possible";
+
+$qu_e = "Regardless of what sample size is ultimately chosen, what is the
+worst-case scenario for the 95% confidence interval for the average
+annual income, in terms of how much wider than anticipated it
+could turn out to be?";
+
+
+@ans_e_all = ("At most 2% wider",
+"At most 5% wider",
+"At most 10% wider",
+"At most 20% wider"
+);
+
+
+$mc_e = new_multiple_choice();
+$mc_e->qa(
+  $qu_e,
+  $ans_e_correct
+);
+
+$mc_e->makeLast(
+$ans_e_all[0], $ans_e_all[1], $ans_e_all[2], $ans_e_all[3]
+);
+
+$q1ans =$q1[0];
+$q2ans =$q2[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Your market research firm has been hired to conduct a survey. The
+goal is to produce estimates of both average annual income and proportion with a post-secondary credential (PSC) in a target population.
+A simple random sample from the population will be used. Informed
+pre-study guesses are that (i) $x[0]% of this population has a PSC, and (ii)
+the standard deviation of annual income in this population is around
+$ $ymore[0]. Your client desires a 95% confidence interval with width no
+more than 0.05 for the proportion with a post-secondary credential,
+and a 95% confidence interval with width no more than $5,000 for the
+average income in the population.
+$BR
+$BR
+$BBOLD(a) $EBOLD Using the pre-study guesses, and being mindful of not proposing a more costly study than necessary, what sample size do you
+recommend? Provide your answer as an integer. \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD Regardless of what sample size is ultimately chosen, what is the
+worst-case scenario for the 95% confidence interval for the proportion with a PSC, in terms of how much wider than anticipated it could turn out to be? Give your answer to two decimal places as a percentage of the width of the confidence interval based on the pre-study estimate. \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD (c) $EBOLD
+\{ $mc_e->print_q() \}
+$BR
+\{ $mc_e->print_a() \}
+$BR
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans) );
+ANS( num_cmp($q2ans, tol=> 0.02) );
+ANS(radio_cmp($mc_e->correct_ans()) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD The requirement for the confidence interval for
+the sample proportion dictates that the sample size n must be
+such that 
+$BR
+$BR
+$BCENTER
+\(
+2 \times 1.96 \times \sqrt{\frac{p (1-p)}{n} } < 0.05
+\)
+$ECENTER
+$BR
+$BR
+where p is the population proportion with a PSC. We have an
+initial estimate of this proportion, this being $x[0]/100. Hence,
+our sample size must satisfy
+$BR
+$BR
+$BCENTER
+\(
+n > \frac{  (2 \times 1.96)^2 ($x[0]/100)  (1-$x[0]/100) } {0.05^2}  
+\)
+$ECENTER
+$BR
+$BR
+For the confidence interval for the mean income within the
+population, the width would be
+$BR
+$BR
+$BCENTER
+\(
+2 \times 1.96 \times \frac{\sigma}{\sqrt{n}}
+\)
+$ECENTER
+$BR
+$BR
+where \( \sigma \) is the standard deviation of incomes in the population. We have an estimate of this parameter, $ $ymore[0]. As
+the width of the interval must be less than $5000, we know
+that
+$BR
+$BR
+$BCENTER
+\(
+2 \times 1.96 \times \frac{$ymore[0] }{\sqrt{n}} <5000
+\)
+$ECENTER
+$BR
+$BR
+and so 
+$BR
+$BR
+$BCENTER
+\(
+ n >  (\frac{ 2 \times 1.96 \times $ymore[0] }{5000} )^2
+\)
+$ECENTER
+$BR
+$BR
+In order to satisfy both the criteria, we must choose the larger
+value of n. The figure must be rounded up to the nearest integer above to ensure the criteria are met.
+$BR
+$BR
+$BBOLD (b) $EBOLD The confidence interval will be widest when \(p(1-p) \) is
+biggest, which occurs when p = 1/2. In that case, the interval
+will be of width
+$BR
+$BR
+$BCENTER
+\(
+ w_2 = 2 \times 1.96 \times \sqrt{\frac{1}{4n}}
+\)
+$ECENTER
+$BR
+$BR
+The width of the confidence interval based on the initial estimate is
+$BR
+$BR
+$BCENTER
+\(
+ w_1 = 2 \times 1.96 \times \sqrt{\frac{($x[0]/100) (1-$x[0]/100) }{n}}
+\)
+$ECENTER
+$BR
+$BR
+As a percentage of this original width, the Âworst-case Âinterval is
+$BR
+$BR
+$BCENTER
+\(
+\frac{w_2-w_1}{w_1} \times 100% 
+\)
+$ECENTER
+$BR
+$BR
+wider. Note that the answer is independent of n.
+$BR
+$BR
+$BBOLD (c) $EBOLD The width of the confidence interval is proportional to the
+standard deviation of incomes in the population. There is no
+upper bound on this value, so there is no way to determine how
+much wider the actual confidence interval will be compared to
+the width of the interval using the pre-study estimate.
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+
+ENDDOCUMENT();

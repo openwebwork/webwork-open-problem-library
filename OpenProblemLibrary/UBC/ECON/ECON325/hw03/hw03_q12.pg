@@ -1,0 +1,196 @@
+#########################################################
+# DESCRIPTION
+## DBsubject(Probability)
+## DBchapter(Sample Space)
+## DBsection(Bayes theorem -- inverse probability)
+## Date(2015/07/15)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(2)
+## KEYWORDS('Probability'; 'events'; 'conditional')
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@p1=rserve_eval('
+x <-rnorm(n=100, mean=0, sd=1)
+x1 <- x[x>0.2]
+x2 <- x[0<x & x<0.2]
+x3 <- 100-length(c(x1, x2))
+p1 <- round(length(x1)/100, 2)
+');
+
+@p2=rserve_eval('
+p2 <- round(length(x2)/100, 2)
+');
+
+@p3=rserve_eval('
+p3 <- round(x3/100, 2)
+');
+
+@pt1=rserve_eval('
+pt1 <- round(length(x[0<x & x<0.18])/100, 2)
+');
+
+@pt2=rserve_eval('
+pt2 <- round(length(x[0<x & x<0.12])/100, 2)
+');
+
+@pt3=rserve_eval('
+pt3 <- round(length(x[0<x & x<0.08])/100, 2)
+');
+
+@p11=rserve_eval('
+round(p1*pt1, 2)
+');
+
+@q1=rserve_eval('
+q1<-p1*pt1 + p2*pt2 + p3*pt3
+round(q1, 2)
+');
+
+@q2=rserve_eval('
+q2<-p2*pt2/(p1*pt1 + p2*pt2 + p3*pt3)
+round(q2,  2)
+');
+
+
+
+$q1ans = $q1[0];
+$q2ans = $q2[0];
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+The members of a consulting firm rent cars from three rental agencies. It is estimated that $p1[0] percent of cars come from agency 1, $p2[0] percent
+of cars come from agency 2, and $p3[0] percent of cars come from agency 3.
+It is also estimated that $pt1[0] percent of cars from agency 1 need a tune-up, $pt2[0] percent of cars from agency 2 need a tune-up, and $pt3[0] percent
+of cars from agency 3 need a tune-up. Answer the following questions, rounding your answers to two decimal places where appropriate.
+
+$BR
+$BR
+$BBOLD(a) $EBOLD What is the probability that a rental car delivered to the firm will need a tune-up? 
+\{ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD If a rental car delivered to the firm needs a tune-up, what is the
+probability that it came from agency 2? \{ans_rule(7) \} 
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=>0.01) );
+ANS( num_cmp($q2ans, tol=>0.01) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+We have the following probabilities, where P (A|B) means the probability of event A given event B:
+$BR
+$BR
+$BCENTER
+\(
+P(\text{Agency}~ 1) = $p1[0]
+\)
+$ECENTER
+$BR
+$BCENTER
+\(
+P(\text{Agency}~ 2) = $p2[0]
+\)
+$ECENTER
+$BR
+$BCENTER
+\(
+P(\text{Agency}~ 3) = $p3[0]
+\)
+$ECENTER
+$BR
+$BCENTER
+\(
+P( \text{Tune-up required} |\text{Agency} ~1) = $pt1[0]
+\)
+$ECENTER
+$BR
+$BCENTER
+\(
+P( \text{Tune-up required} |\text{Agency}~ 2) = $pt2[0]
+\)
+$ECENTER
+$BR
+$BCENTER
+\(
+P( \text{Tune-up required} |\text{Agency}~ 3) = $pt3[0]
+\)
+$ECENTER
+$BR
+$BR
+$BBOLD (a) $EBOLD We require P (Tune up required), which is found by adding the
+probabilities of the events {Tune up required and car from agency i} over \(i = 1, 2, 3\). For instance,  
+$BR
+$BR
+$BCENTER
+\begin{align*}
+P ( \text{Tune up required and car from agency} 1)  &=P(\text{Tune up required} ~ | \text{car from agency} 1)   \times P(\text{car from agency} 1)  \\
+&= $p1[0] \times $pt1[0] =$p11[0]. 
+\end{align*}
+$ECENTER
+$BR
+Finding the probabilities for the other two agencies, we have
+$BR
+$BR
+$BCENTER
+\begin{align*}
+P(\text{Tune up required})
+&= \sum\limits_{i=1}^3 P ( \text{Tune up required and car from agency}~ i)  \\
+&= \sum\limits_{i=1}^3 P(\text{Tune up required} ~ | \text{car from agency}~ i)   \times P(\text{car from agency}~ i) \\
+&= $p1[0] \times $pt1[0]  + $p2[0] \times $pt2[0] + $p3[0] \times $pt3[0] \\
+&= $q1ans.
+\end{align*}
+$ECENTER
+$BR
+$BR
+
+$BBOLD (b) $EBOLD Using Bayes Theorem, P (Car from agency 2 | Car requires tune up) is 
+$BR
+$BR
+$BCENTER
+\(
+\frac{ P(\text{Car from agency}~ 2) P(\text{Tune up required}~|~\text{car from agency}~ 2)   }{  P(\text{Tune up required}) } = \frac{$p2[0] \times $pt2[0]} { $p1[0] \times $pt1[0]  + $p2[0] \times $pt2[0] + $p3[0] \times $pt3[0] } =$q2ans.
+\)
+$ECENTER
+END_SOLUTION
+ENDDOCUMENT();

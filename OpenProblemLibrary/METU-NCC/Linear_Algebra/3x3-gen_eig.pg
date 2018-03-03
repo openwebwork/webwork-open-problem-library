@@ -1,0 +1,273 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(21/11/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## MO(1)
+
+#######################################
+# Initialization
+
+DOCUMENT();
+
+loadMacros(
+ "MatrixUnits.pl",              # Needed for GL3Z()
+ "MathObjects.pl",
+ "parserMultiAnswer.pl",
+ "PGmatrixmacros.pl",
+ "PGstandard.pl",
+);
+
+
+TEXT(beginproblem());
+
+########################################
+# Setup
+
+Context('Matrix');
+
+my $a, $e;
+
+do {
+ $a = GL3Z()*GL3Z();             # det = 1   Matrix of eigenvectors
+
+ $eig = non_zero_random(-3,3,1); # eigenvalue
+
+ $e = Matrix([
+  [ $eig,  0,  non_zero_random(-3,3,1) ],  # GL3Z gives small eigenvec
+  [   0, $eig, non_zero_random(-3,3,1) ],  # maybe not using block form 
+  [   0,   0,              $eig        ]   # will make it bigger?
+ ]);
+ 
+ $A = $a * $e *$a->inverse;      # matrix
+} until (small_nonzero() );
+
+sub small_nonzero {
+  my $pass = 1;
+  my $zeros = 0;
+  for (my $i=1; $i<4; $i=$i+1) {
+    for (my $j=1; $j<4; $j=$j+1) {
+      if (abs($A->element($i,$j)) > 10) {
+        $pass = 0;
+      } if (($i != $j) && ($A->element($i,$j) == 0)) {
+        $zeros = $zeros + 1;
+      }
+    }
+  }
+  return (($pass == 1) && ($zeros < 2));
+}
+
+my $w = $e->element(1,3)*$a->column(1) + $e->element(2,3)*$a->column(2);
+
+#########################################
+# v = eigenvector
+# w = eigenvector 
+# u = generalized 
+
+my $v1, $v2, $v3, $w1, $w2, $w3, $u1, $u2, $u3;
+my $A11, $A12, $A13, $A21, $A22, $A23, $A31, $A32, $A33;
+
+ $v1 = $a->element(1,1);  $w1 = $w->element(1,1); $u1 = $a->element(1,3);
+ $v2 = $a->element(2,1);  $w2 = $w->element(2,1); $u2 = $a->element(2,3);
+ $v3 = $a->element(3,1);  $w3 = $w->element(3,1); $u3 = $a->element(3,3);
+
+$A11 = $A->element(1,1); $A12 = $A->element(1,2); $A13 = $A->element(1,3);
+$A21 = $A->element(2,1); $A22 = $A->element(2,2); $A23 = $A->element(2,3);
+$A31 = $A->element(3,1); $A32 = $A->element(3,2); $A33 = $A->element(3,3);
+
+##########################################
+# Answer checker  
+# Note -- Error::Value doesn't work in Matrix context
+
+Context('Numeric');  
+
+
+$multiansA = MultiAnswer($v1, $v2, $v3, $w1, $w2, $w3)->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>
+    "<table border='0' cellspacing='0'>
+    <tr>
+      <td> \(\Biggl\lbrack\)</td>
+      <td><table border='0' cellspacing='5'>
+         <tr><td> %s </td></tr><tr><td> %s </td></tr><tr><td> %s </td></tr>
+       </table></td>
+      <td>\(\Biggr\rbrack\);&nbsp;&nbsp; \(\Biggl\lbrack\)</td>
+      <td><table border='0' cellspacing='5'>
+         <tr><td> %s </td></tr><tr><td> %s </td></tr><tr><td> %s </td></tr>
+       </table></td>
+      <td>\(\Biggr\rbrack\)</td>
+    </tr>
+    </table>",
+    tex_format =>
+    "\left\lbrack \begin{array}{r} %s \\ %s \\ %s \end{array}\right\rbrack; \ \
+     \left\lbrack \begin{array}{r} %s \\ %s \\ %s \end{array}\right\rbrack",
+
+    checker => sub {
+      my ($correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my $flag = 0;
+      my $msg = "";
+
+      if ( $c[0]->typeMatch($s[0]) &&
+           $c[1]->typeMatch($s[1]) &&
+           $c[2]->typeMatch($s[2]) &&
+           ( ($s[0] != 0) || ($s[1] != 0) || ($s[2] != 0) ) &&
+           ($A11*$s[0]+$A12*$s[1]+$A13*$s[2] == $eig*$s[0]) &&
+           ($A21*$s[0]+$A22*$s[1]+$A23*$s[2] == $eig*$s[1]) &&
+           ($A31*$s[0]+$A32*$s[1]+$A33*$s[2] == $eig*$s[2]) ) { 
+        $flag = 1; 
+      } else {
+        $msg = "First vector is not an eigenvector; ";
+      } if (!($c[3]->typeMatch($s[3]) &&
+              $c[4]->typeMatch($s[4]) &&
+              $c[5]->typeMatch($s[5]) &&
+              ( ($s[3] != 0) || ($s[4] != 0) || ($s[5] != 0) )  &&
+              ($A11*$s[3]+$A12*$s[4]+$A13*$s[5] == $eig*$s[3]) &&
+              ($A21*$s[3]+$A22*$s[4]+$A23*$s[5] == $eig*$s[4]) &&
+              ($A31*$s[3]+$A32*$s[4]+$A33*$s[5] == $eig*$s[5]) )) { 
+        $flag = 0;
+        $msg = $msg . "Second vector is not an eigenvector; ";
+      } if (!($c[0]->typeMatch($s[0]) &&
+              $c[1]->typeMatch($s[1]) &&
+              $c[2]->typeMatch($s[2]) &&
+              $c[3]->typeMatch($s[3]) &&
+              $c[4]->typeMatch($s[4]) &&
+              $c[5]->typeMatch($s[5]) &&
+              ( ($s[0]*$s[4] != $s[1]*$s[3]) || 
+                ($s[0]*$s[5] != $s[2]*$s[3]) ||
+                ($s[1]*$s[5] != $s[2]*$s[4]) ) )) {
+        $flag = 0;
+        $msg = $msg . "Vectors are not independent"; 
+      }
+    if ($flag == 0) {
+      Value::Error($msg);
+    }
+
+    return $flag;
+    }
+);
+
+
+$multiansB = MultiAnswer($u1, $u2, $u3, $w1, $w2, $w3)->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>
+    "<table border='0' cellspacing='0'>
+    <tr>
+      <td> \(\Biggl\lbrack\)</td>
+      <td><table border='0' cellspacing='5'>
+         <tr><td> %s </td></tr><tr><td> %s </td></tr><tr><td> %s </td></tr>
+       </table></td>
+      <td>\(\Biggr\rbrack\);&nbsp;&nbsp; \(\Biggl\lbrack\)</td>
+      <td><table border='0' cellspacing='5'>
+         <tr><td> %s </td></tr><tr><td> %s </td></tr><tr><td> %s </td></tr>
+       </table></td>
+      <td>\(\Biggr\rbrack\)</td>
+    </tr>
+    </table>",
+    tex_format =>
+    "\left\lbrack \begin{array}{r} %s \\ %s \\ %s \end{array}\right\rbrack; \ \
+     \left\lbrack \begin{array}{r} %s \\ %s \\ %s \end{array}\right\rbrack",
+
+    checker => sub {
+      my ($correct, $student, $answerHash ) = @_;
+      my @c = @{$correct};
+      my @s = @{$student};
+      my $flag = 0;
+
+      if ( $c[3]->typeMatch($s[3]) &&
+           $c[4]->typeMatch($s[4]) &&
+           $c[5]->typeMatch($s[5]) &&
+           ( ($s[3] != 0) || ($s[4] != 0) || ($s[5] != 0) ) &&
+           ($A11*$s[3]+$A12*$s[4]+$A13*$s[5] == $eig*$s[3]) &&
+           ($A21*$s[3]+$A22*$s[4]+$A23*$s[5] == $eig*$s[4]) &&
+           ($A31*$s[3]+$A32*$s[4]+$A33*$s[5] == $eig*$s[5]) ) { 
+        if ( $c[0]->typeMatch($s[0]) &&
+             $c[1]->typeMatch($s[1]) &&
+             $c[2]->typeMatch($s[2]) &&
+             ( ($s[0] != 0) || ($s[1] != 0) || ($s[2] != 0) )  &&
+             ($A11*$s[0]+$A12*$s[1]+$A13*$s[2] == $eig*$s[0] + $s[3]) &&
+             ($A21*$s[0]+$A22*$s[1]+$A23*$s[2] == $eig*$s[1] + $s[4]) &&
+             ($A31*$s[0]+$A32*$s[1]+$A33*$s[2] == $eig*$s[2] + $s[5]) ) { 
+          $flag = 1;
+        } else {
+          Value::Error('\(\boldsymbol{\vec{v}}\) is okay; but \(\boldsymbol{\vec{w}}\) is incorrect: \(\mathrm{A}\boldsymbol{\vec{w}} \neq \lambda\boldsymbol{\vec{w}}  +  \boldsymbol{\vec{v}}\)');
+        }
+      } else {
+        Value::Error('\(\boldsymbol{\vec{v}}\) is incorrect: \(\mathrm{A}\boldsymbol{\vec{v}} \neq \lambda \boldsymbol{\vec{v}}\)');
+      }
+    return $flag;
+    }
+);
+
+################################################
+# Main Text
+
+Context()->texStrings;
+BEGIN_TEXT
+The matrix \[A=$A\]
+has eigenvalue \(\lambda = $eig\) repeated three times. 
+It has an eigenspace of dimension 2
+and one generalized eigenvector.
+$PAR
+
+$BBOLD A. $EBOLD
+Find a basis for the \($eig\)-eigenspace:  
+\{ mbox( [
+"\(\Biggl\lbrace\)",
+display_matrix([[$multiansA->ans_rule(5)],
+                [$multiansA->ans_rule(5)],
+                [$multiansA->ans_rule(5)]]),
+", ",
+display_matrix([[$multiansA->ans_rule(5)],
+                [$multiansA->ans_rule(5)],
+                [$multiansA->ans_rule(5)]]),
+"\(\Biggr\rbrace\)"
+] ) \}
+
+$PAR
+
+$BBOLD B. $EBOLD
+Find a generalized
+\($eig\)-eigenvector, as well as the eigenvector it generalizes:
+
+\{ mbox( [
+"\(\boldsymbol{\vec{w}} = \)",
+display_matrix([[$multiansB->ans_rule(5)],
+                [$multiansB->ans_rule(5)],
+                [$multiansB->ans_rule(5)]]),
+"  generalizes the \($eig\)-eigenvector \(\boldsymbol{\vec{v}} = \)",
+display_matrix([[$multiansB->ans_rule(5)],
+                [$multiansB->ans_rule(5)],
+                [$multiansB->ans_rule(5)]])
+] ) \}
+
+
+END_TEXT
+Context()->normalStrings;
+
+########################################
+# Answer evaluation
+
+
+$showPartialCorrectAnswers = 1;
+
+
+ANS( $multiansA->cmp() );
+ANS( $multiansB->cmp() );
+
+COMMENT('MathObject version. Uses GL3Z to generate eigenvector matrix with det=1 -- eigenvectors have entries <= 2. ');
+
+
+;
+ENDDOCUMENT();

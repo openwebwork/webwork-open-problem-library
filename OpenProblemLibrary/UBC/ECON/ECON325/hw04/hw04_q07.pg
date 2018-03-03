@@ -1,0 +1,328 @@
+#########################################################
+##KEYWORDS('Random variables'; 'bivariate distributions, marginals,
+##covariance'; 'find a marginal distribution from a joint discrete distribution,
+##find a conditional probability from a joint discrete distribution, find the
+##marginal expectations and covariance'.) 
+# DESCRIPTION
+## DBsubject(Probability)
+## DBchapter(Several variables)
+## DBsection(Joint distribution)
+## Date(2015/07/08)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(3)
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@p1=rserve_eval('
+x <-rnorm(n=100, mean=0, sd=1)
+x1 <- x[x>1.2]
+x2 <- x[-0.1<x & x<0.1]
+x3 <- x[0.1<x & x<0.4]
+x4 <- x[0.4<x & x<0.7]
+x5 <- x[0.7<x & x<1]
+x6 <- x[1<x & x<1.2]
+x7 <- x[-0.7<x & x < -0.1]
+x8 <- 100 - length(c(x1, x2, x3, x4, x5, x6, x7))
+p1 <- round(length(x1)/100, 2)
+');
+
+@p2=rserve_eval('
+p2 <- round(length(x2)/100, 2)
+');
+
+@p3=rserve_eval('
+p3 <- round(length(x3)/100, 2)
+');
+
+@p4=rserve_eval('
+p4 <- round(length(x4)/100, 2)
+');
+
+@p5=rserve_eval('
+p5 <- round(length(x5)/100, 2)
+');
+
+@p6=rserve_eval('
+p6 <- round(length(x6)/100, 2)
+');
+
+@p7=rserve_eval('
+p7 <- round(length(x7)/100, 2)
+');
+
+@p8=rserve_eval('
+p8 <- round(x8/100, 2)
+');
+
+#####answers
+
+@qa1 = rserve_eval('
+p1+p2+p3+p4
+');
+
+@qa2 = rserve_eval('
+p5+p6+p7+p8
+');
+
+@qb = rserve_eval('
+round(p7/(p3+p7), 2)
+');
+
+@qc = rserve_eval('
+ex=-10*(p1+p5)+20*(p3+p7)+30*(p4+p8)
+round(ex, 2)
+');
+
+@qd = rserve_eval('
+ey=10*(p1+p2+p3+p4)+20*(p5+p6+p7+p8)
+round(ey, 2)
+');
+
+@exy = rserve_eval('
+exy = -200*p5-100*p1+200*p3+300*p4+400*p7+600*p8 
+');
+
+@qe = rserve_eval('
+qeha=exy-ex*ey
+round(qeha, 2)
+');
+
+
+
+$qa1ans = @qa1[0];
+$qa2ans= @qa2[0];
+$qbans = @qb[0]; 
+$qcans = @qc[0]; 
+$qdans = @qd[0]; 
+$qeans = @qe[0]; 
+
+
+####Build table
+$Table = 
+"\(       
+\begin{array}{lc}
+& \mbox{X} \\
+\mbox{Y}  &
+
+\begin{array}{c|cccc}
+&  -10 & 0 & 20 & 30 \\ 
+\hline
+10 & $p1[0] & $p2[0] & $p3[0] & $p4[0] \\
+20 & $p5[0] & $p6[0] & $p7[0] & $p8[0] \\
+\end{array}
+\end{array}
+\)"
+;
+
+
+####Build table
+$Table1 = 
+"\(       
+\begin{array}{lc}
+& \mbox{X} \\
+\mbox{Y}  &
+
+\begin{array}{c|cccc|c}
+&  -10 & 0 & 20 & 30 \\ 
+\hline
+10 & $p1[0] & $p2[0] & $p3[0] & $p4[0] & $p1[0]+ $p2[0]+ $p3[0]+ $p4[0]   \\
+20 & $p5[0] & $p6[0] & $p7[0] & $p8[0] & $p5[0]+ $p6[0]+ $p7[0]+ $p8[0] \\
+\hline
+     &  $p1[0]+$p5[0] & $p2[0]+$p6[0] & $p3[0]+$p7[0] & $p4[0]+$p8[0] &  
+\end{array}
+\end{array}
+\)"
+;
+
+
+####Build table
+$Table2 = 
+"\(   
+\begin{array}{c}
+xy \\    
+\begin{array}{c|ccccccc}
+& -200 & -100 & 0 & 200 & 300 & 400 & 600 \\
+\hline
+P(XY=xy) & $p5[0] & $p1[0] & $p2[0]+$p6[0] & $p3[0] & $p4[0] & $p7[0] & $p8[0]   
+\end{array}
+\end{array}
+\)"
+;
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Consider the random variables:
+$BR
+$BR
+\(X\) = the first year rate of return(%) expected from project A, and
+$BR
+$BR
+\(Y\) = the first year rate of return(%) expected from project B.
+$BR
+$BR
+The table below gives the joint probability function \(P(x, y)\):
+$BR
+$BR
+$BCENTER
+$Table
+$ECENTER
+$BR
+Answer the following questions, rounding your answers to two decimal
+places where appropriate.
+$BR
+$BR
+$BBOLD(a) $EBOLD Find the marginal probability function of Y . In particular, find 
+$BR
+i. \( P_{Y}(10) = P(Y=10) \) \{  ans_rule(7) \} 
+$BR
+ii. \( P_{Y}(20) = P(Y=20) \) \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD Find the probability that the return from project B is 20 percent
+given that the return from project A is 20 percent.  \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(c) $EBOLD What is the expected rate of return from project A, \(E(X)\)?
+\{ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(d) $EBOLD What is the expected rate of return from project B, \(E(Y)\)?
+\{ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(e) $EBOLD What is the covariance between \(X\) and \(Y\) ?
+\{ans_rule(7) \} 
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($qa1ans, tol=> 0.02) );
+ANS( num_cmp($qa2ans, tol=> 0.02) );
+ANS( num_cmp($qbans, tol=> 0.02) );
+ANS( num_cmp($qcans, tol=> 0.02) );
+ANS( num_cmp($qdans, tol=> 0.02) );
+ANS( num_cmp($qeans, tol=> 0.02) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+It is helpful to complete the table by computing the marginal distributions of \(X\) and \(Y\) :
+$BR
+$BR
+$BCENTER
+$Table1
+$ECENTER
+$BR
+$BR
+$BBOLD (a) $EBOLD From the above, we see 
+$BR
+$BR
+(i) \( P(Y=10) = $p1[0] + $p2[0] + $p3[0] +$p4[0]=$qa1ans\). 
+$BR
+$BR
+(ii) \( P(Y=20) = $p5[0] + $p6[0] + $p7[0] +$p8[0]=$qa2ans\).   
+$BR
+$BR
+
+$BBOLD (b) $EBOLD We require the conditional probability that \(Y = 20\) given that
+\(X = 20\), which is 
+$BR
+$BR
+$BCENTER
+\( 
+P(Y=20| X=20)=\frac{P(X=20, Y=20)}{P(X=20)}=\frac{$p7[0]}{$p7[0]+$p3[0]}=$qbans. 
+\)
+$ECENTER
+$BR
+$BR
+
+
+$BBOLD (c) $EBOLD The expected return from project A is 
+$BR
+$BR
+$BCENTER
+\( 
+E(X)= -10 \times ($p1[0] + $p5[0]  ) + 0 \times ($p2[0] +$p6[0]) + 20 \times ($p3[0] + $p7[0] ) + 30 \times ($p4[0]+ $p8[0]) =$qcans. 
+\)
+$ECENTER
+$BR
+$BR
+
+$BBOLD (d) $EBOLD The expected return from project B is 
+$BR
+$BR
+$BCENTER
+\( 
+E(Y)= 10 \times ($p1[0] + $p2[0] +  $p3[0] +$p4[0]) +  20 \times ($p5[0] + $p6[0] +  $p7[0] +$p8[0]) =$qdans. 
+\)
+$ECENTER
+$BR
+$BR
+
+
+$BBOLD (e) $EBOLD The covariance between two variables \(X\) and \(Y\) is 
+$BR
+$BR
+$BCENTER
+\( 
+Cov(X, Y) = E((X- E(X))(Y- E(Y)))=E(XY)-E(X)E(Y).  
+\)
+$ECENTER
+$BR
+The second form above can be the easier to apply in practice, and requires ÃÂfinding the distribution of \(XY\). In this case we see
+$BR
+$BR
+$BCENTER
+$Table2
+$ECENTER
+$BR
+Hence 
+$BR
+$BR
+$BCENTER
+\( 
+E(XY)=-200 \times $p5[0] -100 \times $p1[0] + 200 \times $p3[0] + 300 \times $p4[0] 
++ 400 \times $p7[0] + 600 \times $p8[0] = $exy[0].    
+\)
+$ECENTER
+$BR
+Hence \(  Cov(X, Y)= $qeans\). 
+END_SOLUTION
+ENDDOCUMENT();
+
+

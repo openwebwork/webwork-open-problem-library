@@ -1,0 +1,135 @@
+#########################################################
+##KEYWORDS('Inference'; 'confidence intervals for proportion', 'confidence
+##intervals for population size'; 'find a 95% confidence interval for a
+##population proportion', 'find approximate confidence interval for a population
+##size given the count within the population with the characteristic of interest.) 
+# DESCRIPTION
+## DBsubject('Statistics')
+## DBchapter('Sample survey methods')
+## DBsection('Ratio estimators')
+## Date('2016/07/21')
+## Author('Bo Chang')
+## Institution('University of British Columbia')
+## level('5')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@seArray=rserve_eval('
+trth <- runif(1, 20,30)
+se <- round(runif(3, 1,3.5),1)
+');
+
+@estArray=rserve_eval('
+est <- round(rnorm(3, trth, se),1)
+');
+
+@whtArray=rserve_eval('
+wht <- (1/se^2)/sum(1/se^2)
+round(wht, 4)
+');
+
+$whtArrayOutput = join(", ", @whtArray);
+
+@finalEst=rserve_eval('
+final.est <- sum(wht * est)
+round(final.est, 1)
+');
+
+@finalSE=rserve_eval('
+final.se <- sqrt(sum(wht^2 * se^2))
+round(final.se, 1)
+');
+
+$q1ans =@finalEst[0];
+$q2ans =@finalSE[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+One week during an election campaign, three reputable polling firms used random samples to estimate the percentage of voters supporting the Conservative party.  The first firm reports an estimate of @estArray[0]% with a standard error of @seArray[0]%.
+The second firm reports an estimate of @estArray[1]% with a standard error of @seArray[1]%.
+The third firm reports an estimate of @estArray[2]% with a standard error of @seArray[2]%.
+
+$BR
+$BR
+
+$BBOLD [A] $EBOLD Combining this evidence, provide an estimate of the percentage of voters supporting the Conservatives.   Report this percentage to one decimal place.
+
+$BR
+\{  ans_rule(4) \}%.
+
+$BR
+$BR
+$BBOLD [B] $EBOLD Give a standard error for your estimate in [A] (also to one decimal place).
+$BR
+
+\{  ans_rule(4) \}%.
+ 
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.25) );
+ANS( num_cmp($q2ans, tol=> 0.25) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+Weighting inversely proportional to variance, the appropriate weights for the three polls are
+\[
+\begin{eqnarray*}
+(w_{1},w_{2},w_{3}) &=& 
+\frac{1}{1/SE_{1}^{2} + 1/SE_{2}^{2} + 1/SE_{3}^{2}}(1/SE_{1}^{2}, 1/SE_{2}^{2}, 1/SE_{3}^{2}) \\
+&=& ($whtArrayOutput)
+\end{eqnarray*}
+\]
+
+
+Hence the appropriate estimate is \(w_{1} \cdot @estArray[0] + w_{2} \cdot @estArray[1] + w_{3} \cdot @estArray[2] = @finalEst[0]\).
+
+$BR
+
+The corresponding standard error is
+\[
+\begin{eqnarray*}
+SE &=&  \sqrt{ w_{1}^{2} SE_{1}^{2} + \ldots + w_{3}^{2}SE_{3}^{2} } \\
+&=& @finalSE[0]
+\end{eqnarray*}
+\]
+
+END_SOLUTION
+ENDDOCUMENT();

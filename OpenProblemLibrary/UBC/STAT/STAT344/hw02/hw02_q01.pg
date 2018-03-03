@@ -1,0 +1,329 @@
+#########################################################
+##KEYWORDS('Sampling theory'; 'ratio estimators'; 'determine an estimate of
+##population total from a sample of strata', 'finding both the scaled sample
+##mean and the ratio estimator and giving confidence intervals based on both'.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Sample survey methods)
+## DBsection(Ratio estimators)
+## Date(2015/09/23)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(4)
+## level('5')
+## 4 Attempts
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@N=rserve_eval('
+N <- sample(200:250, size=1)
+');
+
+@B=rserve_eval('
+B <- N*325
+');
+
+@C=rserve_eval('
+C <- N*30000
+');
+
+my ($remote_file, @problem_data) = rserve_eval(<<CODE);
+  # this is R code
+ set.seed(13)
+ n <- 35
+ county.pop <- round(runif(n, 10000,50000)) ### pop mean
+ county.area <- round(runif(n, 10,25)^2) ### pop mean 325
+ county.lwyr <- round((county.pop/2000)*runif(n,0.7,1.4))
+ tmp <- data.frame(county.pop, county.area, county.lwyr)
+ names(tmp)<-c("inhabitants", "area", "num.lawyers")
+  problem_data<-tmp
+  problem_file <- tempfile("lawyers", fileext = '.csv')
+ write.csv(problem_data, problem_file, row.names=F)
+ list(problem_file, problem_data)
+CODE
+
+my $local_file = rserve_get_file($remote_file);
+($local_url = $local_file) =~ s|$tempDirectory|$tempURL|;
+
+
+@data=rserve_eval('
+set.seed(13)
+n <- 35
+county.pop <- round(runif(n, 10000,50000)) ### pop mean
+county.area <- round(runif(n, 10,25)^2) ### pop mean 325
+county.lwyr <- round((county.pop/2000)*runif(n,0.7,1.4))
+tmp <- data.frame(county.pop, county.area, county.lwyr)
+names(tmp)<-c("inhabitants", "area", "num.lawyers")
+#write.csv(tmp, file=Âlawyers.csvÂ, row.names=F)
+');
+
+@e=rserve_eval('
+e <- county.lwyr - (mean(county.lwyr)/mean(county.pop))*county.pop
+');
+
+@meany=rserve_eval('
+meany<-mean(county.lwyr)
+');
+
+@meanx=rserve_eval('
+meanx<-mean(county.area)
+');
+
+#######answers_q1
+@q1_pre=rserve_eval('
+tem<-  sqrt((1-35/N)*6.637^2/35)
+round(tem, 2)
+');
+
+@q1=rserve_eval('
+re1<-N*16.8
+round(re1, 0)
+');
+
+#######answers_q2
+@q2_pre=rserve_eval('
+tem<-  N*sqrt((1-35/N)*6.637^2/35)
+round(tem, 2)
+');
+
+@q2_LB=rserve_eval('
+re2_LB<-N*16.8-1.96*tem
+round(re2_LB, 0)
+');
+
+@q2_UB=rserve_eval('
+re2_UB<-N*16.8+1.96*tem
+round(re2_UB, 0)
+');
+
+
+#######answers_q3
+@q3_pre=rserve_eval('
+tem<-  (meany/meanx)*30000
+round(tem, 2)
+');
+
+@q3=rserve_eval('
+re3<-N*16.326
+round(re3, 0)
+');
+
+#######answers_q4
+@q4_pre=rserve_eval('
+tem<- sqrt((1-35/N)*var(e)/35)
+round(tem, 2)
+');
+
+@q4_prea=rserve_eval('
+round(var(e), 2)
+');
+
+
+@q4_preb=rserve_eval('
+tem2<- N*sqrt((1-35/N)*var(e)/35)
+round(tem2, 2)
+');
+
+
+@q4_LB=rserve_eval('
+re4_LB<-N*16.326-1.96*tem2
+round(re4_LB, 0)
+');
+
+@q4_UB=rserve_eval('
+re4_UB<-N*16.326+1.96*tem2
+round(re4_UB, 0)
+');
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+The file lawyers.csv linked below contains the result of a simple random sample of 35 out of $N[0] counties that comprise the mythical land of Nod. Each row corresponds to a sampled county, with the columns giving the county population size (number of inhabitants), the area (in square kilometres), and the number of practicing lawyers. It is known that the total area of Nod is $B[0] \(km^2\), and the total population is $C[0] people. Provide answers to the nearest integers.
+$BR
+$BR
+$BBOLD 
+LINK for lawyer.csv (\{ htmlLink($local_url, "Download the csv file here") \}) 
+$EBOLD
+$BR
+$BR
+$BBOLD(a) $EBOLD Give a "vanilla" estimate for the total number of practicing lawyers
+in Nod. \{  ans_rule(7) \}.  
+$BR
+$BR
+
+$BBOLD(b) $EBOLD Give a 95% confidence interval to accompany your answer to (a). 
+$BR
+$BR
+ (\{  ans_rule(7) \}, \{  ans_rule(7) \}).  
+$BR
+$BR
+
+$BBOLD(c) $EBOLD Give a ratio estimate for the total number of practicing lawyers
+in Nod. (NOTE: if you can think of more than one ratio estimate for this target, then give the one that makes the most intuitive sense to you.)  \{  ans_rule(7) \}.  
+$BR
+$BR
+
+
+$BBOLD(b) $EBOLD Give a 95% confidence interval to accompany your answer to (c). 
+$BR
+$BR
+ (\{  ans_rule(7) \}, \{  ans_rule(7) \}).  
+$BR
+$BR
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1[0], tol=> 8.1) );
+ANS( num_cmp($q2_LB[0], tol=> 8.1) );
+ANS( num_cmp($q2_UB[0], tol=> 8.1) );
+ANS( num_cmp($q3[0], tol=> 8.1) );
+ANS( num_cmp($q4_LB[0], tol=> 8.1) );
+ANS( num_cmp($q4_UB[0], tol=> 8.1) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD Let Y denote the number of lawyers. The sample
+mean and standard deviation of Y are 16.800 and 6.6368, hence
+the standard error of the sample mean is
+$BR
+$BR
+$BCENTER
+\(
+\sqrt{ (1-\frac{35}{$N[0]}) \frac{6.637^2}{35}} =$q1_pre[0]. 
+\)
+$ECENTER
+$BR
+$BR
+Our estimate for the total number of lawyers is then $N[0] \(\times\) 16.8=$q1[0]. 
+$BR
+$BR
+
+$BBOLD (b) $EBOLD The standard error of the estimate in (a) is
+$BR
+$BR
+$BCENTER
+\(
+$N[0] \times \sqrt{ (1-\frac{35}{$N[0]}) \frac{6.637^2}{35}} =$q2_pre[0]. 
+\)
+$ECENTER
+$BR
+$BR
+The point estimate is $N[0] \(\times\) 16.8=$q1[0]. Hence an approximate 95% confidence interval is
+$BR
+$BR
+$BCENTER
+\(
+\left(
+$q1[0] - 1.96 \times $N[0] \times \sqrt{ (1-\frac{35}{$N[0]}) \frac{6.637^2}{35}} , 
+$q1[0] + 1.96 \times $N[0] \times \sqrt{ (1-\frac{35}{$N[0]}) \frac{6.637^2}{35}} 
+\right), 
+\)
+$ECENTER
+$BR
+that is, ($q2_LB[0], $q2_UB[0]).  
+$BR
+$BR
+
+$BBOLD (c) $EBOLD Additionally let X denote the county population size (since it is much more plausible that the number of lawyers is positively associated with the population size than with the geographical size). So our
+ratio estimate of the mean of Y is
+$BR
+$BR
+$BCENTER
+\(
+\frac{\bar{y}}{\bar{x}} \times 30000=16.326. 
+\)
+$ECENTER
+$BR
+$BR
+The estimate for the total number of lawyers is then $N[0] \(\times\) 16.326= $q3[0].
+$BR
+$BR
+
+$BBOLD (d) $EBOLD Letting
+$BR
+$BR
+$BCENTER
+\(
+e_i=y_i-\frac{\bar{y}} {\bar{x}} x_i, 
+\)
+$ECENTER
+$BR
+$BR
+for i=1,. . . ,35, and \(s_e \) denote the sample standard deviation of
+these 35 values, the corresponding standard error of the ratio estimate for the mean number of lawyers per county is
+$BR
+$BR
+$BCENTER
+\(
+\sqrt{ (1-\frac{35}{$N[0]}) \frac{s_e^2}{35}}=\sqrt{ (1-\frac{35}{$N[0]}) \frac{$q4_prea[0]}{35}}=$q4_pre[0].
+\)
+$ECENTER
+$BR
+$BR
+Our point estimate for the total number of lawyers is then $N[0] \(\times\) 16.326=$q3[0], with a standard error of
+$BR
+$BR
+$BCENTER
+\(
+$N[0] \times \sqrt{ (1-\frac{35}{$N[0]}) \frac{s_e^2}{35}}= $N[0] \times \sqrt{ (1-\frac{35}{$N[0]}) \frac{@q4_prea}{35}}=$q4_preb[0]. 
+\)
+$ECENTER
+$BR
+$BR
+Hence an approximate 95% confidence interval is
+$BR
+$BR
+$BCENTER
+\(
+\left(
+$q3[0] - 1.96 \times $N[0] \times \sqrt{ (1-\frac{35}{$N[0]}) \frac{s_e^2}{35}} , 
+$q3[0] + 1.96 \times $N[0] \times \sqrt{ (1-\frac{35}{$N[0]}) \frac{s_e^2}{35}}
+\right),
+\)
+$ECENTER
+$BR
+that is, ($q4_LB[0], $q4_UB[0]).
+
+
+END_SOLUTION
+
+COMMENT('This problem requires WeBWorK integration of R statistical software.
+See the WeBWorK wiki for documentation.');
+
+
+ENDDOCUMENT();
