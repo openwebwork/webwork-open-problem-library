@@ -920,7 +920,11 @@ sub radicalListCheck {
      return ($score,@errors);
    }
 
-
+# Keyboard instructions should only be displayed in HTML output
+sub KeyboardInstructions {
+   my $in = shift;
+   if ($displayMode =~ /HTML/) {return $in}
+}
 
 
 1;
