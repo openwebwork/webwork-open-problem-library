@@ -213,9 +213,9 @@ $type = 'all' unless defined($type);
 
 @varlist = ('x',
             'y',
-            'z',
+           # 'z',
             'r',
-            's',
+           # 's',
             't',);
 
 @constlist = ('a',
