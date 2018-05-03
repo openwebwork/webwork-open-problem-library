@@ -107,7 +107,6 @@ $sex = 'both' unless defined($sex);
             'Sydney',
             'Tammy',
             'Teresa',
-            'Tien',
             'Tiffany',
             'Tracei',
             'Virginia',
@@ -175,6 +174,7 @@ $sex = 'both' unless defined($sex);
              'Shane',
              'Stephen',
              'Thanh',
+             'Tien',
              'Timothy',
              'Wenwu',
              'Will');
