@@ -1,3 +1,5 @@
+loadMacros('PCCmacros.pl');
+
 sub SystemOfLinearEquationsProblemSetup {
 
 #markers for zero-values used in formatting
@@ -31,6 +33,7 @@ Context()->variables->are($x=>'Real', $y=>'Real', constant=>'Real');
 # How to enter answers?
 $EnterAnswers = (($x eq "x" and $y eq "y") or ($x eq "y" and $y eq "x")) ? "Give your answer as an ordered pair or in the form *x=[|___|] and y=[|___|] *." : "Give your answer in the form *$x = [|___|] and $y = [|___|] *.";
 $EnterAnswers = $EnterAnswers." If there are no solutions, you may enter *no solutions* or *none*. If there are infinitely many solutions, you may enter *infinitely many solutions*.";
+$EnterAnswers = KeyboardInstructions($EnterAnswers);
 
 
 $determinant = (($a)*($d)-($b)*($c));
