@@ -25,14 +25,17 @@
 DOCUMENT();
 
 loadMacros(
+#  "PGgraphmacros.pl",
   "PGstandard.pl",
   "MathObjects.pl",
   "PGML.pl",
+#  "PCCgraphMacros.pl",
+  "PGcourse.pl",
   "PCCmacros.pl",
   "contextCurrency.pl",
   "parserRadioButtons.pl",
   "contextFraction.pl",
-  "PGcourse.pl"
+  "PGchoicemacros.pl",
 );
 
 ##############################################
@@ -42,6 +45,7 @@ Context("Fraction");
 Context()->noreduce('(-x)-y','(-x)+y');
 Context()->variables->add(b=>"Real");
 
+do {
 $den = random(3,6,1);
 do {$num=random(1,$den-1,1);} until (gcd($den,$num)==1);
 $slope = -Fraction($num,$den);
@@ -52,6 +56,7 @@ $budget = $intercept*$den;
 $maxBowls = $budget/$num;
 $x1 = $den*random(1,$maxBowls/$den,1);
 $y1 = $func->eval(b=>$x1);
+} until ($x1 != $y1);
 
 Context("Currency");
 Context()->currency->addSymbol("dollars","dollar");
@@ -74,30 +79,28 @@ $possessive = 'her' if ($sex eq 'female');
 $name = RandomName(sex=>$sex);
 
 @answers = (
-   "`$x1` bowls and `$y1` plates can be purchased.",
-   "`$y1` bowls and `$x1` plates can be purchased.",
-   "`$x1C` will be used to purchase bowls, and `$y1C` will be used to purchase plates.",
-   "`$y1C` will be used to purchase bowls, and `$x1C` will be used to purchase plates.",
+   "If ".math_ev3($x1)." bowls are purchased, then ".math_ev3($y1)." plates will be purchased.",
+   "If ".math_ev3($y1)." bowls are purchased, then ".math_ev3($x1)." plates will be purchased.",
+   math_ev3($x1C)." will be used to purchase bowls, and ".math_ev3($y1C)." will be used to purchase plates.",
+   math_ev3($y1C)." will be used to purchase bowls, and ".math_ev3($x1C)." will be used to purchase plates.",
 );
 
 #Create a hash and its inverse that randomizes the order of the four choices.
-%scramble = ();
-%inverse = ();
+@scramble = NchooseK(4,4);
+@inverse = ();
 @answersShuffled = ();
 for my $i (0..3) {
-  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
-  $scramble{$i} = $temp;
-  $inverse{$temp} = $i;
-  $answersShuffled[$i] = @answers[$scramble{$i}];
-  $answersShuffled[$i]=$ALPHABET[$i].'. '.$answersShuffled[$i];
-};
+  $inverse[$scramble[$i]] = $i;
+  $answersShuffled[$i] = $answers[$scramble[$i]];
+}
+$correctAns = $answersShuffled[$inverse{0}];
 
-$correctAns = @answersShuffled[$inverse{0}];
-
-$radio = RadioButtons(
-   ~~@answersShuffled,
-   $correctAns, # correct answer
-   order => ~~@answersShuffled,
+$radio = RadioButtons([[
+   "If ".math_ev3($x1)." bowls are purchased, then ".math_ev3($y1)." plates will be purchased.",
+   "If ".math_ev3($y1)." bowls are purchased, then ".math_ev3($x1)." plates will be purchased.",
+   math_ev3($x1C)." will be used to purchase bowls, and ".math_ev3($y1C)." will be used to purchase plates.",
+   math_ev3($y1C)." will be used to purchase bowls, and ".math_ev3($x1C)." will be used to purchase plates.",
+]],0,
    labels => "ABC",
 );
 
@@ -105,7 +108,7 @@ $radio = RadioButtons(
 
 BEGIN_PGML
 
-[$name] will spend [`[$budgetC]`] to purchase some bowls and some plates. Each bowl costs [`[$numC]`], and each plate costs [`[$denC]`]. The function [`p(b)=[$func]`] models the number of plates [$name] to be purchase, where [`b`] represents the number of bowls to be purchased.
+[$name] will spend [`[$budgetC]`] to purchase some bowls and some plates. Each bowl costs [`[$numC]`], and each plate costs [`[$denC]`]. The function [`p(b)=[$func]`] models the number of plates [$name] will purchase, where [`b`] represents the number of bowls [$name] will purchase.
 
 Interpret the meaning of [`p([$x1])=[$y1]`].
 
@@ -121,7 +124,7 @@ BEGIN_PGML_SOLUTION
 
 For [`p(b)=[$func]`], the value of [`b`] represents the number of bowls to be purchased, and the value of [`p(b)`] represents the number of plates to be purchased.
 
-For [`p([$x1])=[$y1]`], [`[$x1]`] implies [`[$x1]`] bowls will be purchased, while [`[$y1]`] implies [`[$y1]`] plates will be purchased. The correct solution is [$correctAns]
+For [`p([$x1])=[$y1]`], [`[$x1]`] implies [`[$x1]`] bowls will be purchased, while [`[$y1]`] implies [`[$y1]`] plates will be purchased. The correct solution is [$radio->correct_ans].
 
 
 END_PGML_SOLUTION
