@@ -6,8 +6,9 @@
 
 ## DBsubject(Differential equations)
 ## DBchapter(Higher order differential equations)
-## DBsection(Linear, constant coefficients, homogeneous (complex roots))
+## DBsection(Linear, constant coefficients, homogeneous)
 ## Institution(Rochester)
+## MO(1)
 ## Level(3)
 ## KEYWORDS('differential equation' 'second order' 'linear')
 
@@ -15,43 +16,90 @@ DOCUMENT() ;
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGdiffeqmacros.pl",
+  "MathObjects.pl",
+  "contextFraction.pl",
   "PGcourse.pl"
 );
 
-$aa = random(2,11,1) ;
-$a = $aa **2 ;
-$B = random(-10,10,1) ;
-$e = random(1,9,1) ;
-$eps = random(-1,1,1) ;
-$b = 2*$B*$aa ;
-$c = $B *$B - $eps * ($e **2) ;	
+Context("Numeric");
+Context()->variables->are(t => "Real", y => "Real", dy => ["Real", TeX => "y'"], ddy => ["Real", TeX => "y''"]);
+
+$a = random(2,11,1);
+$A = $a**2;
+
+$b = random(-10,10,1);
+$B = 2*$a*$b;
+
+$sgn = random(-1,1,1);  
+$e = random (1,9,1);
+$C = $b**2 - $sgn * ($e**2);
+
+# $B^2-4*$A*$C = $sgn*$a^2*$e^2 so 
+# 2 real roots if $sgn > 0, 1 real root if $sgn == 0, 
+# complex roots if $sgn < 0
+
+$diffeq = Compute("$A*ddy + $B*dy + $C*y")->reduce;
+
+## initial conditions
+
+$k = random(1,5,1) ;
 $m = random(1,9,1) ;
 $n = random(1,9,1) ;
 
+
 ##############
 
-$k = random(1,5,1) ;
-$L = diffop($a,$b,$c,$m,$n) ;
-$y = ivy($a,$b,$c,$m,$n) ;
-$tk = "(t - $k )" ;
-$y =~s~~t~~$tk~~g ;
-$ans = $y ;
 TEXT(beginproblem()) ;
 
 $showPartialCorrectAnswers = 1 ;
 
+Context()->texStrings;
 BEGIN_TEXT
 
-Find \(y\) as a function of \(t\) if $BR
-\[ $L =  0, \] 
-\(y($k) = $m,  \quad  y'($k) = $n .\) $BR
+Find \(y\) as a function of \(t\) if $PAR
+\( $diffeq =  0, \) and $BR 
+\(y($k) = $m,  \quad  y'($k) = $n .\) $PAR
 \(y = \) \{ans_rule(80)\}
 
 END_TEXT
 
-ANS(fun_cmp($ans, vars=>"t")) ;
+Context()->normalStrings;
+
+## Answers
+#
+Context("Fraction");
+Context()->variables->are(t => "Real");
+if ($sgn > 0){  
+  # there are two real roots $r1, $r2
+  $r1 = Compute("(-$b + $e)/$a");  # root
+  $r2 = Compute("(-$b - $e)/$a");  # other root
+  $f1 = Compute("exp($r1*(t-$k))");
+  $f2 = Compute("exp($r2*(t-$k))");
+  $u = Compute("($r2*$m - $n)/($r2-$r1)");
+  $v = Compute("($r1*$m - $n)/($r1-$r2)");
+  $ans = ($u*$f1 + $v*$f2)->reduce;
+}
+elsif ($sgn == 0) {
+  # there is one real root
+  $r = Compute("-$b/$a");  # root
+  $f1 = Compute("exp($r*(t-$k))");
+  $f2 = Compute("(t-$k)*$f1"); 
+  $ans = Compute("$m*$f1 + ($n - $r*$m)*$f2")->reduce; 
+}
+else {
+  # there are two complex roots
+  $re = Compute("-$b/$a"); # real part
+  $im = Compute("$e/$a");  # imaginary part
+  $f1 = Compute("exp($re*(t-$k))*cos($im*(t-$k))");
+  $f2 = Compute("exp($re*(t-$k))*sin($im*(t-$k))");
+  $ans = Compute("$m*$f1+($n-$m*$re)/$im*$f2")->reduce;
+}
+
+#ANS(fun_cmp($ans, vars=>"t")) ;
+
+ANS($ans->cmp()); 
+
+COMMENT("Randomly has 1 or 2 real roots or complex roots.");
 
 ENDDOCUMENT() ; 
 ##################################################

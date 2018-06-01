@@ -18,6 +18,7 @@
 ## DBsection(Derivatives)
 ## Date(6/3/2002)
 ## Author(Stewart)
+## MO(1)
 ## MLT(der_tangent_line)
 ## Level(3)
 ## TitleText1('Calculus: Early Transcendentals')
@@ -36,44 +37,86 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "Dartmouthmacros.pl",
+  "MathObjects.pl", 
+  "parserMultiAnswer.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 0;
 
+Context("Numeric");
+Context()->variables->are(t => "Real");
+
 $a1 = non_zero_random(-5,5,1);
-$pi =arccos(-1);
+
+$ans0 =  Compute("cos($a1*pi/6)+(-sin($a1*pi/6))*t") ;
+$ans1 =  Compute("sin($a1*pi/6)+(cos($a1*pi/6))*t") ;
+$ans2 =  Compute("$a1*pi/6 +t") ;
 
 
-$a1_pi = clean_scalar_string($a1, "\pi");
+$multians = MultiAnswer($ans0, $ans1, $ans2)->with(
+  singleResult =>1,
+  checker => sub{
+    my( $correct, $student, $self ) = @_;
+    my($stu0, $stu1, $stu2) = @{$student};
+    my($cor0, $cor1, $cor2) = @{$correct};
+    my $stuPt0 = $stu0->eval(t=>0);
+    my $stuPt1 = $stu1->eval(t=>0);
+    my $stuPt2 = $stu2->eval(t=>0);
+    my $stuVec0 = $stu0-$stuPt0;
+    my $stuVec1 = $stu1-$stuPt1;
+    my $stuVec2 = $stu2-$stuPt2;
+    my $corPt0 = $cor0->eval(t=>0);
+    my $corPt1 = $cor1->eval(t=>0);
+    my $corPt2 = $cor2->eval(t=>0);
+    my $corVec0 = $cor0-$corPt0;
+    my $corVec1 = $cor1-$corPt1;
+    my $corVec2 = $cor2-$corPt2;
+    my $checkPoint = (
+     $stuPt0 == $corPt0 and $stuPt1 == $corPt1 and $stuPt2 == $corPt2
+    );
+    if (!$checkPoint ) {
+      Value->Error("The line must pass through the given point when t=0.");
+    }
+    my $checkParallel = ( 
+       ($stuVec0*$corVec1-$stuVec1*$corVec0) == 0 and 
+       ($stuVec0*$corVec2-$stuVec2*$corVec0) == 0 and 
+       ($stuVec1*$corVec2-$stuVec2*$corVec1) == 0
+    );
+    if (!$checkParallel) {
+       Value -> Error("Your line isn't parallel to the tangent line.");
+    }
+    my $checkNonzero = ($stuVec0 !=0 or $stuVec1 != 0 or $stuVec2 != 0 );
+    if (!$checkNonzero){ 
+       Value -> Error("You parametrized a point, not a line!");
+    } 
+    return ($checkPoint and $checkParallel and $checkNonzero);
+  }
+);
 
-
+Context()->texStrings;
 BEGIN_TEXT
 $BR
- Find parametric equations for the tangent line at the point $BR 
-  \( (\cos(\frac{$a1_pi}{6}) ,\sin(\frac{$a1_pi}{6}) ,\frac{$a1_pi}{6} ) \) 
-  on the curve \( x=\cos t,\  y=\sin t, \ z=t \)
-$BR
-\( x(t) \) = \{ans_rule(40)\} $BR
-\( y(t) \)= \{ans_rule(40)\} $BR
-\( z(t) \)= \{ans_rule(40)\} $BR
+ Find parametric equations for line that is tangent to the curve \( x=\cos t,\  y=\sin t, \ z=t \) at the point $BR
+  \( (\cos(\frac{$a1\pi}{6}) ,\sin(\frac{$a1\pi}{6}) ,\frac{$a1\pi}{6} ) \) 
+  . 
 
-(Your line should be parametrized so that it passes through the given
-point at t=0).$BR
+$PAR Parametrize the line so that it passes through the given point at t=0.  All three answers are required for credit. 
+$PAR
+\( x(t) \) = \{$multians->ans_rule(40)\} $BR
+\( y(t) \) = \{$multians->ans_rule(40)\} $BR
+\( z(t) \) = \{$multians->ans_rule(40)\} $BR
+
 END_TEXT
 
+Context()->normalStrings;
 
-$ans0 =  "cos($a1*$pi/6)+(-sin($a1*$pi/6))*t" ;
-$ans1 =  "sin($a1*$pi/6)+(cos($a1*$pi/6))*t" ;
-$ans2 =  "$a1*$pi/6 +t" ;
+ANS($multians -> cmp()); 
 
 
-ANS(fun_cmp($ans0, vars=>"t"));
-ANS(fun_cmp($ans1, vars=>"t"));
-ANS(fun_cmp($ans2, vars=>"t"));
+#
+
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.
 
