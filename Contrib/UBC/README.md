@@ -5,3 +5,4 @@ Contributors (github):
 * chenhao6459new
 * changebo
 * adentremont
+* gohsc
