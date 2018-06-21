@@ -1,0 +1,154 @@
+# WeBWorK problem written by Alex Jordan, 2013
+# Portland Community College
+#
+# Solve a system with 
+#  -no solutions
+#  like y=(2/3)x+a, y=(2/3)x+b (no solution)
+#
+# Last updated: Yao 11/26/2017
+#
+# ENDDESCRIPTION
+
+## DBCCSS('8.EE.8','A-REI.3','A-REI.5')
+## DBsubject(Algebra)
+## DBchapter(Basic Algebra)
+## DBsection(Lines', 'Equations)
+## Institution(PCC)
+## Author(Alex Jordan, Carl Yao, Chris Hughes)
+## MO(1)
+## KEYWORDS('linear','equation','solve','system','integer')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "answerHints.pl",
+  "PCCmacros.pl",
+  "contextFraction.pl",
+  "parserAssignment.pl",
+  "SystemsOfLinearEquationsProblemPCC.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+
+
+# What will the variables be?
+if (list_random(0,1))
+  {$x = "x"; $y = "y";}
+  else {
+    do {$x = RandomVariableName(); $y = RandomVariableName()} 
+    until ($x ne $y 
+       and ($x ne "y" and $y ne "x")); 
+    # it would be bad to swap x and y for point answers. 
+  };
+
+#What will the coefficients be?
+#Some helpful linear algebra:
+#Integer solutions <== det[[a,b],[c,d]] divides both e and f
+#Unique solution <==> det[[a,b],[c,d]] != 0
+#No solutions <==> det[[a,b],[c,d]] == 0   and c*e != a*f
+Context("Fraction");
+Parser::Number::NoDecimals;
+Context()->noreduce('(-x)-y','-(x)+y');
+
+do {$a = non_zero_random(-5,5,1);} until ($a!=1);
+$b = 1;
+do {$m = non_zero_random(-5,5,1);} until (abs($m)!=1);
+$c = $m*$a;
+$d = $m;
+$e = non_zero_random(-5,5,1);
+$f = $e*$m;
+$det = $a*$d-$b*$c;
+
+#0 means that term is on the left; 1 on the right.
+($xside1,$yside1,$cside1) = (1,0,1);
+($xside2,$yside2,$cside2) = (0,0,1);
+
+SystemOfLinearEquationsProblemSetup();
+
+Context()->variables->are($x=>'Real', $y=>'Real', constant=>'Real');
+$right1 = Compute("-$a*$x-$e")->reduce;
+$left2 = Compute("$c*$x+$m*$y");
+$s1 = Compute("$c*$x+$m*($right1)");
+$ma = $m*$a;
+$me = $m*$e;
+$s2 = Compute("-$c*$x+$ma*$x-$me")->reduce;
+
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+Solve the following system of equations.
+
+    [`\left\{
+    \begin{aligned}
+      [$left1] & =  [$right1]\\
+      [$left2] & =  [$right2] 
+    \end{aligned}
+    \right.
+    `]
+
+[$EnterAnswers]**
+
+    [_____________________________]
+
+END_PGML
+##############################################
+
+Context("LinearSystems");
+parser::Assignment->Allow;
+Context()->variables->are($x=>'Real', $y=>'Real', constant=>'Real');
+
+  $ans = Compute("infinitely many solutions");
+
+
+#If there is a unique solution
+if ($determinant != Fraction(0,1)) {
+ANS($ans->cmp(
+  entry_type => "a solution",
+  checker => ~~&solutionChecker,
+  extra => ~~&extraChecker
+)
+->withPostFilter(AnswerHints(
+  ["$x=$xsol","$y=$ysol"] => "A solution would give values for both $x and $y",
+  ["$xsol,$ysol","$ysol,$xsol"] => ["These are the right values, but you should write $x = $US$US$US and $y= $US$US$US",replaceMessage=>1],
+))
+
+->withPostFilter( ~~&postFilterForPoints
+)
+);
+}
+
+
+#otherwise
+else {
+ANS($ans->cmp(typeMatch=>Compute("$x=0,$y=0")));
+};
+
+####################################################
+
+BEGIN_PGML_SOLUTION
+
+Since [`[$y]`] is alone in the first equation, we will use substitution to solve this system.
+
+Substitute [`[$left1]=[$right1]`] into [`[$left2]=[$right2]`], we have:
+
+    [``
+\begin{aligned}
+   [$left2]&=[$right2] \\
+   [$s1]&=[$right2] \\
+   [$s2]&=[$right2] \\
+   [$right2]&=[$right2]
+\end{aligned}
+    ``]
+    
+Since [`[$right2]=[$right2]`] is true for any value of [`[$x]`], this system has infinitely many solutions .
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
