@@ -94,12 +94,7 @@ my $customstring = shift;
 
 my $helpstring = "";
 
-# If producing PTX output, omit any formatting help.
-# (PTX output is used to produce non-interactive presentations of a problem,
-# so there is no need to give syntax formatting help.)
-if ($main::displayMode eq "PTX") {
-    return;
-}
+
 
 
 
