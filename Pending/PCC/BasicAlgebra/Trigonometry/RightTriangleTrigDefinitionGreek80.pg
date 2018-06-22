@@ -1,0 +1,516 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Find right triangle trigonometry ratios (sine, cosine and tangent).
+# First, use Pythagorean Theorem to find missing length in a right triangle. 
+# The unknown side is the hypotenuse. Answers are in radicals. 
+# The student needs to rationalize the denominator.
+# The right angle could be at any corner.
+#
+# Last edited by Carl Yao on 8/8/15
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Problem Solving with Equations')
+## KEYWORDS('Pythagorean','right triangle','radical','simplify','square root','rationalize','denominator','sine','cosine','tangent','trigonometry')
+## DBCCSS('4.MD.3')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "contextLimitedRadical.pl",
+  "contextFraction.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+sub canBeSimplified {
+   my $num = shift;
+   if ($num!=int($num)) {return 0};
+   my @squares = (4,9,16,25,36,49,64,81,100);
+   for(my $index=0;$index<=$#squares;$index++){
+      if (($num % $squares[$index]==0) && (sqrt($num)!=int(sqrt($num))) ) {
+         return 1;
+      }
+   }
+   return 0;
+}
+
+sub simplify {
+   my $inS = shift;
+   my $outS = 1;
+   my @squares = (4,9,16,25,36,49,64,81,100);
+   for(my $index=0;$index<=$#squares;$index++){
+      if ($inS % $squares[$index]==0) {
+         $outS = $outS * sqrt($squares[$index]);
+         $inS = $inS / $squares[$index];
+         $index--;
+      }
+   }
+   return ($inS, $outS);
+}
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+
+# Input is a number. Output is the prime factorization of the number
+# saved in an array, returned as a reference to the array.
+sub primeFactor {
+   my $n = shift;
+   @factors = ();
+   my $prime=2;
+   while (1) {
+      while ($n%$prime==0) {
+         $factors[scalar @factors] = $prime;
+         $n=$n/$prime;
+      }
+      if ($n==1) {return ~~@factors;}
+      $prime = &nextPrime($prime);
+   }
+}
+
+# Input 1 is a reference to an array with a number's prime factorization.
+# Output is all prime factors connected by ' \cdot '.
+sub line1 {
+   my $ra_factors = shift;
+   $line1Output = "";
+   foreach $item ( @$ra_factors ) {$line1Output .= "$item".' \cdot ';}
+   $line1Output =~ s/ \cdot $//;
+   return $line1Output;
+}
+
+# Input is the output of &line1() and the degree of the radical. 
+# $returnLine2 is the next step of simplifying the radical. 
+# For example, if input is "2 \cdot 2 \cdot 2 \cdot 3 \cdot 5", 
+# $degree=3, (meaning cube root), 
+# $returnLine2 is 2 sqrt[3]{3 \cdot 5}.
+# $returnLine3 is the final step of simplifying the radical.
+# In the above example, $returnLine3 is 2 sqrt[3]{15}.
+sub line2 {
+   my $line = shift;
+   my $degree = shift;
+   my $line2Output = "";
+   my @facs = split(/ \cdot /, $line);
+   my $size = 0+@facs;
+   my $i=0;
+   $outsideString = "";
+   $insideString = "";
+   $outsideNumber = 1;
+   $insideNumber = 1;
+   while ($i<$size) {
+      my $item = $facs[$i];
+      my $out = 1;
+      for (my $j=$i; $j<$i+$degree; $j++) {
+         if ($facs[$j]!=$item) {$out = 0;}
+      }
+      if ($out==0) {
+         $insideNumber *= $facs[$i];
+         $insideString .= "$facs[$i]".' \cdot ';
+         $i++;
+      }
+      else {
+         $outsideNumber *= $facs[$i];
+         $outsideString .= "$facs[$i]".' \cdot ';
+         $i=$i+$degree;
+      }
+   }
+   $outsideString =~ s/ \cdot $//;
+   $insideString =~ s/ \cdot $//;
+
+   $returnLine2 = "";
+   if ($insideString eq "") {$returnLine2 = $outsideString;}
+   elsif ($degree==2) {$returnLine2 = 
+        $outsideString.' \sqrt{'."$insideString".'}';}
+   else {$returnLine2 = 
+        $outsideString.' \sqrt['."$degree".']{'."$insideString".'}';}
+
+   $returnLine3 = "";
+   if ($returnLine2 !~ /\cdot/) {$returnLine3 = "";}
+   elsif ($degree==2) {$returnLine3 =
+        $outsideNumber.' \sqrt{'."$insideNumber".'}';}
+   else {$returnLine3 = 
+        $outsideNumber.' \sqrt['."$degree".']{'."$insideNumber".'}';}
+
+   return ($returnLine2,$returnLine3);
+}
+
+##############################################
+
+TEXT(beginproblem());
+Context("Numeric");
+
+do {
+   $base = random(4,16,1);
+   $height = random(4,16,1);
+   $hypotenuseSquared = $base**2+$height**2;
+} until (canBeSimplified($hypotenuseSquared));
+$a = arctan($base/$height);
+$b = pi/2-$a;
+
+($in, $out) = simplify($hypotenuseSquared);
+
+Context("LimitedFraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+
+$sineFracA1 = Fraction($base,$out)->reduce;
+($sineFracA1num,$sineFracA1den) = $sineFracA1->value;
+$sineFracA2 = Fraction($sineFracA1num,$sineFracA1den*$in)->reduce;
+($sineFracA2num,$sineFracA2den) = $sineFracA2->value;
+
+$sineFracB1 = Fraction($height,$out)->reduce;
+($sineFracB1num,$sineFracB1den) = $sineFracB1->value;
+$sineFracB2 = Fraction($sineFracB1num,$sineFracB1den*$in)->reduce;
+($sineFracB2num,$sineFracB2den) = $sineFracB2->value;
+
+$ansTangentA = Fraction($base,$height)->reduce;
+($tangentFracAnum,$tangentFracAden) = $ansTangentA->value;
+
+$ansTangentB = Fraction($height,$base)->reduce;
+($tangentFracBnum,$tangentFracBden) = $ansTangentB->value;
+
+Context("LimitedRadical");
+
+$hypotenuse = Formula("$out*sqrt($in)");
+
+if ($sineFracA2num==1) {
+   $ansSineA = Formula("sqrt($in)/$sineFracA2den");
+} else {
+   $ansSineA = Formula("$sineFracA2num*sqrt($in)/$sineFracA2den");
+}
+
+if ($sineFracB2num==1) {
+   $ansSineB = Formula("sqrt($in)/$sineFracB2den");
+} else {
+   $ansSineB = Formula("$sineFracB2num*sqrt($in)/$sineFracB2den");
+}
+
+$ansCosineA = $ansSineB;
+$ansCosineB = $ansSineA;
+
+
+Context("Numeric");
+
+$xmin = 0;         #The viewing window
+$xmax = 20;
+$ymin = 0;
+$ymax = 20;
+
+
+#$corner's value decides the location of the right angle. 
+#(0,1,2,3) implies (bottom left,top left,top right,bottom right). 
+$corner = list_random(0..3);
+
+if ( ($corner==0) || ($corner==2) ) {
+   @x = (($xmax-$base)/2,($xmax+$base)/2);
+   @y = (($ymax-$height)/2,($ymax+$height)/2);
+} else {
+   @y = (($xmax-$base)/2,($xmax+$base)/2);
+   @x = (($ymax-$height)/2,($ymax+$height)/2);
+}
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[400,400]);
+
+$labelAdjust = 0.5;
+
+@labelAx = ($x[0],$x[1],$x[1],$x[0]);
+@labelAy = ($y[1],$y[1],$y[0],$y[0]);
+@alphaCurveStart = (3*pi/2,pi,pi/2,0);
+@alphaCurveEnd = (3*pi/2+$a,pi+$a,pi/2+$a,$a);
+
+@labelBx = ($x[1],$x[0],$x[0],$x[1]);
+@labelBy = ($y[0],$y[0],$y[1],$y[1]);
+@betaCurveStart = (pi-$b,pi/2-$b,2*pi-$b,3*pi/2-$b);
+@betaCurveEnd = (pi,pi/2,2*pi,3*pi/2);
+
+@labelCx = ($x[0],$x[0],$x[1],$x[1]);
+@labelCy = ($y[0]-$labelAdjust,$y[1]+$labelAdjust,$y[1]+$labelAdjust,$y[0]-$labelAdjust);
+
+$xfuncAlpha = sub { my $t = shift();
+    return $labelAx[$corner]+cos($t); };
+$yfuncAlpha = sub { my $t = shift();
+    return $labelAy[$corner]+sin($t); };
+$fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $picture );
+$fnAlpha->domain($alphaCurveStart[$corner],$alphaCurveEnd[$corner]);
+$theta = ($alphaCurveStart[$corner]+$alphaCurveEnd[$corner])/2;
+$picture->lb( new Label($labelAx[$corner]+2*cos($theta), $labelAy[$corner]+2*sin($theta),"alpha",'black','center','middle'));
+
+$xfuncBeta = sub { my $t = shift();
+    return $labelBx[$corner]+cos($t); };
+$yfuncBeta = sub { my $t = shift();
+    return $labelBy[$corner]+sin($t); };
+$fnBeta = new Fun( $xfuncBeta, $yfuncBeta, $picture );
+$fnBeta->domain($betaCurveStart[$corner],$betaCurveEnd[$corner]);
+$theta = ($betaCurveStart[$corner]+$betaCurveEnd[$corner])/2;
+$picture->lb( new Label($labelBx[$corner]+2*cos($theta), $labelBy[$corner]+2*sin($theta),"beta",'black','center','middle'));
+
+@labelBaseX=(($x[0]+$x[1])/2,$x[0]-$labelAdjust,($x[0]+$x[1])/2,$x[1]+$labelAdjust);
+@labelBaseY=($y[0]-$labelAdjust,($y[0]+$y[1])/2,$y[1]+$labelAdjust,($y[0]+$y[1])/2);
+@labelHeightX=($x[0]-$labelAdjust,($x[0]+$x[1])/2,$x[1]+$labelAdjust,($x[0]+$x[1])/2);
+@labelHeightY=(($y[0]+$y[1])/2,$y[1]+$labelAdjust,($y[0]+$y[1])/2,$y[0]-$labelAdjust);
+@labelHypotenuseX=(($x[0]+$x[1])/2+$labelAdjust,($x[0]+$x[1])/2+$labelAdjust,($x[0]+$x[1])/2-$labelAdjust,($x[0]+$x[1])/2-$labelAdjust);
+@labelHypotenuseY=(($y[0]+$y[1])/2+$labelAdjust,($y[0]+$y[1])/2-$labelAdjust,($y[0]+$y[1])/2-$labelAdjust,($y[0]+$y[1])/2+$labelAdjust);
+
+
+$picture->lb( new Label($labelBaseX[$corner], $labelBaseY[$corner],$base,'black','center','middle'));
+
+$picture->lb( new Label($labelHeightX[$corner],$labelHeightY[$corner],$height,'black','center','middle'));
+
+$picture->lb( new Label($labelHypotenuseX[$corner],$labelHypotenuseY[$corner],'x','black','center','middle'));
+
+$picture->new_color("lightblue", 200,200,255); # RGB
+$picture->new_color("darkblue",  100,100,255); 
+
+@ax=(0,1,1,0);
+@ay=(1,1,0,0);
+@bx=(1,0,0,1);
+@by=(0,0,1,1);
+@cx=(0,0,1,1);
+@cy=(0,1,1,0);
+
+
+$picture->moveTo($x[$ax[$corner]],$y[$ay[$corner]]);
+$picture->lineTo($x[$bx[$corner]],$y[$by[$corner]], darkblue,3);
+$picture->lineTo($x[$cx[$corner]],$y[$cy[$corner]], darkblue,3);
+$picture->lineTo($x[$ax[$corner]],$y[$ay[$corner]], darkblue,3);
+
+$cornersize = 0.5;
+
+@rightSymbol1x=($x[0],$x[0]+$cornersize,$x[1]-$cornersize,$x[1]);
+@rightSymbol1y=($y[0]+$cornersize,$y[1],$y[1],$y[0]+$cornersize);
+@rightSymbol2x=($x[0]+$cornersize,$x[0]+$cornersize,$x[1]-$cornersize,$x[1]-$cornersize);
+@rightSymbol2y=($y[0]+$cornersize,$y[1]-$cornersize,$y[1]-$cornersize,$y[0]+$cornersize);
+@rightSymbol3x=($x[0]+$cornersize,$x[0],$x[1],$x[1]-$cornersize);
+@rightSymbol3y=($y[0],$y[1]-$cornersize,$y[1]-$cornersize,$y[0]);
+
+$picture->moveTo($rightSymbol1x[$corner],$rightSymbol1y[$corner]);
+$picture->lineTo($rightSymbol2x[$corner],$rightSymbol2y[$corner], darkblue,3);
+$picture->lineTo($rightSymbol3x[$corner],$rightSymbol3y[$corner], darkblue,3);
+
+@positions=('bottom left','top left','top right','bottom right');
+if ($corner==0) {
+   $aPosition = $positions[1];
+   $bPosition = $positions[3];
+   $cPosition = $positions[0];
+} elsif ($corner==1) {
+   $aPosition = $positions[2];
+   $bPosition = $positions[0];
+   $cPosition = $positions[1];
+} elsif ($corner==2) {
+   $aPosition = $positions[3];
+   $bPosition = $positions[1];
+   $cPosition = $positions[2];
+} else {
+   $aPosition = $positions[0];
+   $bPosition = $positions[2];
+   $cPosition = $positions[3];
+}
+
+$text = "This is a right triangle. The right angle is at the $cPosition corner of the picture. Acute angle alpha is at the $aPosition, and acute angle beta is at the $bPosition. The length of the side facing angle alpha is $base; the length of the side facing angle beta is $height; the length of the side facing the right angle is x (unknown).";
+
+##############################################
+$refreshCachedImages = 1;
+
+BEGIN_PGML
+
+[@EnlargeImageStatementPGML()@]**
+
+>>[@image(insertGraph($picture), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$text' title = '$text'") @]*<<
+
+Based on the given figure, find the following values of trigonometric functions. Note that in the graph, "alpha" stands for [`\alpha`], and "beta" stands for [`\beta`].
+
+Your answer should be a radical in simplified form. For example, [`\sqrt{8}`] should be simplified into [`2\sqrt{2}`].
+
+You also need to remove radicals from a fraction's denominator. For example, [`\frac{1}{\sqrt{2}}`] should be converted to [`\frac{\sqrt{2}}{2}`].
+
+Use *sqrt()* to represent the square root symbol. For example, if the answer is [`2\sqrt{2}`], you should type in *2sqrt(2)* or *2\*sqrt(2)*.
+
+    [` \sin \alpha ={}`][_____________]{$ansSineA}
+
+    [` \sin \beta ={}`][_____________]{$ansSineB}
+
+    [` \cos \alpha ={}`][_____________]{$ansCosineA}
+
+    [` \cos \beta ={}`][_____________]{$ansCosineB}
+
+    [` \tan \alpha ={}`][_____________]{$ansTangentA}
+
+    [` \tan \beta ={}`][_____________]{$ansTangentB}
+
+END_PGML
+
+##############################################
+
+
+#Output of simplifying $hypotenuseSquared.
+$line1Center = &line1(&primeFactor($hypotenuseSquared));
+$output11 = '&= \sqrt{'.$line1Center.'} ';
+($line2Center, $line3Center) = &line2($line1Center,2);
+$output12 = '&='.$line2Center;
+$output13 = "&";
+if ($line3Center ne "") {$output13 = '&='.$line3Center;}
+
+if ($tangentFracAnum==$base) {
+   $tangentOutput1 = "";
+   $tangentOutput2 = "";
+} else {
+   $tangentOutput1 = " \frac{$base}{$height}=";
+   $tangentOutput2 = " \frac{$height}{$base}=";
+}
+
+if ($sineFracA1num==$base) {
+   $output21 = "";
+   $output22 = "&=\frac{$sineFracA1num \cdot \sqrt{$in}}{$sineFracA1den \sqrt{$in} \cdot \sqrt{$in}} \\";
+} elsif ($sineFracA1den==1) {
+   $output21 = "&=\frac{$sineFracA1num}{\sqrt{$in}} \\";
+   $output22 = "&=\frac{$sineFracA1num \cdot \sqrt{$in}}{\sqrt{$in} \cdot \sqrt{$in}} \\";
+} else {
+   $output21 = "&=\frac{$sineFracA1num}{$sineFracA1den \sqrt{$in}} \\";
+   $output22 = "&=\frac{$sineFracA1num \cdot \sqrt{$in}}{$sineFracA1den \sqrt{$in} \cdot \sqrt{$in}} \\";
+}
+
+if ($sineFracB1num==$height) {
+   $output31 = "";
+   $output32 = "&=\frac{$sineFracB1num \cdot \sqrt{$in}}{$sineFracB1den \sqrt{$in} \cdot \sqrt{$in}} \\";
+} elsif ($sineFracB1den==1) {
+   $output31 = "&=\frac{$sineFracB1num}{\sqrt{$in}} \\";
+   $output32 = "&=\frac{$sineFracB1num \cdot \sqrt{$in}}{\sqrt{$in} \cdot \sqrt{$in}} \\";
+} else {
+   $output31 = "&=\frac{$sineFracB1num}{$sineFracB1den \sqrt{$in}} \\";
+   $output32 = "&=\frac{$sineFracB1num \cdot \sqrt{$in}}{$sineFracB1den \sqrt{$in} \cdot \sqrt{$in}} \\";
+}
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+First, we need to find the missing side. By the Pythagorean Theorem, we have:
+
+    [``
+\begin{aligned}
+  [$base]^{2}+[$height]^{2} &= x^{2} \\
+  [$base**2]+ [$height**2] &= x^{2} \\
+  [$base**2+$height**2] &= x^{2} \\
+  \sqrt{[$base**2+$height**2]} &= x \\
+\end{aligned}
+    ``]
+
+Next, we need to simplify the radical. To simplify [`[$hypotenuseSquared]`], first prime factor it, and then "take out" any pair of repeated factors from inside the square root:
+
+    [``
+\begin{aligned}[t]
+   [$hypotenuseSquared] [$output11] \\
+            [$output12] \\
+            [$output13]
+\end{aligned}
+    ``]
+
+The length of the hypotenuse is [`[$hypotenuse]`].
+
+By definition:
+
+    [`` \sin \theta = \frac{\text{opposite leg}}{\text{hypotenuse}} ``]
+
+    [`` \cos \theta = \frac{\text{adjacent leg}}{\text{hypotenuse}} ``]
+
+    [`` \tan \theta = \frac{\text{opposite leg}}{\text{adjacent leg}} ``]
+
+An acronym to help you memorize those 3 definitions is: *SOH CAH TOA*.
+
+In the given triangle, the longest side (facing the right angle) is the hypotenuse. In other words, the side with the length [`[$hypotenuse]`] is the hypotenuse, because it is opposite from right angle.
+
+For [`\angle \alpha `], the side with the length [`[$base]`] is the "opposite leg," because it's opposite to [`\angle \alpha`]; this implies the side with the length [`[$height]`] is the "adjacent leg" in terms of [`\angle \alpha`].
+
+For [`\angle \beta`], the side with the length [`[$height]`] is the "opposite leg," because it's opposite to [`\angle \beta`]; this implies the side with the length [`[$base]`] is the "adjacent leg" in terms of [`\angle \beta`].
+
+By the above definitions, before we rationalize the denominators, we have:
+
+    [`` \sin \alpha = \frac{[$base]}{[$hypotenuse]} ``]
+
+    [`` \sin \beta = \frac{[$height]}{[$hypotenuse]} ``]
+
+    [`` \cos \alpha = \frac{[$height]}{[$hypotenuse]} ``]
+
+    [`` \cos \beta = \frac{[$base]}{[$hypotenuse]} ``]
+
+    [`` \tan \alpha = [$tangentOutput1]  [$ansTangentA] ``]
+
+    [`` \tan \beta = [$tangentOutput2]  [$ansTangentB] ``]
+
+The tangent values don't need to be further simplified. Next, we need to rationalize the denominator for sine and cosine ratios.
+
+To rationalize the denominator of [`\sin \alpha`], we calculate:
+
+    [`` 
+\begin{aligned}
+   \sin \alpha &= \frac{[$base]}{[$hypotenuse]} \\
+   [$output21]
+   [$output22]
+   &= [$ansSineA]
+\end{aligned}
+    ``]
+
+Note that the value of [`\cos \beta`] and [`\sin \alpha`] are the same.
+
+To rationalize the denominator of [`\sin \beta`], we calculate:
+
+    [`` 
+\begin{aligned}
+   \sin B &= \frac{[$height]}{[$hypotenuse]} \\
+   [$output31]
+   [$output32]
+   &= [$ansSineB]
+\end{aligned}
+    ``]
+
+Note that the value of [`\sin \beta`] and [`\cos \alpha`] are the same.
+
+Finally, we have:
+
+    [`` \sin \alpha = [$ansSineA] ``]
+
+    [`` \sin \beta = [$ansSineB] ``]
+
+    [`` \cos \alpha = [$ansCosineA] ``]
+
+    [`` \cos \beta = [$ansCosineB] ``]
+
+    [`` \tan \alpha = [$ansTangentA] ``]
+
+    [`` \tan \beta = [$ansTangentB] ``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
