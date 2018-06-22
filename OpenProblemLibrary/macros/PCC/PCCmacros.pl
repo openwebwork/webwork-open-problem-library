@@ -107,6 +107,7 @@ $sex = 'both' unless defined($sex);
             'Sydney',
             'Tammy',
             'Teresa',
+            'Tien',
             'Tiffany',
             'Tracei',
             'Virginia',
@@ -174,7 +175,6 @@ $sex = 'both' unless defined($sex);
              'Shane',
              'Stephen',
              'Thanh',
-             'Tien',
              'Timothy',
              'Wenwu',
              'Will');
@@ -213,9 +213,9 @@ $type = 'all' unless defined($type);
 
 @varlist = ('x',
             'y',
-           # 'z',
+            'z',
             'r',
-           # 's',
+            's',
             't',);
 
 @constlist = ('a',
@@ -837,9 +837,7 @@ sub radicalListCheck {
      my ($i, $j, $k);              # loop counters
      return (0, @errors) if $ansHash->{isPreview};
      my $fullStudent = $ansHash->{student_formula};
-     #in line below, correct_ans seems the right thing to do. In some problems, this is blank, so I'm just going with correct_value
-     # for those problems. But changing to correct_value broke other problems... so the conditional hack
-     my $fullCorrect = ($ansHash->{correct_ans}) ? Formula($ansHash->{correct_ans}) : Formula($ansHash->{correct_value});
+     my $fullCorrect = Formula($ansHash->{correct_ans});
 
      my @fullStudentValue = $fullStudent->value;
      my @fullCorrectValue = $fullCorrect->value;
@@ -864,7 +862,7 @@ sub radicalListCheck {
               push(@errors,"This equation does have some solutions.");
               $nosolutionMessageGiven = 1;
            }
-           elsif($p->type ne "Assignment") {
+       elsif($p->type ne "Assignment") {
            push(@errors,"Your $ith entry should be written $var=_____");
            $assingmentMessageGiven = 1;
            }
@@ -887,7 +885,7 @@ sub radicalListCheck {
           my ($numericallyCorrect, $reduced);
           for ($k = 0, $numericallyCorrect = 0; ($k < $m) ; $k++) {
                     $q = $fullCorrectValue[$k];
-                    if (Formula($q) == Formula($p)) {
+                    if ($q == $p) {
                           $numericallyCorrect = 1;
                           Context()->flags->set(checkSqrt => $setSqrt, checkRoot => $setRoot, bizarroAdd => 1, bizarroSub => 1, bizarroMul => 1, bizarroDiv => 1);
                           delete $p->{test_values};
@@ -920,11 +918,7 @@ sub radicalListCheck {
      return ($score,@errors);
    }
 
-# Keyboard instructions should only be displayed in HTML output
-sub KeyboardInstructions {
-   my $in = shift;
-   if ($displayMode =~ /HTML/) {return $in}
-}
+
 
 
 1;
