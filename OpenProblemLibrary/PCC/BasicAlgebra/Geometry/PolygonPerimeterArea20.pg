@@ -1,0 +1,196 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Find the perimeter and area of a shape made up of a rectangle and a semicircle.
+#
+# Last edited by Yao 4/3/2017
+#
+# ENDDESCRIPTION
+
+## DBCCSS('6.G.1')
+## DBsubject(Geometry)
+## DBchapter(Shapes)
+## DBsection(Area)
+## Institution(PCC)
+## Author(Alex Jordan, Carl Yao, Chris Hughes)
+## Level(3)
+## KEYWORDS('area','perimeter','triangle')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserNumberWithUnits.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+$unit = "cm";
+
+$base = random(14,25,1);
+$radius = $base/2;
+do {$height = random(5,13,1);} until ($radius!=$height);
+
+$xmin = 0;         #The viewing window
+$max = max($height+$radius,$base);
+$xmax = $max*1.2;
+$ymin = 0;
+$ymax = $xmax;
+
+$labelShift = $xmax/40;
+$cornersize = 0.8;
+
+$perimeter = $base + 2*$height + pi*$base/2;
+$area = $base*$height + $radius**2*pi/2;
+
+$baseU = NumberWithUnits("$base $unit");
+$heightU = NumberWithUnits("$height $unit");
+$radiusU = NumberWithUnits("$radius $unit");
+$perimeterU = NumberWithUnits("$perimeter $unit");
+$areaU = NumberWithUnits("$area $unit^2");
+
+@x = (
+   ($xmax-$base)/2,
+   ($xmax-$base)/2+$radius,
+   ($xmax+$base)/2
+);
+@y = (
+   ($ymax-$height-$radius)/2,
+   ($ymax-$height-$radius)/2+$height,
+   ($ymax+$height+$radius)/2
+);
+
+@picture = ();
+for my $i (0..1) {
+   $picture[$i] = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[240,240]);
+
+   $picture[$i]->lb( new Label($x[1],$y[0]-$labelShift,"$baseU",'black','center','middle'));
+   $picture[$i]->lb( new Label($x[2]-$labelShift,($y[0]+$y[1])/2,"$heightU",'black','right','middle'));
+
+   $picture[$i]->new_color("darkblue",  100,100,255); 
+
+   $picture[$i]->moveTo($x[0],$y[1]);
+   $picture[$i]->lineTo($x[0],$y[0], darkblue,3);
+   $picture[$i]->lineTo($x[2],$y[0], darkblue,3); 
+   $picture[$i]->lineTo($x[2],$y[1], darkblue,3);
+
+   $picture[$i]->moveTo($x[0],$y[0]+$cornersize);
+   $picture[$i]->lineTo($x[0]+$cornersize,$y[0]+$cornersize, darkblue,3);
+   $picture[$i]->lineTo($x[0]+$cornersize,$y[0], darkblue,3);
+
+   $picture[$i]->moveTo($x[2],$y[0]+$cornersize);
+   $picture[$i]->lineTo($x[2]-$cornersize,$y[0]+$cornersize, darkblue,3);
+   $picture[$i]->lineTo($x[2]-$cornersize,$y[0], darkblue,3);
+
+   $picture[$i]->moveTo($x[0],$y[1]);
+   $picture[$i]->lineTo($x[1],$y[1], darkblue,1,"dashed");
+
+   $xfuncAlpha = sub { my $t = shift();
+      return $x[1]+$radius*cos($t); };
+   $yfuncAlpha = sub { my $t = shift();
+      return $y[1]+$radius*sin($t); };
+   $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $picture[$i] );
+   $fnAlpha->domain(0,pi);
+}
+
+$picture[0]->moveTo($x[1],$y[1]);
+$picture[0]->lineTo($x[2],$y[1], darkblue,1,"dashed");
+
+$picture[1]->stamps( closed_circle($x[1],$y[1],'red') );
+$picture[1]->stamps( closed_circle($x[2],$y[1],'red') );
+$picture[1]->moveTo($x[1],$y[1]);
+$picture[1]->lineTo($x[2],$y[1], red,1,"dashed");
+$picture[1]->lb( new Label(($x[1]+$x[2])/2,$y[1]+$labelShift,"$base/2 = $radiusU",'red','center','middle'));
+
+@alt = ();
+$alt[0] = "The graph shows a shape with a rectangle at the bottom and a semicircle on top of it. The diameter of the semicircle overlaps the top base of the rectangle. For the rectangle, its base is $baseU, and its height is $heightU.";
+
+$alt[1] = $alt[0]." The radius of the semicircle is marked as $base/2=$radiusU.";
+
+##############################################
+$refreshCachedImages = 1;
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Find the perimeter and area of this shape, which is a semicircle on top of a rectangle.
+
+>>[@ image(insertGraph( $picture[0]  ),  width=>240, extra_html_tags => "alt = '$alt[0]' title = '$alt[0]' ") @]*<<
+
+    Its perimeter is [_____________]{$perimeterU} and its area is [_____________]{$areaU}. 
+
+[@KeyboardInstructions(q!(Use [|cm|]* for centimeters and [|cm^2|]* for square centimeters.)!)@]**
+
+END_PGML
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+>>[@ image(insertGraph( $picture[1]  ),  width=>240, extra_html_tags => "alt = '$alt[1]' title = '$alt[1]' ") @]*<<
+
+The perimeter of this shape has a semicircle, and three sides of a rectangle.
+
+To find the perimeter of the semicircle, we use a circle's circumference formula:
+
+    [``\text{circumference} = \pi d``]
+
+where [`d`] is diameter.
+
+For this shape, the semicircle's diameter is simply the rectangle's base. Note that the semicircle's circumference is half of a circle's circumference:
+
+    [``\begin{aligned}[t]
+   \text{semicircle's circumferemce} &= \frac{1}{2}\pi d \\
+   &\approx \frac{1}{2}(3.1415926...)([$base]) \\
+   &\approx [$base*3.1415926*0.5]
+     \end{aligned}``]
+
+Next, we add up the semicircle's circumference with the rectangle's three sides: (Note that the rectangle's top side is not part of the shape's perimeter.)
+
+    [``\begin{aligned}[t]
+   \text{perimeter} &\approx [$base*3.1415926*0.5] + [$height] + [$base] + [$height] \\
+   &\approx [$perimeter]
+     \end{aligned}``]
+
+The shape's perimeter is [`[$perimeterU]`]. 
+
+----
+
+A circle's area formula is:
+
+    [`` \text{circle area} = \pi r^2 ``]
+
+where [`r`] is the circle's radius. Note that a semicircle's area is half of a circle's area:
+
+    [``\begin{aligned}[t]
+       \text{semicircle area} &= \frac{1}{2} \pi r^2\\
+       &\approx \frac{1}{2} (3.1415926...) ([$radius])^2 \\
+       &\approx [$radius*$radius*3.1415926*0.5]
+     \end{aligned}``]
+
+Next, we add up the area of the semicircle and the rectangle:
+
+    [``\begin{aligned}[t]
+       \text{area} &\approx [$radius*$radius*3.1415926*0.5] + [$base]\cdot[$height]\\
+    &\approx [$area]
+     \end{aligned}``]
+
+The shape's area is [`[$areaU]`]. 
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
