@@ -1,0 +1,227 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+# Understand a function based on its graph.
+#
+# Last edited: Carl Yao 2/9/2017
+# ENDDESCRIPTION
+
+##DBCCSS('8.F.4,F.IF.2')
+##Problem('')
+## DBsubject(Algebra)
+## DBchapter(Functions)
+## DBsection(Interpretation and applications)
+## Institution(PCC)
+## Author(Debbie Neft, Alex Jordan, Carl Yao, Chris Hughes)
+## Level(4)
+## MO(1)
+## KEYWORDS('function')
+
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGgraphmacros.pl",
+  "PCCgraphMacros.pl",
+  "parserRadioButtons.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Numeric");
+
+do {
+do {
+   $m1 = random(1,5,1);
+   $func1 = Compute("$m1*x")->reduce;
+   $e1 = random(2,5,1);
+   $e2 = random($e1+1,7,1);
+   $e3 = 10;
+   $m2 = $m1*$e1/($e2-$e3);
+   $b2 = -$m2*$e3;
+   $func2 = Compute("$m2*x+$b2")->reduce;
+   $x3 = random($e2+1,$e3-1,1);
+   $y3 = $func2->eval(x=>$x3);
+   $x2 = $y3/$m1;
+} until ( ($m1*$e1<=10) && ($y3==int($y3)) && ($x2==int($x2)) && ($x2 != $x3));
+
+$px1 = $e1;
+$py1 = $m1*$e1;
+$px2 = $e2;
+$py2 = $m1*$e1;
+
+do {$x1=random(1,9,1);} until ( ($x1!=$x2) && ($x1!=$x3) );
+if ($x1<$e1) {$y1=$x1*$m1;}
+elsif ($x1<$e2) {$y1=$py1;}
+else {$y1=$func2->eval(x=>$x1);}
+} until ($x1 != $y1);
+
+$y2 = $y3;
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([1,9],[1,$m1*$e1,0]);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+for my $i (0..1) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[240,240]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (Real($j) == 0) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+   add_functions($gr[$i], "$func1 for x in <0,$e1> using color:blue and weight:1");
+   add_functions($gr[$i], "$e1*$m1 for x in <$e1,$e2> using color:blue and weight:1");
+   add_functions($gr[$i], "$func2 for x in <$e2,$e3> using color:blue and weight:1");
+
+   $gr[$i]->lb( new Label($max[0], $max[1]/50, "t (seconds)",'black','right','bottom'));
+   $gr[$i]->lb( new Label($max[0]/50, $max[1]-$max[1]/30, "y (feet)",'black','left','middle'));
+}
+
+$gr[1]->stamps( closed_circle($x1,$y1,'red') );
+$gr[1]->lb( new Label($x1+$max[0]/50, $y1, "($x1,$y1)",'red','left','bottom'));
+$gr[1]->stamps( closed_circle($x2,$y2,'red') );
+$gr[1]->lb( new Label($x2+$max[0]/50, $y2, "($x2,$y2)",'red','left','bottom'));
+$gr[1]->stamps( closed_circle($x3,$y3,'red') );
+$gr[1]->lb( new Label($x3-$max[0]/50, $y3, "($x3,$y3)",'red','right','bottom'));
+
+$alt[0] = "This is a graph with the x axis labeled as t in seconds, and y axis labeled as y in feet. There are 3 line segments. The first segments starts at (0,0) and ends at ($px1,$py1). The second segment starts at ($px1,$py1) and ends at ($px2,$py2). The third segment starts at ($px2,$py2) and ends at ($e3,0).";
+
+$alt[1] = "This is a graph with the x axis labeled as t in seconds, and y axis labeled as y in feet. There are 3 line segments. The first segments starts at (0,0) and ends at ($px1,$py1). The second segment starts at ($px1,$py1) and ends at ($px2,$py2). The third segment starts at ($px2,$py2) and ends at ($e3,0). The points ($x1,$y1), ($x2,$y2) and ($x3,$y3) are plotted and labeled.";
+
+
+@answers1 = (
+   "The particle was ".main::math_ev3($y1)." feet away from the starting line ".main::math_ev3($x1)." seconds since timing started.",
+   "The particle was ".main::math_ev3($x1)." feet away from the starting line ".main::math_ev3($y1)." seconds since timing started.",
+   "In the first ".main::math_ev3($x1)." seconds, the particle moved a total of ".main::math_ev3($y1)." feet.",
+   "In the first ".main::math_ev3($y1)." seconds, the particle moved a total of ".main::math_ev3($x1)." feet.",
+);
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+@answersShuffled1 = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+  $answersShuffled1[$i] = @answers1[$scramble{$i}];
+};
+
+$correctAns = @answersShuffled1[$inverse{0}];
+
+$radio1 = RadioButtons(
+   ~~@answersShuffled1,
+   $correctAns, # correct answer
+   order => ~~@answersShuffled1,
+   labels => "ABC",
+);
+
+$ans3 = List($x2,$x3);
+
+@answers2 = (
+   "The article was ".main::math_ev3($y2)." feet from the starting line ".main::math_ev3($x2)." seconds since timing started, and again ".main::math_ev3($x3)." seconds since timing started.",
+   "The article was ".main::math_ev3($y2)." feet from the starting line ".main::math_ev3($x2)." seconds since timing started.",
+   "The article was ".main::math_ev3($y2)." feet from the starting line ".main::math_ev3($x3)." seconds since timing started.",
+   "The article was ".main::math_ev3($y2)." feet from the starting line ".main::math_ev3($x2)." seconds since timing started, or ".main::math_ev3($x3)." seconds since timing started.",
+);
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+@answersShuffled2 = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+  $answersShuffled2[$i] = @answers2[$scramble{$i}];
+};
+
+$correctAns = @answersShuffled2[$inverse{0}];
+
+$radio2 = RadioButtons(
+   ~~@answersShuffled2,
+   $correctAns, # correct answer
+   order => ~~@answersShuffled2,
+   labels => "ABC",
+);
+
+##############################################
+
+
+BEGIN_PGML
+
+The following figure has the graph [`y=d(t)`], which models a particle's distance from the starting line in feet, where [`t`] stands for time in seconds since timing started.
+
+[@EnlargeImageStatementPGML@]**
+
+>>[@ image(insertGraph( $gr[0]  ), tex_size=>400, width=>240,
+extra_html_tags=>"alt= '$alt[0]' title= '$alt[0]'"
+) @]*<<
+
+
+a)  [`d([$x1])=`][_________]
+
+b) Interpret the meaning of [`d([$x1])`]:
+
+    [@$radio1->buttons()@]*
+
+c) Solve [`d(t)=[$y2]`] for [`t`]. [@KeyboardInstructions('Use commas to separate your answers if there are more than one solution.')@]** [`t=`][________]
+
+d) Interpret the meaning of part c's solution(s):
+
+    [@$radio2->buttons()@]*
+
+
+END_PGML
+
+
+##############################################
+
+ANS( Compute("$y1")->cmp() );
+ANS( $radio1->cmp() );
+ANS( $ans3->cmp() );
+ANS( $radio2->cmp() );
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+[@EnlargeImageStatementPGML@]**
+
+>>[@ image(insertGraph( $gr[1]  ), tex_size=>400, width=>240,
+extra_html_tags=>"alt= '$alt[1]' title= '$alt[1]'"
+) @]*<<
+
+a) According to data in the table, [`d([$x1])=[$y1]`].
+
+b) Answer is Part A implies the particle was [`[$y1]`] feet away from the starting line [`[$x1]`] seconds since timing started.
+
+c) According to data in the table, [`d([$x2])=[$y2]`] and [`d([$x3])=[$y3]`]. So the answer is [`[$ans3]`].
+
+d) Answer is Part C implies the article was [`[$y2]`] feet from the starting line [`[$x2]`] seconds since timing started, and again [`[$x3]`] seconds since timing started.
+
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();
