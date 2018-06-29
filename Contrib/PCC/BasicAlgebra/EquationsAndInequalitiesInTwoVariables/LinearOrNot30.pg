@@ -1,0 +1,567 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Judge whether a table's data has linear relationship.
+# 
+# Last updated: Carl Yao, 10/03/16
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Coordinate Geometry')
+## KEYWORDS('coordinates','linear equation')
+## DBCCSS('F-IF.4')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "niceTables.pl",
+  "parserPopUp.pl",
+  "PGcourse.pl",
+);
+sub PF {PGML::Format(@_)};
+
+##############################################
+
+TEXT(beginproblem());
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+
+#The first array has the non-linear function.
+@functions = ( );
+@startX = ( );
+@startY = ( );
+@rate = ( );
+
+do {
+   for (my $i=0;$i<=2;$i++) {
+      $startX[$i] = non_zero_random(-5,5,1);
+      $startY[$i] = non_zero_random(-5,5,1);
+      for (my $j=1;$j<=4;$j++) {
+         $rate[$i][$j] = random(2,5,1)*random(-1,1,2);
+      }
+      $functions[$i][0] = Compute("$rate[$i][1]*x+$startY[$i]")->reduce;
+   }
+} until ($rate[1][1]!=$rate[2][1]);
+
+$a = non_zero_random(-2,2,1);
+$b = random(-5,5,1);
+$functions[0][0] = Compute("$a*x**2+$b")->reduce;
+
+@popup = ( );
+$popup[0] = PopUp(["?", "Yes", "No"], "No");
+$popup[1] = PopUp(["?", "Yes", "No"], "Yes");
+$popup[2] = PopUp(["?", "Yes", "No"], "Yes");
+
+$functions[0][1]=$popup[0];
+$functions[1][1]=$popup[1];
+$functions[2][1]=$popup[2];
+
+for (my $i=0;$i<=2;$i++) {
+   $functions[$i][2] = $startX[$i];
+   $functions[$i][3] = $functions[$i][0]->eval(x=>$functions[$i][2]);
+}
+
+for (my $i=0;$i<=2;$i++) {
+   for (my $j=1;$j<=4;$j++) {
+      $functions[$i][2*($j+1)]=$functions[$i][2*($j)]+random(1,4,1);
+      $functions[$i][2*($j+1)+1]= $functions[$i][0]->eval(x=>$functions[$i][2*($j+1)]);
+   }
+}
+
+$functions[0][12] = "Since rate of change is not the same, ";
+$functions[0][13] = "data in the table is not linear.";
+$functions[1][12] = "Since rate of change is the same, ";
+$functions[1][13] = "data in the table is linear.";
+$functions[2][12] = $functions[1][12];
+$functions[2][13] = $functions[1][13];
+
+@increaseX = ( );
+@increaseY = ( );
+@messageY = ( );
+@messageRate = ( );
+for (my $i=0;$i<=2;$i++) {
+   for (my $j=1;$j<=4;$j++) {
+      $increaseX[$i][$j] = $functions[$i][2*($j+1)]-$functions[$i][2*$j];
+      $increaseY[$i][$j] = $functions[$i][2*($j+1)+1]-$functions[$i][2*($j+1)-1];
+      $messageY[$i][$j] = ($increaseY[$i][$j] > 0) ? " increases " : " decreases ";
+      $rate[$i][$j] = $increaseY[$i][$j]/$increaseX[$i][$j];
+      if (int(100*$rate[$i][$j])!=100*$rate[$i][$j]) {
+         $rate[$i][$j] = sprintf("%.2f",$rate[$i][$j]);
+      }
+      if ($increaseY[$i][$j]/$increaseX[$i][$j]==int($increaseY[$i][$j]/$increaseX[$i][$j])) {
+         $messageRate[$i][$j] = "\frac{$increaseY[$i][$j]}{$increaseX[$i][$j]} = $rate[$i][$j]";
+      } else {
+         $messageRate[$i][$j] = "\frac{$increaseY[$i][$j]}{$increaseX[$i][$j]} \approx $rate[$i][$j]";
+      }
+      $increaseY[$i][$j] = abs($increaseY[$i][$j]);
+   }
+}
+
+#Create a hash and its inverse that randomizes the order of the three problems.
+%scramble = ();
+%inverse = ();
+for my $i (0..2) {
+  do {$temp = list_random(0..2)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+
+
+
+##############################################
+
+$popup0 = $functions[$scramble{0}][1];
+$popup1 = $functions[$scramble{1}][1];
+$popup2 = $functions[$scramble{2}][1];
+$space = " ";
+
+BEGIN_PGML
+
+Decide whether the following tables have linear or non-linear data.
+
+[@DataTable(
+  [
+    [[PF(''),],
+     [PF('[`x`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+     [PF('[`y`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+    ],
+    [[PF(''),],
+     [PF('[`[$functions[$scramble{0}][2]]`]'),],
+     [PF('[`[$functions[$scramble{0}][3]]`]'),],
+    ],
+    [[PF('Is data in the table linear or not?'),],
+     [PF('[`[$functions[$scramble{0}][4]]`]'),],
+     [PF('[`[$functions[$scramble{0}][5]]`]'),],
+    ],
+    [[PF('[___]{$popup0}'),],
+     [PF('[`[$functions[$scramble{0}][6]]`]'),],
+     [PF('[`[$functions[$scramble{0}][7]]`]'),],
+    ],
+    [[PF(''),],
+     [PF('[`[$functions[$scramble{0}][8]]`]'),],
+     [PF('[`[$functions[$scramble{0}][9]]`]'),],
+    ],
+    [[PF(''),],
+     [PF('[`[$functions[$scramble{0}][10]]`]'),],
+     [PF('[`[$functions[$scramble{0}][11]]`]'),],
+    ],
+    [[PF(''),midrule => '1',],
+     [PF(''),],
+     [PF(''),],
+    ],
+  ],
+  align => 'c c c',
+  columnscss =>
+    ['border-right: 0px solid; ',
+     ' ',
+     ' ',],
+);@]*
+
+[@DataTable(
+  [
+    [[PF(''),],
+     [PF('[`x`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+     [PF('[`y`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+    ],
+    [[PF(''),],
+     [PF('[`[$functions[$scramble{1}][2]]`]'),],
+     [PF('[`[$functions[$scramble{1}][3]]`]'),],
+    ],
+    [[PF('Is data in the table linear or not?'),],
+     [PF('[`[$functions[$scramble{1}][4]]`]'),],
+     [PF('[`[$functions[$scramble{1}][5]]`]'),],
+    ],
+    [[PF('[___]{$popup1}'),],
+     [PF('[`[$functions[$scramble{1}][6]]`]'),],
+     [PF('[`[$functions[$scramble{1}][7]]`]'),],
+    ],
+    [[PF(''),],
+     [PF('[`[$functions[$scramble{1}][8]]`]'),],
+     [PF('[`[$functions[$scramble{1}][9]]`]'),],
+    ],
+    [[PF(''),],
+     [PF('[`[$functions[$scramble{1}][10]]`]'),],
+     [PF('[`[$functions[$scramble{1}][11]]`]'),],
+    ],
+    [[PF(''),midrule => '1',],
+     [PF(''),],
+     [PF(''),],
+    ],
+  ],
+  align => 'c c c',
+  columnscss =>
+    ['border-right: 0px solid; ',
+     ' ',
+     ' ',],
+);@]*
+
+[@DataTable(
+  [
+    [[PF(''),],
+     [PF('[`x`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+     [PF('[`y`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+    ],
+    [[PF(''),],
+     [PF('[`[$functions[$scramble{2}][2]]`]'),],
+     [PF('[`[$functions[$scramble{2}][3]]`]'),],
+    ],
+    [[PF('Is data in the table linear or not?'),],
+     [PF('[`[$functions[$scramble{2}][4]]`]'),],
+     [PF('[`[$functions[$scramble{2}][5]]`]'),],
+    ],
+    [[PF('[___]{$popup2}'),],
+     [PF('[`[$functions[$scramble{2}][6]]`]'),],
+     [PF('[`[$functions[$scramble{2}][7]]`]'),],
+    ],
+    [[PF(''),],
+     [PF('[`[$functions[$scramble{2}][8]]`]'),],
+     [PF('[`[$functions[$scramble{2}][9]]`]'),],
+    ],
+    [[PF(''),],
+     [PF('[`[$functions[$scramble{2}][10]]`]'),],
+     [PF('[`[$functions[$scramble{2}][11]]`]'),],
+    ],
+  ],
+  align => 'c c c',
+  columnscss =>
+    ['border-right: 0px solid; ',
+     ' ',
+     ' ',],
+);@]*
+
+
+END_PGML
+
+
+
+##############################################
+
+$showPartialCorrectAnswers=1;
+
+BEGIN_PGML_SOLUTION
+
+[@DataTable(
+  [
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`x`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+     [PF('[`y`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{0}][2]]`]'),],
+     [PF('[`[$functions[$scramble{0}][3]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{0}][1]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{0}][1]] by [`[$increaseY[$scramble{0}][1]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{0}][1]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{0}][4]]`]'),],
+     [PF('[`[$functions[$scramble{0}][5]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{0}][2]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{0}][1]] by [`[$increaseY[$scramble{0}][2]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{0}][2]]`]'),],
+    ],
+    [[PF('[$functions[$scramble{0}][12]]'),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{0}][6]]`]'),],
+     [PF('[`[$functions[$scramble{0}][7]]`]'),],
+     [PF(''),],
+    ],
+    [[PF('[$functions[$scramble{0}][13]]'),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{0}][3]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{0}][1]] by [`[$increaseY[$scramble{0}][3]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{0}][3]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{0}][8]]`]'),],
+     [PF('[`[$functions[$scramble{0}][9]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{0}][4]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{0}][1]] by [`[$increaseY[$scramble{0}][4]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{0}][4]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{0}][10]]`]'),],
+     [PF('[`[$functions[$scramble{0}][11]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),midrule => '1',],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+    ],
+  ],
+  align => 'c c c',
+  columnscss =>
+    ['border-right: 0px solid; ',
+     ' ',
+     ' ',],
+);@]*
+
+[@DataTable(
+  [
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`x`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+     [PF('[`y`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{1}][2]]`]'),],
+     [PF('[`[$functions[$scramble{1}][3]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{1}][1]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{1}][1]] by [`[$increaseY[$scramble{1}][1]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{1}][1]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{1}][4]]`]'),],
+     [PF('[`[$functions[$scramble{1}][5]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{1}][2]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{1}][1]] by [`[$increaseY[$scramble{1}][2]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{1}][2]]`]'),],
+    ],
+    [[PF('[$functions[$scramble{1}][12]]'),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{1}][6]]`]'),],
+     [PF('[`[$functions[$scramble{1}][7]]`]'),],
+     [PF(''),],
+    ],
+    [[PF('[$functions[$scramble{1}][13]]'),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{1}][3]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{1}][1]] by [`[$increaseY[$scramble{1}][3]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{1}][3]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{1}][8]]`]'),],
+     [PF('[`[$functions[$scramble{1}][9]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{1}][4]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{1}][1]] by [`[$increaseY[$scramble{1}][4]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{1}][4]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{1}][10]]`]'),],
+     [PF('[`[$functions[$scramble{1}][11]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),midrule => '1',],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+    ],
+  ],
+  align => 'c c c',
+  columnscss =>
+    ['border-right: 0px solid; ',
+     ' ',
+     ' ',],
+);@]*
+
+[@DataTable(
+  [
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`x`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+     [PF('[`y`]-values'),
+      cellcss => 'border-bottom: 3px solid; ',],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{2}][2]]`]'),],
+     [PF('[`[$functions[$scramble{2}][3]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{2}][1]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{2}][1]] by [`[$increaseY[$scramble{2}][1]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{2}][1]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{2}][4]]`]'),],
+     [PF('[`[$functions[$scramble{2}][5]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{2}][2]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{2}][1]] by [`[$increaseY[$scramble{2}][2]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{2}][2]]`]'),],
+    ],
+    [[PF('[$functions[$scramble{2}][12]]'),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{2}][6]]`]'),],
+     [PF('[`[$functions[$scramble{2}][7]]`]'),],
+     [PF(''),],
+    ],
+    [[PF('[$functions[$scramble{2}][13]]'),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{2}][3]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{2}][1]] by [`[$increaseY[$scramble{2}][3]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{2}][3]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{2}][8]]`]'),],
+     [PF('[`[$functions[$scramble{2}][9]]`]'),],
+     [PF(''),],
+    ],
+    [[PF(''),],
+     [PF('[`x`] increases by [`[$increaseX[$scramble{2}][4]]`]'),],
+     [PF(''),],
+     [PF(''),],
+     [PF('[`y`] [$messageY[$scramble{2}][1]] by [`[$increaseY[$scramble{2}][4]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF(''),],
+     [PF('rate of change is [`[$messageRate[$scramble{2}][4]]`]'),],
+    ],
+    [[PF(''),],
+     [PF(''),],
+     [PF('[`[$functions[$scramble{2}][10]]`]'),],
+     [PF('[`[$functions[$scramble{2}][11]]`]'),],
+     [PF(''),],
+    ],
+  ],
+  align => 'c c c c c',
+  columnscss =>
+    ['border-right: 0px solid; ',
+     ' ',
+     ' ',],
+);@]*
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();
+
+
