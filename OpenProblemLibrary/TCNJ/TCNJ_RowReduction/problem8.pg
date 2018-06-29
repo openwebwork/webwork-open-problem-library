@@ -11,6 +11,7 @@
 ## MLT(1param)
 ## MLTleader(1)
 ## Level(3)
+## MO(1)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Jeffrey Holt')
 ## EditionText1('1')
@@ -21,99 +22,83 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "PGnumericalmacros.pl",
+  "MathObjects.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
-$variablenames=Matrix->new_from_array_ref( [['x'],['y'],['z']] );
+Context("Numeric");
 
-do { 
-  $a = random(3,7,1)*random(-1,1,2);
-  $b = random(3,7,1)*random(-1,1,2);
-  $c = random(3,7,1)*random(-1,1,2);
-  $d = random(3,7,1)*random(-1,1,2);
-} until ($a*$d-$b*$c != 0);
-$e = random(2,9,1)*random(-1,1,2);
-$f = random(2,9,1)*random(-1,1,2);
-$g = random(2,9,1)*random(-1,1,2);
-$h = random(2,9,1)*random(-1,1,2);
+#coefficients for system AX=b with rank 2.  
+# first and last rows of A are independent and 
+# the second row of A is a linear combination of the other two rows. 
+
+do { $a11 = random(3,7,1)*random(-1,1,2);
+     $a12 = random(3,7,1)*random(-1,1,2);
+     $a31 = random(2,9,1)*random(-1,1,2);    
+     $a32 = random(2,9,1)*random(-1,1,2); 
+} until ($a11*$a32-$a31*$a12 != 0);  
+ 
+$a13 = random(3,7,1)*random(-1,1,2);
+$b1 = random(3,7,1)*random(-1,1,2);
+$a33 = random(2,9,1)*random(-1,1,2);
+$b3 = random(2,9,1)*random(-1,1,2);
+
 $mult1 = random(1,3,2)*random(-1,1,2);
-$mult2 = random(2,4,2)*random(-1,1,2);
-$i = $a*$mult1+$e*$mult2;
-$j = $b*$mult1+$f*$mult2;
-$k = $c*$mult1+$g*$mult2;
-$l = $d*$mult1+$h*$mult2 + random(-5,5,2);
+$mult3 = random(2,4,2)*random(-1,1,2);
 
-$A1=Matrix->new_from_array_ref( [[$a, $b, $c],[$e, $f, .5],[$i, $j, $k]]);
-$B1=Matrix->new_from_array_ref([[$d], [$h], [$l]]);
-$C1=Mat2System($A1,$B1,$variablenames);
+$a21 = $a11*$mult1 + $a31*$mult3;
+$a22 = $a12*$mult1 + $a32*$mult3;
+$a23 = $a13*$mult1 + $a33*$mult3;
 
-$NO_SPACE = '@{}';
+# perturbed away from the linear comb to produce inconsistent equations
+$b2 = $b1*$mult1 + $b3*$mult3 + random(-5,5,2);   
 
-$ans = $g;
+# the answer
+$ans=Real($a23); 
 
+# left side: A matrix,  replacing a23 with k
+
+@a = ([$a11,$a12,$a13], [$a21,$a22,"k"], [$a31,$a32,$a33] );
+@b = ($b1,$b2,$b3);
+
+## format nice display of equations 
+
+@vname=("x","y","z");
+
+$eqnString = "\begin{alignedat}{6}\\";
+for ($i=0; $i<3; $i++){
+  $eqnline = "$a[$i][0] $vname[0]" ;
+  for ($j=1; $j<3; $j++){
+    if ($a[$i][$j]>0 or $a[$i][$j] eq "k"){
+      $sign = "+";
+      $coeff = $a[$i][$j];
+    } 
+    else {
+      $sign = "-";
+      $coeff = -$a[$i][$j];
+    }
+    $eqnline = $eqnline . "& $sign & $coeff & $vname[$j] &";
+  }
+  $eqnline = $eqnline . "& = & $b[$i] & \\";
+  $eqnString = $eqnString . $eqnline;
+}
+$eqnString = $eqnString . "\end{alignedat}";
+
+Context()->texStrings;
 BEGIN_TEXT
-$BR
 For the following system to be consistent, 
 $BR
-$BR
-\( $C1 \) 
-$BR
-$BR
+\( $eqnString \) 
+$PAR
 we must have, \(k\neq\) \{ans_rule(10)\}
 
 END_TEXT
 
-sub Mat2System{
-    my $coeffs=shift();
-    my $vec = shift();
-    my $vname=shift();
-    my ($srow,$scol) = $coeffs->dim();
-    my ($vrow,$vcol) = $vec->dim();
-    my ($vnamerow,$vnamecol) = $vname->dim();
-    die "Wrong number of rows or columns" if (($vcol !=1) || ($vrow != $srow) || ($vnamecol !=1)  || ($vrow != $vnamerow));
-    my $outstr="\begin{array}";
-    my $s;
+Context()->normalStrings;
 
-$outstr = $outstr . '{r';
-for(my $j=0; $j<$scol; $j++){
-   $outstr = $outstr . 'rr';
-}
-$outstr = $outstr . 'r}';
-
-for(my $j=0;$j<$srow;$j++){ 
-     $s=0; 
-for(my $i=0,my $vn=1;$i<$scol;$i++,$vn++){ 
-my $varname=$vname->element($vn,1);
-my $a=$coeffs->element($j+1,$i+1); 
-if($a==0){ 
-## if coefficient is 0 then goto the next column by putting 2 &&'s
-$outstr = $outstr . '&&'; 
-}elsif($a>0){ 
-if($a==1){$a="";} 
-if($a==.5){$a="k";}
-if($s==0){$outstr = $outstr . "& $a \,$varname";$s=1;
-} else{$outstr=$outstr . "&+& $a \, $varname";} 
-}else{ 
-if($s == 1){ 
-$a=-$a; 
-if($a==1){$a="";} 
-$outstr= $outstr . "&- &$a \,$varname"; 
-}else{
-if($a==-1){$a="-";}
-$outstr = $outstr . "& $a \, $varname";$s=1;}
- } 
-} 
-$outstr = $outstr . "&=&" . $vec->element($j+1,1). "\\"; 
-} 
-$outstr= $outstr . ' \end{array}'; 
-return $outstr; }
-
-ANS(num_cmp($ans));
+ANS($ans->cmp());
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.
