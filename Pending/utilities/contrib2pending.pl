@@ -9,14 +9,16 @@ use WeBWorK::Utils::Tags;
 
 my $rejectfile = "Pending/NotAccepted";
 
-do {
-	print "Usage: contrib2pending.pl path/to/main/directory\n";
-	print "       which has subdirectories of Contrib, Pending, etc.\n";
-	print "       It is best if the path is absolute.\n";
-	exit;
-} unless scalar(@ARGV);
+#do {
+#	print "Usage: contrib2pending.pl path/to/main/directory\n";
+#	print "       which has subdirectories of Contrib, Pending, etc.\n";
+#	print "       It is best if the path is absolute.\n";
+#	exit;
+#} unless scalar(@ARGV);
 
-my $topdir = $ARGV[0];
+my $topdir = '/home/jj/webwork/OPL-git/webwork-open-problem-library';
+$topdir = $ARGV[0] if scalar(@ARGV);
+
 opendir TOPDIR, $topdir or die "cannot read directory $topdir: $!";
 my @allsubs = readdir TOPDIR;
 closedir TOPDIR;
