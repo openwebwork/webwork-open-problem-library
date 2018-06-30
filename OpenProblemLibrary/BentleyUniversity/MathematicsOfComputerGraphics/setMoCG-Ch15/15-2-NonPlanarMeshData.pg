@@ -1,0 +1,263 @@
+##DESCRIPTION
+## Given nonplanar meshes, give the # of vertices, faces, edges, and Euler characteristic
+##ENDDESCRIPTION
+
+## DBsubject('Graph theory')
+## DBchapter('Terminology')
+## DBsection('Misc.')
+## Date('04/24/2018')
+## Author('Nathan Carter')
+## Institution('Bentley University')
+## TitleText1('Introduction to the Mathematics of Computer Graphics')
+## EditionText1('1')
+## AuthorText1('Nathan Carter')
+## Section1('15')
+## Problem1('2')
+##KEYWORDS('nonplanar mesh','vertex','edge','face','Euler characteristic')
+
+########################################################################
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGcourse.pl",
+  "parserPopUp.pl",
+  "PGgraphmacros.pl",
+);
+
+Context("Numeric");
+Context()->variables->add(n=>'Real');
+$showPartialCorrectAnswers = 1;
+
+$pi = 3.1415926539793;
+sub angle {
+    my $index = shift( @_ );
+    my $outof = shift( @_ );
+    return 2 * $pi * $index / $outof;
+}
+sub X { return cos( angle( @_ ) ); }
+sub Y { return sin( angle( @_ ) ); }
+sub line {
+    my $graph = shift( @_ );
+    my $x1 = shift( @_ );
+    my $y1 = shift( @_ );
+    my $x2 = shift( @_ );
+    my $y2 = shift( @_ );
+    my $type = shift( @_ );
+    my $dashed = shift( @_ );
+    $graph->moveTo( $x1, $y1 );
+    if ( $dashed ) {
+        $graph->lineTo( $x2, $y2, $type, 1, 'dashed' );
+    } else {
+        $graph->lineTo( $x2, $y2, $type );
+    }
+}
+# when drawing a ring of points connected by edges, is point $i out of $n
+# in the back, occluded by faces in front of it, or no?
+# to find this out, provide:
+#   $i = the index of the point in question
+#   $n = the number of points in the ring (so 0<=$i<$n)
+#   (we assume the points are then arranged in the unit circle w/$i=0@angle0)
+#   $offset = by how much to shift $i before drawing
+#   $v1,$v2 = unit vector pointing towards the frontmost point in the ring
+# we determine it by finding out if for any $j in 0<=$j<$n, face $j
+# would occlude vertex $i.
+# to do so, we check whether the vector from $i to <v1,v2> aims through
+# the line segment from point $j to point $j+1.
+# we compute two vectors: <w1,w2>=pointj-pointi and <w3,w4>=same but j+1
+# then it occludes if the angle between <w1,w2>&<w3,w4> is the largest
+# of the three angles among the vectors <v1,v2>,<w1,w2>,<w3,w4>
+sub ptinback {
+    my $i = shift( @_ );
+    my $n = shift( @_ );
+    my $offset = shift( @_ );
+    my $v1 = shift( @_ );
+    my $v2 = shift( @_ );
+    my $angle = acos( $v1 / ( $v1**2 + $v2**2 ) ** 0.5 );
+    if ( $v2 < 0 ) { $angle = -$angle; }
+    my $adj = - $angle / ( 2 * $pi ) * $n;
+    $x = X($i+$adj+$offset,$n);
+    $y = Y($i+$adj+$offset,$n);
+    for ( my $j = 0 ; $j < $n ; $j++ ) {
+        my $x1 = X($j+$adj+$offset,$n);
+        my $y1 = Y($j+$adj+$offset,$n);
+        my $x2 = X($j+$adj+1+$offset,$n);
+        my $y2 = Y($j+$adj+1+$offset,$n);
+        if ( ( $x1 > $x ) && ( $x2 > $x )
+          && ( ( ( $y1 < $y ) && ( $y < $y2 ) )
+            || ( ( $y1 > $y ) && ( $y > $y2 ) ) ) ) {
+            return 1;
+        }
+    }
+    return 0;
+}
+# same as previous, but for segment from $i to $i+1
+sub seginback {
+    my $i = shift( @_ );
+    my $n = shift( @_ );
+    my $offset = shift( @_ );
+    my $v1 = shift( @_ );
+    my $v2 = shift( @_ );
+    my $result = ptinback($i+0.01,$n,$offset,$v1,$v2)
+              || ptinback($i+0.99,$n,$offset,$v1,$v2);
+    return $result;
+}
+
+$n1 = random( 3, 6 );
+$g1 = init_graph(-3.1,-2.1,3.1,2.1,size=>[300,200]);
+$offset = 0.2;
+for ( my $i = 0 ; $i < $n1 ; $i++ ) {
+    my $j = $i+$offset;
+    line( $g1, -2+X($j,$n1), -1+Y($j,$n1),
+               -2+X($j+1,$n1), -1+Y($j+1,$n1), 'black' );
+    line( $g1, -2+X($j,$n1), -1+Y($j,$n1),
+               2+X($j,$n1), 1+Y($j,$n1), 'black',
+               ptinback($i,$n1,$offset,2,1) );
+    line( $g1, 2+X($j,$n1), 1+Y($j,$n1),
+               2+X($j+1,$n1), 1+Y($j+1,$n1), 'black',
+               seginback($i,$n1,$offset,2,1) );
+}
+
+$n2 = random( 5, 8 );
+$g2 = init_graph(-3.1,-2.1,3.1,3.1,size=>[300,250]);
+$offset = 0.06;
+for ( my $i = 0 ; $i < $n2 ; $i++ ) {
+    my $j = $i+$offset;
+    line( $g2, 3*X($j,$n2), -1+Y($j,$n2),
+               3*X($j+1,$n2), -1+Y($j+1,$n2), 'black',
+               seginback($i,$n2,$offset,0,-1));
+    line( $g2, 3*X($j,$n2), -1+Y($j,$n2), 0, 3, 'black',
+               ptinback($i,$n2,$offset,0,-1) );
+}
+
+$n3 = random( 4, 6 );
+$g3 = init_graph(-3.1,-4.1,3.1,4.1,size=>[300,450]);
+$offset = -0.25;
+for ( my $i = 0 ; $i < $n3 ; $i++ ) {
+    my $j = $i+$offset;
+    line( $g3, 3*X($j,$n3), Y($j,$n3),
+               3*X($j+1,$n3), Y($j+1,$n3), 'black',
+               seginback($i,$n3,$offset,0,-1));
+    line( $g3, 3*X($j,$n3), Y($j,$n3), 0, 4, 'black',
+               ptinback($i,$n3,$offset,0,-1) );
+    line( $g3, 3*X($j,$n3), Y($j,$n3), 0, -4, 'black',
+               ptinback($i,$n3,$offset,0,-1) );
+}
+
+$n4 = random( 5, 8 );
+$g4 = init_graph(-3.1,-4.1,3.1,4.1,size=>[300,450]);
+$offset = 0.06;
+for ( my $i = 0 ; $i < $n4 ; $i++ ) {
+    my $j = $i+$offset;
+    line( $g4, 3*X($j,$n4), Y($j,$n4),
+               3*X($j+1,$n4), Y($j+1,$n4), 'black',
+               seginback($i,$n4,$offset,0,-1));
+    line( $g4, 3*X($j,$n4), -3+Y($j,$n4),
+               3*X($j+1,$n4), -3+Y($j+1,$n4), 'black',
+               seginback($i,$n4,$offset,0,-1));
+    line( $g4, 3*X($j,$n4), Y($j,$n4), 0, 4, 'black',
+               ptinback($i,$n4,$offset,0,-1) );
+    line( $g4, 3*X($j,$n4), Y($j,$n4),
+               3*X($j,$n4), -3+Y($j,$n4), 'black',
+               ptinback($i,$n4,$offset,0,-1) );
+}
+
+TEXT(beginproblem());
+BEGIN_PGML
+Consider the following solid object formed from a mesh.
+
+[@ image(insertGraph($g1), width=>300, height=>200) @]*
+
+Give the values of [`V`], [`E`], [`F`], and [`\chi`].
+
+[`V=`][_____]{2*$n1}
+
+[`E=`][_____]{3*$n1}
+
+[`F=`][_____]{$n1+2}
+
+[`\chi=`][_____]{2}
+
+-----
+
+Consider the following solid object formed from a mesh.
+
+[@ image(insertGraph($g2), width=>300, height=>250) @]*
+
+Give the values of [`V`], [`E`], [`F`], and [`\chi`].
+
+[`V=`][_____]{$n2+1}
+
+[`E=`][_____]{2*$n2}
+
+[`F=`][_____]{$n2+1}
+
+[`\chi=`][_____]{2}
+
+-----
+
+Consider the following solid object formed from a mesh.
+
+[@ image(insertGraph($g3), width=>300, height=>450) @]*
+
+Give the values of [`V`], [`E`], [`F`], and [`\chi`].
+
+[`V=`][_____]{$n3+2}
+
+[`E=`][_____]{3*$n3}
+
+[`F=`][_____]{2*$n3}
+
+[`\chi=`][_____]{2}
+
+-----
+
+Consider the following solid object formed from a mesh.
+
+[@ image(insertGraph($g4), width=>300, height=>450) @]*
+
+Give the values of [`V`], [`E`], [`F`], and [`\chi`].
+
+[`V=`][_____]{2*$n4+1}
+
+[`E=`][_____]{4*$n4}
+
+[`F=`][_____]{2*$n4+1}
+
+[`\chi=`][_____]{2}
+END_PGML
+
+BEGIN_PGML_SOLUTION
+The first object:
+
+- [$n1] vertices in front and in back, for a total of [`V=[$n1*2]`]
+- [$n1] edges in the front cycle, the same in the back cycle, and [$n1] again connecting front to back, for a total of [`E=[$n1*3]`]
+- one face in front, one in back, and [$n1] around the center, for a total of [`F=[$n1+2]`]
+- [`\chi=V-E+F=2`]
+
+The second object:
+
+* [$n2] vertices around the base and one on top, for a total of [`V=[$n2+1]`]
+* [$n2] edges around the base and the same number connecting the base to the top, for a total of [`E=[$n2*2]`]
+* one face on bottom and [$n2] around the sides, for a total of [`F=[$n2+1]`]
+* [`\chi=V-E+F=2`]
+
+The third object:
+
+* [$n3] vertices around the center plus one on top and one on bottom, for a total of [`V=[$n3+2]`]
+* [$n3] edges around the center, the same connecting the center to the top, and the same again connecting the center to the bottom, for a total of [`E=[$n3*3]`]
+* [$n3] faces around the top half and the same number around the bottom half, for a total of [`F=[$n3*2]`]
+* [`\chi=V-E+F=2`]
+
+The fourth object:
+
+* [$n4] vertices around the top ring, the same number around the bottom ring, and one on top, for a total of [`V=[$n4*2+1]`]
+* From top to bottom: [$n4] edges around the conical cap, [$n4] edges around the base of the cap, [$n4] edges around the cylindrical bottom, and [$n4] edges around the base of the whole shape, for a total of [`E=[$n4*4]`]
+* From top to bottom: [$n4] faces around the conical cap, [$n4] faces around the cylinder, and one on bottom, for a total of [`F=[$n4*2+1]`]
+* [`\chi=V-E+F=2`]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
