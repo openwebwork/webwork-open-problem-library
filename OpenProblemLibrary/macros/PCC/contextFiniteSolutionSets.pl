@@ -38,8 +38,9 @@ x=1 or x=2
 The "x" should be the only context variable, and it should be what the student
 needed to solve for.
 
-If the answer is not submitted like {1,2}, then there is a message that this is
-the preferred form (but the student still gets credit).
+If the answer is not submitted like {1,2}, and if the flag preferSetNotation is
+set to 1 (which is the default) then there is a message that this is the 
+preferred form (but the student still gets credit).
 
 Answers like 2/3 and (1+sqrt(2))/3 need to be in that form, so the problem 
 author needs to be careful to not do things like Formula("1/2,$a/$b,3/4")
@@ -72,6 +73,7 @@ sub _contextFiniteSolutionSets_init {
     checkRoot => 0,
     setSqrt => exp(1)/main::ln(2),
     wrongFormMessage => 'Your answer is numerically correct, but not in the expected form',
+    preferSetNotation => 1,
     #tolerance => 0.00001,
     
   );
@@ -240,7 +242,7 @@ sub _contextFiniteSolutionSets_init {
      #
      #  Express a preference for formatting
      #
-     if ($studentFormula->type ne 'Set' and $m == $score) {push(@errors,"The preferred notation for the solution set is${BR}{" . join(',',@correctanswers) . '}' )};
+     if ($studentFormula->type ne 'Set' and $m == $score and Context()->flags->get('preferSetNotation') == 1 ) {push(@errors,"The preferred notation for the solution set is${BR}{" . join(',',@correctanswers) . '}' )};
      return ($score,@errors);
   };
 }
