@@ -1,0 +1,210 @@
+## DBsubject(Statistics)
+## DBchapter(Time series)
+## DBsection(Autocorrelation)
+## Level(4)
+## MO(1)
+## level(4)
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGgraphmacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "unionTables.pl",
+  "parserPopUp.pl",
+  "RserveClient.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+Context("Numeric");
+
+
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_start();
+
+rserve_eval("set.seed($seed)");
+## do not need to download data
+@data = rserve_eval('
+sigma <- round(runif(1, min=0.5, max=1.5), 1)
+alpha1 <- runif(1, min=0.2, max=0.8)
+alpha <- round(alpha1, 1)
+alpha2 <- alpha1+0.18
+alpha3 <- alpha1-0.18
+
+# part (a)
+ans.a <- round( sigma^2 / (1 - alpha^2), 4)
+ans.c <- round( alpha * sigma^2 / (1 - alpha^2), 4)
+
+c(ans.a,ans.c,sigma,alpha)
+');
+
+$sigma = $data[2];
+$alpha = $data[3];
+
+
+# Answers to part d
+# For the plot in the answer
+$file = rserve_start_plot('png');
+rserve_eval("plot(0:7,ARMAacf(alpha, lag.max = 7), xlab='Lag', ylab='Acf')");
+$filepath1 = rserve_finish_plot($file);
+
+$file = rserve_start_plot('png');
+rserve_eval("plot(0:7,ARMAacf(alpha2, lag.max = 7), xlab='Lag', ylab='Acf')");
+$filepath2 = rserve_finish_plot($file);
+
+$file = rserve_start_plot('png');
+rserve_eval("plot(0:7,ARMAacf(alpha3, lag.max = 7), xlab='Lag', ylab='Acf')");
+$filepath3 = rserve_finish_plot($file);
+
+rserve_finish();
+
+# Part d
+$img_file[0] =$filepath1;
+$img_file[1] =$filepath2;
+$img_file[2] =$filepath3;
+
+for $i (0..2) {
+  $fig[$i]=image($img_file[$i], width=>400, height=>400);
+}
+
+$k = 0;
+
+@perm = shuffle(3);
+@fig = @fig[@perm];
+@inv = invert(@perm);
+
+@letter = ("A", "B", "C");
+
+$popup = PopUp(["?????","A","B","C"], $letter[$inv[$k]]);
+
+# Answers to part b
+$q2mc = new_multiple_choice();
+$q2mc -> qa(
+"Is \(X_t\) stationary?",
+"Yes."
+);
+$q2mc -> extra(
+"No.", 
+"It is impossible to tell from the information given."
+);
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Suppose \(Z_t\) is white noise with mean zero and variance \($sigma^2\). Define the stochastic process \(X_t\) by the rule
+\[
+X_t = $alpha X_{t-1} + Z_t
+\]
+
+$BR
+$BR
+$BBOLD Part (a)  $EBOLD
+Find the variance of \(X_t\) to two decimal places.
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (b) $EBOLD
+\{ $q2mc -> print_q() \}
+$BR
+\{ $q2mc -> print_a() \}
+$PAR
+$BBOLD Part (c) $EBOLD
+Find the autocovariance of \(X_t\) at lag 1, to two decimal places.
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (d) $EBOLD
+Which of the following is the autocorrelation function of \(X_t\)?
+$BR
+$BR
+\{ $popup->menu() \}
+$BR
+$BR
+$BCENTER
+\{
+BeginTable().
+  AlignedRow([$fig[0],$fig[1]]).
+  TableSpace(5,0).
+  AlignedRow(["A","B"]).
+  TableSpace(25,6).
+  AlignedRow([$fig[2]]).
+  TableSpace(5,0).
+  AlignedRow(["C"]).
+EndTable();
+\}
+$BR
+(Click on a graph to enlarge it.)
+$ECENTER
+
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($data[0], tol=> 0.02) );
+ANS( radio_cmp( $q2mc -> correct_ans() ) );
+ANS( num_cmp($data[1], tol=> 0.02) );
+ANS( $popup->cmp() );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+
+BEGIN_SOLUTION
+$BBOLD Part (a) $EBOLD
+Writing \(X_t\) in the \(MA(\infty)\) form,
+$BR
+\[ 
+\begin{eqnarray*}
+Var(X_t) &=& Var(Z_t + $alpha Z_{t-1} + $alpha^2 Z_{t-2} + ...) \\
+&=& Var(Z_t) + Var( $alpha Z_{t-1}) + Var( $alpha^2 Z_{t-2} ) + ... \\
+&=& Var(Z_t) + $alpha^2 Var(Z_{t-1}) + $alpha^4 Var(Z_{t-2}) + ...\\
+&=& $sigma^2 * (1 + {($alpha)}^2 + {($alpha)}^4 + ...)  \\
+&=& \frac{$sigma^2}{ 1- $alpha^2} \\
+&=& $data[0]
+\end{eqnarray*}
+\]
+
+$BBOLD Part (b) $EBOLD
+Since the absolute value of the coefficient on \(X_{t-1}\) is less than unity, the process is stationary.
+$BR
+
+$BBOLD Part (c) $EBOLD
+As the process is stationary, the acvf depends only on the lag. In this case
+$BR
+\[ 
+\begin{eqnarray*}
+\gamma(1) &=& E(X_t X_{t+1}) \\
+&=& E\left( \sum_{i=0}^{\infty } {($alpha)}^{i}Z_{t-i}
+\sum_{j=0}^{\infty }{($alpha)}^{j}Z_{t+1-j} \right)  \\
+&=& $sigma^{2}\sum_{i=0}^{\infty }{($alpha)}^{i}{($alpha)}^{1+i} \\
+&=& \frac{{($alpha)} * {$sigma}^{2}}{1-{($alpha)}^{2}} 
+&=& $data[1] \\
+\end{eqnarray*}
+\]
+
+$BBOLD Part (d) $EBOLD
+We note from arguments similar to that in (c) that \( \rho (k) \) is \($alpha^k\).
+END_SOLUTION
+
+ENDDOCUMENT();

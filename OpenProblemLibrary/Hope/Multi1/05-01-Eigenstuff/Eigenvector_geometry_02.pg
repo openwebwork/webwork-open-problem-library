@@ -1,0 +1,317 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(December 2015)
+## Institution(Hope College)
+## Author(Paul Pearson)
+## Level(4)
+## MO(1)
+## KEYWORDS('eigenvectors','eigenvalues','eigenspaces')
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGgraphmacros.pl",
+  "contextLimitedVector.pl",
+  "AnswerFormatHelp.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "unionTables.pl",
+  "parserPopUp.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl"
+);
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+$showPartialCorrectAnswers = 1;
+
+Context("LimitedVector-coordinate")->variables->are(x=>'Real',y=>'Real');
+
+$num_vects = 8;
+foreach my $i (1..$num_vects) {
+  Context()->strings->add( 'v'.$i =>{ TeX=> "\mathbf{v_{$i}}" });
+}
+Context()->flags->set(
+    formatStudentAnswer=>'parsed',
+    ijk=>0
+);
+
+# construct a color gradient
+#
+sub makegradient # ($graph, $steps, $r0, $g0, $b0, $r1, $g1, $b1)
+{
+  my ($graph, $steps, $r0, $g0, $b0, $r1, $g1, $b1) = @_;
+  my $dr = ($r1 - $r0) / $steps;
+  my $dg = ($g1 - $g0) / $steps;
+  my $db = ($b1 - $b0) / $steps;
+
+  my $r = $r0;
+  my $g = $g0;
+  my $b = $b0;
+  for my $i (0..$steps-1)
+  {
+    $graph->new_color("gradient$i",$r,$g,$b);
+    $r += $dr;
+    $g += $dg;
+    $b += $db;
+  }
+  return $graph;
+}
+
+# Construct graph canvases
+
+$pixels = 401;
+@gr = ();
+
+($xmin,$xmax) = (-9,9);
+($ymin,$ymax) = (-9,9);
+
+foreach my $i (0..1) {
+
+  $gr[$i] = init_graph($xmin,$ymin,$xmax,$ymax, axes=>[0,0], size=>[$pixels,$pixels]);
+  $gr[$i] -> lb('reset');
+
+  #  manually draw the grid
+  foreach my $x ($xmin..$xmax) {
+    $gr[$i] -> moveTo($x,$ymin);
+    $gr[$i] -> lineTo($x,$ymax,'gray',1);
+  }
+  foreach my $y ($ymin..$ymax) {
+    $gr[$i] -> moveTo($xmin,$y);
+    $gr[$i] -> lineTo($xmax,$y,'gray',1);
+  }
+
+  #  axes labels
+  $gr[$i] -> lb(new Label ( $xmax-0.5,0,'x','black','left','bottom'));
+  $gr[$i] -> lb(new Label ( 0.25,$ymax-0.5,'y','black','left','bottom'));
+
+  foreach my $x (($xmin+1)..-1,1..($xmax-1)) {
+    $gr[$i] -> lb(new Label ( $x,$ymin+0.75, $x,'black','center','top'));
+  }
+  foreach my $y (($ymin+1)..-1,1..($ymax-1)) {
+    $gr[$i] -> lb(new Label ($xmin+0.75, $y, $y,'black','right','middle'));
+  }
+
+  #  Add to $gr[$i] a $num_vects step color gradient
+  $gr[$i] = &makegradient($gr[$i], $num_vects,
+  0,0,225,    # RGB blue
+  225,0,0     # RGB red
+  );
+
+} # end constructing graph canvases
+
+
+################################
+#  plot vectors in domain
+
+$r = 3;
+@theta = ();
+@x1 = (); # domain of T
+@y1 = (); # domain of T
+
+foreach my $i (1..$num_vects) {
+  $theta[$i] = 2*3.14159 * (($i-1) / $num_vects);
+  $x1[$i] = $r * cos($theta[$i]); # domain
+  $y1[$i] = $r * sin($theta[$i]); # domain
+
+  $gr[0]->moveTo(0,0);
+  my $j = $i - 1;
+  $gr[0]->arrowTo($x1[$i], $y1[$i], "gradient".$j, 3);
+  $gr[0]->lb(new Label (1.2*$x1[$i],1.2*$y1[$i], ' v'."$i".' ', 'gradient'.$j, 'center','middle'));
+}
+
+###############################
+#  plot vectors in codomain
+
+#  indices for e-vects in the first eigenspace
+$i1 = random(1,2,1);
+$i3 = ($num_vects/2) + $i1;
+
+#  indices for e-vects in the second eigenspace
+$i2 = random(3,4,1);
+$i4 = ($num_vects/2) + $i2;
+
+$evects = List('v'.$i1, 'v'.$i2, 'v'.$i3, 'v'.$i4);
+
+#  eigenvalues
+$k1 = list_random(0.6,0.8); # for i1 and i3
+$k2 = list_random(1.4, 1.5, 1.6, 1.8, 2, 2.2);
+
+$P = Matrix([
+[$x1[$i1],$x1[$i2]],
+[$y1[$i1],$y1[$i2]]
+]);
+
+$D = Matrix([
+[$k1, 0],
+[0, $k2]
+]);
+
+$A = $P * $D * ($P->inverse); # matrix for the linear transformation T
+
+$a11 = $A->element(1,1); $a12 = $A->element(1,2);
+$a21 = $A->element(2,1); $a22 = $A->element(2,2);
+
+@x2 = ();
+@y2 = ();
+@length2 = ();
+foreach my $i (1..$num_vects) {
+  $x2[$i] = $a11 * $x1[$i] + $a12 * $y1[$i];
+  $y2[$i] = $a21 * $x1[$i] + $a22 * $y1[$i];
+  $length2[$i] = Real( sqrt( ($x2[$i])**2 + ($y2[$i])**2 ) );
+
+  $gr[1]->moveTo(0,0);
+  my $j = $i - 1;
+  $gr[1]->arrowTo($x2[$i], $y2[$i], "gradient".$j, 3);
+  $gr[1]->lb(new Label (1.3*$x2[$i],1.2*$y2[$i], 'T(v'."$i".')', 'gradient'.$j, 'center','middle'));
+}
+
+
+
+#######################################
+#  make figures
+
+@fig = ();
+$fig[0] = image(insertGraph($gr[0]), width=>$pixels, height=>$pixels, tex_size=>450);
+$fig[1] = image(insertGraph($gr[1]), width=>$pixels, height=>$pixels, tex_size=>450);
+
+#######################################
+#  popups
+
+@popup = ();
+$popup[0] = PopUp(['choose','Yes','No','Cannot be determined'],'Yes');
+$popup[1] = PopUp(['choose','Yes','No','Cannot be determined'],'Yes');
+
+$popup[2] = PopUp(['choose','Yes','No','Cannot be determined'],'Yes');
+$popup[3] = PopUp(['choose','Yes','No','Cannot be determined'],'Yes');
+
+$popup[4] = PopUp(['choose','distinct real values','repeated real values','complex values'],'distinct real values');
+$popup[5] = PopUp(['choose','scales by two different values along two different lines through the origin','scales every vector in the plane by the same value','rotates the plane and scales it by two different values','rotates the plane and scales it by one value'],'scales by two different values along two different lines through the origin');
+$popup[6] = PopUp(['choose','Yes, T preserves angles','No, T does not preserve angles','Cannot be determined'],'No, T does not preserve angles');
+$popup[7] = PopUp(['choose','Yes','No','Cannot be determined'],'No');
+
+
+#######################################
+#  multiple choice
+
+$mc1 = new_checkbox_multiple_choice();
+$mc1 -> qa (
+"The set of all eigenvectors of the linear transformation \( T \) with eigenvalue \( $k1 \) together with the zero vector \( \langle 0, 0 \rangle \) is the eigenspace \( E_{$k1} \).  When described in words, the set \( E_{$k1} \) is (select all that apply):",
+"the zero vector together with all vectors parallel to \( \mathbf{v_{$i1}} \)",
+"the line \( \mathcal{L}(t) = t \mathbf{v_{$i1}} \) through the origin, where \( t \) is any real number",
+);
+$mc1 -> extra(
+"the zero vector together with all vectors parallel to \( \mathbf{v_{$i2}} \)",
+"the line \( \mathcal{L}(t) = t \mathbf{v_{$i2}} \) through the origin, where \( t \) is any real number",
+);
+#$mc1 -> makeLast("None of the above");
+
+$mc2 = new_checkbox_multiple_choice();
+$mc2 -> qa (
+"The set of all eigenvectors of the linear transformation \( T \) with eigenvalue \( $k2 \) together with the zero vector \( \langle 0, 0 \rangle \) is the eigenspace \( E_{$k2} \).  When described in set notation, the set \( E_{$k2} \) is (select all that apply):",
+"\( \lbrace t \mathbf{v_{$i2}} \mid t \in \mathbb{R} \rbrace \)",
+"\( \lbrace t \mathbf{v_{$i4}} \mid t \in \mathbb{R} \rbrace \)",
+);
+$mc2 -> extra(
+"\( \lbrace t \mathbf{v_{$i1}} \mid t \in \mathbb{R} \rbrace \)",
+"\( \lbrace t \mathbf{v_{$i3}} \mid t \in \mathbb{R} \rbrace \)",
+);
+#$mc2 -> makeLast("None of the above");
+
+
+#######################################
+Scaffold::Begin(
+    can_open => "when_previous_correct",
+    is_open  => "first_incorrect",
+    hardcopy_is_open => "always",
+);
+
+BEGIN_PGML
+Suppose [` T: \mathbb{R}^2 \to \mathbb{R}^2 `] is the linear transformation defined in the figure below.
+The figure shows where [`T`] maps [$num_vects] vectors [` \mathbf{v_1}, \ldots, \mathbf{v_{ [$num_vects] }}`] from the domain.
+With this limited information about [`T`], what properties of [`T`] can be determined?
+
+[@
+BeginTable().
+  AlignedRow([ $fig[0],"\\( \\Large \\stackrel{T}{\\to} \\)", $fig[1] ]).
+  TableSpace(5,0).
+  AlignedRow(["domain"," " ,"codomain"]).
+EndTable().$PAR
+@]***
+END_PGML
+
+Section::Begin("Part 1: Finding eigenvectors using geometry");
+BEGIN_PGML
+Which of the [$num_vects] vectors drawn in the domain are eigenvectors?  Enter your answer as a comma separated list of vector names, such as [|v1,v2|].
+
++ Eigenvectors: [______________________]{$evects}
+END_PGML
+Section::End();
+
+Section::Begin("Part 2: Finding eigenvalues using geometry");
+BEGIN_PGML
+Each vector [`\mathbf{v_1}, \ldots, \mathbf{v_{ [$num_vects] }}`] in the domain has length [`[$r]`].
+The length of each vector [`T(\mathbf{v_1}), \ldots, T(\mathbf{v_{ [$num_vects] }})`] in the codomain is given in the table below.
+
+[@
+BeginTable().
+  AlignedRow(["Vector", "Length"]).
+  AlignedRow([ "\\( T(\\mathbf{v_1}) \\)", $length2[1] ]).
+  AlignedRow([ "\\( T(\\mathbf{v_2}) \\)", $length2[2] ]).
+  AlignedRow([ "\\( T(\\mathbf{v_3}) \\)", $length2[3] ]).
+  AlignedRow([ "\\( T(\\mathbf{v_4}) \\)", $length2[4] ]).
+  AlignedRow([ "\\( T(\\mathbf{v_5}) \\)", $length2[5] ]).
+  AlignedRow([ "\\( T(\\mathbf{v_6}) \\)", $length2[6] ]).
+  AlignedRow([ "\\( T(\\mathbf{v_7}) \\)", $length2[7] ]).
+  AlignedRow([ "\\( T(\\mathbf{v_8}) \\)", $length2[8] ]).
+EndTable()
+@]***
+
+For each eigenvector from Part 1, find the corresponding eigenvalue.
+
++ [`T(\mathbf{v_{ [$i1] }}) = `] [____]{"$k1"} [`\mathbf{v_{ [$i1] }}`] [@ AnswerFormatHelp("numbers") @]*
++ [`T(\mathbf{v_{ [$i2] }}) = `] [____]{"$k2"} [`\mathbf{v_{ [$i2] }}`] [@ AnswerFormatHelp("numbers") @]*
++ [`T(\mathbf{v_{ [$i3] }}) = `] [____]{"$k1"} [`\mathbf{v_{ [$i3] }}`] [@ AnswerFormatHelp("numbers") @]*
++ [`T(\mathbf{v_{ [$i4] }}) = `] [____]{"$k2"} [`\mathbf{v_{ [$i4] }}`] [@ AnswerFormatHelp("numbers") @]*
+END_PGML
+Section::End();
+
+Section::Begin("Part 3: Properties of eigenvectors and the geometry of the linear transformation");
+BEGIN_PGML
+a. Is every nonzero vector parallel to [`\mathbf{v_{ [$i1] }}`] an eigenvector for [`T`] with eigenvalue [`[$k1]`]?  [_]{$popup[0]}
+
+b. Is every eigenvector for [`T`] with eigenvalue [`[$k1]`] a nonzero vector parallel to [`\mathbf{v_{ [$i1] }}`] ? [_]{$popup[1]}
+
+c. [@ $mc1 -> print_q() @]***  
+[@ ANS(checkbox_cmp($mc1->correct_ans)); $mc1 -> print_a() @]***
+
+d. Is every nonzero vector parallel to [`\mathbf{v_{ [$i2] }}`] an eigenvector for [`T`] with eigenvalue [`[$k2]`]?  [_]{$popup[2]}
+
+e. Is every eigenvector for [`T`] with eigenvalue [`[$k2]`] a nonzero vector parallel to [`\mathbf{v_{ [$i2] }}`] ? [_]{$popup[3]}
+
+f.  [@ $mc2 -> print_q() @]***  
+[@ ANS(checkbox_cmp($mc2->correct_ans)); $mc2 -> print_a() @]***
+END_PGML
+Section::End();
+
+Section::Begin("Part 4: Properties of eigenvalues and the geometry of the linear transformation");
+BEGIN_PGML
+a. Since [`T : \mathbb{R}^2 \to \mathbb{R}^2`], there are 2 eigenvalues associated with the linear transformation [`T`]. The eigenvalues for [`T`] are [`[$k1]`] and [`[$k2]`], which are [_]{$popup[4]} and thus [`T`] [_]{$popup[5]}.
+
+b. Does the linear transformation [`T`] preserve angles?  (That is, if [`\mathbf{v}`] and [`\mathbf{w}`] are any two vectors in the domain, is the angle between [`\mathbf{v}`] and [`\mathbf{w}`] in the domain the same as the angle between [`T(\mathbf{v})`] and [`T(\mathbf{w})`] in the codomain?) [_]{$popup[6]}
+
+c. Suppose [`\mathbf{v}`] is any vector in [`\mathbb{R}^2`] that is neither parallel to [`\mathbf{v_{ [$i1] }}`] nor parallel to [`\mathbf{v_{ [$i2] }}`].  Is [`\mathbf{v}`] an eigenvector for [`T`]? [_]{$popup[7]}  Be sure you can explain why or why not.
+END_PGML
+Section::End();
+
+Scaffold::End();
+
+COMMENT('Distinct real eigenvalues.  Dilates in two different, arbitrarily chosen directions.');
+
+ENDDOCUMENT();

@@ -1,0 +1,216 @@
+#########################################################
+# DESCRIPTION
+## DBsubject(Probability)
+## DBchapter(Sample Space)
+## DBsection(Probability: direct computation, inclusion/exclusion)
+## Date(2015/07/03)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(2)
+## KEYWORDS( 'Probability'; 'events, union, complement, mutually exclusive, exhaustive')
+## level('2')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@p1=rserve_eval('
+x <-rnorm(n=100, mean=25, sd=10)
+x1 <- x[x<10]
+x2 <- x[10<x & x<20]
+x3 <- x[20<x & x<30]
+x4 <- x[30<x & x<40]
+p1 <- round(length(x1)/100, 2)
+');
+
+@p2=rserve_eval('
+p2 <- round(length(x2)/100, 2)
+');
+
+@p3=rserve_eval('
+p3 <- round(length(x3)/100, 2)
+');
+
+@p4=rserve_eval('
+p4 <- round(length(x4)/100, 2)
+');
+
+@p5=rserve_eval('
+p5 <- round(1- (p1+p2+p3+p4), 2)
+');
+
+$q1ans = $p4[0]+$p5[0];
+$q2ans = $p1[0]+$p2[0];
+$q3ans = 1-$p4[0]-$p5[0];
+$q4ans=0;
+$q5ans = $p1[0]+$p2[0]+$p4[0]+$p5[0];
+
+####
+$mc1 = new_multiple_choice( );
+$mc1 -> qa( "Are A and B mutually exclusive?" , "Yes");
+$mc1 -> extra("No");
+
+###
+$mc2 = new_multiple_choice( );
+$mc2 -> qa( "Are A and B collectively exhaustive?" , "No");
+$mc2 -> extra("Yes");
+
+####Build table
+$Table = 
+"\(       
+\begin{array}{c|c}
+\text{Rate of return}~% & \text{Probability}  \\
+\hline
+< -10 & $p1[0] \\
+-10 ~\text{to}~ 0 & $p2[0] \\
+0 ~\text{to}~ 10 & $p3[0] \\
+10 ~\text{to}~ 20 & $p4[0] \\
+>20 & $p5[0]
+\end{array}
+\)"
+;
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+A fund manager is considering investment in the stock of a gold mine.
+The manager's assessment of probabilities for rates of return (in percent)
+on this stock over the next year are summarized below:
+$BR
+$BR
+$BCENTER
+$Table
+$ECENTER
+$BR
+Let event \(A\) be the event "Rate of return will be more than 10%." Let
+event \(B\) be the event "Rate of return will be negative." Answer the
+following questions, rounding your answers to two decimal places where appropriate.
+$BR
+$BR
+$BBOLD(a) $EBOLD What is the probability of event  \(A\) ? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(b) $EBOLD What is the probability of event \(B\)?  \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(c) $EBOLD What is the probability of the complement of \(A\)?  
+\{ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(d) $EBOLD What is the probability of the intersection of \(A\) and \(B\)?
+\{ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(e) $EBOLD What is the probability of the union of \(A\) and \(B\)? 
+\{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD(d) $EBOLD \{ $mc1->print_q() \}
+$BR
+\{ $mc1->print_a() \}
+$BR
+$BR
+$BBOLD(e) $EBOLD \{ $mc2->print_q() \}
+$BR
+\{ $mc2->print_a() \}
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.02) );
+ANS( num_cmp($q2ans, tol=> 0.02) );
+ANS( num_cmp($q3ans, tol=> 0.02) );
+ANS( num_cmp($q4ans) );
+ANS( num_cmp($q5ans, tol=> 0.02) );
+ANS( radio_cmp( $mc1 -> correct_ans( ) ) );
+ANS( radio_cmp( $mc2 -> correct_ans( ) ) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+$BBOLD (a) $EBOLD The probability of A is found by summing the probabilities of
+the disjoint events that comprise A. We see that A is the union of {Return between 10% and 20%} and {Return > 20%}. Adding the corresponding probabilities we find
+$BR
+$BR
+$BCENTER
+\( 
+p(A)=$p4[0]+$p5[0]
+\)
+$ECENTER
+$BR
+$BR   
+
+$BBOLD (b) $EBOLD The probability of B is found by summing the probabilities of
+the disjoint events that comprise B: We see that B is the union of {Return between 0% and Â10%} and {Return <Â10%}. Adding the corresponding probabilities we Âfind 
+$BR
+$BR
+$BCENTER
+\( 
+p(B)=$p1[0]+$p2[0]
+\)
+$ECENTER
+$BR
+$BR 
+
+$BBOLD (c) $EBOLD The complement of an event A is the event that A does not occur. We fiÂnd the probability of the complement of an event A by subtracting from unity the probability of the event A: In this case, we have \(1-($p4[0]+$p5[0]). \)
+$BR
+$BR 
+
+$BBOLD (d) $EBOLD As events A and B are disjoint, they cannot both occur so the probability of their intersection is 0.
+
+$BR
+$BR 
+
+$BBOLD (e) $EBOLD As events A and B are disjoint, the probability of their union is
+the sum of their probabilities, this being \( $p1[0]+$p2[0]+$p4[0]+$p5[0] \). 
+
+$BR
+$BR 
+$BBOLD (f) $EBOLD Since A occurring precludes B from occurring, and vice versa, the two events are mutually exclusive.
+
+$BR
+$BR 
+
+$BBOLD (g) $EBOLD Events are exhaustive when their union is the sample space. Since there is a possibility that the return rate is between 0% and 10%, events
+A and B are not exhaustive.
+$BR
+END_SOLUTION
+ENDDOCUMENT();
+
+
+
+
+

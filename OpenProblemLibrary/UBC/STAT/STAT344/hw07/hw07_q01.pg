@@ -1,0 +1,166 @@
+#########################################################
+##KEYWORDS('Inference'; 'confidence intervals for proportion', 'confidence
+##intervals for population size'; 'find a 95% confidence interval for a
+##population proportion', 'find approximate confidence interval for a population
+##size given the count within the population with the characteristic of interest.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Sample survey methods)
+## DBsection(Ratio estimators)
+## Date(2016/07/25)
+## Institution(University of British Columbia)
+## Author(Bo Chang)
+## Level(4)
+## level('5')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@Astr = rserve_eval('
+A.str <- rbinom(1, size=1000, prob=sample(55:65, size=1)/100)
+');
+
+@Bstr = rserve_eval('
+B.str <- 1000-A.str
+');
+
+@AstrOverN = rserve_eval('
+n <- 1000
+A.str / n
+');
+
+@f = rserve_eval('
+f <- 1+sample(2:8, size=1)/10
+');
+
+@ansA = rserve_eval('
+ansA <- 1 / (1 + 1 / f * B.str / A.str)
+round(ansA, 3)
+');
+
+@ansB = rserve_eval('
+ansB <- 1 / (1 + f * B.str / A.str)
+round(ansB, 3)
+');
+
+$q1ans = @ansA[0];
+$q2ans = @ansB[0];
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+For a web survey asking opinions about drug policy,
+think of the whole sample as all those who visited the website in question.
+The sample then splits into \(n=1000\) people who chose to complete the questionnaire, and an unknown number of people who visited but chose not to complete the questionnaire.
+
+
+$BR
+$BR
+
+Amongst the respondents, @Astr[0] indicated support for safe-injection sites, while the other @Bstr[0] indicated opposition.
+Thus the proportion of respondents supporting safe injection sites is @AstrOverN[0].
+
+$BR
+$BR
+
+Now, consider the odds that someone sampled responds to the questionnaire given he/she supports safe injection sites,
+and the odds of responding given opposition to safe injection sites.
+A drug-policy expert tells you she isn't sure which of these two odds is larger.   But she is sure that the larger odds will be no more than @f[0] times the smaller one.
+
+$BR
+$BR
+$BBOLD [A] $EBOLD
+Based on the respondent data and the expert opinion, give an upper-bound on the proportion of the sample 
+supporting safe-injection sites  (report your proportion to three decimal places).
+$BR
+\{  ans_rule(7) \}
+
+$BR
+$BR
+
+$BBOLD [B] $EBOLD
+Similarly, give a lower-bound on the proportion of the sample supporting safe-injection sites (again reported to three decimal places).
+$BR
+\{  ans_rule(7) \}
+
+$BR
+$BR
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.005) );
+ANS( num_cmp($q2ans, tol=> 0.005) );
+
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+Let \(A\) be the number of non-respondents who support safe-injection sites, and let \(B\) be 
+the number of non-respondents who oppose them.
+
+$BR
+
+An upper-bound on the target quantity results from a scenario when supporters are less likely to respond than opposers
+(hence supporters are under-represented in the respondent group).
+This gives the extreme case as \( (@Bstr[0]/B) = @f[0](@Astr[0]/A) \).  
+In turn then the sample proportion of supporters is 
+
+\begin{eqnarray*}
+\frac{@Astr[0]+ A}{1000 + A + B } &=& \frac{@Astr[0] + A}{1000 + A + (1/@f[0])(@Bstr[0]/@Astr[0]) A} \\
+&=&  \frac{@Astr[0] + A}{1000 + [ 1+ (1/@f[0])(@Bstr[0]/@Astr[0])  ] A }. 
+\end{eqnarray*}
+
+$BR
+
+In the worst-case of very large number of non-respondents (\(A\) goes to infinity), this expression goes to
+\begin{eqnarray*}
+\frac{1}{ 1 + (1/@f[0])(@Bstr[0]/@Astr[0]) } & = & @ansA[0],
+\end{eqnarray*}
+the desired upper-bound.
+$BR
+
+
+Similarly, we get the lower-bound if we start from \((@Astr[0]/A)=@f[0](@Bstr[0]/B)\), leading to
+a bound of 
+\begin{eqnarray*}
+\frac{1}{ 1 + @f[0](@Bstr[0]/@Astr[0]) } & = & @ansB[0].
+\end{eqnarray*}
+
+END_SOLUTION
+ENDDOCUMENT();

@@ -21,8 +21,8 @@ loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
   "parserMultiAnswer.pl",
-  "contextLimitedPowers.pl",
-  "contextLimitedPolynomial.pl",
+#  "contextLimitedPowers.pl",
+#  "contextLimitedPolynomial.pl",
   "PGcourse.pl"
 );
 
@@ -34,10 +34,10 @@ $showPartialCorrectAnswers = 1;
 ###########################################################################
 # setup contexts and variables 
 ###########################################################################
-Context("LimitedPolynomial-Strict");
+#Context("LimitedPolynomial-Strict");
+Context("Numeric");
 $var = list_random('a','b','m','n','x','y','z','w','p','q','r','s','t','u','v');
 Context()->variables->are($var=>"Real", uc($var)=>"Real");
-LimitedPowers::OnlyPositiveIntegers();
 
 do {
   $a = random(1,4);
@@ -49,46 +49,35 @@ do {
   $e3 = $b*$d;
 } until ($e1 > 1 && $e2 < 0 && $e3 < 0 && ($a != $c && $b != $d));
 
-$fac1 = ($a == 1) ? "$var + $b" : "$a $var + $b";    $afac1 = Formula($fac1)->reduce;
-$fac2 = ($c == 1) ? "$var + $d" : "$c $var + $d";    $afac2 = Formula($fac2)->reduce;
+$fac1 = Formula("$a*$var + $b")->reduce;
+$fac2 = Formula("$c*$var + $d")->reduce;
 
-$expn = "$e1 $var^2 + $e2 $var + $e3";
-if ($e2 == 1) {
-  $expn = "$e1 $var^2 + $var + $e3";
-} elsif ($e2 == -1) {
-  $expn = "$e1 $var^2 - $var + $e3";
-}
+$expn = Formula("$e1*$var^2+$e2*$var+$e3")->reduce;
 
-$answer = MultiAnswer($afac1, $afac2)->with(
+$answer = MultiAnswer($fac1, $fac2)->with(
   singleResult => 0,
   allowBlankAnswers => 1,
   checker => sub {
     my ( $correct, $student, $self ) = @_;
     my ( $c1, $c2 ) = @{$correct};
     my ( $s1, $s2 ) = @{$student};
-    $s1 = Formula($s1) unless ($s1->type eq 'Formula' || $s1->type eq 'String');
-    $s2 = Formula($s2) unless ($s2->type eq 'Formula' || $s2->type eq 'String');
-    $s1 = Formula("$var^{1000}") if ($s1->type eq 'String'); #bogus answer
-    $s2 = Formula("$var^{500}") if ($s2->type eq 'String'); #bogus answer
-    if (($c1 == $s1 && $c1 == $s2) || ($c2 == $s1 && $c2 == $s2)) {
-      return [1,0];
-    } elsif (($c1 == -$s1 && $c1 == -$s2) || ($c2 == -$s1 && $c2 == -$s2)) {
-      return [1,0];
-    } elsif (($c1 == $s1 && $c2 == $s2) || ($c1 == $s2 && $c2 == $s1)) {
-      return [1,1];
-    } elsif (($c1 == -$s1 && $c2 == -$s2) || ($c1 == -$s2 && $c2 == -$s1)) {
-      return [1,1];
-    } elsif (($c1 == $s1 && $c2 != $s2) || ($c2 == $s1 && $c1 != $s2)) {
-      return [1,0];
-    } elsif (($c1 == -$s1 && $c2 == $s2) || ($c2 == -$s1 && $c1 == $s2)) {
-      return [0,1];
-    } elsif (($c1 == $s2 && $c2 != $s1) || ($c2 == $s2 && $c1 != $s1)) {
-      return [0,1];
+#    Check that the answers are not constants and their product is correct
+    $score1 = 1; $score2 = 1;
+    if ( $s1->D("$var") == Formula("0") ){
+       $self -> setMessage(1,"Answers can't be constants.");
     }
-    return [0,0];
+    if ( $s2->D("$var") == Formula("0") ){
+       $self -> setMessage(2,"Answers can't be constants.");
+    }
+    if ( $score1*$score2 == 0 ) {
+       return [$Sscore1,$score2];
+    } elsif ($s1*$s2 == $c1*$c2){
+       return [1,1];
+    } else {
+      return [0,0];
+    }
   }
 );
-$texanswer = "\(($fac1)($fac2)\)";
 
 
 ###########################################################################
@@ -108,9 +97,6 @@ Context()->normalStrings;
 # check the answer  
 ###########################################################################
 ANS($answer->cmp());
-
-
-
 
 COMMENT('Desc: Factor an expression of the form a x^2 + b x + c, where a > 1, b < 0, and c < 0.');
 ENDDOCUMENT();

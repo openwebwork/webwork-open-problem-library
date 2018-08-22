@@ -34,9 +34,8 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
   "MathObjects.pl",
-  "PGcomplexmacros.pl",
+  "PGpolynomialmacros.pl",
   "PGcourse.pl"
 );
 
@@ -45,126 +44,61 @@ $showPartialCorrectAnswers = 1;
 
 Context("Interval");
 
-$root1 = random(-9,9,1);
-$root2 = random(-9,9,1);
-while ($root1 == $root2) {$root2 = random(-9,9,1);}
+do {
+  # choose 5 distinct numbers between -9 and 9
+  @myval = (-9..9);
+  for ($i=0; $i<5; $i++){
+     $j = random($i,9,1);
+     ($myval[$i],$myval[$j]) = ($myval[$j],$myval[$i]);
+  }
+  ($root1,$root2,$v1,$v2,$hole) = @myval[0..4];
+  # choose three denominators
+  $lc1 = non_zero_random(-4,4,1);
+  $lc2 = non_zero_random(-4,4,1);
+  $num3 = non_zero_random(-4,4,1);
+  # compute the three fractional roots
+  $r1=$root1/$lc1; $r2=$root2/$lc2; $r3=$hole/$num3;
+} until ( 1==gcd($lc1,$root1) and 1==gcd($lc2,$root2) and 1==gcd($num3,$hole) and 
+    $r1 != $r2 and $r1 != $r3 and $r1 != $v1 and $r1 != $v2 and 
+    $r2 != $r3 and $r2 != $v1 and $r2 != $v2 and $r3 != $v1 and $r3 != $v2
+);
 
-$lc1 = non_zero_random(-4,4,1);
-$lc2 = non_zero_random(-4,4,1);
-while ($root1/$lc1==$root2/$lc2 || gcd(abs($root1),abs($lc1))>1|| gcd(abs($root1),abs($lc1))>1){
-while (gcd(abs($root1),abs($lc1))>1){
-    $lc1 = non_zero_random(-4,4,1);
-}
-while (gcd(abs($root2),abs($lc2))>1){
-    $lc2 = non_zero_random(-4,4,1);
-}
-}
+# reduced numerator and denominator come from cancelling out the common factor
+# from the numerator and denominator
 
-$hole  = random(-9,9,1);
-while ($root1 == $hole || $root2 == $hole) {$hole = random(-9,9,1);}
+# coefficients of reduced numerator
+($fr2,$fr1,$fr0) = PolyMult([$lc1,-$root1], [$lc2,-$root2]);
+# reduced numerator
+$polynum_red = Compute("$fr2*x^2+$fr1*x+$fr0");
+# coefficients of the numerator
+($f3,$f2,$f1,$f0) = PolyMult([$fr2,$fr1,$fr0], [$num3,-$hole]);
+# numerator
+$polynum = Compute("$f3*x^3+$f2*x^2+$f1*x+$f0");
 
-$v1 = random(-9,9,1);
-while ($v1==$root1 || $v1==$root2 || $v1==$hole) {$v1 = random(-9,9,1);}
+# coefficients of reduced denominator
+($gr2,$gr1,$gr0) = PolyMult([1,-$v1], [1,-$v2]);
+# reduced denominator
+$polyden_red = Compute("$gr2*x^2+$gr1*x+$gr0");
+# coefficients of the denominator
+($g3,$g2,$g1,$g0) = PolyMult([$gr2,$gr1,$gr0], [$num3,-$hole]);
+# denominator
+$polyden = Compute("$g3*x^3+$g2*x^2+$g1*x+$g0");
 
-$v2 = random(-9,9,1);
-while ($v2==$root1 || $v2==$root2 || $v2 ==$hole || $v1 ==$v2) {
-    $v2 = random(-9,9,1);}
-
-
-@num1 = ($lc1,-$root1);
-@num2 = ($lc2,-$root2);
-@num3 = (non_zero_random(-4,4,1),-$hole);
-while ($hole/$num3[0]==$v1 || $hole/$num3[0]==$v2 || $num3[0]==$root1/$lc1 ||$hole/$num3[0]==$root2/$lc2) {$num3[0] = non_zero_random(-4,4,1);}
-@den1 = ($num3[0],-$hole);
-@den2 = (1,-$v1);
-@den3 = (1,-$v2);
+Context()->noreduce('(-x)+y','(-x)-y');
+$polyquotient = ($polynum/$polyden)->reduce;
 
 @roots = num_sort(($root1/$lc1,$root2/$lc2));
-@domain = num_sort(($v1,$v2,$hole/$num3[0]));
+
+@domain = num_sort(($v1,$v2,$hole/$num3));
+
+$yhole = ($polynum_red/$polyden_red)->eval(x => ($hole/$num3)); 
+
 @va = num_sort(($v1,$v2));
 
-$yhole = ($lc1*$hole/$num3[0]-$root1)*($lc2*$hole/$num3[0]-$root2)/(($hole/$num3[0]-$v1)*($hole/$num3[0]-$v2));
-
-foreach $i (0..2) {$temp[$i] =0;}
-foreach $i (0..3) {$num[$i] = 0;}
-
-foreach $i (0..1) {
-    foreach $j (0..1) {
-        $temp[$i+$j] = $temp[$i+$j] + $num1[$i]*$num2[$j];
-    }
-}
-foreach $i (0..2) {
-    foreach $j (0..1) {
-        $num[$i+$j] = $num[$i+$j] + $temp[$i]*$num3[$j];
-    }
-}
-
-foreach $i (0..2) {$temp[$i] =0;}
-foreach $i (0..3) {$den[$i] = 0;}
-
-foreach $i (0..1) {
-    foreach $j (0..1) {
-        $temp[$i+$j] = $temp[$i+$j] + $den1[$i]*$den2[$j];
-    }
-}
-foreach $i (0..2) {
-    foreach $j (0..1) {
-        $den[$i+$j] = $den[$i+$j] + $temp[$i]*$den3[$j];
-    }
-}
-
-
-$polynum = "";
-foreach $i (0..$#num){ $j = $#num-$i;
-    if ($j == $#num) {$polynum = $polynum."$num[$i] x^{$j}";}
-    elsif ($j>0 && $j!=1) { 
-        if ($num[$i]>0) {
-            $polynum=$polynum."+$num[$i] x^{$j}";}
-        elsif ($num[$i] == 0) {}
-        else {$polynum=$polynum."$num[$i] x^{$j}";} 
-    }
-    elsif ($j == 1) {
-        if ($num[$i] >0) {
-            $polynum=$polynum."+$num[$i] x";}
-        elsif ($num[$i] == 0) {}
-        else {$polynum=$polynum."$num[$i] x";}
-    }
-    else {
-        if ($num[$i] > 0) {
-            $polynum=$polynum."+$num[$i]";}
-        elsif ($num[$i] == 0){}
-        else {$polynum=$polynum."$num[$i]";}
-    }
-}
-$polyden = "";
-foreach $i (0..$#den){ $j = $#den-$i;
-    if ($j == $#den) {$polyden = $polyden."$den[$i] x^{$j}";}
-    elsif ($j>0 && $j!=1) { 
-        if ($den[$i]>0) {
-            $polyden=$polyden."+$den[$i] x^{$j}";}
-        elsif ($den[$i] == 0) {}
-        else {$polyden=$polyden."$den[$i] x^{$j}";} 
-    }
-    elsif ($j == 1) {
-        if ($den[$i] >0) {
-            $polyden=$polyden."+$den[$i] x";}
-        elsif ($den[$i] == 0) {}
-        else {$polyden=$polyden."$den[$i] x";}
-    }
-    else {
-        if ($den[$i] > 0) {
-            $polyden=$polyden."+$den[$i]";}
-        elsif ($den[$i] == 0){}
-        else {$polyden=$polyden."$den[$i]";}
-    }
-}
-
-
-#\(\cup\) \{ans_rule(10)\} \(\cup\) \{ans_rule(10)\} \(\cup\) \{ans_rule(10)\}.
-
+Context()->texStrings;
 TEXT(EV2(<<EOT));
 Let
-\[ f(x) = \frac{$polynum}{$polyden} \]
+\[ f(x) = $polyquotient \]
 $BR
 The domain of the function \(f(x)\) is: 
 \{ans_rule(30)\} 
@@ -178,8 +112,8 @@ $BR
 Enter the root(s) as a comma-separated list.
 $BR
 $BR
-\(f(x)\) has one hole at the point: 
-(\{ans_rule(10)\} , \{ans_rule(10)\}).$BR
+The graph \(y=f(x)\) has one hole at the point: 
+\((x,y)=\)(\{ans_rule(10)\} , \{ans_rule(10)\}).$BR
 $BR
 \(f(x)\) has vertical asymptotes for the following \(x\) value(s):
 \{ans_rule(20)\}. $BR
@@ -189,16 +123,18 @@ $BR
 \(f(x)\) has a horizontal asymptote at \(y=\) \{ans_rule(10)\}
 EOT
 
+Context()->normalStrings;
+
 ANS(Compute("(-inf, $domain[0]) U ($domain[0],$domain[1]) U ($domain[1],$domain[2]) U ($domain[2], inf)")->cmp);
 
 ANS(Compute("$roots[0], $roots[1]")->cmp);
 
-ANS(Compute($hole/$num3[0])->cmp);
+ANS(Compute($hole/$num3)->cmp);
 ANS(Compute($yhole)->cmp);
 
 ANS(Compute("$va[0], $va[1]")->cmp);
 
-ANS(Compute($num[0]/$den[0])->cmp);
+ANS( Compute($f3/$g3)->cmp());
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.
 

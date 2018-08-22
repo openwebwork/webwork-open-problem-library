@@ -1,8 +1,3 @@
-##DESCRIPTION
-##  Algebra problem: true or false for inequality 
-##ENDDESCRIPTION
-
-
 ## DBsubject(Differential equations)
 ## DBchapter(Higher order differential equations)
 ## DBsection(Boundary value problems)
@@ -11,6 +6,7 @@
 ## Author(Darwyn Cook)
 ## MLT(SL)
 ## Level(5)
+## MO(1)
 ## TitleText1('Differential Equations')
 ## AuthorText1('Zill')
 ## EditionText1('7')
@@ -25,12 +21,13 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "weightedGrader.pl",
+  "parserMultiAnswer.pl",
+#  "weightedGrader.pl",
   "PGgraphmacros.pl",
   "PGchoicemacros.pl",
   "PGcourse.pl"
 );
-install_weighted_grader();
+#install_weighted_grader();
 # Print problem number and point value (weight) for the problem
 TEXT(beginproblem());
 
@@ -41,54 +38,237 @@ $showPartialCorrectAnswers = 1;
 #
 #  Setup
 #
-#
-Context("Numeric");
-Context()->functions->undefine("sin","cos","tan","sinh","cosh","tanh");
-Context()->variables->add(a=>"Real",A=>"Real",B=>"Real",lambda=>"Real");
-Context()->variables->set(lambda=>{limits=>[0,4]});
-Context()->variables->set(lambda => {TeX => '{\lambda}'});
-Context()->functions->undefine("acos","acosh");
-Context()->{error}{msg}{"Function 'acosh' is not allowed in this context"} 
-= "WeBWorK thinks you meant the inverse cosh function, you need to put the multiplication symbol between the a and the cosh";
-Context()->{error}{msg}{"Function 'acos' is not allowed in this context"} 
-= "WeBWorK thinks you meant the inverse cos function, you need to put the multiplication symbol between the a and the cos";
-$simplify = Context()->copy;
-
-Context("Numeric");
-Context()->functions->undefine("cos","tan","cosh","tanh");
-Context()->variables->add(a=>"Real",A=>"Real",B=>"Real",lambda=>"Real");
-Context()->variables->set(lambda=>{limits=>[0,4]});
-Context()->variables->set(lambda => {TeX => '{\lambda}'});
-Context()->functions->undefine("acos","acosh");
-Context()->{error}{msg}{"Function 'acosh' is not allowed in this context"} 
-= "WeBWorK thinks you meant the inverse cosh function, you need to put the multiplication symbol between the a and the cosh";
-Context()->{error}{msg}{"Function 'acos' is not allowed in this context"} 
-= "WeBWorK thinks you meant the inverse cos function, you need to put the multiplication symbol between the a and the cos";
-$nocofunctions = Context()->copy;
 
 Context("Numeric");
 Context()->variables->add(a=>"Real",A=>"Real",B=>"Real",lambda=>"Real",n=>"Real");
-Context()->variables->set(lambda=>{limits=>[0,4]});
 Context()->variables->set(lambda => {TeX => '{\lambda}'});
 Context()->strings->add(red=>{},blue=>{},green=>{},black=>{}); 
 Context()->functions->undefine("acos","acosh");
+Context()->{error}{msg}{"String constant '0' is not defined in this context"} = "Can't grade next two boundary conditions without this";
+
 Context()->{error}{msg}{"Function 'acosh' is not allowed in this context"} 
 = "WeBWorK thinks you meant the inverse cosh function, you need to put the multiplication symbol between the a and the cosh";
 Context()->{error}{msg}{"Function 'acos' is not allowed in this context"} 
 = "WeBWorK thinks you meant the inverse cos function, you need to put the multiplication symbol between the a and the cos";
 
-$f = Formula("lambda*x")->reduce;
+### Answer checker for diffeq. and boundary conditions ###
+
+sub DEchecker {
+   my ($lambda,$lambda_min, $lambda_max) = @_;
+   return sub { 
+      Context()->variables->set(lambda=>{limits=>[$lambda_min,$lambda_max]});
+      my ( $correct, $student, $self ) = @_;
+      my ( $fstu, $bdy0stu, $bdy1stu ) = @{$student};
+      my $checkDE = 0;  # = 1 if the DE is satisfied with independent solutions
+      my $check0 = 0;  # =1 if the first equation is a boundary condition
+      my $check1 = 0; # = 1 if the second equation is the other boundary cond. 
+      my ( $fcor, $bdy0cor, $bdy1cor ) = @{$correct};
+      if (ref($fstu) == ref($fcor)){
+	## compute the wronskiian ##
+	my $dfA = $fstu->D('A')->substitute(x=>0);
+	my $dfAx = $fstu->D('A','x')->substitute(x=>0);
+	my $dfB = $fstu->D('B')->substitute(x=>0);
+	my $dfBx = $fstu->D('B','x')->substitute(x=>0);
+	my $wronskiian = $dfA*$dfBx-$dfB*$dfAx;
+	## check that the DE is satisfied and wronskiian isn't 0 ##
+	if ( (($fstu->D('x','x'))+$lambda*$fstu) == Formula("0")  and 
+	      $wronskiian != Formula("0")  ){ 
+	   $checkDE = 1;
+	}
+      }
+      if ( ref($bdy0stu) == ref($bdy0cor) and ref($bdy0stu) == ref($bdy0cor)) {
+	# check the boundary conditions
+	my $leftbdycond = $fstu->substitute(x=>0);
+	my $rightbdycond = $fstu->substitute(x=>a);
+	if ($checkDE == 1 and $leftbdycond == $bdy0stu) {
+	   $check0 = 1;
+	   if ($checkDE == 1 and $rightbdycond == $bdy1stu ){
+	     $check1 = 1;
+	   }   
+	} 
+	elsif ($checkDE == 1 and $rightbdycond == $bdy0stu ){
+	   $check0 = 1;
+	   if ($checkDE == 1 and $leftbdycond == $bdy1stu) {
+	     $check1 = 1;
+	   }
+	}
+	elsif ( $checkDE == 1 and 
+	  ( $rightbdycond == $bdy1stu or 
+	    $leftbdycond == $bdy1stu 
+	  ) ) {$check1 = 1;} 
+      }
+      return [$checkDE,$check0,$check1];
+    };
+};
+
+
+## The question has three parts. 
+## Part 1:
+## Case where lambda = 0 ###
 
 $equalzero = Formula("A+B*x");
-$zeroprime = $equalzero->D('x');
-$lesszero = Formula("A*cosh(sqrt(lambda)x)+B*sinh(sqrt(lambda)x)");
-$lessprime = $lesszero->D('x');
-$greaterzero = Formula("A*cos(sqrt(lambda)x)+B*sin(sqrt(lambda)x)");
-$greaterprime = $greaterzero->D('x');
+$equalzero_boundary0 = Formula("A");
+$equalzero_boundarya = Formula("A+Ba");
+
+$equalzero_ans = MultiAnswer($equalzero, $equalzero_boundary0, $equalzero_boundarya)->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,
+  checker => DEchecker(0,-2,2)
+);
+
+##############################################################
+#
+#  Text for first part.    
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+In this problem we find the eigenfunctions and eigenvalues of the differential equation
+\[\frac{d^2y}{dx^2} + \lambda y = 0\]
+on the interval \(0\leq x \leq a\), where \(a>0\),  with boundary values
+\[y(0) = 0\hskip {20pt} y(a) = 0.\]
+$PAR 
+For the general solution of the differential equation in the following cases use A and B for your constants, for example \(y = A\cos (x) + B\sin(x)\). For the variable \(\lambda\) type the word lambda, otherwise treat it as you would any other variable.
+$PAR
+$BBOLD Case 1: $EBOLD \(\lambda = 0\)
+$PAR
+(1a.) $BITALIC(Fill all three answer blanks to receive credit.)$EITALIC Ignoring the boundary values for a moment, the general solution of differential equation is $BR
+$BCENTER \(y(x) = \) \{$equalzero_ans->ans_rule\}. $ECENTER
+$PAR 
+Apply the boundary conditions to the general solution to obtain two equations relating \(A\) to \(B\):
+$BCENTER
+$BR
+\{$equalzero_ans->ans_rule\} = \(0\)
+$BR
+\{$equalzero_ans->ans_rule\} = \(0\)
+$ECENTER
+$BR
+(1b.) Solving for A and B we obtain
+$BCENTER
+$BR
+A = \{ans_rule\} 
+$BR
+B = \{ans_rule\}
+$ECENTER
+$BR
+END_TEXT
+
+
+Context()->normalStrings;
+
+ANS($equalzero_ans->cmp());
+ANS(Compute(0)->cmp());
+ANS(Compute(0)->cmp()); 
+
+## Part 2 ##########
+## 
+##  lambda < 0 ###
+
+Context()->variables->set(lambda=>{limits=>[-4,-.1]});
+
+$lesszero = Formula("A*exp(sqrt(-lambda)*x)+B*exp(-sqrt(-lambda)*x)");
+$lesszero_boundary0 = Formula("A+B");
+$lesszero_boundarya = Formula("A*exp(sqrt(-lambda)*a)+B*exp(-sqrt(-lambda)*a)");
+$lambda = Formula("lambda");
+
+$lesszero_ans = MultiAnswer($lesszero, $lesszero_boundary0, $lesszero_boundarya)->with(
+  singleResult => 0,
+  # allowBlankAnswers => 1,  # activating this creates an error here but not in the first place where it's invoked.  Weird.
+  checker => DEchecker($lambda,-4,-.1)
+);
+
+
+Context()->texStrings;
+BEGIN_TEXT
+$BBOLD Case 2: $EBOLD \(\lambda < 0\)
+$PAR
+(2a.) $BITALIC(Fill all three answer blanks to receive credit.)$EITALIC Ignoring the boundary values for a moment, the general solution of differential equation is $BR
+$BCENTER\(y(x)=\)\{$lesszero_ans->ans_rule(50)\}.$ECENTER 
+$BR
+Apply the boundary conditions to obtain equations relating \(A\) to \(B\):
+$BR
+$BCENTER
+\{$lesszero_ans->ans_rule(50)\} = \(0\)
+$BR
+\{$lesszero_ans->ans_rule(50)\} = \(0\)
+$ECENTER
+$PAR
+(2b.) Since \(\lambda, a \neq 0\), the only solution of these equations is
+$BR 
+$BCENTER
+A = \{ans_rule\} 
+$BR
+B = \{ans_rule\}
+$ECENTER
+$BR
+END_TEXT
+
+Context()->normalStrings;
+
+ANS($lesszero_ans->cmp());
+ANS(Compute(0)->cmp());
+ANS(Compute(0)->cmp()); 
+
+## Part 3
+## 3rd case lambda > 0 ##
+## 
+
+Context()->variables->set(lambda=>{limits=>[.1,4]});
+
+$greaterzero = Formula("A*cos(sqrt(lambda)*x)+B*sin(sqrt(lambda)*x)");
+$greaterzero_boundary0 = Formula("A");
+$greaterzero_boundarya = Formula("A*cos(sqrt(lambda)*a)+B*sin(sqrt(lambda)*a)");
+$lambda = Formula("lambda");
+
+$greaterzero_ans = MultiAnswer($greaterzero, $greaterzero_boundary0, $greaterzero_boundarya)->with(
+  singleResult => 0,
+#  allowBlankAnswers => 1,  # activating this creates an error here but not in the first place where it's invoked.  Weird.
+  checker => DEchecker($lambda, .1, 4)
+);
 
 $eigenvalues = Formula("n*pi/a");
 
-$eigenfunctions = List(Formula("sin(pi/a*x)"),Formula("sin(2*pi*x/a)"),Formula("sin(3pi/a*x)"),Formula("sin(4pi/a*x)"));
+Context()->texStrings;
+BEGIN_TEXT
+$BBOLD Case 3: $EBOLD \(\lambda > 0\)
+$PAR
+(3a.) $BITALIC(Fill all three answer blanks to receive credit.)$EITALIC Ignoring the boundary values, the general solution is $BR
+$BCENTER\(y(x)=\)\{$greaterzero_ans->ans_rule(50)\}.$ECENTER
+$BR
+Apply the boundary conditions to obtain equations relating \(A\) to \(B\):
+$BCENTER
+$BR
+\{$greaterzero_ans->ans_rule(50)\} = \(0\)
+$BR
+\{$greaterzero_ans->ans_rule(50)\} = \(0\)
+$ECENTER
+$PAR
+(3b.) Assuming the solution is not identically zero,  these equations say that 
+$BR 
+$BCENTER
+\{ans_rule\}\(= 0\)
+$ECENTER
+$PAR
+(3c.) For all integers n, \(\sin(n\pi) = 0\), so the eigenvalues are 
+$BCENTER
+\(\sqrt{\lambda} = \) \{$eigenvalues->ans_rule\}
+$BR
+$ECENTER
+for positive integers \(n=1,2,3,4,\cdots\).
+END_TEXT
+
+Context()->normalStrings;
+
+ANS($greaterzero_ans->cmp());
+ANS(Compute("sin(sqrt(lambda)a)")->cmp());
+ANS(Compute("n*pi/a")->cmp());
+
+
+# eigenfunctions
+$eigen1 = Formula("sin(pi/a*x)");
+$eigen2 = Formula("sin(2*pi*x/a)");
+$eigen3 = Formula("sin(3pi/a*x)");
+$eigen4 = Formula("sin(4pi/a*x)");
 
 @Goptions = (
   -1,-2,$L,2,                            # dimensions of graph
@@ -114,120 +294,97 @@ $figeigen=image(insertGraph($greigen),width=>350,height=>350,tex_size=>350);
 $order = List(String("$color[0]"),String("$color[1]"),String("$color[2]"),String("$color[3]"));
 
 
-##############################################################
-#
-#  Text
-#
-#
-
 Context()->texStrings;
 BEGIN_TEXT
-Find the eigenfunctions and eigenvalues of the differential equation
-\[\frac{d^2y}{dx^2} + \lambda y = 0\]
-\[y(0) = 0\hskip {20pt} y(a) = 0\]
-For the general solution of the differential equation in the following cases use A and B for your constants and list the function in alphabetical order, for example \(y = A\cos (x) + B\sin(x)\). For the variable \(\lambda\) type the word lambda, otherwise treat it as you would any other variable.
+$PAR
+(3d.) List the first four nonzero eigenfunctions \(y_1,y_2,y_3,y_4\) in order of increasing eigenvalue.    
 $BR
-$BBOLD Case 1: $EBOLD \(\lambda = 0\)
-$BR
-The general solution is \{$equalzero->ans_rule\}. The initial conditions lead to two equations in two unknowns in A and B:
-$BCENTER
-$BR
-\{ans_rule\} = \(0\)
-$BR
-\{ans_rule\} = \(0\)
-$ECENTER
-$BR
-Solving this system for A and B we get
-$BCENTER
-$BR
-A = \{ans_rule\} 
-$BR
-B = \{ans_rule\}
-$ECENTER
-$BR
-$BBOLD Case 2: $EBOLD \(\lambda < 0\)
-$BR
-The general solution is \{$lesszero->ans_rule(50)\}. The initial conditions lead to two equations in two unknowns in A and B:
-$BCENTER
-$BR
-\{ans_rule(50)\} = \(0\)
-$BR
-\{ans_rule(50)\} = \(0\)
-$ECENTER
-$BR
-Since \(B \neq 0\), the second equation simplifies to
-$BR 
-$BCENTER
-\{ans_rule\}\(= 0\)
-$ECENTER
-$BR
-The only solution of this equation is \(\lambda = \) \{ans_rule(5)\}
-$BR
-$BR
-$BBOLD Case 3: $EBOLD \(\lambda > 0\)
-$BR
-$BR
-The general solution is \{$greaterzero->ans_rule(50)\}. The initial conditions lead to two equations in two unknowns in A and B:
-$BCENTER
-$BR
-\{ans_rule(50)\} = \(0\)
-$BR
-\{ans_rule(50)\} = \(0\)
-$ECENTER
-$BR
-Since \(B \neq 0\), the second equation simplifies to
-$BR 
-$BCENTER
-\{ans_rule\}\(= 0\)
-$ECENTER
-$BR
-For all integers n, \(\sin(n\pi) = 0\), so the eigenvalues are 
-$BCENTER
-\(\sqrt{\lambda} = \) \{$eigenvalues->ans_rule\}
-$ECENTER
-$BR
-$BBOLD Solution $EBOLD
-$BR
-List the first four nonzero eigenfunctions for this problem 
-$BR
-\{ans_rule(100)\}
+\(y_1(x)=\)\{ans_rule()\}, \(y_2(x)=\)\{ans_rule()\}, \(y_3(x)=\)\{ans_rule()\}, \(y_4(x)=\)\{ans_rule()\},
 $BR
 Here are graphs of the first four nonzero eigenfunctions on \(\lbrack 0,$L \rbrack\).
 $BR
 \{$figeigen\}
 $BR
-List the eigenfunctions in increasing order of their eigenvalues by their color - green, red, blue, black: \{ans_rule(35)\}
+(3e.) List the eigenfunctions in increasing order of their eigenvalues by their color - green, red, blue, black: \{ans_rule(35)\}
+
 END_TEXT
+
 Context()->normalStrings;
+
+# check eigenfunctions up to constant multiple
+
+ANS( $eigen1->cmp( checker => sub {
+    my ( $correct, $student, $self ) = @_;
+    my $context = Context()->copy;
+    $context->flags->set(no_parameters=>0);
+    $context->variables->add('C0'=>'Parameter');
+    my $c0 = Formula($context,'C0');
+    $student = Formula($context,$student);
+    $correct = Formula($context,"$c0 $eigen1");
+    return $correct == $student;
+}));
+ANS( $eigen2->cmp( checker => sub {
+    my ( $correct, $student, $self ) = @_;
+    my $context = Context()->copy;
+    $context->flags->set(no_parameters=>0);
+    $context->variables->add('C0'=>'Parameter');
+    my $c0 = Formula($context,'C0');
+    $student = Formula($context,$student);
+    $correct = Formula($context,"$c0 $eigen2");
+    return $correct == $student;
+}));
+ANS( $eigen3->cmp( checker => sub {
+    my ( $correct, $student, $self ) = @_;
+    my $context = Context()->copy;
+    $context->flags->set(no_parameters=>0);
+    $context->variables->add('C0'=>'Parameter');
+    my $c0 = Formula($context,'C0');
+    $student = Formula($context,$student);
+    $correct = Formula($context,"$c0 $eigen3");
+    return $correct == $student;
+}));
+ANS( $eigen4->cmp( checker => sub {
+    my ( $correct, $student, $self ) = @_;
+    my $context = Context()->copy;
+    $context->flags->set(no_parameters=>0);
+    $context->variables->add('C0'=>'Parameter');
+    my $c0 = Formula($context,'C0');
+    $student = Formula($context,$student);
+    $correct = Formula($context,"$c0 $eigen4");
+    return $correct == $student;
+}));
+
+ANS($order->cmp(ordered=>1));
+
 
 ##############################################################
 #
 #  Answers
 #
 #
+### Case 1 equal zero - 16% of problem
+#WEIGHTED_ANS($equalzero->cmp, 4);
+#WEIGHTED_ANS(Compute("A")->cmp, 3);
+#WEIGHTED_ANS(Compute("A+B*a")->cmp, 3);
+#WEIGHTED_ANS(Compute("0")->cmp, 3);
+#WEIGHTED_ANS(Compute("0")->cmp, 3);
+#
+### Case 2 less than zero - 35% of problem
+#WEIGHTED_ANS($lesszero->cmp, 7);
+#WEIGHTED_ANS(Formula($simplify,"A")->cmp, 7);
+#WEIGHTED_ANS(Formula("A*cosh(sqrt(lambda)*a)+B*sinh(sqrt(lambda)*a)")->cmp, 7);
+#WEIGHTED_ANS(Formula($nocofunctions,"sinh(sqrt(lambda)*a)")->cmp, 7);
+#WEIGHTED_ANS(Compute("0")->cmp, 7);
+#
+### Case 3 less than zero - 35% of problem
+#WEIGHTED_ANS($greaterzero->cmp, 7);
+#WEIGHTED_ANS(Formula($simplify,"A")->cmp, 7);
+#WEIGHTED_ANS(Formula("A*cos(sqrt(lambda)*a)+B*sin(sqrt(lambda)*a)")->cmp, 7);
+#WEIGHTED_ANS(Formula($nocofunctions,"sin(sqrt(lambda)*a)")->cmp, 7);
+#WEIGHTED_ANS($eigenvalues->cmp, 7);
+#
+### Solution - 14%
+#WEIGHTED_ANS($eigenfunctions->cmp(ordered=>1), 7);
+#WEIGHTED_ANS($order->cmp(ordered=>1), 7);
 
-## Case 1 equal zero - 16% of problem
-WEIGHTED_ANS($equalzero->cmp, 4);
-WEIGHTED_ANS(Compute("A")->cmp, 3);
-WEIGHTED_ANS(Compute("A+B*a")->cmp, 3);
-WEIGHTED_ANS(Compute("0")->cmp, 3);
-WEIGHTED_ANS(Compute("0")->cmp, 3);
-
-## Case 2 less than zero - 35% of problem
-WEIGHTED_ANS($lesszero->cmp, 7);
-WEIGHTED_ANS(Formula($simplify,"A")->cmp, 7);
-WEIGHTED_ANS(Formula("A*cosh(sqrt(lambda)*a)+B*sinh(sqrt(lambda)*a)")->cmp, 7);
-WEIGHTED_ANS(Formula($nocofunctions,"sinh(sqrt(lambda)*a)")->cmp, 7);
-WEIGHTED_ANS(Compute("0")->cmp, 7);
-
-## Case 3 less than zero - 35% of problem
-WEIGHTED_ANS($greaterzero->cmp, 7);
-WEIGHTED_ANS(Formula($simplify,"A")->cmp, 7);
-WEIGHTED_ANS(Formula("A*cos(sqrt(lambda)*a)+B*sin(sqrt(lambda)*a)")->cmp, 7);
-WEIGHTED_ANS(Formula($nocofunctions,"sin(sqrt(lambda)*a)")->cmp, 7);
-WEIGHTED_ANS($eigenvalues->cmp, 7);
-
-## Solution - 14%
-WEIGHTED_ANS($eigenfunctions->cmp(ordered=>1), 7);
-WEIGHTED_ANS($order->cmp(ordered=>1), 7);
 ENDDOCUMENT();        
