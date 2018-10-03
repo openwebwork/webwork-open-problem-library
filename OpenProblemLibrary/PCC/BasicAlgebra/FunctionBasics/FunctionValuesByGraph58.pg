@@ -1,0 +1,205 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Give two functions' graphs, solve f(x)>g(x). One function is a horizontal function.
+#
+# Last update: Carl Yao 06/25/2016
+#
+# ENDDESCRIPTION
+
+## DBCCSS('8.F','F-IF')
+## DBsubject(Algebra)
+## DBchapter(Functions)
+## DBsection(Graphs)
+## MLT(graphabovegraph)
+## Institution(PCC)
+## Author(Alex Jordan, Carl Yao, Chris Hughes)
+## Level(4)
+## KEYWORDS('function','graph')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "PCCmacros.pl",
+  "PGinfo.pl",
+  "PGcourse.pl"
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+$refreshCachedImages=1;
+
+$xMin = -4;
+$xMax = -$xMin;
+$yMin = -4;
+$yMax = -$yMin;
+
+$px = random($xMin+1,$xMax-1,1);
+$py = random($yMin+1,$yMax-1,1);
+
+$m1=1;$m2=1;
+if (random(0,1,1)==0) {$m1=0;} else {$m2=0;}
+
+if ($m1==0) {
+do {$m2 = non_zero_random(-2,2,0.1);} until ( (abs($m2-$m1)>0.5) || ($m1*$m2<0) );
+} else {
+do {$m1 = non_zero_random(-2,2,0.1);} until ( (abs($m2-$m1)>0.5) || ($m1*$m2<0) );
+}
+$f = Compute("$m1*(x-$px)+$py")->reduce;
+$g = Compute("$m2*(x-$px)+$py")->reduce;
+
+#Decides whether the solution graph has the left or right part of 
+# the functions' graphs. 
+Context("Interval");
+if ( ($m1==0) && ($m2>0) ) {
+   $leftOrRight = 'right';
+   $ans1 = Compute("($px,infinity)");
+   $ans2 = Compute("(-infinity,$px]");
+} elsif ( ($m1==0) && ($m2<0) ) {
+   $leftOrRight = 'left';
+   $ans1 = Compute("(-infinity,$px)");
+   $ans2 = Compute("[$px,infinity)");
+} elsif ( ($m2==0) && ($m1>0) ) {
+   $leftOrRight = 'left';
+   $ans1 = Compute("(-infinity,$px)");
+   $ans2 = Compute("[$px,infinity)");
+} else {
+   $leftOrRight = 'right';
+   $ans1 = Compute("($px,infinity)");
+   $ans2 = Compute("(-infinity,$px]");
+} 
+
+Context("Numeric");
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$xMin,$xMax],[$yMin,$yMax],centerOrigin=>1);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+for my $i (0..1) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+
+  if ($leftOrRight eq 'left') {
+     $y1 = $f->eval(x=>$px-1);
+     $y2 = $g->eval(x=>$px-1);
+     if ($y1>$y2) {
+       $gr[$i]->lb( new Label($px-1,$y1+$marksep[1]/8,"f(x)",'red','center','bottom'));
+       $gr[$i]->lb( new Label($px-1,$y2-$marksep[1]/8,"g(x)",'blue','center','top'));
+     } else {
+       $gr[$i]->lb( new Label($px-1,$y1-$marksep[1]/8,"f(x)",'red','center','top'));
+       $gr[$i]->lb( new Label($px-1,$y2+$marksep[1]/8,"g(x)",'blue','center','bottom'));
+     }
+   } else {
+     $y1 = $f->eval(x=>$px+1);
+     $y2 = $g->eval(x=>$px+1);
+     if ($y1>$y2) {
+       $gr[$i]->lb( new Label($px+1,$y1+$marksep[1]/8,"f(x)",'red','center','bottom'));
+       $gr[$i]->lb( new Label($px+1,$y2-$marksep[1]/8,"g(x)",'blue','center','top'));
+     } else {
+       $gr[$i]->lb( new Label($px+1,$y1-$marksep[1]/8,"f(x)",'red','center','top'));
+       $gr[$i]->lb( new Label($px+1,$y2+$marksep[1]/8,"g(x)",'blue','center','bottom'));
+     }
+   }
+}
+
+$LOR = ($px>0) ? 'left' : 'right';
+$UOD = ($py>0) ? 'bottom' : 'top';
+$gr[1]->lb( new Label($px+$marksep[1]/8,$py,"($px,$py)",'black',$LOR,$UOD));
+$gr[1]->stamps( open_circle($px,$py,'black') );
+
+add_functions($gr[0], "$f for x in <$min[0],$max[0]> using color:red and weight:2");
+add_functions($gr[0], "$g for x in <$min[0],$max[0]> using color:blue and weight:2");
+
+if ($m1==0) {
+   $m1PON = 'slope of zero';
+} else {
+   $m1PON = $m1>0 ? 'a positive slope' : 'a negative slope';
+}
+if ($m2==0) {
+   $m2PON = 'slope of zero';
+} else {
+   $m2PON = $m2>0 ? 'a positive slope' : 'a negative slope';
+}
+
+$BOS = abs($m1)>abs($m2) ? 'bigger' : 'smaller';
+$ALT0 = "This is the graph of two lines intersecting at ($px,$py). The line marked as f(x) is red with $m1PONe; the line marked as g(x) is blue with $m2PON. The absolute value of the slope of f is $BOS than that of g.";
+
+
+#the graph used in solution
+if ($leftOrRight eq 'left') {
+   add_functions($gr[1], "$f for x in <$min[0],$px> using color:red and weight:2");
+   add_functions($gr[1], "$g for x in <$min[0],$px> using color:blue and weight:2");
+
+   $ALT1 = "This is the graph of two lines intersecting at ($px,$py). The line marked as f(x) is red with $m1PONe; the line marked as g(x) is blue with $m2PON. The absolute value of the slope of f is $BOS than that of g. For both lines, only the piece to the left of ($px,$py) is graphed. The point ($px,$py) is empty.";
+
+} else {
+   add_functions($gr[1], "$f for x in <$px,$max[0]> using color:red and weight:2");
+   add_functions($gr[1], "$g for x in <$px,$max[0]> using color:blue and weight:2");
+
+   $ALT1 = "This is the graph of two lines intersecting at ($px,$py). The line marked as f(x) is red with $m1PONe; the line marked as g(x) is blue with $m2PON. The absolute value of the slope of f is $BOS than that of g. For both lines, only the piece to the right of ($px,$py) is graphed. The point ($px,$py) is empty.";
+}
+
+##############################################
+Context("LimitedNumeric");
+BEGIN_PGML
+
+The graphs of functions [`f`] and [`g`] are shown below.
+
+[@EnlargeImageStatementPGML()@]**
+
+>>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT0' title = '$ALT0'") @]*<<
+
+Use interval notation in your answers. Use *inf* to represent infinity.
+
+    a. Solve [`` f(x) \lt g(x) ``]  
+    Solution: [_________]{$ans1}
+
+    a. Solve [`` f(x) \ge g(x) ``]  
+    Solution: [_________]{$ans2}
+
+END_PGML
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+The question [` f(x) \lt g(x) `] is asking: For what [`x`] values, are function [`f`]'s [`y`] values smaller than function [`g`]'s [`y`] values? We can break down this question into two steps:
+
+1. In the graph, identify the part(s) where function [`f`]'s [`y`] values are smaller than function [`g`]'s [`y`] values.
+2. Identify the [`x`] values corresponding to that part(s).
+
+The following graph identifies the part which satisfies [` f(x) \lt g(x) `].
+
+>>[@image(insertGraph($gr[1]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT1' title = '$ALT1'") @]*<<
+
+The corresponding [`x`] values in the graphed part(s) are in [`[$ans1]`]. In other words, to satisfy [` f(x) \lt g(x) `], the [`x`] values need to be in [`[$ans1]`].
+
+Similarly, in the other part(s) of the graph, function [`f`]'s [`y`] values are greater than or equal to function [`g`]'s [`y`] values. To satisfy [` f(x) \ge g(x) `], the [`x`] values need to be in [`[$ans2]`].
+
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();

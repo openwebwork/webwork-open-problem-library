@@ -1,0 +1,203 @@
+#########################################################
+##KEYWORDS('Inference'; 'confidence intervals for proportion', 'confidence
+##intervals for population size'; 'find a 95% confidence interval for a
+##population proportion', 'find approximate confidence interval for a population
+##size given the count within the population with the characteristic of interest.) 
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One-way ANOVA)
+## Date(2016/07/22)
+## Institution(University of British Columbia)
+## Author(Bo Chang)
+## Level(3)
+## level('5')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+@drug1Array=rserve_eval('
+drug1 <- round(rnorm(5, mean = 5, sd = 0.6), 2)
+');
+
+@drug2Array=rserve_eval('
+drug2 <- round(rnorm(5, mean = 5, sd = 0.6), 2)
+');
+
+@drug3Array=rserve_eval('
+drug3 <- round(rnorm(5, mean = 9, sd = 0.6), 2)
+');
+
+@drug4Array=rserve_eval('
+drug4 <- round(rnorm(5, mean = 9, sd = 0.6), 2)
+');
+
+$drug1Output = 'drug1 <- c('.join(', ', @drug1Array).')';
+$drug2Output = 'drug2 <- c('.join(', ', @drug2Array).')';
+$drug3Output = 'drug3 <- c('.join(', ', @drug3Array).')';
+$drug4Output = 'drug4 <- c('.join(', ', @drug4Array).')';
+
+rserve_eval('
+drug <- rep(c(1:4), each = 5)
+df <- data.frame(drug = as.factor(drug), size = c(drug1, drug2, drug3, drug4))
+result <- summary(aov(size ~ drug, df))
+');
+
+@ansA=rserve_eval('
+result[[1]]$Df[1]
+');
+
+@ansB=rserve_eval('
+result[[1]]$Df[2]
+');
+
+@ansC=rserve_eval('
+result[[1]]$`F value`[1]
+');
+
+@ansD=rserve_eval('
+result[[1]]$`Pr(>F)`[1]
+');
+
+$mcE = new_multiple_choice();
+@ansE = (
+"The differences in treatment means between the four drugs appear to be statistically insignificant compared to the variation within drugs.",
+"The differences in treatment means between the four drugs appear to be statistically significant compared to the variation within drugs.",
+"The differences in treatment means between $BBOLD any $EBOLD pair of drugs appear 
+to be statistically insignificant compared to the variation within the two drugs.",
+"The differences in treatment means between $BBOLD any $EBOLD pair of drugs appears to be statistically significant compared to the variation within the two drugs.",
+"$BBOLD Some $EBOLD of the drugs appear to have treatment means that differ significantly from those of the other drugs, compared to the variation within drugs."
+);
+
+$mcE -> qa("", $ansE[4]);
+$mcE->extra($ansE[0], $ansE[1], $ansE[2], $ansE[3]);
+
+$q1ans =@ansA[0];
+$q2ans =@ansB[0];
+$q3ans =@ansC[0];
+$q4ans =@ansD[0];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+Four pharmaceutical drugs,
+suspected of decreasing the rate of growth of a brain tumour,
+were compared in an experiment involving 20 mice.
+The mice were randomly divided into four groups,
+with each group receiving one of the drugs in its diet.
+At the end of the experiment,
+the following data on tumour size were recorded.
+
+$BR
+$BR
+$drug1Output 
+$BR
+$drug2Output 
+$BR
+$drug3Output 
+$BR
+$drug4Output 
+$BR
+$BR
+
+Put the data in an R data frame with 20 rows and 2 columns.
+Column 1 should contain treatment labels generated as follows.
+
+$BR
+$BR
+drug <- rep(c(1:4), each = 5)
+$BR
+$BR
+Be sure to make this column a factor.
+The second column should have the above tumour sizes, 
+stacked with the data for drug1 followed by the data for drug2, etc.
+
+$BR
+
+Compute an appropriate analysis of variance table using R.
+
+$BR
+$BR
+
+$BBOLD [A] $EBOLD How many degrees of freedom for treatments are there?
+\{  ans_rule(4) \}
+
+$BR
+$BR
+
+$BBOLD [B] $EBOLD How many degrees of freedom for replication are there?
+\{  ans_rule(4) \}
+
+$BR
+$BR
+
+$BBOLD [C] $EBOLD What is the value of the \(F\) statistic that tests all treatment means are equal? Report your answer to one decimal place.
+$BR
+\{  ans_rule(7) \}
+
+$BR
+$BR
+
+$BBOLD [D] $EBOLD What is the \(p\)-value for the above test? Report your answer to three decimal places.
+$BR
+\{  ans_rule(7) \}
+
+$BR
+$BR
+$BBOLD [E] $EBOLD Plot the data.
+What is the $BBOLD best $EBOLD interpretation of the plot?
+\{ $mcE->print_a() \}
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.1) );
+ANS( num_cmp($q2ans, tol=> 0.1) );
+ANS( num_cmp($q3ans, tol=> 0.25) );
+ANS( num_cmp($q4ans, tol=> 0.01) );
+ANS( radio_cmp($mcE->correct_ans()) );
+
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+df <- data.frame(drug = as.factor(drug), size = c(drug1, drug2, drug3, drug4))
+$BR
+summary(aov(size ~ drug, df))
+
+END_SOLUTION
+ENDDOCUMENT();

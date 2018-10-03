@@ -1,0 +1,262 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(December 2015)
+## Institution(Hope College)
+## Author(Paul Pearson)
+## Level(3)
+## MO(1)
+## KEYWORDS('eigenvectors','eigenvalues','eigenspaces')
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGgraphmacros.pl",
+  "contextLimitedVector.pl",
+  "AnswerFormatHelp.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "unionTables.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl"
+);
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+$showPartialCorrectAnswers = 1;
+
+Context("LimitedVector-coordinate")->variables->are(x=>'Real',y=>'Real');
+foreach my $i (1..8) {
+  Context()->strings->add( 'v'.$i =>{ TeX=> "\mathbf{v_{$i}}" });
+}
+Context()->flags->set(
+    formatStudentAnswer=>'parsed',
+    ijk=>0,
+);
+
+$num_vects = 8;
+
+# construct a color gradient
+#
+sub makegradient # ($graph, $steps, $r0, $g0, $b0, $r1, $g1, $b1)
+{
+  my ($graph, $steps, $r0, $g0, $b0, $r1, $g1, $b1) = @_;
+  my $dr = ($r1 - $r0) / $steps;
+  my $dg = ($g1 - $g0) / $steps;
+  my $db = ($b1 - $b0) / $steps;
+
+  my $r = $r0;
+  my $g = $g0;
+  my $b = $b0;
+  for my $i (0..$steps-1)
+  {
+    $graph->new_color("gradient$i",$r,$g,$b);
+    $r += $dr;
+    $g += $dg;
+    $b += $db;
+  }
+  return $graph;
+}
+
+# Construct graph canvases
+
+$pixels = 401;
+@gr = ();
+
+($xmin,$xmax) = (-9,9);
+($ymin,$ymax) = (-9,9);
+
+foreach my $i (0..1) {
+
+  $gr[$i] = init_graph($xmin,$ymin,$xmax,$ymax, axes=>[0,0], size=>[$pixels,$pixels]);
+  $gr[$i] -> lb('reset');
+
+  #  manually draw the grid
+  foreach my $x ($xmin..$xmax) {
+    $gr[$i] -> moveTo($x,$ymin);
+    $gr[$i] -> lineTo($x,$ymax,'gray',1);
+  }
+  foreach my $y ($ymin..$ymax) {
+    $gr[$i] -> moveTo($xmin,$y);
+    $gr[$i] -> lineTo($xmax,$y,'gray',1);
+  }
+
+  #  axes labels
+  $gr[$i] -> lb(new Label ( $xmax-0.5,0,'x','black','left','bottom'));
+  $gr[$i] -> lb(new Label ( 0.25,$ymax-0.5,'y','black','left','bottom'));
+
+  foreach my $x (($xmin+1)..-1,1..($xmax-1)) {
+    $gr[$i] -> lb(new Label ( $x,$ymin+0.75, $x,'black','center','top'));
+  }
+  foreach my $y (($ymin+1)..-1,1..($ymax-1)) {
+    $gr[$i] -> lb(new Label ($xmin+0.75, $y, $y,'black','right','middle'));
+  }
+
+  #
+  #  Add to $gr a 10 step color gradient
+  #
+  $gr[$i] = &makegradient($gr[$i], 8,
+  0,0,225,    # RGB blue
+  225,0,0     # RGB red
+  );
+
+} # end constructing graph canvases
+
+################################
+#  plot vectors in domain
+
+@x_domain = (4,4,0,-4,-4,-4,0,4);
+@y_domain = (0,4,4,4,0,-4,-4,-4);
+@h_label_domain = ('left','center','left','center','right','center','left','center');
+@v_label_domain = ('bottom','bottom','bottom','bottom','bottom','top','top','top');
+
+foreach my $i (0..$#x_domain) {
+  $gr[0]->moveTo(0,0);
+  $gr[0]->arrowTo($x_domain[$i],$y_domain[$i],"gradient".$i,3);
+  my $i1 = $i + 1;
+  $gr[0]->lb(new Label ($x_domain[$i],$y_domain[$i], ' v'."$i1".' ', 'gradient'.$i, $h_label_domain[$i],$v_label_domain[$i]));
+}
+
+###############################
+#  plot vectors in codomain
+
+$k1 = list_random(-1.5,-1,1.5); # first eigenvalue
+$k2 = - 0.5 * sgn($k1); # second eigenvalue
+
+$a11 = $k1;    $a12 = 0;
+$a21 = 0;  $a22 = $k2;
+
+
+@x_codomain = ();
+@y_codomain = ();
+foreach my $i (0..$#x_domain) {
+  $x_codomain[$i] = $a11 * $x_domain[$i] + $a12 * $y_domain[$i];
+  $y_codomain[$i] = $a21 * $x_domain[$i] + $a22 * $y_domain[$i];
+}
+if ($a11 > 0) {
+  @h_label_codomain = ('left','left','left','center','right','right','right','middle','left');
+  @v_label_codomain = ('middle','top','top','top','middle','bottom','bottom','bottom');
+} else {
+  @h_label_codomain = ('right','center','left','center','left','center','left','center');
+  @v_label_codomain = ('bottom','bottom','bottom','bottom','bottom','top','top','top');
+}
+
+foreach my $i (0..$#x_domain) {
+  $gr[1]->moveTo(0,0);
+  my $j = $i + 1;
+  $gr[1]->arrowTo($x_codomain[$i],$y_codomain[$i],"gradient".$i,3);
+  $gr[1]->lb(new Label ($x_codomain[$i],$y_codomain[$i],' T(v'.$j.') ','gradient'.$i, $h_label_codomain[$i],$v_label_codomain[$i]));
+}
+
+@fig = ();
+$fig[0] = image(insertGraph($gr[0]), width=>$pixels, height=>$pixels, tex_size=>450);
+$fig[1] = image(insertGraph($gr[1]), width=>$pixels, height=>$pixels, tex_size=>450);
+
+$mc = new_checkbox_multiple_choice();
+$mc -> qa (
+"Select all of the eigenvectors for the linear transformation \( T \). There may be more than one correct answer.",
+"\( \langle \pi, 0 \rangle \)",
+"\( \langle 0, 450 \rangle \)",
+"\( \vec{i} - \langle 4.5, 0 \rangle \)",
+"any nonzero vector parallel to the \( x \)-axis",
+"any nonzero vector parallel to the line \( x = 0 \)",
+"\( 30 \vec{j} \)",
+);
+$mc -> extra(
+"\( \langle 0, 0 \rangle \)",
+"\( \langle 1, 1 \rangle \)",
+"any nonzero vector parallel to the line \( y = x \)",
+"any nonzero vector parallel to the line \( y = -x \)",
+);
+#$mc -> makeLast("None of the above");
+
+$mc1 = new_checkbox_multiple_choice();
+$mc1 -> qa (
+"The set of all eigenvectors of the linear transformation \( T \) with eigenvalue \( $k1 \) together with the zero vector \( \langle 0, 0 \rangle \) is the eigenspace \( E_{$k1} \).  When described in words, the set \( E_{$k1} \) is (select all that apply):",
+"the zero vector together with all vectors parallel to \( \langle 1, 0 \rangle \)",
+"the zero vector together with all vectors parallel to the \( x \)-axis",
+);
+$mc1 -> extra(
+"the zero vector together with all vectors parallel to the \( y \)-axis",
+"the zero vector together with all vectors parallel to \( \langle 1, 1 \rangle \)",
+"the zero vector together with all vectors parallel to the line \( y = -x \)",
+"the zero vector together with all vectors parallel to \( \langle 0, 1 \rangle \)",
+);
+#$mc1 -> makeLast("None of the above");
+
+$mc2 = new_checkbox_multiple_choice();
+$mc2 -> qa (
+"The set of all eigenvectors of the linear transformation \( T \) with eigenvalue \( $k2 \) together with the zero vector \( \langle 0, 0 \rangle \) is the eigenspace \( E_{$k2} \).  When described in set notation, the set \( E_{$k2} \) is (select all that apply):",
+"\( \lbrace k \langle 0, 1 \rangle \mid k \in \mathbb{R} \rbrace \)",
+);
+$mc2 -> extra(
+"\( \lbrace k \langle 1, 0 \rangle \mid k \in \mathbb{R} \rbrace \)",
+"\( \lbrace k \langle 1, 1 \rangle \mid k \in \mathbb{R} \rbrace \)",
+"\( \lbrace k \langle -1, 1 \rangle \mid k \in \mathbb{R} \rbrace \)",
+);
+#$mc2 -> makeLast("None of the above");
+
+
+#######################################
+Scaffold::Begin(
+    can_open => "when_previous_correct",
+    is_open  => "first_incorrect",
+    hardcopy_is_open => "always",
+);
+
+BEGIN_PGML
+Suppose [` T: \mathbb{R}^2 \to \mathbb{R}^2 `] is the linear transformation defined in the figure below.
+The figure shows where [`T`] maps [$num_vects] vectors [` \mathbf{v_1}, \ldots, \mathbf{v_{ [$num_vects] }}`] from the domain.
+With this limited information about [`T`], what properties of [`T`] can be determined?
+
+[@
+BeginTable().
+  AlignedRow([ $fig[0],"\\( \\Large \\stackrel{T}{\\to} \\)", $fig[1] ]).
+  TableSpace(5,0).
+  AlignedRow(["domain"," " ,"codomain"]).
+EndTable().$PAR
+@]***
+END_PGML
+
+Section::Begin("Part 1: Finding eigenvectors using geometry");
+BEGIN_PGML
+Which of the eight vectors drawn in the domain are eigenvectors?  Enter your answer as a comma separated list of vector names, such as [|v1,v2|].
+
++ Eigenvectors: [______________________]{"v1,v3,v5,v7"}
+END_PGML
+Section::End();
+
+Section::Begin("Part 2: Finding eigenvalues using geometry");
+BEGIN_PGML
+For each eigenvector from Part 1, find and enter the corresponding eigenvalue. [@ AnswerFormatHelp("numbers") @]*
+
+a. [`T(\mathbf{v_1}) = `] [____]{"$k1"} [`\mathbf{v_1}`]
+b. [`T(\mathbf{v_3}) = `] [____]{"$k2"} [`\mathbf{v_3}`]
+c. [`T(\mathbf{v_5}) = `] [____]{"$k1"} [`\mathbf{v_5}`]
+d. [`T(\mathbf{v_7}) = `] [____]{"$k2"} [`\mathbf{v_7}`]
+END_PGML
+Section::End();
+
+Section::Begin("Part 3: Generalizing observations about eigenvectors to eigenspaces");
+BEGIN_PGML
+a. [@ $mc -> print_q() @]***  
+[@ ANS(checkbox_cmp($mc->correct_ans)); $mc -> print_a() @]***
+
+b. [@ $mc1 -> print_q() @]***  
+[@ ANS(checkbox_cmp($mc1->correct_ans)); $mc1 -> print_a() @]***
+
+c. [@ $mc2 -> print_q() @]***  
+[@ ANS(checkbox_cmp($mc2->correct_ans)); $mc2 -> print_a() @]***
+END_PGML
+Section::End();
+
+Scaffold::End();
+
+COMMENT('Distinct real eigenvalues.  Dilates in x- and y-directions');
+
+ENDDOCUMENT();

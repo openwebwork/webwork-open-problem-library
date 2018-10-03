@@ -1,0 +1,306 @@
+##DESCRIPTION
+## Given control points for two Bezier curves, answer continuity questions
+##ENDDESCRIPTION
+
+## DBsubject('Calculus - single variable')
+## DBchapter('Limits and continuity')
+## DBsection('Continuity - concept of')
+## Date('04/04/2018')
+## Author('Nathan Carter')
+## Institution('Bentley University')
+## TitleText1('Introduction to the Mathematics of Computer Graphics')
+## EditionText1('1')
+## AuthorText1('Nathan Carter')
+## Section1('13')
+## Problem1('1')
+##KEYWORDS('Bezier curves','continuity','joining','scenes')
+
+########################################################################
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGcourse.pl",
+  "parserPopUp.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+# we will store the values of all points in one array, like so:
+# ( part a control point C1 x component,
+#   part a control point C1 y component,
+#   ...and so on through C4 y component,
+#   part a control point D1 x component,
+#   ...and so on through D4 y component,
+#   ...and so on through part d )
+@pts = ();
+for ( my $i = 0 ; $i < 64 ; $i++ ) { push( @pts, random( -5, 5 ) ); }
+
+# now we need to choose one of them that won't have even C^0 continuity
+@indices = ( 0, 1, 2, 3 );
+$which = random( 0, 3 );
+$notC0idx = $indices[$which];
+splice( @indices, $which, 1 );
+# now we need to ensure that it doesn't have that continuity
+$D1xi = 16 * $notC0idx + 8;
+$D1x = $pts[$D1xi];
+$C4x = $pts[$D1xi-2];
+if ( $D1x == $C4x ) { $pts[$D1xi]++; } # changes D1x
+
+# now we need to choose one of them that will be C^0 but not C^1
+$which = random( 0, 2 );
+$notC1idx = $indices[$which];
+splice( @indices, $which, 1 );
+# now we need to ensure that it has C^0 continuity
+$D1xi = 16 * $notC1idx + 8;
+$D1x = $pts[$D1xi];
+$D1y = $pts[$D1xi+1];
+$pts[$D1xi-2] = $D1x; # changes C4x
+$pts[$D1xi-1] = $D1y; # changes C4y
+# now we need to ensure that it does not have C^1 continuity
+$C3x = $pts[$D1xi-4];
+$C4x = $pts[$D1xi-2];
+$D2x = $pts[$D1xi+2];
+if ( $C4x - $C3x == $D2x - $D1x ) { $pts[$D1x+2]++; } # changes D2x
+
+# now we need to choose one of them that will be C^0 and C^1 but not C^2
+$which = random( 0, 1 );
+$notC2idx = $indices[$which];
+splice( @indices, $which, 1 );
+# now we need to ensure that it has C^0 continuity
+$D1xi = 16 * $notC2idx + 8;
+$D1x = $pts[$D1xi];
+$D1y = $pts[$D1xi+1];
+$pts[$D1xi-2] = $D1x; # changes C4x
+$pts[$D1xi-1] = $D1y; # changes C4y
+# now we need to ensure that it has C^1 continuity
+$C3x = $pts[$D1xi-4];
+$C3y = $pts[$D1xi-3];
+$C4x = $pts[$D1xi-2];
+$C4y = $pts[$D1xi-1];
+$pts[$D1xi+2] = $D1x + $C4x - $C3x; # changes D2x
+$pts[$D1xi+3] = $D1y + $C4y - $C3y; # changes D2y
+# now we need to ensure that it does not have C^2 continuity
+$C2x = $pts[$D1xi-6];
+$D2x = $pts[$D1xi+2];
+$D3x = $pts[$D1xi+4];
+if ( $C3x + ( $C3x - $C2x ) == $D2x + ( $D2x - $D3x ) ) {
+    $pts[$D1x+4]++; # changes D3x
+}
+
+# and the last one of them that will be C^0 and C^1 and C^2
+$allCidx = $indices[0];
+# now we need to ensure that it has C^0 continuity
+$D1xi = 16 * $allCidx + 8;
+$D1x = $pts[$D1xi];
+$D1y = $pts[$D1xi+1];
+$pts[$D1xi-2] = $D1x; # changes C4x
+$pts[$D1xi-1] = $D1y; # changes C4y
+# now we need to ensure that it has C^1 continuity
+$C3x = $pts[$D1xi-4];
+$C3y = $pts[$D1xi-3];
+$C4x = $pts[$D1xi-2];
+$C4y = $pts[$D1xi-1];
+$pts[$D1xi+2] = $D1x + $C4x - $C3x; # changes D2x
+$pts[$D1xi+3] = $D1y + $C4y - $C3y; # changes D2y
+# now we need to ensure that it has C^2 continuity
+$C2x = $pts[$D1xi-6];
+$C2y = $pts[$D1xi-5];
+$D2x = $pts[$D1xi+2];
+$D2y = $pts[$D1xi+3];
+$pts[$D1xi+4] = $C2x + 2*( $D2x - $C3x ); # changes D3x
+$pts[$D1xi+5] = $C2y + 2*( $D2y - $C3y ); # changes D3y
+
+$e = '&eacute;';
+
+@cs = ();
+@ds = ();
+for ( my $i = 0 ; $i < 4 ; $i++ ) {
+    my $cpart = '';
+    my $dpart = '';
+    for ( my $j = 0 ; $j < 4 ; $j++ ) {
+        $cpart = $cpart . 'C_' . ($j+1)
+                        . '=(' . $pts[16*$i+2*$j]
+                         . ',' . $pts[16*$i+2*$j+1] . ') ~ ~ ~ ~ ~';
+        $dpart = $dpart . 'D_' . ($j+1)
+                        . '=(' . $pts[16*$i+2*$j+8]
+                         . ',' . $pts[16*$i+2*$j+9] . ') ~ ~ ~ ~ ~';
+    }
+    push( @cs, '>> [`' . $cpart . '`] <<' );
+    push( @ds, '>> [`' . $dpart . '`] <<' );
+}
+
+@answerOptions = (
+    '(make a choice)',
+    'The joined curve would not have even C0 continuity.',
+    'The joined curve would have C0 continuity but not C1 continuity.',
+    'The joined curve would have C0 and C1 continuity but not C2 continuity.',
+    'The joined curve would have C0, C1, and C2 continuity.',
+    'None of the above.'
+);
+@correctAnswers = ( 0, 0, 0, 0 );
+$correctAnswers[$notC0idx] = 1;
+$correctAnswers[$notC1idx] = 2;
+$correctAnswers[$notC2idx] = 3;
+$correctAnswers[$allCidx] = 4;
+
+TEXT(beginproblem());
+BEGIN_PGML
+*WARNING: Because this problem is/contains multiple choice, you are permitted A LIMITED NUMBER OF ATTEMPTS.  Use them wisely.*
+
+Assume that you want to stitch together two cubic B[$e]*ier curves, the first with control points [`C_1`] through [`C_4`] and the second with control points [`D_1`] through [`D_4`]. For each set of control points given below, choose which of the levels of continuity discussed in this chapter ([`C^0`], [`C^1`], [`C^2`]) a path would have if we produced it by joining the two curves in succession.
+
+Part 1:
+
+[@ PGML($cs[0]) @]***
+
+[@ PGML($ds[0]) @]***
+
+Pick your answer from here:
+[___]{PopUp( [ @answerOptions ], $correctAnswers[0] )}
+
+Part 2:
+
+[@ PGML($cs[1]) @]***
+
+[@ PGML($ds[1]) @]***
+
+Pick your answer from here:
+[___]{PopUp( [ @answerOptions ], $correctAnswers[1] )}
+
+Part 3:
+
+[@ PGML($cs[2]) @]***
+
+[@ PGML($ds[2]) @]***
+
+Pick your answer from here:
+[___]{PopUp( [ @answerOptions ], $correctAnswers[2] )}
+
+Part 4:
+
+[@ PGML($cs[3]) @]***
+
+[@ PGML($ds[3]) @]***
+
+Pick your answer from here:
+[___]{PopUp( [ @answerOptions ], $correctAnswers[3] )}
+END_PGML
+
+BEGIN_PGML_SOLUTION
+We can see that the control points from Part [$notC0idx+1] would not create a curve with even [`C^0`] continuity, because [`C_4\neq D_1`].
+
+>> [`C_4=([$pts[$notC0idx*16+6]],[$pts[$notC0idx*16+7]])`] <<
+
+>> [`D_1=([$pts[$notC0idx*16+8]],[$pts[$notC0idx*16+7]])`] <<
+
+We can see that the control points from Part [$notC1idx+1] would create a curve with [`C^0`] continuity but not [`C^1`] continuity, as follows.
+
+First, [`C_4 = D_1`].
+
+>> [`C_4=([$pts[$notC1idx*16+6]],[$pts[$notC1idx*16+7]])`] <<
+
+>> [`D_1=([$pts[$notC1idx*16+8]],[$pts[$notC1idx*16+7]])`] <<
+
+Second, [`C_4-C_3\neq D_2-D_1`].
+
+>> [`C_4-C_3=([$pts[$notC1idx*16+6]],[$pts[$notC1idx*16+7]])
+            -([$pts[$notC1idx*16+4]],[$pts[$notC1idx*16+5]])
+            =([$pts[$notC1idx*16+6]]-[$pts[$notC1idx*16+4]],
+              [$pts[$notC1idx*16+7]]-[$pts[$notC1idx*16+5]])
+            =([$pts[$notC1idx*16+6]-$pts[$notC1idx*16+4]],
+              [$pts[$notC1idx*16+7]-$pts[$notC1idx*16+5]])`] <<
+
+>> [`D_2-D_1=([$pts[$notC1idx*16+10]],[$pts[$notC1idx*16+11]])
+            -([$pts[$notC1idx*16+8]],[$pts[$notC1idx*16+9]])
+            =([$pts[$notC1idx*16+10]]-[$pts[$notC1idx*16+8]],
+              [$pts[$notC1idx*16+11]]-[$pts[$notC1idx*16+9]])
+            =([$pts[$notC1idx*16+10]-$pts[$notC1idx*16+8]],
+              [$pts[$notC1idx*16+11]-$pts[$notC1idx*16+9]])`] <<
+
+We can see that the control points from Part [$notC2idx+1] would create a curve with [`C^0`] and [`C^1`] continuity but not [`C^2`] continuity, as follows.
+
+First, [`C_4 = D_1`].
+
+>> [`C_4=([$pts[$notC2idx*16+6]],[$pts[$notC2idx*16+7]])`] <<
+
+>> [`D_1=([$pts[$notC2idx*16+8]],[$pts[$notC2idx*16+7]])`] <<
+
+Second, [`C_4-C_3 = D_2-D_1`].
+
+>> [`C_4-C_3=([$pts[$notC2idx*16+6]],[$pts[$notC2idx*16+7]])
+            -([$pts[$notC2idx*16+4]],[$pts[$notC2idx*16+5]])
+            =([$pts[$notC2idx*16+6]]-[$pts[$notC2idx*16+4]],
+              [$pts[$notC2idx*16+7]]-[$pts[$notC2idx*16+5]])
+            =([$pts[$notC2idx*16+6]-$pts[$notC2idx*16+4]],
+              [$pts[$notC2idx*16+7]-$pts[$notC2idx*16+5]])`] <<
+
+>> [`D_2-D_1=([$pts[$notC2idx*16+10]],[$pts[$notC2idx*16+11]])
+            -([$pts[$notC2idx*16+8]],[$pts[$notC2idx*16+9]])
+            =([$pts[$notC2idx*16+10]]-[$pts[$notC2idx*16+8]],
+              [$pts[$notC2idx*16+11]]-[$pts[$notC2idx*16+9]])
+            =([$pts[$notC2idx*16+10]-$pts[$notC2idx*16+8]],
+              [$pts[$notC2idx*16+11]-$pts[$notC2idx*16+9]])`] <<
+
+Finally, [`C_3+(C_3-C_2)\neq D_2+(D_2-D_3)`], which we can rephrase as [`2C_3-C_2\neq 2D_2-D_3`].
+
+>> [`2C_3-C_2=2([$pts[$notC2idx*16+4]],[$pts[$notC2idx*16+5]])
+             -([$pts[$notC2idx*16+2]],[$pts[$notC2idx*16+3]])
+             =(2\cdot[$pts[$notC2idx*16+4]]-[$pts[$notC2idx*16+2]],
+               2\cdot[$pts[$notC2idx*16+5]]-[$pts[$notC2idx*16+3]])
+             =([$pts[$notC2idx*16+4]*2-$pts[$notC2idx*16+2]],
+               [$pts[$notC2idx*16+5]*2-$pts[$notC2idx*16+3]])`] <<
+
+>> [`2D_2-D_3=2([$pts[$notC2idx*16+2+8]],[$pts[$notC2idx*16+3+8]])
+             -([$pts[$notC2idx*16+4+8]],[$pts[$notC2idx*16+5+8]])
+             =(2\cdot[$pts[$notC2idx*16+2+8]]-[$pts[$notC2idx*16+4+8]],
+               2\cdot[$pts[$notC2idx*16+3+8]]-[$pts[$notC2idx*16+5+8]])
+             =([$pts[$notC2idx*16+2+8]*2-$pts[$notC2idx*16+4+8]],
+               [$pts[$notC2idx*16+3+8]*2-$pts[$notC2idx*16+5+8]])`] <<
+
+We can see that the control points from Part [$allCidx+1] would create a curve with [`C^0`], [`C^1`], and [`C^2`] continuity, as follows.
+
+First, [`C_4 = D_1`].
+
+>> [`C_4=([$pts[$allCidx*16+6]],[$pts[$allCidx*16+7]])`] <<
+
+>> [`D_1=([$pts[$allCidx*16+8]],[$pts[$allCidx*16+7]])`] <<
+
+Second, [`C_4-C_3 = D_2-D_1`].
+
+>> [`C_4-C_3=([$pts[$allCidx*16+6]],[$pts[$allCidx*16+7]])
+            -([$pts[$allCidx*16+4]],[$pts[$allCidx*16+5]])
+            =([$pts[$allCidx*16+6]]-[$pts[$allCidx*16+4]],
+              [$pts[$allCidx*16+7]]-[$pts[$allCidx*16+5]])
+            =([$pts[$allCidx*16+6]-$pts[$allCidx*16+4]],
+              [$pts[$allCidx*16+7]-$pts[$allCidx*16+5]])`] <<
+
+>> [`D_2-D_1=([$pts[$allCidx*16+10]],[$pts[$allCidx*16+11]])
+            -([$pts[$allCidx*16+8]],[$pts[$allCidx*16+9]])
+            =([$pts[$allCidx*16+10]]-[$pts[$allCidx*16+8]],
+              [$pts[$allCidx*16+11]]-[$pts[$allCidx*16+9]])
+            =([$pts[$allCidx*16+10]-$pts[$allCidx*16+8]],
+              [$pts[$allCidx*16+11]-$pts[$allCidx*16+9]])`] <<
+
+Finally, [`C_3+(C_3-C_2) = D_2+(D_2-D_3)`], which we can rephrase as [`2C_3-C_2 = 2D_2-D_3`].
+
+>> [`2C_3-C_2=2([$pts[$allCidx*16+4]],[$pts[$allCidx*16+5]])
+             -([$pts[$allCidx*16+2]],[$pts[$allCidx*16+3]])
+             =(2\cdot[$pts[$allCidx*16+4]]-[$pts[$allCidx*16+2]],
+               2\cdot[$pts[$allCidx*16+5]]-[$pts[$allCidx*16+3]])
+             =([$pts[$allCidx*16+4]*2-$pts[$allCidx*16+2]],
+               [$pts[$allCidx*16+5]*2-$pts[$allCidx*16+3]])`] <<
+
+>> [`2D_2-D_3=2([$pts[$allCidx*16+2+8]],[$pts[$allCidx*16+3+8]])
+             -([$pts[$allCidx*16+4+8]],[$pts[$allCidx*16+5+8]])
+             =(2\cdot[$pts[$allCidx*16+2+8]]-[$pts[$allCidx*16+4+8]],
+               2\cdot[$pts[$allCidx*16+3+8]]-[$pts[$allCidx*16+5+8]])
+             =([$pts[$allCidx*16+2+8]*2-$pts[$allCidx*16+4+8]],
+               [$pts[$allCidx*16+3+8]*2-$pts[$allCidx*16+5+8]])`] <<
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

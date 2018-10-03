@@ -1,0 +1,189 @@
+##DESCRIPTION
+##  Cryptography: simple Elgamal encryption
+##ENDDESCRIPTION
+
+##KEYWORDS('cryptography', 'elgamal', 'cipher', 'encryption')
+
+## DBsubject('Cryptography')
+## DBchapter('Public-key cryptography')
+## DBsection('Elgamal')
+## Date('7/25/2018')
+## Author('John Perry')
+## Institution('University of Southern Mississippi')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "scaffold.pl",
+   #"source.pl",        # allows code to be displayed on certain sites.
+   #"PGcourse.pl",      # Customization file for the course
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+
+@texts = (
+  'another saturday night and i aint got nobody',
+  'how i wish i had someone to talk to',
+  'the cats in the cradle with the silver spoon',
+  'little boy blue and the man in the moon',
+  'when you comin home dad i dont know when',
+  'if i could save time in a bottle',
+  'save every day til eternity passes away',
+  'there never seems to be enough time',
+  'to do the things you want to do',
+  'fourteen men on a dead mans chest',
+  'yo ho ho and a bottle of rum'
+);
+$text = @texts[ random(0,10) ];
+
+@primes = ( 29, 31, 37, 41, 43, 47 );
+$p = @primes[ random(0,5) ];
+
+sub is_primitive {
+  $result = 1;
+  my ( $a, $p ) = @_;
+  for ( $i = 1; $result && $i < $p - 1; ++$i ) {
+    if ( ( $a ** $i ) % $p == 1 ) { $result = 0; }
+  }
+  return $result;
+}
+$a = ( $p + 1 ) / 2;
+while ( !is_primitive($a) ) {
+  --$a;
+  if ( $a < 1 ) { $a = $a - 1; }
+}
+
+$b = random(3,5);
+$c = random(6,8);
+
+sub slow_exponentiation {
+  my ( $a, $e, $p ) = @_;
+  $result = 1;
+  for ( $i = 0; $i < $e; ++$i) {
+    $result *= $a;
+    $result %= $p;
+  }
+  return $result;
+}
+
+$ab = ( $a ** $b ) % $p ;
+$ac = ( $a ** $c ) % $p;
+$bc = $b * $c ;
+$key = slow_exponentiation( $a, $bc, $p ) ;
+$d = slow_exponentiation( $key, $p - 2, $p ) ;
+
+@enciphered = ();
+for ( $i = 0; $i < length($text); ++$i ) {
+  if ( ord(substr($text, $i, 1)) == ord(' ') ) { $m = 26; }
+  else { $m = ord(substr($text, $i, 1)) - ord('a'); }
+  push( @enciphered, ( $m * $key ) % $p );
+}
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+In this problem we will encipher a text using the Elgamal algorithm.
+$PAR
+Alice announces that Bob can broadcast to her modulo the prime number $p
+using the primitive element $a and her public key $ab.
+$PAR
+Bob decides to use $c as his private key.
+$PAR
+
+END_TEXT
+Context()->normalStrings;
+
+Scaffold::Begin();
+
+Section::Begin("Part 1: Bob&rsquo;s public key");
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Find the public key that Bob will broadcast.
+$PAR
+\{ ans_rule(5) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( Compute($ac) -> cmp() );
+
+Section::End();
+
+Section::Begin("Part 2: the private, common key");
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Find the private, common key that both Alice and Bob are using.
+$PAR
+\{  ans_rule(5) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( Compute($key) -> cmp() );
+
+Section::End();
+
+Section::Begin("Part 3: encrypt a message");
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Help Bob encrypt the message
+<center><span style="font-weight:bold;color:blue">$text</span></center>
+using the encoding
+\[ a\mapsto0,\quad b\mapsto1,\quad \ldots,\quad z\mapsto25,\quad \textit{space}\mapsto26\ . \]
+(The answer should be a list of numbers, each of them between 0 and 26, inclusive.)
+$PAR
+\{ ans_rule(40) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( List( @enciphered ) -> cmp() );
+
+Section::End();
+
+Section::Begin("Part 4: decryption");
+
+Context()->texStrings;
+BEGIN_TEXT
+
+What should Alice use as the decryption exponent?
+$PAR
+\{ ans_rule(5) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( Compute($d) -> cmp() );
+
+Section::End();
+
+Scaffold::End();
+
+ENDDOCUMENT();
