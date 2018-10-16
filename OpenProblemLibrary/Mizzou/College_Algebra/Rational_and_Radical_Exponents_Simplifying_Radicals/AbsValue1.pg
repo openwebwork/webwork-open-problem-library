@@ -28,10 +28,7 @@ DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
-  "PGunion.pl",
   "MathObjects.pl",
-  "parserMultiAnswer.pl",
-  "AnswerFormatHelp.pl",
   "contextLimitedPowers.pl",
   "PGcourse.pl"
 );
@@ -43,42 +40,11 @@ TEXT(beginproblem());
 # Setup
 
 
-#
-# Subclass the numeric functions
-#
-package my::Function::numeric;
-our @ISA = ('Parser::Function::numeric');
-
-#
-# Override sqrt() to return a special value (usually 1) when evaluated
-# effectively eliminating it from the product.
-#
-sub sqrt {
-  my $self = shift;
-  my $value = $self->context->flag("setSqrt");
-  return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
-  return $value if $value;
-  return $self->SUPER::sqrt(@_);
-}
-
-#
-# end of subclass
-#
-package main;
-
-###########################
-
 Context("Numeric");
-Context("Numeric")->variables->are(
-x => ["Real", limits => [0,2]],    # only needed if x is used in the square roots
-);
-#
-# make sqrt() use our subclass
-#
-Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+
 Context()->flags->set(reduceConstantFunctions=>0);
 Context()->variables->are(
-y=>"Real",
+y=>"Real", 
 t=>"Real",
 s=>"Real",
 u=>"Real",
@@ -88,15 +54,10 @@ q=>"Real",
 r=>"Real",
 w=>"Real",
 z=>"Real");
+Context()->functions->disable('sqrt');
 
 $a = list_random(2,3,4,5,6,8,10);
 $a2 = $a**2;
-$b = list_random(2,3,5,6,10);   ##small or easy squarefree numbers
-$a2b = ($a**2)*$b;
-$exp1 = random(2,10,1);
-$exp2 = random(2,10,1);
-$e1 = 2*$exp1;
-$e2 = 2*$exp2 + 1;
 
 
 $var = list_random('y','z','w','p','q','r','s','t','u','v');
@@ -106,58 +67,38 @@ $var = list_random('y','z','w','p','q','r','s','t','u','v');
 #
 LimitedPowers::OnlyPositiveIntegers();
 
-$expr = " \sqrt{$a2 $var^2} ";
 
 $ans = Compute(" $a  |$var|  ");
-$texanswer = "\($a |$var|\)";
 
 ##############################################################
-
+Context()->texStrings;
 BEGIN_TEXT
 Simplify.  Assume that \($var\) can represent any real number.
 $PAR
 $BCENTER
-\( $expr = \text{ }~\) \{ans_rule(20)\}
+\( \sqrt{$a2 $var^2} = \) \{ans_rule(20)\}
 $ECENTER
-$BR
-Write your answer using radical notation if necessary.  
 END_TEXT
 
 ##############################################################
 
-    BEGIN_TEXT
-    $PAR
-    ${BBOLD}Help:${EBOLD}
-To enter the square root of a number use ${BBOLD}sqrt()${EBOLD}. For example, to give \(\sqrt{7x}\) as an answer, you would type sqrt(7x). If you mistakenly type sqrt 7x instead, Webwork will take this to mean \(x \sqrt{7}\), not \(\sqrt{7x}\). That is, you MUST put parenthesis around everything that you want to take the square root of. 
-    $BR
-    END_TEXT
 
 Context()->normalStrings;
 
 $showPartialCorrectAnswers = 1;
 
-ANS( $ans-> cmp( checker => sub {
-  my ($correct,$student,$ans) = @_;
-  return 0 if $ans->{isPreview} || $correct != $student;
-  #
-  #  Get parsed formula for student and correct answers
-  #
-  $student = $ans->{student_formula};
-  $correct = $correct->{original_formula} if defined $correct->{original_formula};
-  #
-  # check if equal when sqrt's are replaced by 1
-  #
-  Context()->flags->set(setSqrt => 1);
-  delete $correct->{test_values};
-  delete $student->{test_values};
-  my $OK = ($correct == $student);
-  Context()->flags->set(setSqrt => 0);
-  #
-  Value::Error("Check to see if your answer is simplified.") unless $OK;
-  return $OK;
-  }, formatStudentAnswer=>"reduced"
-  )
-);
+ANS($ans->cmp(
+  limits=>[-1,1],
+  checker=>sub{ 
+    my ($correct,$student,$ans) = @_;
+    if ($correct == $student) {
+       return 1;
+    }
+    elsif (Compute("$a $var") == $student) { 
+      Value->Error("Will your answer work for negative ${var}?");
+    }
+    else {return 0;}
+  }
+));
 
-COMMENT('MathObject version');
 ENDDOCUMENT();
