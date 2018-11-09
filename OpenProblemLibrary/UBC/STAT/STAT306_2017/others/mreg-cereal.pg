@@ -1,0 +1,491 @@
+## DBsubject(Statistics)
+## DBchapter(Multiple regression)
+## DBsection(Parameter estimates)
+## Level(4)
+#########################################################
+
+## Initializations:
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "answerHints.pl",
+  "regrfnsPG.pl",   # functions for regression and sampling
+);
+
+Context("Matrix");
+
+# n=73 in full data
+@cept=(1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,  
+1,1,1,1,1,1,1,1,1,1,  1,1,1 );
+
+@mfr=(
+"G","G","G","G","G","G","G","G","G","G","G","G","G","G","G","G","G","G","G","G","G","G","K","K","K","K","K","K","K","K","K","K","K","K","K","K","K","K","K","K","K","K","K","K","K","N","N","N","N","N","P","P","P","P","P","P","P","P","P","Q","Q","Q","Q","Q","Q","Q","R","R","R","R","R","R","R");
+
+#P 51-59 50-58
+#G 1-22  0-21
+#K 23-45 22-44
+#N 46-50 45-49
+#Q 60-66 59-65
+#R 67-73 66-72
+# 5 cases with P and R
+# PGKR
+# PGNR
+# PGQR
+# PKNR
+# PKQR
+# PNQR skip
+
+@igm=(
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+
+@ike=(
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+
+@ina=(
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+
+@ipo=(
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+
+@iqu=(
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0);
+
+@ira=(
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1);
+
+# y here is not really random because of discreteness
+@calories=(
+100,100,100,100,100,110,110,110,110,110,110,110,110,110,110,110,110,110,120,130,130,140,100,100,100,110,110,110,110,110,110,110,110,110,110,120,120,120,140,140,160,50,70,90,90,70,80,90,90,90,100,100,110,110,110,120,120,120,90,100,100,120,120,120,50,50,100,100,110,110,150,150,90);
+
+@protein=(
+2,2,3,3,3,1,1,1,1,2,2,2,2,2,2,3,3,6,1,3,3,3,2,3,3,1,1,2,2,2,2,2,2,3,6,2,3,3,3,3,3,4,4,2,3,4,2,2,3,3,2,3,1,1,3,3,3,3,3,4,4,1,1,3,1,2,2,3,1,2,4,4,2);
+
+@fat=(
+1,1,1,1,2,1,1,1,1,1,1,1,1,1,2,1,2,2,3,2,2,1,0,0,0,0,0,0,0,0,1,1,1,3,0,1,0,1,1,2,2,0,1,0,0,1,0,0,0,0,0,1,0,1,0,1,2,3,0,1,2,2,2,5,0,0,0,1,0,0,3,3,1);
+
+@fiber=(
+2,2,3,3,2.5,0,0,0,0,0,0,1,0,0,1.5,1.5,2,2,0,1.5,2,4,1,3,1,1,1,1,1,0,1,1,1,4,1,0,5,5,2,3,3,14,9,2,3,10,3,3,3,4,0,3,0,0,3,6,5,3,5,2,2,0,1,2,0,1,1,3,0,0,3,3,4);
+
+@carbo=(
+11,15,16,17,10.5,13,12,12,15,12,21,16,21,21,10.5,11.5,13,17,13,13.5,18,15,21,14,20,14,13,11,21,22,11,17,9,10,16,15,14,14,20,21,17,8,7,15,18,5,16,15,20,19,11,15,14,13,17,11,12,13,13,14,12,12,12,8,13,10,18,17,23,22,16,16,15);
+
+@sugars=(
+10,6,3,3,8,12,13,13,9,12,3,8,3,3,10,10,7,1,9,10,8,14,2,7,3,11,12,14,3,3,13,6,15,7,3,9,12,12,9,7,13,0,5,6,2,6,0,5,0,0,15,5,11,12,3,14,10,4,5,6,6,12,11,8,0,0,5,3,2,3,11,11,6);
+
+# $Xt and @y are global
+sub multreg 
+{ local($Xmat,$yt,$ymat,$n,$k,$XtX,$rhs,$LR,$dim,$beta,$base,$XtXinv);
+  local($b,$seb,$yhat,$res,$rest,$sse11,$sse,$mse,$residSD);
+  local($s1,$s2,$ybar,$sstot,$R2,$R2adj,$i,$j,$ij,$out);
+  $Xmat=$Xt->transpose;
+  ($n,$k) = $Xmat->dim();
+  $yt=Matrix([@y]); $ymat=$yt->transpose;
+  $XtX=$Xt*$Xmat; $rhs=$Xt*$ymat;
+  $LR=$XtX->decompose_LR;
+  ($dim,$beta,$base)=$LR->solve_LR($rhs);
+  @b=NULL; @seb=NULL;
+  for($j=0;$j<$k;$j++) { $b[$j]=$beta->element($j+1,1); }
+  $XtXinv=$XtX->inverse;
+  # yhat and residual vectors, residual SD, R2, adjusted R2
+  $yhat=$Xmat*$beta;
+  $res=$ymat-$yhat; $rest=$res->transpose;
+  $sse11=$rest*$res; $sse=$sse11->element(1,1);
+  $mse=$sse/($n-$k); $residSD=sqrt($mse);
+  for($j=0;$j<$k;$j++) { $seb[$j]=$residSD*sqrt($XtXinv->element($j+1,$j+1)); }
+  $s1=0; $s2=0;
+  for($i=0;$i<$n;$i++)
+  { $s1=$s1+$y[$i]; $s2=$s2+$y[$i]**2; }
+  $ybar=$s1/$n;
+  $sstot=$s2-$n*$ybar*$ybar;
+  $R2=1-$sse/$sstot;
+  $R2adj=1-$mse/($sstot/($n-1));
+  @xtxivec=NULL; $ij=0;
+  for($i=0;$i<$k;$i++) 
+  { for($j=0;$j<$k;$j++) 
+    { $xtxivec[$ij]=$XtXinv->element($i+1,$j+1); $ij++; }
+  }
+  @out=($n,$k,$ybar,$sse,$sstot,$residSD,$R2,$R2adj,@b,@seb,@xtxivec);
+  @out;
+}
+
+#P 51-59 50-58  9
+#G 1-22  0-21   22
+#K 23-45 22-44  23
+#N 46-50 45-49  5
+#Q 60-66 59-65  7
+#R 67-73 66-72  7
+# 5 cases with P and R
+# PGKR
+# PGNR
+# PGQR
+# PKNR
+# PKQR
+$isub=random(1,5);
+#$isub=2;
+#$isub=5;
+$basemfr1='P'; $basemfr4='R';
+if($isub==1)
+{ @iori=(50..58, 0..21, 22..44, 66..72);
+  # PGKR
+  $nori=$#iori+1; $nori1=$nori-1; #n=61
+  @itmp=isamp($nori,$nori1);
+  @ii=@iori[@itmp];
+  @z1=@ipo[@ii];
+  @z2=@igm[@ii];
+  @z3=@ike[@ii];
+  @z4=@ira[@ii];
+  $mfr2='G'; $mfr3='K';
+}
+elsif($isub==2)
+{ @iori=(50..58, 0..21, 45..49, 66..72);
+  # PGNR
+  $nori=$#iori+1; $nori1=$nori-1; #n=63
+  @itmp=isamp($nori,$nori1);
+  @ii=@iori[@itmp];
+  @z1=@ipo[@ii];
+  @z2=@igm[@ii];
+  @z3=@ina[@ii];
+  @z4=@ira[@ii];
+  $mfr2='G'; $mfr3='N';
+}
+elsif($isub==3)
+{ @iori=(50..58, 0..21, 59..65, 66..72);
+  # PGQR
+  $nori=$#iori+1; $nori1=$nori-1; #n=45
+  @itmp=isamp($nori,$nori1);
+  @ii=@iori[@itmp];
+  @z1=@ipo[@ii];
+  @z2=@igm[@ii];
+  @z3=@iqu[@ii];
+  @z4=@ira[@ii];
+  $mfr2='G'; $mfr3='Q';
+}
+elsif($isub==4)
+{ @iori=(50..58, 22..44, 45..49, 66..72);
+  # PKNR
+  $nori=$#iori+1; $nori1=$nori-1; #n=44
+  @itmp=isamp($nori,$nori1);
+  @ii=@iori[@itmp];
+  @z1=@ipo[@ii];
+  @z2=@ike[@ii];
+  @z3=@ina[@ii];
+  @z4=@ira[@ii];
+  $mfr2='K'; $mfr3='N';
+}
+elsif($isub==5)
+{ @iori=(50..58, 22..44, 59..65, 66..72);
+  # PKQR
+  $nori=$#iori+1; $nori1=$nori-1; #n=46
+  @itmp=isamp($nori,$nori1);
+  @ii=@iori[@itmp];
+  @z1=@ipo[@ii];
+  @z2=@ike[@ii];
+  @z3=@iqu[@ii];
+  @z4=@ira[@ii];
+  $mfr2='K'; $mfr3='Q';
+}
+
+$n=$#ii+1;
+@x0=@cept[@ii];
+@x1=@protein[@ii];
+@x2=@fat[@ii];
+@x3=@fiber[@ii];
+@x4=@carbo[@ii];
+@x5=@sugars[@ii];
+@x6=@mfr[@ii];
+@y=@calories[@ii];
+
+$x1str="protein=c(";
+for($i=0;$i<$n-1;$i++) { $x1str=$x1str . $x1[$i] . ", " ; }
+$x1str=$x1str . $x1[$n-1] . ")";
+$x2str="fat=c(";
+for($i=0;$i<$n-1;$i++) { $x2str=$x2str . $x2[$i] . ", " ; }
+$x2str=$x2str . $x2[$n-1] . ")";
+$x3str="fiber=c(";
+for($i=0;$i<$n-1;$i++) { $x3str=$x3str . $x3[$i] . ", " ; }
+$x3str=$x3str . $x3[$n-1] . ")";
+$x4str="carbo=c(";
+for($i=0;$i<$n-1;$i++) { $x4str=$x4str . $x4[$i] . ", " ; }
+$x4str=$x4str . $x4[$n-1] . ")";
+$x5str="sugars=c(";
+for($i=0;$i<$n-1;$i++) { $x5str=$x5str . $x5[$i] . ", " ; }
+$x5str=$x5str . $x5[$n-1] . ")";
+$x6str="mfr=c(";
+for($i=0;$i<$n-1;$i++) { $x6str=$x6str . "'" . $x6[$i] . "', " ; }
+$x6str=$x6str . "'" . $x6[$n-1] . "')";
+$z1str="z1=c(";
+for($i=0;$i<$n-1;$i++) { $z1str=$z1str . $z1[$i] . ", " ; }
+$z1str=$z1str . $z1[$n-1] . ")";
+$ystr="calories=c(";
+for($i=0;$i<$n-1;$i++) { $ystr=$ystr . $y[$i] . ", " ; }
+$ystr=$ystr . $y[$n-1] . ")";
+
+
+# p=8
+$Xt=Matrix ([@x0],[@x1],[@x2],[@x3],[@x4],[@x5],[@z2],[@z3],[@z4]); 
+@out8=multreg;
+$n=$out8[0]; $k=$out8[1];
+$sse=$out8[3]; $residSD=$out8[5];
+$R2=$out8[6]; $R2adj=$out8[7];
+$b0=$out8[8]; $b1=$out8[9]; $b2=$out8[10]; $b3=$out8[11];
+$b4=$out8[12]; $b5=$out8[13]; 
+$b6=$out8[14]; $b7=$out8[15]; $b8=$out8[16];
+$seb0=$out8[17]; $seb1=$out8[18]; $seb2=$out8[19]; $seb3=$out8[20];
+$seb4=$out8[21]; $seb5=$out8[22]; $seb6=$out8[23]; $seb7=$out8[24];
+$seb8=$out8[25];
+#@xtxinv=@out8[26..106];
+
+# different way of doing dummy variables
+$Xt=Matrix ([@x0],[@x1],[@x2],[@x3],[@x4],[@x5],[@z1],[@z2],[@z3]); 
+@outa=multreg;
+#$n=$outa[0]; $k=$outa[1];
+#$sse=$outa[3]; $residSD=$outa[5];
+#$R2=$outa[6]; $R2adj=$outa[7];
+$a0=$outa[8]; $a1=$outa[9]; $a2=$outa[10]; $a3=$outa[11];
+$a4=$outa[12]; $a5=$outa[13]; 
+$a6=$outa[14]; $a7=$outa[15]; $a8=$outa[16];
+$sea0=$outa[17]; $sea1=$outa[18]; $sea2=$outa[19]; $sea3=$outa[20];
+$sea4=$outa[21]; $sea5=$outa[22]; $sea6=$outa[23]; $sea7=$outa[24];
+$sea8=$outa[25];
+#@xtxinv=@outa[26..106];
+
+# question about SE
+
+# answers
+$ansa1=$b6;
+$ansa2=$seb6;
+$ansb1=$a8;
+$ansb2=$sea8;
+$ansc=$R2adj;
+$ansd=$residSD;
+$anse=12;
+
+#$BR
+#Got isub=$isub.
+#$BR
+#Run1
+#$b0, $b1, $b2,
+#$b3, $b4, $b5,
+#$b6, $b7, $b8
+#$BR
+#$seb0, $seb1, $seb2,$seb3, $seb4, $seb5, $seb6,$seb7, $seb8
+#$BR
+#$BR
+#Run2
+#$a0, $a1, $a2,
+#$a3, $a4, $a5,
+#$a6, $a7, $a8
+#$BR
+#$sea0, $sea1, $sea2,$sea3, $sea4, $sea5, $sea6,$sea7, $sea8
+#$BR
+
+Context()->texStrings;
+
+BEGIN_TEXT
+This is a question on interpretation of regression equations which
+have categorical explanatory variables where slopes on non-categorical
+variables do not depend on the category. This model assumes that hyperplanes
+are parallel for different categories, and the regression coefficients
+for the binary dummy variables can be used to determine distances
+between hyperplanes for different categories.
+
+$BR
+$BR
+For your subset of the cereal data set, the response variable is:
+calories
+$BR
+$ystr
+$BR
+$BR
+The explanatory variables are:
+
+$BR
+(i) protein
+$BR
+$x1str
+
+$BR
+(ii) fat
+$BR
+$x2str
+
+$BR
+(iii) fiber
+$BR
+$x3str
+
+$BR
+(iv) carbo
+$BR
+$x4str
+
+$BR
+(v) sugars
+$BR
+$x5str
+
+$BR
+(vi) mfr
+$BR
+$x6str
+
+$BR
+
+$BR
+You are to fit a multiple regression model with the response variable
+'calories' and
+$BR
+6 explanatory variables protein, fat, fiber, carbo, sugars, mfr.
+$BR
+After you have copied the above R vectors into your R session,
+you can get a dataframe with 
+$BR
+$BR
+cereal = data.frame(cbind(calories,protein,fat,fiber,carbo,sugars))
+$BR
+cereal$DOLLAR mfr = mfr
+$BR
+$BR
+
+Please use 3 decimal places for the answers below which are not
+integer-valued.
+$BR
+$BR
+
+For the regression being requested, you should find the most or all of the
+coefficients for protein,fat,fiber,carbo,sugars to be statistically
+significant. Some of the manufacturers might be significantly different from
+others but not all pairs of manufacturers are significantly different from
+each other.
+$BR
+$BR
+To answer the parts (a) and (b) below, two separate regressions could
+be done (with 2 different manufactors as the baseline categories). If
+you want to challenge yourself to answer them both based on one application
+of lm(),
+you need to use the cov.unscaled component of the summary of an lm object.
+$BR
+
+$BR
+$BBOLD Part a) $EBOLD
+$BR
+The estimate of the signed distance of the hyperplane for  
+manufacturer $mfr2 relative to $basemfr1 is
+\{ ans_rule(8) \} and its SE is \{ ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part b) $EBOLD
+$BR
+The estimate of the signed distance of the hyperplane for  
+manufacturer $mfr3 relative to $basemfr4 is
+\{ ans_rule(8) \} and its SE is \{ ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part c) $EBOLD
+$BR
+What is the adjusted \(R^2\)?
+\{ ans_rule(8) \} 
+$BR
+
+$BR
+$BBOLD Part d) $EBOLD
+$BR
+What is the residual SD (residual SE in R)?
+\{ ans_rule(8) \} 
+$BR
+
+$BR
+$BBOLD Part e) $EBOLD
+$BR
+If interaction of mfr and sugars (mfr:sugars) were added to the lm statement,
+how many betas would be in the regression equation?
+\{ ans_rule(8) \} 
+$BR
+
+$BR
+
+END_TEXT
+
+#########################################################
+
+BEGIN_HINT
+Check the class notes.
+END_HINT
+
+#########################################################
+$showPartialCorrectAnswers = 1;
+#########################################################
+
+ANS( num_cmp($ansa1,tol=> 0.015, tolType=>"absolute") );
+ANS( num_cmp($ansa2,tol=> 0.015, tolType=>"absolute") );
+ANS( num_cmp($ansb1,tol=> 0.015, tolType=>"absolute") );
+ANS( num_cmp($ansb2,tol=> 0.015, tolType=>"absolute") );
+ANS( num_cmp($ansc,tol=> 0.015, tolType=>"absolute") );
+ANS( num_cmp($ansd,tol=> 0.015, tolType=>"absolute") );
+ANS( num_cmp($anse) );
+
+#########################################################
+BEGIN_SOLUTION
+R Code:
+$BR
+$BR
+
+cereal$DOLLAR mfr = factor(cereal$DOLLAR mfr)
+$BR
+str(cereal)
+$BR
+$BR
+
+cereal$DOLLAR mfr = relevel(cereal$DOLLAR mfr, "$basemfr1")
+$BR
+fitA <- lm(calories ~ ., data=cereal)
+$BR
+summary(fitA)
+$BR
+$BR
+
+cereal$mfr = relevel(cereal$DOLLAR mfr, "$basemfr4")
+$BR
+fitB <- lm(calories ~ ., data=cereal)
+$BR
+summary(fitB)
+$BR
+$BR
+
+fitE <- lm(calories ~ . + mfr:sugars, data=cereal)
+$BR
+summary(fitE)
+$BR
+$BR
+===
+$BR
+$BR
+
+Part e)
+$BR
+$BR
+
+Since mfr is encoded by 3 dummy variables and sugars is a continuous explanatory variable, there should be \(3 \times 1=3\) interaction terms. 
+Also, for a specific category, the coefficient for the interaction term is the difference in the slope of sugar relative to the baseline category. Since there are 4 mfr categories, there should be \(4-1=3\) interaction terms.
+
+
+END_SOLUTION
+#########################################################
+
+
+ENDDOCUMENT();
+

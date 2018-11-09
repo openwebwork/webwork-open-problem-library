@@ -13,7 +13,6 @@
 ## MLT(usebasetable)
 ## MLTleader(1)
 ## Level(2)
-## Static(1)
 ## MO(1)
 
 
@@ -25,6 +24,7 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "niceTables.pl",
   "PGcourse.pl"
 );
 
@@ -35,94 +35,65 @@ TEXT(beginproblem());
 
 $showPartialCorrectAnswers = 1;
 
-$n1 = "747";
-$n2 = "56";
-$base = 8;
+Context("Numeric");
 
-$expr1 = "\($n1 _$base\times $n2 _$base\)";
-$expr2 = "\($n1 _$base\times $n2 _$base =\)";
+$base = 8; # this could be randomized; any integer 2 <= $base <= 9 will work
 
-$inter1 = base10($n1,$base);
-$inter2 = base10($n2,$base);
-$inter3 = $inter1*$inter2;
-$inter4 = baseb($inter3,$base);
+# toBase(n,b) converts integer n to string, base b, where b <= 10 
 
-$answer = Compute($inter4);
-
-@table = ();
-foreach my $i (1..$base-1) {
-	foreach my $j (1..$base-1) {
-		my $n = baseb(($i * $j),$base);
-		push(@table,$n);
-	}
+sub toBase {
+  my $n = shift;
+  my $b = shift;
+  my $out = "";
+  while ($n > $b-1){
+    $out = ($n % $b).$out;
+    $n= int($n/$b);
+  }
+  $out = $n.$out;
 }
 
-# takes parameters base10(number, frombase), only works for bases up to 10.
-sub base10 {
-	my $n = shift;
-	my $b = shift;
-	
-	# break n into single digits
-	my @digits = ();
-	foreach my $i (0..length($n)-1) {
-		$digits[$i] = substr($n,$i,1);
-	}
-	
-	# convert to base 10
-	my $result = 0;
-	my $power = length($n)-1;
-	foreach my $i (0..length($n)-1) {
-		$result += ($digits[$i] * ($b ** $power));
-		$power--;
-	}
-	return $result;
+# create multiplication table, base b
+
+$multTable[0][0]="\(\times\)";
+for ($i=1; $i<$base; $i++){
+   $multTable[0][$i]=$i;
+   $multTable[$i][0]=$i;
+   for ($j=1; $j<$base; $j++){
+     $multTable[$i][$j]=toBase($i*$j,$base);
+   }
 }
 
-# takes parameters baseb(number, tobase), only works for bases up to 10
-# uses Euclidian Algorithm
-sub baseb {
-	my $n = shift;
-	my $d = shift;
-	
-	my $q = int($n/$d);
-	my $r = ($n % $d);
-	
-	my @result = ();
-	$result[0] = $r;
-	while ($q != 0) {
-		$n = $q;
-		$q = int($n/$d);
-		$r = ($n % $d);
-		push(@result,$r);
-	}
-	
-	return reverse(join("",@result));
+$columnRules = "|c" x $base . "|";
+
+# five distinct nonzero digits less than $base
+
+@digit=(1..$base-1);
+for ($i=0; $i<5; $i++){
+  $j=random($i,$base-2,1);
+  @digit[$i,$j] = @digit[$j,$i];
 }
+# two numbers in base $base
+$n1 = $digit[0].$digit[1].$digit[2];
+$n2 = $digit[3].$digit[4];
+
+# their product in base 10
+$n1xn2 = ($digit[0]*$base**2+$digit[1]*$base+$digit[2])*($digit[3]*$base+$digit[4]);
+
+# their product in base $base
+$answer = toBase($n1xn2,$base);
+$answer = Compute($answer); # convert to a number for answer checking
 
 ############################
 # Main Text
 
 Context()->texStrings;
 BEGIN_TEXT
-$BR
-Using the completed table, compute $expr1
-$BR
-$BR
-\{
-begintable(8).
-row(" ",1,2,3,4,5,6,7).
-row(1,$table[0],$table[1],$table[2],$table[3],$table[4],$table[5],$table[6]).
-row(2,$table[7],$table[8],$table[9],$table[10],$table[11],$table[12],$table[13]).
-row(3,$table[14],$table[15],$table[16],$table[17],$table[18],$table[19],$table[20]).
-row(4,$table[21],$table[22],$table[23],$table[24],$table[25],$table[26],$table[27]).
-row(5,$table[28],$table[29],$table[30],$table[31],$table[32],$table[33],$table[34]).
-row(6,$table[35],$table[36],$table[37],$table[38],$table[39],$table[40],$table[41]).
-row(7,$table[42],$table[43],$table[44],$table[45],$table[46],$table[47],$table[48]).
-endtable();
-\}
-$BR
-$BR
-$expr2 \{ans_rule(15)\}
+Using the multiplication table, compute \($n1 _{$base} \times $n2 _{$base}\)
+$PAR
+\{DataTable(~~@multTable,midrules=>1,align=>$columnRules);\}
+$PAR
+\($n1 _{$base} \times $n2 _{$base} =\) \{ans_rule(15)\} (Write your answer in base $base, of course.)
+
 END_TEXT
 Context()->normalStrings;
 
@@ -134,22 +105,25 @@ ANS($answer->cmp());
 ############################
 # Solution
 
+$prod24=toBase($digit[2]*$digit[4],$base);
+
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR Solution: $PAR
-\{
-begintable(8).
-row(" ",1,2,3,4,5,6,7).
-row(1,$table[0],$table[1],$table[2],$table[3],$table[4],$table[5],$table[6]).
-row(2,$table[7],$table[8],$table[9],$table[10],$table[11],$table[12],$table[13]).
-row(3,$table[14],$table[15],$table[16],$table[17],$table[18],$table[19],$table[20]).
-row(4,$table[21],$table[22],$table[23],$table[24],$table[25],$table[26],$table[27]).
-row(5,$table[28],$table[29],$table[30],$table[31],$table[32],$table[33],$table[34]).
-row(6,$table[35],$table[36],$table[37],$table[38],$table[39],$table[40],$table[41]).
-row(7,$table[42],$table[43],$table[44],$table[45],$table[46],$table[47],$table[48]).
-endtable();
-\} $PAR
-$expr2 \($answer _$base\) $PAR
+
+Writing out the partial products (all in base $base of course!) one has $BR
+\[ \begin{aligned}
+     $n1 & \\
+     \times $n2 &\\ \hline
+     \{toBase($digit[2]*$digit[4],$base)\} &=$digit[2]\times $digit[4] \\
+     \{toBase($digit[1]*$digit[4],$base)\} 0 &= $digit[1] 0 \times $digit[4]\\
+     \{toBase($digit[0]*$digit[4],$base)\} 0 0 &=$digit[0] 00 \times $digit[4]\\
+     \{toBase($digit[2]*$digit[3],$base)\} 0 &= $digit[2] \times $digit[3] 0\\
+     \{toBase($digit[1]*$digit[3],$base)\} 0 0 &= $digit[1] 0 \times $digit[3] 0\\
+    + \{toBase($digit[0]*$digit[3],$base)\} 0 0 0 &= $digit[0] 00 \times $digit[3] 0\\ \hline
+    $answer &
+\end{aligned}\]
+      
 END_SOLUTION
 Context()->normalStrings;
 

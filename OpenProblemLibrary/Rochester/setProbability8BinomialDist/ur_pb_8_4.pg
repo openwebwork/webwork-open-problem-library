@@ -9,6 +9,7 @@
 ## DBsection(Binomial)
 ## Date(6/3/2002)
 ## Level(3)
+## MO(1)
 ## TitleText1('Mathematical Statistics')
 ## AuthorText1('Wackerly, Mendenhall, Scheaffer')
 ## EditionText1('6')
@@ -20,25 +21,47 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
+  "MathObjects.pl",
+#  "PGchoicemacros.pl",
+#  "PGgraphmacros.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
+Context("Numeric");
+
 $n = random(10,20,10);
 $a = random(4,6,1);
 $p = random(40,70,10);
 
-
 $must_guess = $n * $p / 100;
 $prob = 0;
-for ($i=$must_guess; $i<$n+1; $i++) {  
-     $prob = $prob + fact($n)/fact($i)/fact($n-$i)/($a**$i)*((($a-1)/$a)**($n-$i));
-} 
 
+#for ($i=$must_guess; $i<$n+1; $i++) {  
+#     $prob = $prob + fact($n)/fact($i)/fact($n-$i)/($a**$i)*((($a-1)/$a)**($n-$i));
+#} 
+
+# Improved solution contributed by Kelly Black, avoiding huge factorials:
+# answer =  \sum_{i=g}^n \binomial(n,i)*(1/a)^i*(1-1/a)^(n-i)
+# = (1/a^n) \sum_{i=g}^n \binomial(n,i)*(a-1)^(n-i)
+#   where g = must_guess
+# sum from i=n down, reducing roundoff error by summing small terms first
+# Use \binomial(n,i-1)=\binomial(n,i)*i/(n-i+1) to avoid factorials
+# and (a-1)^(n-(i-1))=(a-1)^(n-i)*(a-1)
+
+$prob = 0;
+$binom = 1; 
+$power = 1;
+for ($i=$n; $i>=$must_guess; $i--){
+  $prob += $binom*$power;
+  $binom *= $i/($n-$i+1);
+  $power *= ($a-1);
+}
+$prob = Real($prob/$a**$n);  #answer
+
+Context()->texStrings;
 BEGIN_TEXT
 
 A quiz consists of $n multiple-choice questions, each with $a possible answers. 
@@ -48,7 +71,8 @@ if the minimum passing grade is $p $PERCENT. $BR
 
 END_TEXT
 
-ANS(num_cmp($prob));
+Context()->normalStrings;
+ANS($prob->cmp()); 
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.
 

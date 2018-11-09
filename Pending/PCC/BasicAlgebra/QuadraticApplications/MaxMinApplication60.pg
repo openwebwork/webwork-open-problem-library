@@ -1,0 +1,238 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Find maximum/minimum value application problem.
+# Use quadratic equation to model the income, which changes
+# quadratically in terms of the number of times of price increase.
+#
+# Last edit by: Carl Yao 11/06/17
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('quadratic','function','parabola','application')
+## DBCCSS('F.IF.7.a','F.IF.4','A-CED.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "contextCurrency.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+Context("Numeric");
+Context()->variables->add(t => 'Real');
+Context()->flags->set(showExtraParens=>0, reduceConstants=>0);
+Context()->noreduce("(-x)-y","(-x)+y");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+do {
+   $initialAmount = random(200,300,10);
+   $initialPrice = random(50,150,10);
+   $raise = random(5,20,5);
+   do {$numLoss = random(5,20,5);} until ($initialAmount-$numLoss*10>0);
+   $a = -$numLoss*$raise;
+   $b = $raise*$initialAmount-$numLoss*$initialPrice;   
+   $maxX = -$b/(2*$a);
+   $x1 = random(3,int($maxX-1),1);
+   $x2 = 2*$maxX-$x1;
+} until ( ($maxX>5) && (int($maxX*10)==$maxX*10) && (int($x2*10)==$x2*10) && (($maxX-$x1)>2) );
+
+$newIncome = ($initialPrice+$raise*$x1)*($initialAmount-$numLoss*$x1);
+$cFunc = $initialPrice*$initialAmount;
+$c = $initialPrice*$initialAmount-$newIncome;
+$discriminant = ($b)**2-4*$a*$c;
+$func = Compute("$a*x**2+$b*x+$cFunc")->reduce;
+$maxPrice = $initialPrice+$raise*$maxX;
+$maxIncome = $func->eval(x=>$maxX);
+$ans1 = $initialPrice+$raise*$x1;
+$ans2 = $initialPrice+$raise*$x2;
+$xIntercept1 = (-$b+sqrt(($b)**2-4*$a*$cFunc))/(2*$a);
+$xIntercept2 = (-$b-sqrt(($b)**2-4*$a*$cFunc))/(2*$a);
+
+Context("Currency");
+$initialPriceC = Currency($initialPrice);
+$raiseC = Currency($raise);
+$newIncomeC = Currency($newIncome);
+$maxPriceC = Currency($maxPrice);
+$ans1C = Currency($ans1);
+$ans2C = Currency($ans2);
+$maxIncomeC = Currency($maxIncome);
+
+$vertex=Point($maxX,$maxIncome);
+$pointLeft = Point($x1,$newIncome);
+$pointRight = Point($x2,$newIncome);
+
+$alt="This picture shows the graph of a parabola. Its vertex is at $vertex. A horizontal line is graphed at y=$newIncome. It intersects the parabola at $pointLeft and $pointRight. The vertex, $vertex, is also plotted.";
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$xIntercept1,$xIntercept2],[0,$maxIncome]);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+  $gr = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+    $gr->lb( new Label($max[0]-$marksep[0]/2, -$marksep[1]/8, t,'black','center','top'));
+    $gr->lb( new Label($marksep[0]/8, $max[1]-$marksep[1]/2, h,'black','left','middle'));
+  }
+
+  for my $j (@yticks) {
+    if (Real($j) == 0) {next;}
+    $gr->lb( new Label(-$marksep[0]/8, $j, $j,'black','right','middle'));
+  }
+
+add_functions($gr, "$func for x in <$min[0],$max[0]> using color:red and weight:1");
+
+add_functions($gr, "$newIncome for x in <$min[0],$max[0]> using color:blue and weight:1");
+
+$gr->stamps( closed_circle($x1,$newIncome,'red') );
+$gr->lb( new Label($x1,$newIncome+$marksep[1]/8,"($x1,$newIncome)", 'red','right','bottom'));
+
+$gr->stamps( closed_circle($x2,$newIncome,'red') );
+$gr->lb( new Label($x2,$newIncome+$marksep[1]/8,"($x2,$newIncome)", 'red','left','bottom'));
+
+$gr->stamps( closed_circle($maxX,$maxIncome,'red') );
+$gr->lb( new Label($maxX,$maxIncome+$marksep[1]/8,"($maxX,$maxIncome)", 'red','center','bottom'));
+
+
+##############################################
+
+BEGIN_PGML
+
+Currently, an artist can sell [`[$initialAmount]`] paintings every year at the price of [`[$initialPriceC]`] per painting. Each time he raises the price per painting by [`[$raiseC]`], he sells [`[$numLoss]`] fewer paintings every year.
+
+Answer the following questions:
+
+1) To obtain maximum income of [__________]{$maxIncomeC}, the artist should set the price per painting at [___________]{$maxPriceC}.
+
+2) To earn [`[$newIncomeC]`] per year, the artist could sell his paintings at two different prices. The lower price is [___________]{$ans1C} per painting, and the higher price is [___________]{$ans2C} per painting.
+
+END_PGML
+
+##############################################
+
+$s1 = $initialPrice*$numLoss;
+$s2 = $raise*$initialAmount;
+
+BEGIN_PGML_SOLUTION
+
+Assume the artist will raise the price per painting [`x`] times.
+
+The current price per painting is [`[$initialPriceC]`]. After raising the price [`x`] times, each time by [`[$raiseC]`], the new price per painting will become [`[$initialPrice]+[$raise]x`] dollars.
+
+Currently he sells [`[$initialAmount]`] paintings per year. It's given that he will sell [`[$numLoss]`] fewer paintings each time he raises the price. After raising the price per painting [`x`] times, he will sell [`[$initialAmount]-[$numLoss]x`] paintings every year.
+
+The artist's income can be calculated by multiplying the number of paintings sold with price per painting. If he raises the price per painting [`x`] times, his new yearly income can be modeled by the function:
+
+    [`` f(x)=([$initialPrice]+[$raise]x)([$initialAmount]-[$numLoss]x) ``]
+
+where [`f(x)`] stands for his yearly income in dollars.
+
+We will change the function to its standard form:
+
+    [``
+\begin{aligned}[t]
+   f(x) &= ([$initialPrice]+[$raise]x)([$initialAmount]-[$numLoss]x) \\
+        &= [$cFunc]-[$s1]x+[$s2]x+[$a]x^2 \\
+        &= [$a]x^2+[$b]x+[$cFunc]
+\end{aligned}
+    ``]
+    
+In this standard-form quadratic function, we can see:
+
+    [`` a=[$a], b=[$b], c=[$cFunc] ``]
+
+###Part 1:
+
+The function [`f(x) = [$a]x^2+[$b]x+[$cFunc] `] is an upside-down parabola. The maximum income he can make is represented by the parabola's vertex. To locate its vertex, we first find its axis by the axis formula:
+
+    [``
+\begin{aligned}[t]
+   x &= -\frac{b}{2a} \\
+     &= -\frac{[$b]}{2([$a])} \\
+     &= [$maxX]
+\end{aligned}
+    ``]
+    
+Next, we substitute [` x=[$maxX] `] into [`f(x)`] to find its vetex's [`y`]-value:
+
+    [``
+\begin{aligned}[t]
+   f(x) &= [$a]x^2+[$b]x+[$cFunc] \\
+   f([$maxX])  &= [$a]([$maxX])^2+[$b]([$maxX])+[$cFunc] \\
+              &= [$maxIncome]
+\end{aligned}
+    ``]
+    
+The function's vertex is at [`[$vertex]`]. This implies the artist can earn a maximum yearly income of [`[$maxIncomeC]`]. This happens if he increases the price per painting [`[$maxX]`] times, making the new price [`[$initialPrice]+[$maxX]\cdot[$raise]=[$maxPrice] `] dollars.
+
+###Part 2:
+
+If the artist wants to make [`[$newIncomeC]`] per year, we will substitute [`f(x)=[$newIncome]`] into the function [` f(x) = [$a]x^2+[$b]x+[$cFunc] `], and we have:
+
+    [``
+\begin{aligned}[t]
+   f(x) &= [$a]x^2+[$b]x+[$cFunc] \\
+   [$newIncome] &= [$a]x^2+[$b]x+[$cFunc] \\
+   0 &= [$a]x^2+[$b]x+[$c] \\
+\end{aligned}
+    ``]
+
+Next, we can solve this quadratic equation with the Quadratic Formula. Identify that [`a=[$a],b=[$b],c=[$c]`].
+
+    [``
+\begin{aligned}[t]
+   x &= \frac{-b \pm \sqrt{b^{2}-4ac}}{2a} \\
+   x &= \frac{-([$b]) \pm \sqrt{([$b])^{2}-4([$a])([$c])}}{2([$a])} \\
+   x &= \frac{[$b*-1] \pm \sqrt{[$discriminant]}}{[$a*2]} \\
+   x &= \frac{[$b*-1] \pm [$s1]}{[$a*2]} \\
+   x&=\frac{[$b*-1] + [$s1]}{[$a*2]} \text{  or  } x=\frac{[$b*-1] - [$s1]}{[$a*2]} \\
+   x&=[$x1] \text{  or  } x=[$x2]
+\end{aligned}
+    ``]
+
+If the artist raises the price [`[$x1]`] times, the new price would be [`[$initialPrice]+[$raise]\cdot[$x1]=[$ans1]`] dollars per painting.
+
+If the artist raises the price [`[$x2]`] times, the new price would be [`[$initialPrice]+[$raise]\cdot[$x2]=[$ans2]`] dollars per painting.
+
+To earn [`[$newIncomeC]`] per year, the artist could sell his paintings at two different prices. The lower price is [`[$ans1C]`] per painting, and the higher price is [`[$ans2C]`] dollars per painting.
+
+The following graph shows the points representing the solutions above:
+
+>>[@ image( insertGraph($gr), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$alt' title = '$alt'"  )@]*<<
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

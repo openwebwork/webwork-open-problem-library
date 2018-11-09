@@ -26,14 +26,15 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "weightedGrader.pl",
+#  "weightedGrader.pl",
+  "parserMultiAnswer.pl",
   "PGgraphmacros.pl",
   "unionTables.pl",
-  "parserPopUp.pl",
+  "parserRadioButtons.pl",
   "PGchoicemacros.pl",
   "PGcourse.pl"
 );
-install_weighted_grader();
+#install_weighted_grader();
 $refreshCachedImages=1;
 # Print problem number and point value (weight) for the problem
 TEXT(beginproblem());
@@ -45,53 +46,186 @@ $showPartialCorrectAnswers = 1;
 #
 #  Setup
 #
-#
-Context("Numeric");
-Context()->functions->undefine("sin","cos","tan","sinh","cosh","tanh");
-Context()->variables->add(A=>"Real",B=>"Real",lambda=>"Real");
-Context()->variables->set(lambda=>{limits=>[0,4]});
-Context()->variables->set(lambda => {TeX => '{\lambda}'});
-Context()->functions->undefine("acos","acosh");
-Context()->{error}{msg}{"Function 'acosh' is not allowed in this context"} 
-= "WeBWorK thinks you meant the inverse cosh function, you need to put the multiplication symbol between the a and the cosh";
-Context()->{error}{msg}{"Function 'acos' is not allowed in this context"} 
-= "WeBWorK thinks you meant the inverse cos function, you need to put the multiplication symbol between the a and the cos";
-$simplify = Context()->copy;
+
 
 Context("Numeric");
 Context()->variables->add(A=>"Real",B=>"Real",lambda=>"Real");
 Context()->variables->set(lambda=>{limits=>[0,4]});
 Context()->variables->set(lambda => {TeX => '{\lambda}'});
 Context()->strings->add(red=>{},blue=>{},green=>{},black=>{}); 
-Context()->functions->undefine("acos","acosh");
-Context()->{error}{msg}{"Function 'acosh' is not allowed in this context"} 
-= "WeBWorK thinks you meant the inverse cosh function, you need to put the multiplication symbol between the a and the cosh";
-Context()->{error}{msg}{"Function 'acos' is not allowed in this context"} 
-= "WeBWorK thinks you meant the inverse cos function, you need to put the multiplication symbol between the a and the cos";
+Context()->{error}{msg}{"String constant '0' is not defined in this context"} = "Can't grade next two boundary conditions without this";
+
 $f = Formula("lambda*x")->reduce;
 
 $L = Compute(random(2,9));
 
+### Answer checker for diffeq. and boundary conditions ###
+
+sub DEchecker {
+   my ($lambda,$lambda_min, $lambda_max) = @_;
+   return sub { 
+      Context()->variables->set(lambda=>{limits=>[$lambda_min,$lambda_max]});
+      my ( $correct, $student, $self ) = @_;
+      my ( $fstu, $bdy0stu, $bdy1stu ) = @{$student};
+      my $checkDE = 0;  # = 1 if the DE is satisfied with independent solutions
+      my $check0 = 0;  # =1 if the first equation is a boundary condition
+      my $check1 = 0; # = 1 if the second equation is the other boundary cond. 
+      my ( $fcor, $bdy0cor, $bdy1cor ) = @{$correct};
+      if (ref($fstu) == ref($fcor)){
+	## compute the wronskiian ##
+	my $dfA = $fstu->D('A')->substitute(x=>0);
+	my $dfAx = $fstu->D('A','x')->substitute(x=>0);
+	my $dfB = $fstu->D('B')->substitute(x=>0);
+	my $dfBx = $fstu->D('B','x')->substitute(x=>0);
+	my $wronskiian = $dfA*$dfBx-$dfB*$dfAx;
+	## check that the DE is satisfied and wronskiian isn't 0 ##
+	if ( (($fstu->D('x','x'))+$lambda*$fstu) == Formula("0")  and 
+	      $wronskiian != Formula("0")  ){ 
+	   $checkDE = 1;
+	}
+      }
+      if ( ref($bdy0stu) == ref($bdy0cor) and ref($bdy0stu) == ref($bdy0cor)) {
+	# check the boundary conditions
+	my $leftbdycond = ($fstu+($fstu->D('x')))->substitute(x=>0);
+	my $rightbdycond = $fstu->substitute(x=>$L);
+	if ($checkDE == 1 and $leftbdycond == $bdy0stu) {
+	   $check0 = 1;
+	   if ($checkDE == 1 and $rightbdycond == $bdy1stu ){
+	     $check1 = 1;
+	   }   
+	} 
+	elsif ($checkDE == 1 and $rightbdycond == $bdy0stu ){
+	   $check0 = 1;
+	   if ($checkDE == 1 and $leftbdycond == $bdy1stu) {
+	     $check1 = 1;
+	   }
+	}
+	elsif ( $checkDE == 1 and 
+	  ( $rightbdycond == $bdy1stu or 
+	    $leftbdycond == $bdy1stu 
+	  ) ) {$check1 = 1;} 
+      }
+      return [$checkDE,$check0,$check1];
+    };
+};
+
+#### answer checker for eigenfunction given a specific eigenvalue ###
+
+sub eigenfunctionChecker {
+  my ($lambda, $xmax) = @_;  # eigenvalue, right hand boundary
+  return sub {
+    my ($stu, $corr, $ans_hash) = @_; 
+    if ( $stu == Formula(0) ) { return 0;}  # reject the zero function
+    my $df = $stu->D('x');
+    ## the differential equation ##
+    my $DE = ($df->D('x')) + $lambda*$stu ;
+    ## boundary conditions ##
+    my $bdy0 = ($stu + $df)->eval(x => 0); 
+    my $bdy1 = $stu -> eval(x => $xmax);
+    if ( $DE == Formula(0) and $bdy0 == Compute(0) and $bdy1 == Compute(0) ){
+       return 1;
+    }
+    else { return 0; }
+  }
+}
+
+
+##################################################
+### The problem consists of three parts 
+#
+##  Part 1: lambda = 0
+#################################################
+
 $equalzero = Formula("A+B*x");
-$zeroprime = $equalzero->D('x');
-$lesszero = Formula("A*cosh(sqrt(lambda)x)+B*sinh(sqrt(lambda)x)");
+$equalzero_boundary0 = Formula("A+B");
+$equalzero_boundaryL = Formula("A+B*$L");
+$equalzero_ans = MultiAnswer($equalzero, $equalzero_boundary0, $equalzero_boundaryL)->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,
+  checker => DEchecker(0,-2,2)
+);
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+In this problem we find the eigenfunctions and eigenvalues of the differential equation
+\[\frac{d^2y}{dx^2} + \lambda y = 0\]
+with boundary conditions
+\[
+y(0)+y^\prime(0) = 0 \hskip {20pt}
+y ($L) = 0
+\]
+For the general solution of the differential equation in the following cases use A and B for your constants, for example \(y = A\cos (x) + B\sin(x)\). For the variable \(\lambda\) type the word lambda, otherwise treat it as you would any other variable.
+$PAR
+$BBOLD Case 1: $EBOLD \(\lambda = 0\)
+$PAR
+(1a.) Ignoring the boundary conditions for a moment, the general solution of the differential equation is 
+$BCENTER
+\(y(x) =\)\{$equalzero_ans->ans_rule\}. 
+$ECENTER
+$BR
+Apply the boundary conditions to the general solution to obtain two equations relating \(A\) to \(B\):
+$BCENTER
+$BR
+\{$equalzero_ans->ans_rule\} = \(0\)
+$BR
+\{$equalzero_ans->ans_rule\} = \(0\)
+$ECENTER
+$BR
+(1b.) Solving this system for \(A\) and \(B\) we get
+$BCENTER
+$BR
+A = \{ans_rule\} 
+$BR
+B = \{ans_rule\}
+$ECENTER
+END_TEXT
+
+Context()->normalStrings;
+
+ANS($equalzero_ans->cmp());
+ANS(Compute("0")->cmp());
+ANS(Compute("0")->cmp());
+
+
+#######################
+## Part 2: lambda < 0
+#
+######################
+
+Context()->variables->set(lambda=>{limits=>[-4,-.1]});
+
+$lesszero = Formula("A*cosh(sqrt(-lambda)x)+B*sinh(sqrt(-lambda)x)");
 $lessprime = $lesszero->D('x');
-$greaterzero = Formula("A*cos(sqrt(lambda)x)+B*sin(sqrt(lambda)x)");
-$greaterprime = $greaterzero->D('x');
+$lesszero_boundary0 = ($lesszero+$lessprime)->substitute(x=>0);
+$lesszero_boundaryL = $lessprime->substitute(x=>$L);
+$lambda = Formula("lambda");
+
+$lesszero_ans = MultiAnswer($lesszero, $lesszero_boundary0, $lesszero_boundaryL)->with(
+  singleResult => 0,
+  allowBlankAnswers =>1,
+  checker => DEchecker($lambda, -4, -.1)
+);
+
+$sqrtminuslambda = Compute("tanh($L*sqrt(-lambda))");
 
 
-
-#############################################################################
-##
+#############
 ## Graphs
 ##
 ##
 
-@func = (Formula("tanh($L*sqrt(x))"),Formula("tan($L*sqrt(x))"),Formula("tanh(x)"),Formula("x"));
+@func = (Formula("tanh($L*sqrt(-x))"),Formula("tan($L*sqrt(-x))"),Formula("tanh(-x)"),Formula("-x"));
 #
 #  Graph size
 #
-($xm,$xM) = (-1,5);
+($xm,$xM) = (-5,1);
 $ym = -5;
 $yM=-$ym;
 @size = (250,250);
@@ -119,7 +253,7 @@ for my $i (0 .. $#func){
   $gr[$i] = init_graph(@Goptions);
   my ($plot) = plot_functions($gr[$i],"$func[$i] for $plotdomain $plotoptions");
   $plot->steps(150);
-  add_functions($gr[$i], "sqrt(x) for x in <0,$xM> using color:blue and weight=2");
+  add_functions($gr[$i], "sqrt(-x) for x in <$xm,0> using color:blue and weight=2");
   $fig[$i]=image(insertGraph($gr[$i]),
   width=>$size[0],height=>$size[1],tex_size=>200);
 } 
@@ -129,35 +263,115 @@ $count = $#func+1;
 @inv = invert(@perm);
 
 @letter = ("A","B","C","D");
-@correct = ( $letter[$inv[0]]);
+#@correct = ( $letter[$inv[0]]);
 
-$mc = new_checkbox_multiple_choice();
-$mc -> qa (
-"", 
-"$correct[0]",
+$mc = RadioButtons(
+  ["A","B","C","D"],
+  "$letter[$inv[0]]"
 );
-$mc -> makeLast("A","B","C","D");
 
-#############################################################################
-####
-####
+##################
 #### Eigenvalues
-####
-####
-@hyperboliceigenvalues = (List(0,0),List(0,0),List(0,0.916813956124163),List(0,0.989829051317377),List(0,0.998651800747099),List(0,0.999818251689328),List(0,0.999975419827775),List(0,0.999996673813211),List(0,0.999999549857781),List(0,0.999999939080049)); 
+#################
 
-@eigenvalues=(List(0,0,0,0),
-List(0,0,0,0),
-List(4.56844086709318,14.4268778575471,29.2284761563392,48.9665603474590),
-List(1.84792283383970,6.20374034923172,12.7753132514272,21.5449764643769),
-List(0.958654124569885,3.38185389810220,7.07008346549878,11.9995153739525),
-List(0.574631427076379,2.10264402059024,4.45472558982821,7.60580486030922),
-List(0.378917576391116,1.42255070224396,3.04817722371657,5.23269009258850),
-List(0.267246979342335,1.02120531953445,2.20874526022677,3.81014979632796),
-List(0.198059880228920,0.766099505450722,1.66956667373815,2.89239049134085),
-List(0.152430966817663,0.594623616531808,1.30373007114682,2.26699864377921));
 
-@hypereigen = (0,0,0.916813956124163,0.989829051317377,0.998651800747099,0.999818251689328,0.999975419827775,0.999996673813211,0.999999549857781,0.999999939080049); 
+Context()->{format}{number} = "%.10f#";   # format numbers using 10-place decimals, but remove trailing zeros, if any.
+
+@hypereigen = (0,0,-0.916813956124163,-0.989829051317377,-0.998651800747099,-0.999818251689328,-0.999975419827775,-0.999996673813211,-0.999999549857781,-0.999999939080049); 
+
+$negativeeigen = List($hypereigen[$L]);
+
+
+Context()->texStrings;
+
+BEGIN_TEXT
+$BR
+$BBOLD Case 2: $EBOLD \(\lambda < 0\)
+$PAR
+(2a.) Ignoring the boundary conditions for a moment, the general solution is 
+$BR
+$BCENTER
+\(y(x) = \)\{$lesszero_ans->ans_rule(50)\}. 
+$ECENTER
+$BR
+Apply the boundary conditions to obtain two equations relating \(A\) to \(B\):
+$BCENTER
+$BR
+\{$lesszero_ans->ans_rule(90)\} = \(0\)
+$BR
+\{$lesszero_ans->ans_rule(90)\} = \(0\)
+$ECENTER
+$PAR
+(2b.)  Assuming \(A\) and \(B\) are not both zero then, solving these equations, one can eliminate both \(A\) and \(B\) and derive the following formula for \(\sqrt{-\lambda}\) in terms of hyperbolic functions (\(\cosh, \sinh, \tanh, \coth\), etc.).
+$BCENTER
+\(\sqrt{-\lambda}= \) \{ans_rule\}
+$ECENTER
+$BR
+(2c.) Choose the graph of \(\sqrt{-\lambda}\) and \(\tanh\left($L\sqrt{-\lambda}\right)\)
+$BR
+\{$mc->buttons()\}
+$BR
+$BCENTER
+\{
+BeginTable().
+  AlignedRow([$fig[0],$fig[1],$fig[2],$fig[3]]).
+  TableSpace(5,0).
+  AlignedRow(["A","B","C","D"]).
+EndTable();
+\}
+$ECENTER
+$BR
+
+$BR
+From the graphs there are  \{ans_rule(5)\} negative eigenvalues \(\lambda\).  They are 
+$BCENTER
+\(\lambda =\)\{ans_rule(40)\} (Your answers should be accurate to at least 10 decimal places.)
+$ECENTER
+$PAR
+Sturm-Liouville guarantees infinitely many eigenvalues, so we go on.
+$PAR
+END_TEXT
+
+Context()->normalStrings;
+
+ANS($lesszero_ans->cmp());
+ANS($sqrtminuslambda->cmp());
+ANS( $mc->cmp());
+ANS(Compute(1)->cmp()); 
+ANS($negativeeigen->cmp(tolType=>'absolute', tolerance => .000000001 ));
+
+##############################
+##  Part 3: lambda >0
+#
+#############################
+
+Context()->variables->set(lambda=>{limits=>[.1,4]});
+
+$greaterzero = Formula("A*cos(sqrt(lambda)x)+B*sin(sqrt(lambda)x)");
+$greaterprime = $greaterzero->D('x');
+$greaterzero_boundary0 = ($greaterzero+$greaterprime)->substitute(x=>0);
+$greaterzero_boundaryL = $greaterzero->substitute(x=>$L);
+
+$lamba=Formula("lambda");
+
+$greaterzero_ans = MultiAnswer($greaterzero, $greaterzero_boundary0, $greaterzero_boundaryL)->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,
+  checker => DEchecker($lambda, .1, 4)
+);
+
+### eigenvalues and eigenfunctions ###
+
+#@eigenvalues=(List(0,0,0,0),
+#List(0,0,0,0),
+#List(4.56844086709318,14.4268778575471,29.2284761563392,48.9665603474590),
+#List(1.84792283383970,6.20374034923172,12.7753132514272,21.5449764643769),
+#List(0.958654124569885,3.38185389810220,7.07008346549878,11.9995153739525),
+#List(0.574631427076379,2.10264402059024,4.45472558982821,7.60580486030922),
+#List(0.378917576391116,1.42255070224396,3.04817722371657,5.23269009258850),
+#List(0.267246979342335,1.02120531953445,2.20874526022677,3.81014979632796),
+#List(0.198059880228920,0.766099505450722,1.66956667373815,2.89239049134085),
+#List(0.152430966817663,0.594623616531808,1.30373007114682,2.26699864377921));
 
 @trigeigen=([0,0,0,0],
 [0,0,0,0],
@@ -170,15 +384,18 @@ List(0.152430966817663,0.594623616531808,1.30373007114682,2.26699864377921));
 [0.198059880228920,0.766099505450722,1.66956667373815,2.89239049134085],
 [0.152430966817663,0.594623616531808,1.30373007114682,2.26699864377921]);
 
-$hypereigenfunction = Formula("-sqrt(lambda)*cosh(sqrt(lambda)*x)+sinh(sqrt(lambda)*x)");
+
+$hypereigenfunction = Formula("-sqrt(-lambda)*cosh(sqrt(-lambda)*x)+sinh(sqrt(-lambda)*x)");  # comes from part 2 lambda < 0
+
 $trigeigenfunction = Formula("-sqrt(lambda)*cos(sqrt(lambda)*x)+sin(sqrt(lambda)*x)");
 
-$eigen1 = $hypereigenfunction->substitute(lambda=>"$hypereigen[$L]");
-$eigen2 = $trigeigenfunction->substitute(lambda=>"$trigeigen[$L][0]");
-$eigen3 = $trigeigenfunction->substitute(lambda=>"$trigeigen[$L][1]");
-$eigen4 = $trigeigenfunction->substitute(lambda=>"$trigeigen[$L][2]");
-$eigenfunctions = List($eigen1,$eigen2,$eigen3);
+$eigen1 = $hypereigenfunction->substitute(lambda=>$hypereigen[$L]);
+$eigen2 = $trigeigenfunction->substitute(lambda=>$trigeigen[$L][0]);
+$eigen3 = $trigeigenfunction->substitute(lambda=>$trigeigen[$L][1]);
+$eigen4 = $trigeigenfunction->substitute(lambda=>$trigeigen[$L][2]);
+#$eigenfunctions = List($eigen1,$eigen2,$eigen3);
 
+###
 
 @Goptions = (
   -1,$ym,$L,$yM,                            # dimensions of graph
@@ -201,126 +418,60 @@ $figeigen=image(insertGraph($greigen),width=>$size[0],height=>$size[1],tex_size=
 
 $order = List(String("$color[0]"),String("$color[1]"),String("$color[2]"),String("$color[3]"));
 
-##############################################################
-#
-#  Text
-#
-#
+$sqrtlambda=Compute("tan($L*sqrt(lambda))");
+$trigeigenlist = List($trigeigen[$L]);
 
 Context()->texStrings;
 BEGIN_TEXT
-Find the eigenfunctions and eigenvalues of the differential equation
-\[\frac{d^2y}{dx^2} + \lambda y = 0\]
-\[
-y(0)+y^\prime(0) = 0 \hskip {20pt}
-y ($L) = 0
-\]
-For the general solution of the differential equation in the following cases use A and B for your constants and list the function in alphabetical order, for example \(y = A\cos (x) + B\sin(x)\). For the variable \(\lambda\) type the word lambda, otherwise treat it as you would any other variable.
-$BR
-$BBOLD Case 1: $EBOLD \(\lambda = 0\)
-$BR
-The general solution is \{$equalzero->ans_rule\}. The initial conditions lead to two equations in two unknowns in a and b:
-$BCENTER
-$BR
-\{ans_rule\} = \(0\)
-$BR
-\{ans_rule\} = \(0\)
-$ECENTER
-$BR
-Solving this system for A and B we get
-$BCENTER
-$BR
-A = \{ans_rule\} 
-$BR
-B = \{ans_rule\}
-$ECENTER
-$BR
-$BBOLD Case 2: $EBOLD \(\lambda < 0\)
-$BR
-The general solution is \{$lesszero->ans_rule(50)\}. The initial conditions lead to two equations in two unknowns in A and B:
-$BCENTER
-$BR
-\{ans_rule(90)\} = \(0\)
-$BR
-\{ans_rule(90)\} = \(0\)
-$ECENTER
-$BR
-Solve the first equation for A: A = \{ans_rule\}
-$BR
-Plug this into the first equation, taking out the common factor of B, and you get
-$BR 
-$BCENTER
-B\(\Bigg(\)\{ans_rule(70)\}\(\Bigg)= 0\)
-$ECENTER
-$BR
-If \(B \neq  0\) then 
-$BCENTER
-\{ans_rule\} \(= \sqrt{\lambda}\)
-$ECENTER
-$BR
-Choose the graph of \(\sqrt{\lambda}\) and \(\tanh\left($L\sqrt{\lambda}\right)\)
-$BR
-\{$mc->print_a()\}
-$BR
-$BCENTER
-\{
-BeginTable().
-  AlignedRow([$fig[0],$fig[1],$fig[2],$fig[3]]).
-  TableSpace(5,0).
-  AlignedRow(["A","B","C","D"]).
-EndTable();
-\}
-$ECENTER
-$BR
-
-$BR
-From the graph there are  \{ans_rule(5)\} nonzero eigenvalues for \(\lambda\):\{ans_rule(40)\} (Your answer should be accurate to 9 places)
-$BR
-$BR
-Sturm-Liouville guarantees infinitely many eigenvalues, so we go on:
-$BR
 $BBOLD Case 3: $EBOLD \(\lambda > 0\)
-$BR
-$BR
-The general solution is \{$greaterzero->ans_rule(50)\}. The initial conditions lead to two equations in two unknowns in a and b:
+$PAR
+(3a.)  Ignoring the boundary conditions for a moment, the general solution is 
 $BCENTER
+\(y(x) = \)\{$greaterzero_ans->ans_rule(50)\}. 
+$ECENTER
+Apply the boundary conditions to get two equations relating \(A\) to \(B\):
+$BCENTER
+\{$greaterzero_ans->ans_rule(50)\} = \(0\)
 $BR
-\{ans_rule(50)\} = \(0\)
-$BR
-\{ans_rule(50)\} = \(0\)
+\{$greaterzero_ans->ans_rule(50)\} = \(0\)
+$ECENTER
+$PAR
+(3b.)  Assuming \(A\) and \(B\) are not both zero then, solving these equations, one can eliminate both \(A\) and \(B\) and derive the following formula for \(\sqrt{\lambda}\) in terms of trigonometric functions (\(\cos, \sin, \tan, \cot\), etc.).
+$BCENTER
+\(\sqrt{\lambda} = \)\{ans_rule\} 
 $ECENTER
 $BR
-Solve the first equation for A: A = \{ans_rule\}
-$BR
-Plug this into the first equation, taking out the common factor of B, and you get
-$BR 
+In increasing order, the first four positive eigenvalues from this equation are: 
 $BCENTER
-B\(\Bigg(\)\{ans_rule(70)\}\(\Bigg)= 0\)
+\(\lambda = \)\{ans_rule(80)\} 
 $ECENTER
+(Your answers should be accurate to at least 8 decimal places.)
+$PAR
+(4.) List the first three eigenfunctions in order of increasing eigenvalues, including functions with negative eigenvalues. 
 $BR
-Therefore 
-$BCENTER
-\{ans_rule\} \(= \sqrt{\lambda}\)
-$ECENTER
-$BR
-The first four nonzero eigenvalues from this equation are: \{ans_rule(100)\}
-$BR
-$BR
-$BR
-$BBOLD Solution $EBOLD 
-$BR
-$BR
-List the first three nonzero eigenfunctions in order of increasing eigenvalues 
-$BR
-\{ans_rule(140)\}
-$BR
-Here are graphs of the first four nonzero eigenfunctions on \(\lbrack 0,$L \rbrack\).
+\(y_1(x) = \)\{ans_rule(80)\}, $BR
+\(y_2(x) = \)\{ans_rule(80)\}, $BR
+\(y_3(x) = \)\{ans_rule(80)\} 
+$PAR
+Here are graphs of the first four eigenfunctions on \(\lbrack 0,$L \rbrack\).
 $BR
 \{$figeigen\}
 $BR
-List the functions in increasing order by their color, green, red, blue: \{ans_rule\}
+List the functions, ordered by their eigenvalues in increasing order, by their color - green, red, blue, black: \{ans_rule\}
 END_TEXT
 Context()->normalStrings;
+
+ANS($greaterzero_ans->cmp());
+ANS($sqrtlambda->cmp());
+ANS($trigeigenlist ->cmp()); 
+
+# check eigenfunctions 
+
+ANS( $eigen1->cmp( checker => eigenfunctionChecker($hypereigen[$L], $L) ));
+ANS( $eigen2->cmp( checker => eigenfunctionChecker($trigeigen[$L][0], $L) ));
+ANS( $eigen3->cmp( checker => eigenfunctionChecker($trigeigen[$L][1], $L) ));
+
+ANS($order->cmp(ordered=>1));
 
 ##############################################################
 #
@@ -329,35 +480,38 @@ Context()->normalStrings;
 #
 
 ## Case 1 equal zero - 10% of problem
-WEIGHTED_ANS($equalzero->cmp, 2);
-WEIGHTED_ANS(Compute("A+B")->cmp, 2);
-WEIGHTED_ANS(Compute("A+B*$L")->cmp, 2);
-WEIGHTED_ANS(Compute("0")->cmp, 2);
-WEIGHTED_ANS(Compute("0")->cmp, 2);
-
+#WEIGHTED_ANS($equalzero->cmp, 2);
+#WEIGHTED_ANS(Compute("A+B")->cmp, 2);
+#WEIGHTED_ANS(Compute("A+B*$L")->cmp, 2);
+#WEIGHTED_ANS(Compute("0")->cmp, 2);
+#WEIGHTED_ANS(Compute("0")->cmp, 2);
+#
 ## Case 2 less than zero - 30% of problem
-WEIGHTED_ANS($lesszero->cmp, 3);
-WEIGHTED_ANS(Formula($simplify,"A+sqrt(lambda)*B")->cmp, 4);
-WEIGHTED_ANS(Formula("A*cosh(sqrt(lambda)*$L)+B*sinh(sqrt(lambda)*$L)")->cmp, 4);
-WEIGHTED_ANS(Formula($simplify,"-B*sqrt(lambda)")->cmp, 1);
-WEIGHTED_ANS(Formula("-sqrt(lambda)*cosh(sqrt(lambda)*$L)+sinh(sqrt(lambda)*$L)")->cmp, 4);
-WEIGHTED_ANS(Formula("tanh(sqrt(lambda)*$L)")->cmp, 4);
-WEIGHTED_ANS( checkbox_cmp( $mc->correct_ans() ), 2);
-WEIGHTED_ANS(Compute("1")->cmp, 2);
-WEIGHTED_ANS(Compute("$hypereigen[$L]")->cmp(ordered=>1,tolType=>'absolute',
-               tolerance=>.000000001),4);
+#WEIGHTED_ANS($lesszero->cmp, 3);
+#WEIGHTED_ANS(Formula($simplify,"A+sqrt(lambda)*B")->cmp, 4);
+#WEIGHTED_ANS(Formula("A*cosh(sqrt(lambda)*$L)+B*sinh(sqrt(lambda)*$L)")->cmp, 4);
+#WEIGHTED_ANS(Formula($simplify,"-B*sqrt(lambda)")->cmp, 1);
+#WEIGHTED_ANS(Formula("-sqrt(lambda)*cosh(sqrt(lambda)*$L)+sinh(sqrt(lambda)*$L)")->cmp, 4);
+#WEIGHTED_ANS(Formula("tanh(sqrt(lambda)*$L)")->cmp, 4);
+#WEIGHTED_ANS( checkbox_cmp( $mc->correct_ans() ), 2);
+#WEIGHTED_ANS(Compute("1")->cmp, 2);
+#WEIGHTED_ANS(Compute("$hypereigen[$L]")->cmp(ordered=>1,tolType=>'absolute',
+#               tolerance=>.000000001),4);
 
 ## Case 3 less than zero - 30% of problem
-WEIGHTED_ANS($greaterzero->cmp, 5);
-WEIGHTED_ANS(Formula($simplify,"A+B*sqrt(lambda)")->cmp, 5);
-WEIGHTED_ANS(Formula("A*cos(sqrt(lambda)*$L)+B*sin(sqrt(lambda)*$L)")->cmp, 5);
-WEIGHTED_ANS(Formula($simplify,"-B*sqrt(lambda)")->cmp, 2);
-WEIGHTED_ANS(Formula("-sqrt(lambda)*cos(sqrt(lambda)*$L)+sin(sqrt(lambda)*$L)")->cmp, 3);
-WEIGHTED_ANS(Formula("tan(sqrt(lambda)*$L)")->cmp, 5);
-WEIGHTED_ANS($eigenvalues[$L]->cmp(ordered=>1,tolType=>'absolute',
-               tolerance=>.0001), 5);
+#WEIGHTED_ANS($greaterzero->cmp, 5);
+#WEIGHTED_ANS(Formula($simplify,"A+B*sqrt(lambda)")->cmp, 5);
+#WEIGHTED_ANS(Formula("A*cos(sqrt(lambda)*$L)+B*sin(sqrt(lambda)*$L)")->cmp, 5);
+#WEIGHTED_ANS(Formula($simplify,"-B*sqrt(lambda)")->cmp, 2);
+#WEIGHTED_ANS(Formula("-sqrt(lambda)*cos(sqrt(lambda)*$L)+sin(sqrt(lambda)*$L)")->cmp, 3);
+#WEIGHTED_ANS(Formula("tan(sqrt(lambda)*$L)")->cmp, 5);
+#WEIGHTED_ANS($eigenvalues[$L]->cmp(ordered=>1,tolType=>'absolute',
+#               tolerance=>.0001), 5);
 
 ## Solution - 30 %
-WEIGHTED_ANS($eigenfunctions->cmp(ordered=>1), 28);
-WEIGHTED_ANS($order->cmp(ordered=>1), 2);
+#WEIGHTED_ANS($eigenfunctions->cmp(ordered=>1), 28);
+#WEIGHTED_ANS($order->cmp(ordered=>1), 2);
+
+COMMENT("Requires high precision decimal answers.");
+
 ENDDOCUMENT();        
