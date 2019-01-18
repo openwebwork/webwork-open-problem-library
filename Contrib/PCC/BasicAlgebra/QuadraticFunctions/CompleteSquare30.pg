@@ -25,6 +25,7 @@ loadMacros(
      "parserAssignment.pl",
      "answerHints.pl",
      "PGML.pl",
+      "PCCmacros.pl",
      "contextFraction.pl",
   "PGcourse.pl",
 );
@@ -51,23 +52,26 @@ Context()->strings->add("no real solutions"=>{},
   "none"=>{alias=>'no real solutions'}, 
   );
 
-$var = "x";
+$var = RandomVariableName(type=>'variable');
+Context()->variables->are($var=>'Real');
 
 do {
-   $a = random(2,5,1);
-   $b = random(1,5,1);
-} until ( gcd($a,$b)==1 );
-$b = $b*random(-1,1,2);
-$c = random(1,5,1)*random(-1,1,2);
+   do {
+      $a = random(2,5,1);
+      $b = random(1,5,1);
+   } until ( gcd($a,$b)==1 );
+   $b = $b*random(-1,1,2);
+   $c = random(1,5,1)*random(-1,1,2);
 
-$soln1 = Fraction(-$b,$a)->reduce;
-$soln2 = Fraction(-$c,1)->reduce;
-$ans = Compute("$var = $soln1, $var = $soln2");
+   $soln1 = Fraction(-$b,$a)->reduce;
+   $soln2 = Fraction(-$c,1)->reduce;
+   $ans = Compute("$var = $soln1, $var = $soln2");
 
-$d = $a*$c+$b;
-$e = $b*$c;
-$func = Compute("$a*$var**2+$d*x+$e")->reduce;
-$func1 = Compute("$a*$var**2+$d*x")->reduce;
+   $d = $a*$c+$b;
+   $e = $b*$c;
+} until ( (abs($d)<5) );
+$func = Compute("$a*$var**2+$d*$var+$e")->reduce;
+$func1 = Compute("$a*$var**2+$d*$var")->reduce;
 
 ##############################################
 
@@ -132,42 +136,30 @@ ANS($ans->cmp(
 
 ##############################################
 
-$func2 = Compute("x**2+$d/$a*x+$e/$a")->reduce;
-$func3 = Compute("x**2+$d/$a*x")->reduce;
-$frac4 = Fraction(-$e,$a)->reduce;
+$fracB = Fraction($d,$a)->reduce;
+$fracC = Fraction($e,$a)->reduce;
 
-$dNeg = -$d;
-$output0 = $d>0 ? "\frac{$d}{$a}" : "-\frac{$dNeg}{$a}";
-$output1 = $d>0 ? "+\frac{$d}{$a}" : "-\frac{$dNeg}{$a}";
-$f = $a*2;
-$output2 = $d>0 ? "+\frac{$d}{$f}" : "-\frac{$dNeg}{$f}";
+$func2 = Compute("$var**2+$fracB*$var+$fracC")->reduce;
+$func3 = Compute("$var**2+$fracB*$var")->reduce;
+$frac4 = (-$fracC)->reduce;
 
-$output3 = $d>0 ? "\frac{$d}{$a}" : "\frac{$dNeg}{$a}";
-$output4 = $d>0 ? "\frac{$d}{$f}" : "\frac{$dNeg}{$f}";
+$frac5 = ($fracB/2)->reduce;
+$func4 = Compute("($var+$frac5)**2")->reduce;
+$frac6 = ($frac5*$frac5)->reduce;
+$func5 = Compute("$var**2+$fracB*$var+($frac5)**2")->reduce;
+
+$func6 = Compute("$var+$frac5")->reduce;
 
 $frac1 = -$e + Fraction($d**2,$a*4);
-$frac2 = $frac1/$a;
-$frac3 = sqrt($frac2);
+$frac2 = ($frac4+$frac6)->reduce;
+$frac3 = sqrt($frac2)->reduce;
+
+$frac7 = ($frac3-$frac5)->reduce;
+$frac8 = (-$frac3-$frac5)->reduce;
 
 BEGIN_PGML_SOLUTION
 
 There are easier ways to solve this quadratic equation, but we will solve it by the skill of "completing the square."
-
-To use the skill of "completing the square," we need to observe a pattern first:
-
-    [``
-\begin{aligned}
-   (x+1)^{2} &= x^{2}+2x+1 \\
-   (x+2)^{2} &= x^{2}+4x+4 \\
-   (x+3)^{2} &= x^{2}+6x+9 \\
-   (x+4)^{2} &= x^{2}+8x+16 \\
-   ...
-\end{aligned}
-    ``]
-
-The rule is:
-
-    [`` (x+a)^{2} = x^2+2ax+a^2 ``]
 
 For this problem, we need to get rid of the leading coefficient [`[$a]`] by:
 
@@ -175,13 +167,20 @@ For this problem, we need to get rid of the leading coefficient [`[$a]`] by:
 \begin{aligned}
    [$func]  &= 0 \\
    \frac{1}{[$a]}([$func]) &= \frac{1}{[$a]} \cdot 0 \\
-   [$func2] &= 0
+   [$func2] &= 0 \\
+   [$func3] &= [$frac4]
 \end{aligned}
     ``]
 
-Next, we complete the square for the part [` ([$var]^2 [$output1][$var]) `]. This implies the value of [`a`] in the above formula is [`[$output0]`]. Now we have [`[$var]^2 [$output1][$var]+...= ([$var][$output2])^{2} + ... `].
+Next, we complete the square for the part [` [$func3] `].
 
-Note that [`[$var]^2 [$output1][$var]`] and [`([$var][$output2])^{2}`] are not equivalent, because [`([$var][$output2])^{2}=([$var][$output2])([$var][$output2])=[$var]^2 [$output1][$var] + ([$output4])^{2}`]. Now we have [`[$var]^2 [$output1][$var]=([$var] [$output2])^{2} - ([$output4])^{2}`].
+To use the skill of "completing the square," we need to use the perfect square formula:
+
+    [`` x^2+2ax+a^2 = (x+a)^2 ``]
+
+Step 1: By the formula [`x^2+2ax+a^2 = (x+a)^2`], we have [`[$func3]+...= [$func4] `].
+
+Step 2: By the formula [`x^2+2ax+a^2 = (x+a)^2`], we have [`[$func5] = [$func4] `].
 
 The full solution is:
 
@@ -191,18 +190,14 @@ The full solution is:
    \frac{1}{[$a]}([$func]) &= \frac{1}{[$a]} \cdot 0 \\
    [$func2] &= 0 \\
    [$func3] &= [$frac4] \\
-   [$var]^2 [$output1][$var] + \left(  [$output4] \right) ^{2} - \left( [$output4] \right) ^{2} &= [$frac4] \\
-   \left( [$var] [$output2] \right) ^{2} - \left( [$output4] \right) ^{2} &= [$frac4] \\
-   \left( [$var] [$output2] \right) ^{2} - \frac{[$d**2]}{[$a**2*4]} &= [$frac4] \\
-   \left( [$var] [$output2] \right) ^{2} &= [$frac4] + \frac{[$d**2]}{[$a**2*4]} \\
-   \left( [$var] [$output2] \right) ^{2} &=  [$frac2] \\
-   [$var] [$output2] &=  \pm \sqrt{[$frac2]} \\
-   [$var] [$output2] &=  [$frac3] \: \text{ or } \: [$var] [$output2] =  -[$frac3] \\
-   [$var] &= [$soln1] \: \text{ or } \: [$var] = [$soln2]
+   [$func3] \mathbf{+[$frac6]} &= [$frac4] \mathbf{+[$frac6]} \\
+   [$func4] &=  [$frac2] \\
+   [$func6] &=  \pm \sqrt{[$frac2]} \\
+   [$func6] &=  [$frac3] \: \text{ or } \: [$func6] =  -[$frac3] \\
+   [$var] &= [$frac7] \: \text{ or } \: [$var] = [$frac8]
 \end{aligned}
     ``]
 
-Note that _all_ quadratic equations have *two* (possibly repeated) solutions; in this problem both solutions are real. Each solution can be checked by substituting it into the original equation- this is left as an exercise.
 END_PGML_SOLUTION
 
 ##############################################

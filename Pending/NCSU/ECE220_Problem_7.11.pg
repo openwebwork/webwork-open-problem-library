@@ -1,0 +1,178 @@
+# DESCRIPTION
+# Problem from 'Mathematics: The Language of Electrical and Computer Engineering', Viniotis and Trussell, 3rd ed.
+# WeBWorK problem written by Joel Trussell, <hjt@ncsu.edu>
+# ENDDESCRIPTION
+
+## DBsubject(Electrical Engineering)
+## DBchapter(Differential equations)
+## DBsection(Problems)
+## Institution(North Carolina State University)
+## Author(H. J. Trussell)
+## MO(1)
+## TitleText1('Mathematics: The Language of Electrical and Computer Engineering')
+## AuthorText1('Viniotis and Trussell')
+## EditionText1('3')
+## Section1('.')
+## Problem1('7 11')
+## KEYWORDS('2nd Order','Differential Equation')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "AnswerFormatHelp.pl",
+  "unionLists.pl",
+  "answerHints.pl",
+  "parserFunction.pl",
+  "PGcourse.pl"
+);
+
+
+TEXT(beginproblem());
+
+
+#############################
+#  Setup
+
+
+## required to use step function
+Context("Complex");
+Context()->functions->add(
+  step => {
+    class => 'Parser::Legacy::Numeric',
+    perl => 'Parser::Legacy::Numeric::do_step'
+  },
+);
+Context()->variables->add(
+t=>"Real", C1=>"Real", C2=>"Real", Phi=>"Real", omega=>"Real",
+);
+parserFunction("u(t)" => "step(t)");
+
+# problem has complex roots
+# sinusoidal driving function
+# solution using complex arithmetic
+
+
+$a = random(1,6,1);
+$wc = random(1,6,1); # frequency of complementary solution
+$r1 = $a - i*$wc;
+$r2 = $a + i*$wc;
+$b = 2*$a; # coefficients of DE:  ddot{x} + b*dot{x} + c*x = A*cos(w*t+theta)
+$c = $a**2 + $wc**2;
+
+$A = random(2,9,1);
+
+do { $w = random(1,7,1); } until ($w != $wc); # frequency of particular solution
+$theta = list_random(0, pi/6, pi/4, pi/3, pi/2);
+$y0 = random(1,15,1);
+$ydot0 = random(1,15,1);
+
+# set free parameters of complementary solution for total solution
+# from initial conditions
+
+
+$Hre = $c-$w**2;
+$Him = $b*$w;
+$B = $A/sqrt(($c-$w**2)**2 + ($b*$w)**2); #magnitude of particular solution
+if ($Hre == 0) {$phi = $theta - pi/2;}
+elsif ($Hre < 0) {$phi = $theta - atan(($b*$w)/($c-$w**2)) + (-1)*pi;}
+else {$phi = $theta - atan(($b*$w)/($c-$w**2));}
+$b1 = $y0 - $B*cos($phi);
+$b2 = $ydot0 + $w*$B*sin($phi);
+$denom = $r1 - $r2;
+$D1 = (-$r2*$b1 - $b2)/$denom;
+$D2 = ($r1*$b1 + $b2)/$denom;
+
+
+Context()->flags->set(
+  reduceConstants=>0, # no decimals
+  reduceConstantFunctions=>1, # combine 4+5*2?
+  formatStudentAnswer=>'parsed', # no decimals
+);
+Context()->flags->set(
+  tolerance => 0.001,
+  tolType => "absolute",
+);
+
+# complementary solution
+$answer[0] = Formula("C1 e^(-$a t) cos($wc t + Phi ) u(t) ")->reduce;
+# particular solution
+
+$answer[1] = Formula("$B cos($w t + $phi) u(t)")->reduce;
+# total solution
+$C = $y0 -$mag*cos($phase);
+
+# answer in form of sum of complex exponentials
+# $answer[2] = Formula("($D1 e^(-$r1 t) + $D2 e^(-$r2 t) + $B) step(t) ")->reduce;
+
+# answer in form of decaying exponential times cosine with phase
+$mag = 2*abs($D1);
+#$ph = arg($D1); # leave in radians
+#$ph = pi;
+$D1R = Re($D1);
+$D1I = Im($D1);
+#$D1R = ($D1+$D2)/2;
+#$D1I = -1*i*($D1-$D2)/2;
+
+$ph = atan2($D1I,$D1R);
+$answer[2] = Formula("($mag * e^(-$a t) * cos($wc t + $ph) + $B cos($w t + $phi)) u(t) ")->reduce;
+
+
+#############################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+This problem is related to Problems 7.10-7.18 in the text.
+$PAR
+Instructions for forms of answers in differential equation problems:
+$BR For second order DEs, the roots of the characteristic equation may be real or complex. If the roots are real, the complementary solution is the weighted sum of real exponentials. Use C1 and C2 for the weights, where C1 is associated with the root with smaller magnitude. If the roots are complex, the complementary solution is the weighted sum of complex conjugate exponentials, which can be written as a constant times a decaying exponential times a cosine with phase. Use C1 for the constant and Phi for the phase. (Note: Some equations in the text give the constant multiplying the decaying exponential as 2C1. This was done for the derivation. The constant for this problem should be C1 alone.)
+
+$PAR All numerical angles(phases) should be given in radian angles (not degrees). 
+
+$PAR
+Given the differential equation \( y'' + $b y' + $c y = $A cos($w t + $theta) u(t) \)  .  
+\{ BeginList("OL",type=>"a") \}
+
+$ITEM Write the functional form of the complementary solution, \( y_c(t) \), 
+$BR
+\( y_c(t) = \) \{ ans_rule(40) \}
+\{ AnswerFormatHelp("formulas") \}
+
+$ITEMSEP
+$ITEM  Find the particular solution, \( y_p(t) \).
+$BR
+\( y_p(t) = \) \{ ans_rule(40) \}
+\{ AnswerFormatHelp("formulas") \}
+
+$ITEMSEP
+$ITEM  Find the total solution, \( y(t) \) for the initial condition \( y(0)  = $y0 \) and \( y'(0)  = $ydot0 \).
+$BR
+\( y(t) = \) \{ ans_rule(60) \}
+\{ AnswerFormatHelp("formulas") \}
+
+
+
+\{ EndList("OL") \}
+END_TEXT
+Context()->normalStrings;
+
+
+############################
+#  Answers
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $answer[0]->cmp() );
+ANS( $answer[1]->cmp() );
+ANS( $answer[2]->cmp() );
+
+COMMENT("MathObject version.");
+
+ENDDOCUMENT();

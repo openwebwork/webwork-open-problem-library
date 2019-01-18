@@ -1,0 +1,240 @@
+##DESCRIPTION
+## Given a control net for a Bezier surface, compute some points on it
+##ENDDESCRIPTION
+
+## DBsubject('Calculus - multivariable')
+## DBchapter('Concepts for multivariable functions')
+## DBsection('Parameterized surfaces')
+## Date('04/19/2018')
+## Author('Nathan Carter')
+## Institution('Bentley University')
+## TitleText1('Introduction to the Mathematics of Computer Graphics')
+## EditionText1('1')
+## AuthorText1('Nathan Carter')
+## Section1('14')
+## Problem1('1')
+##KEYWORDS('Bezier surfaces','parameterized surfaces')
+
+########################################################################
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGcourse.pl",
+  "parserPopUp.pl",
+);
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+# we will store the values of all points in one array, like so:
+# ( C_{1,1}.x, C_{1,1}.y, C_{1,1}.z,
+#   C_{1,2}.x, C_{1,2}.y, C_{1,2}.z,
+#   C_{1,3}.x, C_{1,3}.y, C_{1,3}.z,
+#   C_{2,1}.x, C_{2,1}.y, C_{2,1}.z,
+#   ...
+#   C_{3,3}.x, C_{3,3}.y, C_{3,3}.z )
+@pts = ();
+$nrows = 3;
+$ncols = 3;
+$ndims = 3;
+sub set {
+    my $row = shift( @_ );
+    my $col = shift( @_ );
+    my $coord = shift( @_ ); # 0=x, 1=y, 2=z
+    my $val = shift( @_ );
+    $pts[$ndims*($ncols*$row+$col)+$coord] = $val;
+}
+sub get {
+    my $row = shift( @_ );
+    my $col = shift( @_ );
+    my $coord = shift( @_ ); # 0=x, 1=y, 2=z
+    return $pts[$ndims*($ncols*$row+$col)+$coord];
+}
+for ( my $r = 0 ; $r < $nrows ; $r++ ) {
+    for ( my $c = 0 ; $c < $ncols ; $c++ ) {
+        for ( my $d = 0 ; $d < $ndims ; $d++ ) {
+            set( $r, $c, $d, random( -9, 9 ) );
+        }
+    }
+}
+
+$e = '&eacute;';
+
+@showRows = ();
+for ( my $r = 0 ; $r < $nrows ; $r++ ) {
+    my $thisrow = '';
+    for ( my $c = 0 ; $c < $ncols ; $c++ ) {
+        if ( $c > 0 ) { $thisrow .= '~ ~ ~ ~ ~'; }
+        $thisrow .= 'C_{' . ($r+1) . ',' . ($c+1) . '}=('
+                  . get($r,$c,0) . ','
+                  . get($r,$c,1) . ','
+                  . get($r,$c,2) . ')';
+    }
+    push( @showRows, $thisrow );
+}
+
+$u1 = random( 0, 1 );
+$v1 = random( 0, 1 );
+$u2 = random( 0, 1 );
+$v2 = random( 0, 1 );
+$u3 = random( 0.1, 0.9, 0.1 );
+$v3 = random( 0.1, 0.9, 0.1 );
+
+sub deg2bez {
+    my $C1 = shift( @_ );
+    my $C2 = shift( @_ );
+    my $C3 = shift( @_ );
+    my $t = shift( @_ );
+    return (1-$t)**2*$C1 + 2*$t*(1-$t)*$C2 + $t**2*$C3;
+}
+sub g {
+    my $u = shift( @_ );
+    my $v = shift( @_ );
+    my $coord = shift( @_ );
+    return deg2bez(
+        deg2bez( get(0,0,$coord), get(0,1,$coord), get(0,2,$coord), $v ),
+        deg2bez( get(1,0,$coord), get(1,1,$coord), get(1,2,$coord), $v ),
+        deg2bez( get(2,0,$coord), get(2,1,$coord), get(2,2,$coord), $v ),
+        $u
+    );
+}
+
+TEXT(beginproblem());
+BEGIN_PGML
+Consider a B[$e]*zier surface defined by the following control net.
+
+>> [`[$showRows[0]]`] <<
+
+>> [`[$showRows[1]]`] <<
+
+>> [`[$showRows[2]]`] <<
+
+Assume the surface is described by the function [`\vec g(u,v)`].
+
+What is [`\vec g([$u1],[$v1])?`]
+Answer:
+([________]{g($u1,$v1,0)},[________]{g($u1,$v1,1)},[________]{g($u1,$v1,2)})
+
+What is [`\vec g([$u2],[$v2])?`]
+Answer:
+([________]{g($u2,$v2,0)},[________]{g($u2,$v2,1)},[________]{g($u2,$v2,2)})
+
+What is [`\vec g([$u3],[$v3])?`]
+Answer:
+([________]{g($u3,$v3,0)},[________]{g($u3,$v3,1)},[________]{g($u3,$v3,2)})
+END_PGML
+
+$z = 0;
+
+BEGIN_PGML_SOLUTION
+We do here just the third of the three questions, which is the most difficult.  The others can be solved just by choosing the appropriate corner of the control net.
+
+To compute [`\vec g([$u3],[$v3])`], let's use formula 14.4 from the text.
+
+>> [`\vec g([$u3],[$v3])
+    =\sum_{i=0}^2 b_{2,i}([$u3]) \sum_{j=0}^2 b_{2,j}([$v3]) C_{i+1,j+1}`] <<
+
+Let's work on the inner summation first.
+
+>> [`\sum_{j=0}^2 b_{2,j}([$v3]) C_{i+1,j+1}
+    =b_{2,0}([$v3])C_{i+1,1} + b_{2,1}([$v3])C_{i+1,2} + b_{2,2}([$v3])C_{i+1,3}`] <<
+
+>> [`=(1-[$v3])^2C_{i+1,1} + 2([$v3])(1-[$v3])C_{i+1,2} + [$v3]^2C_{i+1,3}`] <<
+
+>> [`=[$z+(1-$v3)**2]C_{i+1,1} + [$z+2*$v3*(1-$v3)]C_{i+1,2} + [$v3**2]C_{i+1,3}`] <<
+
+We can now place this inside the outer sum.
+
+>> [`\vec g([$u3],[$v3])
+    =\sum_{i=0}^2 b_{2,i}([$u3])
+    \left(
+        [$z+(1-$v3)**2]C_{i+1,1} + [$z+2*$v3*(1-$v3)]C_{i+1,2} + [$v3**2]C_{i+1,3}
+    \right)`] <<
+
+>> [`=b_{2,0}([$u3])\left(
+        [$z+(1-$v3)**2]C_{1,1} + [$z+2*$v3*(1-$v3)]C_{1,2} + [$v3**2]C_{1,3}
+    \right)`] <<
+
+>> [`+b_{2,1}([$u3])\left(
+        [$z+(1-$v3)**2]C_{2,1} + [$z+2*$v3*(1-$v3)]C_{2,2} + [$v3**2]C_{2,3}
+    \right)`] <<
+
+>> [`+b_{2,2}([$u3])\left(
+        [$z+(1-$v3)**2]C_{3,1} + [$z+2*$v3*(1-$v3)]C_{3,2} + [$v3**2]C_{3,3}
+    \right)`] <<
+
+>> [`=[$z+(1-$u3)**2]\left(
+        [$z+(1-$v3)**2](
+            [$z+get(0,0,0)],
+            [$z+get(0,0,1)],
+            [$z+get(0,0,2)]
+        )
+      + [$z+2*$v3*(1-$v3)](
+            [$z+get(0,1,0)],
+            [$z+get(0,1,1)],
+            [$z+get(0,1,2)]
+        )
+      + [$v3**2](
+            [$z+get(0,2,0)],
+            [$z+get(0,2,1)],
+            [$z+get(0,2,2)]
+        )
+    \right)`] <<
+
+>> [`+[$z+2*$u3*(1-$u3)]\left(
+        [$z+(1-$v3)**2](
+            [$z+get(1,0,0)],
+            [$z+get(1,0,1)],
+            [$z+get(1,0,2)]
+        )
+      + [$z+2*$v3*(1-$v3)](
+            [$z+get(1,1,0)],
+            [$z+get(1,1,1)],
+            [$z+get(1,1,2)]
+        )
+      + [$v3**2](
+            [$z+get(1,2,0)],
+            [$z+get(1,2,1)],
+            [$z+get(1,2,2)]
+        )
+    \right)`] <<
+
+>> [`+[$u3**2]\left(
+        [$z+(1-$v3)**2](
+            [$z+get(2,0,0)],
+            [$z+get(2,0,1)],
+            [$z+get(2,0,2)]
+        )
+      + [$z+2*$v3*(1-$v3)](
+            [$z+get(2,1,0)],
+            [$z+get(2,1,1)],
+            [$z+get(2,1,2)]
+        )
+      + [$v3**2](
+            [$z+get(2,2,0)],
+            [$z+get(2,2,1)],
+            [$z+get(2,2,2)]
+        )
+    \right)`] <<
+
+>> [`=[$z+(1-$u3)**2]\left(
+        [$z+deg2bez(get(0,0,0),get(0,1,0),get(0,2,0),$v3)],
+        [$z+deg2bez(get(0,0,1),get(0,1,1),get(0,2,1),$v3)],
+        [$z+deg2bez(get(0,0,2),get(0,1,2),get(0,2,2),$v3)]
+    \right)+[$z+2*$u3*(1-$u3)]\left(
+        [$z+deg2bez(get(1,0,0),get(1,1,0),get(1,2,0),$v3)],
+        [$z+deg2bez(get(1,0,1),get(1,1,1),get(1,2,1),$v3)],
+        [$z+deg2bez(get(1,0,2),get(1,1,2),get(1,2,2),$v3)]
+    \right)+[$u3**2]\left(
+        [$z+deg2bez(get(2,0,0),get(2,1,0),get(2,2,0),$v3)],
+        [$z+deg2bez(get(2,0,1),get(2,1,1),get(2,2,1),$v3)],
+        [$z+deg2bez(get(2,0,2),get(2,1,2),get(2,2,2),$v3)]
+    \right)`] <<
+
+>> [`=([$z+g($u3,$v3,0)],[$z+g($u3,$v3,1)],[$z+g($u3,$v3,2)])`] <<
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

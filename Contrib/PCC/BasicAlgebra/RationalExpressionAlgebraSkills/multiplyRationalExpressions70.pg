@@ -24,18 +24,19 @@ loadMacros(
   "MathObjects.pl",
   "PGML.pl",
   "PCCmacros.pl",
-"contextLimitedFactor.pl",
+"contextRestrictedDomains.pl",
   "PGcourse.pl",
 );
 
 ##############################################
 
-Context("LimitedFactor");
+Context("RestrictedDomains");
 Context()->noreduce('(-x)-y','(-x)+y');
 $var1 = RandomVariableName(type=>'variable');
 do {$var2 = RandomVariableName(type=>'variable');} until ($var1 ne $var2);
 Context()->variables->are($var1=>'Real',$var2=>'Real');
 
+do{
 $f = random(2,5,1);
 $factor1 = random(2,5,1);
 $a = $f*$factor1;
@@ -47,8 +48,11 @@ do {$e = random(1,5,1);} until ( ($e!=$d));
 
 $b = $b*random(-1,1,2);
 $d = $d*random(-1,1,2);
+$implicit = Set($b,$d);
+$explicit = Set(0,-$e);
+} until (!$explicit->intersects($implicit));
 
-$num1 = Formula("$a*$var1-$a*$b")->reduce;
+$num1 = Formula("$a*$var1-$a*$b")->reduce->reduce;
 $den1 = Formula("$c*$d*$e-$c*($e-$d)*$var1-$c*$var1**2")->reduce;
 $num1Factored = Formula("$a*($var1-$b)")->reduce;
 $den1Factored = Formula("-$c*($var1-$d)*($var1+$e)")->reduce;
@@ -58,9 +62,10 @@ $den2 = Formula("$f*$var1**2-$f*$b*$var1")->reduce;
 $num2Factored = Formula("($var1-$d)**2")->reduce;
 $den2Factored = Formula("$f*$var1*($var1-$b)")->reduce;
 
-$frac1= Formula("$num1/$den1");
-$frac2= Formula("$num2/$den2");
-$ans = Formula("-$factor1($var1-$d)/($c*$var1*($var1+$e))")->reduce;
+$frac1= Formula("$num1/$den1")->reduce;
+$frac2= Formula("$num2/$den2")->reduce;
+$ans = Formula("-$factor1($var1-$d)/($c*$var1*($var1+$e)), $var1 != $b and $var1 != $d")->reduce;
+$ans->{trueDomain} = Compute("$var1 != $b and $var1 != $d and $var1 != 0 and $var1 != -$e");
 
 $lostDomain = List($b,$d);
 
@@ -69,18 +74,17 @@ TEXT(beginproblem());
 
 BEGIN_PGML
 
-Simplify this expression. Don't forget to write the domain conditions lost during the simplification, if any. Please write your answer in *factored* form if possible.
+Simplify this expression, and if applicable, write the restricted domain.  [@KeyboardInstructions("The problem accepts many ways to format the answers here, but one way is like typing [|$var1^2 for $var1!=1 and $var1!=2|]* where [|!=|]* is how to type the [`\\neq`] symbol.")@]**
 
     [``[$frac1] \cdot [$frac2] =``] [___________________]{$ans}
 
-The domain condition(s) lost during the simplification is (are) [`[$var] \ne`][_____]{$lostDomain}. If you need to enter more than one number, use comma to separate them.
 
 END_PGML
 
 ###################################################
 
 $s0 = $e-$d;
-$s1 = Formula("-$c($var1**2-$s0*$var1+$d*$e)")->reduce;
+$s1 = Formula("-$c($var1**2+$s0*$var1-$d*$e)")->reduce;
 
 BEGIN_PGML_SOLUTION
 
@@ -94,7 +98,7 @@ BEGIN_PGML_SOLUTION
 \end{aligned}
     ``]
 
-Since the terms [`[$var1]-[$b]`] and [`[$var1]-[$d]`] were crossed out, the domain condition lost during the simplification is [`[$var1] \ne [$lostDomain]`].
+Since the factors [`[$var1]-[$b]`] and [`[$var1]-[$d]`] were canceled, the domain condition lost during the simplification is [`[$var1] \ne [$lostDomain]`].
 
 END_PGML_SOLUTION
 ##############################################

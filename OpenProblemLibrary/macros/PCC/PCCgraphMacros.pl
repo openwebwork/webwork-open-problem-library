@@ -17,22 +17,24 @@ To use it, load the macro file:
 
 =cut
 
+loadMacros("PCCmacros.pl",);
+
 ###############################
 #Some standard values
 ################################
-sub xPixels{400;} #number of hor pixels in the graph object
+sub xPixels{240;} #number of hor pixels in the graph object
 
-sub yPixels{400;} #number of ver pixels in the graph object
+sub yPixels{240;} #number of ver pixels in the graph object
 
-sub xScreen{400;} #number of hor pixels used on screen
+sub xScreen{240;} #number of hor pixels used on screen
 
-sub yScreen{400;} #number of ver pixels used on screen
+sub yScreen{240;} #number of ver pixels used on screen
 
 sub TeXscalar{400;} #400=>image is at 40.0% in hardcopy
 
-sub EnlargeImageStatementPGML{MODES(TeX => '', Latex2HTML => '', HTML => 'If you would like to enlarge the graph or make numbers and letters easier to read, you may click on it to open it in a new window. You may then enlarge that window with your mouse. To further enlarge the image, use your browser\'s zoom capabilities. On a PC this is usually *ctrl shift +* (and zooming out is *ctrl -*). On an Apple computer this is usually *apple shift +* (and zooming out is *apple -*).');};
+sub EnlargeImageStatementPGML{KeyboardInstructions('If you would like to enlarge the graph or make numbers and letters easier to read, you may click on it to open it in a new window. You may then enlarge that window with your mouse. To further enlarge the image, use your browser\'s zoom capabilities. On a PC this is usually *ctrl shift +* (and zooming out is *ctrl -*). On an Apple computer this is usually *apple shift +* (and zooming out is *apple -*).');};
 
-sub EnlargeImageStatement{MODES(TeX => '', Latex2HTML => '', HTML => 'If you would like to enlarge the graph or make numbers and letters easier to read, you may click on it to open it in a new window. You may then enlarge that window with your mouse. To further enlarge the image, use your browser\'s zoom capabilities. On a PC this is usually $BBOLD ctrl shift +$EBOLD (and zooming out is $BBOLD ctrl -$EBOLD). On an Apple computer this is usually $BBOLD apple shift +$EBOLD (and zooming out is $BBOLD apple -$EBOLD).');};
+sub EnlargeImageStatement{KeyboardInstructions('If you would like to enlarge the graph or make numbers and letters easier to read, you may click on it to open it in a new window. You may then enlarge that window with your mouse. To further enlarge the image, use your browser\'s zoom capabilities. On a PC this is usually $BBOLD ctrl shift +$EBOLD (and zooming out is $BBOLD ctrl -$EBOLD). On an Apple computer this is usually $BBOLD apple shift +$EBOLD (and zooming out is $BBOLD apple -$EBOLD).');};
 
 ###############################
 #Name: NiceGraphParameters
@@ -77,21 +79,25 @@ sub NiceGraphParameters{
   my $buffer = 1.618;
   $buffer = $options{buffer} if (defined $options{buffer});
 
-  my (@center, @left, @right, @tickexp, %tickcoefs, @tickcoef, @marksep, @ticknum, @scale);
+  @pixels = (xPixels(), yPixels());
+
+  my (@center, @left, @right, @tickexp, %tickcoefs, @tickcoef, @marksep, @ticknum, @scale, @adjRoughTickNum);
   for my $i (0,1) {
      $center[$i] = ($max[$i]+$min[$i])/2;
      $low[$i] = $center[$i]+$buffer*($min[$i]-$center[$i]);
      $high[$i] = $center[$i]+$buffer*($max[$i]-$center[$i]);
      $tickexp[$i] = round(log(($high[$i]-$low[$i])/$roughTickNum[$i])/log(10));
+     if ($i==0) {$adjRoughTickNum[0] = min($roughTickNum[0], $pixels[0]/((abs($tickexp[0])+3)*10));};
+     if ($i==1) {$adjRoughTickNum[1] = min($roughTickNum[1], $pixels[1]/((abs($tickexp[1])+1)*10));};
      %tickcoefs = ();
      %tickcoefs = (
-       .2 => abs(.2*10**$tickexp[$i]-($high[$i]-$low[$i])/$roughTickNum[$i]),
-       .5 => abs(.5*10**$tickexp[$i]-($high[$i]-$low[$i])/$roughTickNum[$i]),
-        1 => abs(1*10**$tickexp[$i]-($high[$i]-$low[$i])/$roughTickNum[$i]),
-        2 => abs(2*10**$tickexp[$i]-($high[$i]-$low[$i])/$roughTickNum[$i]),
-        5 => abs(5*10**$tickexp[$i]-($high[$i]-$low[$i])/$roughTickNum[$i]));
+       .2 => abs(.2*10**$tickexp[$i]-($high[$i]-$low[$i])/$adjRoughTickNum[$i]),
+       .5 => abs(.5*10**$tickexp[$i]-($high[$i]-$low[$i])/$adjRoughTickNum[$i]),
+        1 => abs( 1*10**$tickexp[$i]-($high[$i]-$low[$i])/$adjRoughTickNum[$i]),
+        2 => abs( 2*10**$tickexp[$i]-($high[$i]-$low[$i])/$adjRoughTickNum[$i]),
+        5 => abs( 5*10**$tickexp[$i]-($high[$i]-$low[$i])/$adjRoughTickNum[$i]));
      $tickcoef[$i] = .2;
-     for my $key (keys %tickcoefs)
+     for my $key (.2, .5, 1, 2, 5)
        {$tickcoef[$i] = $key if ($tickcoefs{$key}<$tickcoefs{$tickcoef[$i]});};
   $marksep[$i] = 10**($tickexp[$i])*$tickcoef[$i];
   $ticknum[$i] = 2*round(($high[$i]-$low[$i])/2/$marksep[$i]);
@@ -100,8 +106,8 @@ sub NiceGraphParameters{
   @temp = ();
   };
   
- my @xticks = map { $min[0] + $marksep[0] * $_ } 1..$ticknum[0]-1;
- my @yticks = map { $min[1] + $marksep[1] * $_ } 1..$ticknum[1]-1;
+ my @xticks = map { $marksep[0] * 2*$_ } (int($min[0]/$marksep[0]/2+0.1))..(int($max[0]/$marksep[0]/2-0.1));
+ my @yticks = map { $marksep[1] * 2*$_ } (int($min[1]/$marksep[1]/2+0.1))..(int($max[1]/$marksep[1]/2-0.1));
 
   return ($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], \@xticks, \@yticks, $marksep[0], $marksep[1]);
 }

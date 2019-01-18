@@ -1,0 +1,141 @@
+# DESCRIPTION
+# Problem from 'Mathematics: The Language of Electrical and Computer Engineering', Viniotis and Trussell, 3rd ed.
+# WeBWorK problem written by Joel Trussell, <hjt@ncsu.edu>
+# ENDDESCRIPTION
+
+## DBsubject(Electrical Engineering)
+## DBchapter(Laplace Transforms)
+## DBsection(Problems)
+## Institution(North Carolina State University)
+## Author(H. J. Trussell)
+## MO(1)
+## TitleText1('Mathematics: The Language of Electrical and Computer Engineering')
+## AuthorText1('Viniotis and Trussell')
+## EditionText1('3')
+## Section1('.')
+## Problem1('8 9 11')
+## KEYWORDS('Laplace','Partial Fraction','Inverse')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "AnswerFormatHelp.pl",
+  "PGunion.pl",
+  "unorderedAnswer.pl",
+  "parserMultiAnswer.pl",
+  "parserFunction.pl",
+  "unionLists.pl",
+  "answerHints.pl",
+  "PGcomplexmacros.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+
+#############################
+#  Setup
+
+Context("Complex");
+Context()->variables->are(
+s=>"Real",
+t=>"Real"
+);
+
+# Redefine the Heaviside function so the answer checker will take either 1 or #h(t).
+#parserFunction("h(t)" => "1");
+# skip above and use step - need to assign it
+## required to use step function
+Context()->functions->add(
+  step => {
+    class => 'Parser::Legacy::Numeric',
+    perl => 'Parser::Legacy::Numeric::do_step'
+  },
+);
+parserFunction("u(t)" => "step(t)");
+
+Context()->flags->set(
+  tolerance => 0.001,
+  tolType => "absolute",
+);
+
+# PFE of c/(s-r1) + (b+jd)/(s-(a+jw)) + (b-jd)/(s-(a-jw))
+# PFE of c/(s-r1) + [2*b*s -2*(a*b+d*w)]/[s^2 -2*a*s + (a^2+w^2)]
+
+$a = -random(1,6,1);
+$w = random(1,6,1); # root is r = $a+i*$w
+$b = random(1,6,1); # roots for constant multiplying decaying exponential
+$d = non_zero_random(-6,6,1); # roots for constant multiplying decaying exp.
+$c = non_zero_random(-5,5,1); # constant multiplying real exp. 
+$r1 = -random(1,6,1); # rate for real exp.
+
+$c2 = $c + 2*$b;
+$c1 = -2*($a*$c + ($a*$b+$d*$w) + $b*$r1);
+$c0 = $c*($a**2 + $w**2)+2*$r1*($a*$b+$d*$w);
+
+
+$C0 = $a**2 + $w**2;
+
+
+
+$frac = Formula(" ($c2*s^2 +$c1*s + $c0 )/[(s-$r1)*(s^2 - 2*$a*s + (($a)**2 + ($w)**2))] ")->reduce;
+
+
+$Fs = Formula("($c2*s^2 + $c1*s + $c0)/(s^3 + (-$r1-2*$a)*s^2 + (($a)**2 + ($w)**2+2*$r1*$a)*s - $r1*(($a)**2 + ($w)**2))")->reduce; 
+$fac1 = Formula("$c/(s-$r1)")->reduce;
+$fac2 = Formula("($b+($d  * i))/(s-($a+($w*i)))")->reduce;
+$fac3 = Formula("($b-($d  *  i))/(s-($a-($w*i)))")->reduce;
+
+$B = 2*sqrt($b**2 + $d**2);
+$phi = atan($d/$b); # since $b > 0, $phi is always in (-pi/2, pi/2) 
+
+$ft = Formula("($B*exp($a*t)*cos($w*t + $phi)  + $c*exp($r1*t))*u(t)");
+
+
+#############################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+This problem is related to Problems 8.9-11 in the text.  
+$PAR
+Consider the function \( \displaystyle F(s) = $frac \).
+
+$PAR
+Find the partial fraction decomposition of \( F(s) \). Enter all factors as first order terms in \( s \), that is, all terms should be of the form \( \frac{c}{s-p} \), where \( c \) is a constant and the root \( p \) is a constant. Both \( c \) and \( p \) may be complex. 
+
+$BR
+\( \displaystyle $Fs = \) \{ ans_rule(20)\}  \(+\)  \{ ans_rule(20)\}  \(+\) \{ ans_rule(20)\}
+
+$PAR Find the inverse Laplace transform of \( \displaystyle F(s) \). (Remember to use \( u(t). \)
+$BR
+$BR
+\( \displaystyle f(t) = {\mathcal L}^{-1} \left\lbrace F(s) \right\rbrace = \)
+\{ ans_rule(50) \}
+\{ AnswerFormatHelp("formulas") \}
+
+
+END_TEXT
+Context()->normalStrings;
+
+
+##############################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+# note that ALL answers in a problem must be unordered!!
+# in this case, the terms are unordered and checked as such, but it is 
+# highly unlikely anyone would enter the last answer in the wrong place
+# but so what if they did
+
+UNORDERED_ANS( $fac1->cmp(), $fac2->cmp(), $fac3->cmp(), $ft->cmp() );
+
+
+ENDDOCUMENT();

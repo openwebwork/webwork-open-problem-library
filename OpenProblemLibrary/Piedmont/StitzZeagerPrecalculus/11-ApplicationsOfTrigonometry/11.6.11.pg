@@ -1,0 +1,144 @@
+# DESCRIPTION
+# Sketch an ellipse using polar coordinates.
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Conic sections)
+## DBsection(Polar or parametric form)
+## Institution(Piedmont)
+## Author(Doug Torrance)
+## Level(2)
+## TitleText1('Precalculus')
+## AuthorText1('Stitz and Zeager')
+## EditionText1('3')
+## Section1('11.6')
+## Problem1('11')
+## KEYWORDS('polar', 'curve', 'conic', 'ellipse')
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "PGML.pl",
+  "MathObjects.pl",
+  "parserNumberWithUnits.pl",
+  "contextArbitraryString.pl",
+  "parserMultiAnswer.pl",
+  "parserPopUp.pl",
+  "contextInequalities.pl",
+  "PGgraphmacros.pl",
+  "parserImplicitPlane.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+$refreshCachedImages=1;
+
+Context("Numeric");
+Context()->variables->are('theta'=>['Real', TeX=>'\theta']);
+
+$numerator = random(1, 6);
+$denominator = random(2, 6);
+
+$ans_conic = Formula("$numerator/($denominator - cos(theta))")->reduce;
+$eccentricity = Compute("1/$denominator");
+$type = PopUp(["?", "ellipse", "parabola", "hyperbola"], "ellipse");
+
+sub graph_random_conic {
+	$e = list_random(.5, 1, 2);
+	$d = random(1, 5) + .5;
+	# we add .5 so we don't end up with the correct answer randomly
+	$shift = random(0, 4) * 1.57079632679;
+	$conic = Formula("$e*$d/(1 - $e*cos(theta - $shift))");
+	$graph = init_graph(-10, -10, 10, 10,axes=>[0,0],grid=>[20,20],
+			    size=>[300,300]);
+	$x = Formula("$conic*cos(theta)");
+	$y = Formula("$conic*sin(theta)");
+	$f = new Fun( $x->perlFunction, $y->perlFunction, $graph);
+	if ($e == 1) {
+		$f->domain($shift + 0.1, $shift + 6.2);
+	} elsif ($e == .5) {
+		$f->domain(0, 6.28318530718);
+	} elsif ($e == 2) {
+		# hyperbola - two pieces
+		# jump happens +/- pi/3 (approx 1) from "shift" angle
+		$f->domain($shift - 1, $shift + 1);
+		$f = new Fun( $x->perlFunction, $y->perlFunction, $graph);
+		$f->domain($shift + 1.1, $shift + 5.2);
+	}
+	return $graph;
+}
+
+$ans_graph = init_graph(-10, -10, 10, 10,axes=>[0,0],grid=>[20,20],
+			size=>[300,300]);
+$x = Formula("$ans_conic*cos(theta)");
+$y = Formula("$ans_conic*sin(theta)");
+$f = new Fun( $x->perlFunction, $y->perlFunction, $ans_graph);
+$f->domain(0, 6.28318530718);
+
+$correct_ans = random(0, 3);
+@choices = ("A", "B", "C", "D");
+$graph_choices = PopUp(["?", "A", "B", "C", "D"], $choices[$correct_ans]);
+
+@graphs = ();
+for ($i = 0; $i < 4; $i++) {
+	if ($i == $correct_ans) {
+		push(@graphs, $ans_graph);
+	} else {
+		push(@graphs, graph_random_conic());
+	}
+}
+
+$vertex1 = $ans_conic->eval(theta=>0);
+$vertex2 = -$ans_conic->eval(theta=>pi);
+
+$minor_axis_length = Compute("2*$numerator/(sqrt($denominator^2 - 1))");
+
+Context("Point");
+$vertices = List(Point("($vertex1, 0)"), Point("($vertex2, 0)"));
+$center = Point("(($vertex1 + $vertex2)/2, 0)");
+$foci = List(Point("(0, 0)"), Point("($vertex1 + $vertex2, 0)"));
+
+Context("ImplicitPlane");
+Context()->variables->are(x=>"Real",y=>"Real");
+$directrix = ImplicitPlane("x=-$numerator");
+
+BEGIN_PGML
+
+Consider the conic section [``r = [$ans_conic]``].
+
+a. Determine the eccentricity.
+[____________]{"$eccentricity"}
+
+b. Determine the type of conic section.
+[____________]{$type}
+
+c. Determine the directrix.
+[____________]{"$directrix"}
+
+d. Determine the vertices.
+[____________]{"$vertices"}
+
+e. Determine the center.
+[____________]{"$center"}
+
+f. Determine the foci.
+[____________]{"$foci"}
+
+g. Determine the minor axis length.
+[____________]{"$minor_axis_length"}
+
+h. Select the correct graph from those shown below.
+[____________]{$graph_choices}
+
+A. [@ image( insertGraph($graphs[0]), width=>300, height=>300 , tex_size=>500) @]*
+
+B. [@ image( insertGraph($graphs[1]), width=>300, height=>300 , tex_size=>500) @]*
+
+C. [@ image( insertGraph($graphs[2]), width=>300, height=>300 , tex_size=>500) @]*
+
+D. [@ image( insertGraph($graphs[3]), width=>300, height=>300 , tex_size=>500) @]*
+
+END_PGML
+
+ENDDOCUMENT();

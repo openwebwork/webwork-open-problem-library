@@ -1,0 +1,213 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Line k's equation is given in y=Mx+B form.
+# Line ell is parallel to k, and a point on line ell is given.
+# Find line ell's equation.
+#
+# Last edited: Yao 9/12/13
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Linear Equations')
+## KEYWORDS('slope','linear','equation','point-slope','slope-intercept','parallel')
+## DBCCSS('8.F.3','A-CED')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserImplicitPlane.pl",
+  "parserAssignment.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("ImplicitPlane");
+Context()->flags->set(showExtraParens=>0);
+Context()->variables->are(x=>'Real',y=>'Real');
+Context()->noreduce('(-x)-y','(-x)+y','(-x)*y','x*(-y)','-n');
+
+do {$m=non_zero_random(-5,5,1);} until (abs($m)!=1);
+$b=non_zero_random(-5,5,1);
+
+$x1=non_zero_random(-5,5,1);
+$y1=$m*$x1+$b;
+
+$lineNSI = Compute("$m*x+$b")->reduce;
+
+Context()->texStrings;
+$absX1 = abs($x1);
+$absY1 = abs($y1);
+if (($x1>0) && ($y1>=0)) {
+   $ansPSstringTeX = $y1==0 ? "y=$m(x-$x1)" : "y-$y1=$m(x-$x1)"; 
+} elsif (($x1<0) && ($y1>=0)) {
+   $ansPSstringTeX = $y1==0 ? "y=$m(x+$absX1)" : "y-$y1=$m(x+$absX1)"; 
+} elsif (($x1>0) && ($y1<=0)) {
+   $ansPSstringTeX = $y1==0 ? "y=$m(x-$x1)" : "y+$absY1=$m(x-$x1)"; 
+} else {
+   $ansPSstringTeX = $y1==0 ? "y=$m(x+$absX1)" : "y+$absY1=$m(x+$absX1)"; 
+}
+$ansSIstringTeX = "y=$lineNSI";
+Context()->normalStrings;
+
+
+$ansPS = ImplicitPlane($ansPSstringTeX);
+
+Context("Numeric");
+Context()->flags->set(showExtraParens=>0);
+Context()->variables->are(x=>'Real', y=>'Real');
+Context()->noreduce('(-x)-y','(-x)+y','(-x)*y','x*(-y)','-n');
+parser::Assignment->Allow;
+$ansSI=Formula("y=$m*x+$b");
+
+do {$b1=non_zero_random(-10,10,1);} until ($b1!=$b);
+$lineM = Compute("$m*x+$b1")->reduce;
+$lineNSI = Compute("$m*x+$b")->reduce;
+$lineNPSLeft = Compute("y-$y1")->reduce;
+$lineNPSRight = Compute("$m*(x-$x1)")->reduce;
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Line [`k`] has the equation [`y=[$lineM]`].
+
+Line [`\ell`] is parallel to line [`k`], but passes through the point [`([$x1],[$y1])`]. 
+
+Find an equation for line [`\ell`] in both slope-intercept form and point-slope form.
+
+    An equation for [`\ell`] in slope-intercept form is: [_______________]{$ansSI->cmp(correct_ans_latex_string => $ansSIstringTeX)}.
+
+    An equation for [`\ell`] in point-slope form is: [_______________].
+
+END_PGML
+
+##############################################
+
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(reduceConstantFormulas=>0);
+
+ANS($ansPS->cmp(correct_ans_latex_string => $ansPSstringTeX
+   ) -> withPostFilter(sub {
+      my $ansHash = shift;
+        my $student = $ansHash->{original_student_ans};
+        my @sides = split('=',"$student");
+
+      #if it's an implicit plane object, reset how student's answer is displayed:
+      if (defined $ansHash->{student_formula}) {
+      if ($ansHash->{student_formula}->cmp_class eq "an Implicit line") {
+        $ansHash->{preview_text_string} = "$sides[0]=$sides[1]";
+        my $leftTex = Formula("$sides[0]")->TeX;
+        my $rightTex = Formula("$sides[1]")->TeX;
+        $ansHash->{preview_latex_string} = "$leftTex=$rightTex";
+        $ansHash->{student_ans} = $ansHash->{original_student_ans};
+      }
+      };
+
+      #if they have the line correct, then check each side to see if the sides are correct
+      if ($ansHash->{score}) {
+         if (Formula("y-$y1") != Formula("$sides[0]") and Formula("y-$y1") != Formula("$sides[1]")) {
+         $ansHash->{score} = 0;                 
+         $ansHash->{ans_message} = "This is an equation for the line, but it is not the point-slope equation that uses the given point"; 
+         }  
+      }
+      return $ansHash;
+    }));
+
+
+$s1 = $m*$x1;
+
+$negX1 = -$x1;
+$x1Output = $negX1>0 ? "$negX1" : "(-$x1)";
+if ($m>0) {
+   $output1 = "$m x+$m \cdot $x1Output \\";
+} else {
+   $output1 = "($m) x+($m) \cdot $x1Output \\";
+}
+
+$absY1 = abs($y1);
+Context()->texStrings;
+$right1 = Compute("$m*x-$s1")->reduce;
+$left1 = $y1>0 ? "+$y1" : "-$absY1";
+
+$s2 = $s1-$y1;
+$absS2 = abs($s2);
+if ($s2>0) {
+   $right2 = "-$s2";
+} elsif ($s2<0) {
+   $right2 = "+$absS2";
+} else {
+   $right2 = "";
+}
+
+
+if ($y1!=0) {
+   $output2 = "$lineNPSLeft \mathbf{{} $left1} &= $right1 \mathbf{{} $left1}\\";
+   $output3 = "y &= $m x $right2 \\";
+} else {
+   $output2 = "";
+   $output3 = "";
+}
+Context()->normalStrings;
+
+#####################################
+
+BEGIN_PGML_SOLUTION
+
+When two lines are parallel, they have the same slope. Since line [`k`]'s slope is [`[$m]`], line [`\ell`]'s slope is also [`[$m]`].
+
+Now we know line [`\ell`]'s slope, and a point on it: [` ([$x1],[$y1]) `]. We substitute these numbers into the generic formula for a point-slope equation for a line:
+
+    [``y-y_{1}=m(x-x_{1})``] 
+
+and we have:
+
+    [``
+\begin{aligned}
+   y-y_{1} &= m(x-x_{1}) \\
+   y-([$y1]) &= [$m][x-([$x1])] \\
+   [$lineNPSLeft] &= [$lineNPSRight]
+\end{aligned}
+``]
+
+So the line has an equation in point-slope form: [`[$ansPSstringTeX]`].
+
+----
+
+The slope-intercept form of a line equation looks like [`y=mx+b`], where [`m`] is the slope and [`b`] is the [`y`]-intercept. We can take the point-slope form and solve for [`y`].
+
+    [`
+\begin{aligned}
+   [$lineNPSLeft] &= [$lineNPSRight]\\
+   [$lineNPSLeft] &= [$output1]
+   [$lineNPSLeft] &= [$m]x-[$s1]\\
+   [$output2]
+   [$output3]
+\end{aligned}
+`]
+
+So the line's equation in slope-intercept form is [`[$ansSIstringTeX]`].
+
+
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+

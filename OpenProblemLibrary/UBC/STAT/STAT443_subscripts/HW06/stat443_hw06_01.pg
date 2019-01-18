@@ -1,0 +1,205 @@
+## DBsubject(Statistics)
+## DBchapter(Time series)
+## DBsection(Frequency domain)
+## Level(4)
+## level(4)
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+## need to download data
+my ($remote_file, @problem_data) = rserve_eval(<<CODE);
+# this is R code
+beta <- round(runif(1, min=0.2, max=0.9),2)
+sigma <- round(runif(1, min=1, max=4),2)
+x1 <- arima.sim(n=500, list(ma=beta), sd=sigma)
+problem_file <- tempfile(fileext = '.csv')
+write.csv(x1, problem_file)
+list(problem_file, x1)
+CODE
+
+
+
+@data = rserve_eval('
+
+n <- round(runif(1, min=10, max=18),0)
+p <- round(runif(1, min=100, max=200),0)
+spec_true = function(omega){
+  (1 + beta^2) * sigma^2 / pi * (1 + 2 * beta * cos(2 * pi * omega) / (1 + beta^2))
+}
+
+# a)
+spec1 <- spec.pgram(x1, log="no")
+omega1 = spec1$freq[p]
+spec1_t = spec_true(omega1)
+ans.a = abs(spec1_t - spec1$spec[p] / pi)
+
+spec2 <- spec.pgram(x1, log="no", spans=c(n))
+omega2 = spec2$freq[p]
+spec2_t = spec_true(omega2)
+ans.b = abs(spec2_t - spec2$spec[p] / pi)
+
+if( ans.a < ans.b){
+  ans.c = "The raw periodogram."
+  ans.c1 = "The smoothed periodogram.."
+}else
+  {
+  ans.c = "The smoothed periodogram."
+  ans.c1 = "The raw periodogram."
+}
+
+ans.a = round(ans.a, 4)
+ans.b = round(ans.b, 4)
+c(ans.a, ans.b, ans.c, beta, sigma, p, ans.c1,n)
+');
+
+my $local_file = rserve_get_file($remote_file);
+($local_url = $local_file) =~ s|$tempDirectory|$tempURL|;
+
+$beta = $data[3];
+$sigma = $data[4];
+$p = $data[5];
+$n = $data[7];
+
+$q3mc = new_multiple_choice();
+$q3mc -> qa(
+"In terms of the simple comparison above, which version of the periodogram gives a better estimate of the spectral density at the chosen frequency?",
+$data[2]
+);
+$q3mc -> extra(
+    $data[6]
+);
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+
+BEGIN_TEXT
+$BBOLD LINK for DATA SET (\{ htmlLink($local_url, "Download the csv file here") \}) $EBOLD
+$BR
+Consider the process
+\[ X_t = Z_t + $beta Z_{t-1} \]
+where \(Z_t\) is Normally distributed white noise with standard deviation $sigma. Derive and sketch the actual spectral density function for \(X_t\).
+
+$BR
+$BR
+$BBOLD Part (a)  $EBOLD
+Linked above is a realisation of \(X_t,\) for \(t=1,2,\dots, 500.\) Using the command \({spec.pgram,}\) with \({log="no"}\) but otherwise taking default options, compute and plot the raw periodogram for the time series. Name your periodogram \({spec1}\). The vector \({spec1}\)$\({freq}\) gives the (approximate) Fourier frequencies at which the periodogram is computed, though these frequencies should be multiplied by \(2\pi\) to be consistent with definations given for spectral densities.  Moreover, the periodogram values given by R are \(\pi\) times those given by the defination adopted. Compute the absolute difference between the raw periodogram from R (divided by \(\pi\)) and the spectral density of  \(X_t \) at the pth frequency where p = $p, giving your answer to three decimal places.
+
+
+$BR
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (b) $EBOLD
+The periodogram can be smoothed to give a consistent estimator of the spectral density function. A single (Daniell) smoother of span $n can be implemented by adding the option \({spans=c($n)} \) in \({spec.pgram.}\) Hence create a new periodogram named \({spec2. }\) Compute the absolute difference between the new periodogram and the spectral density of \(X_t\) at the pth frequency where p=$p, giving your answer to three decimal places.
+$BR
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (c) $EBOLD
+\{ $q3mc -> print_q() \}
+$BR
+\{ $q3mc -> print_a() \}
+$BR
+$BR
+
+
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($data[0], tol=> 0.01) );
+ANS( num_cmp($data[1], tol=> 0.01) );
+ANS( radio_cmp( $q3mc -> correct_ans() ) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+
+BEGIN_SOLUTION
+
+$BBOLD Part (a) $EBOLD
+For the MA(1)
+\[
+X_t =Z_t +\beta Z_{t-1}
+\]
+the acf is 
+\[
+\begin{align*}
+\rho \left( k\right) =\left  \lbrace 
+\begin{array}{ccc}
+1 &  & k=0 \\ 
+\frac{\beta }{1+\beta ^{2}} &  & k=\pm 1 \\ 
+0 &  & \text{otherwise.}
+\end{array}
+\right.
+\end{align*}
+\]
+and the spectral density is
+\[
+\begin{align*}
+f\left( \omega \right) =\frac{\left( \left( 1+\beta ^{2}\right) \sigma
+^{2}\right) }{\pi }\left( 1+\frac{2\beta \cos \left( \omega \right) }{
+1+\beta ^{2}}\right).
+\end{align*}
+\]
+To find the raw periodogram, not on the log scale, 
+\[
+spec1 <- spec.pgram(x1, log="no")
+\]
+The above provides a plot by default. The plot will be noisy, and likely not closely resemble the theoretical spectrum. As indicated, \(spec1\)$\(freq\) lists the frequencies at which R computes the periodogram (and these may not exactly coincide with Fourier frequencies for \(n = 500\) due to tapering).  At the pth frequency, the periodogram is 
+$BCENTER 
+\(I <- spec1\)$\(spec[p]\).
+$ECENTER
+This is to be compared to \(f(\omega)\) at 
+$BCENTER 
+\(\omega = spec1\)$\(freq[p]\). 
+$ECENTER
+An absolute diÂ¤erence can be evaluated as follows: 
+$BCENTER 
+\(
+\Big| \frac{\left( \left( 1+\beta ^{2}\right) \sigma^{2}\right) }{\pi }\left( 1+\frac{2\beta \cos \left( 2\pi \omega \right) }{1+\beta ^{2}}\right) -  \frac{I}{\pi}\Big| = $data[0]
+\)
+$ECENTER
+$BR
+$BR
+$BBOLD Part (b) $EBOLD
+The new periodogram is
+\[
+spec2 <- spec.pgram(data, log="no", spans=c(n))
+\]
+This is smoother than the original, and closer in shape to \(f(\omega)\). The periodogram value at the pth frequency can be evaluated via \(spec2\)$\(spec[p]\). As above, an absolute difference can be evaluated.
+$BR
+$BR
+$BBOLD Part (c) $EBOLD
+Whichever absolute difference was smaller suggests the better estimate.
+END_SOLUTION
+
+ENDDOCUMENT();
