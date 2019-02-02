@@ -1,0 +1,174 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given two points, find a line's equation in slope-intercept form.
+# Application problem. Slope is positive.
+# 
+# Last updated: Jordan 8/30/13; Carl Yao, 7/9/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Lines')
+## KEYWORDS('linear','equation','slope','slope-intercept','application')
+## DBCCSS('F-LE.2','8.F.3','A-CED','S-ID.7')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserAssignment.pl",
+  "contextCurrency.pl",
+  "parserOneOf.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+Context("Numeric")->variables->add(y=>'Real');
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->flags->set(showExtraParens=>0);
+
+$m=random(1.5,6.5,1)/100;
+$b=random(11,19,1);
+
+$x1=random(210,300,10);
+$y1=$m*$x1+$b;
+$x2=random(310,400,10);
+$y2=$m*$x2+$b;
+$x3=random(110,200,10);
+$y3=$m*$x3+$b;
+$x4=random(410,500,10);
+$y4=$m*$x4+$b;
+
+parser::Assignment->Allow;
+$ansSI=Formula("y=$m*x+$b")->reduce;
+
+Context("Currency");
+$cy1 = Currency($y1);
+$cy2 = Currency($y2);
+$cy3 = Currency($y3);
+$cy4 = Currency($y4);
+$cm = Currency($m);
+
+Context("Numeric");
+parser::Assignment->Allow;
+Context()->variables->add(y=>'Real');
+Context()->flags->set(tolType=>'absolute');
+Context()->variables->set(x=>{limits=>[$x1,$x2]});
+Context()->operators->set(
+'+' => {class => 'bizarro::BOP::add', isCommand => 1},
+'-' => {class => 'bizarro::BOP::subtract', isCommand => 1},
+);
+
+$ansPS = OneOf(Formula("y=$m*(x-$x1)+$y1"),Formula("y=$m*(x-$x2)+$y2"));
+$ansPS_evaluator = $ansPS -> cmp(
+      checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroAdd=>1,bizarroSub=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      Value->Error("Your answer is a line equation for the right line, but it is not in the expected point-slope form") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroAdd=>0,bizarroSub=>0);
+      return 1;
+});
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+By your cell phone contract, you pay a monthly fee plus some money for each minute you use the phone during the month. In one month, you spent [`[$x1]`] minutes on the phone, and paid [`[$cy1]`]. In another month, you spent [`[$x2]`] minutes on the phone, and paid [`[$cy2]`].
+
+Let [`x`] be the number of minutes you talk over the phone in a month, and let [`y`] be your cell phone bill, in dollars, for that month. Use a linear equation to model your monthly bill based on the number of minutes you talk over the phone. 
+
+a) A point-slope equation to model this is [______________]{$ansPS_evaluator}.
+
+b) If you spent [`[$x3]`] minutes over the phone in a month, you would pay [___________]{$cy3}.
+
+c) If in a month, you paid [`[$cy4]`] of cell phone bill, you must have spent [___________]{$x4} minutes on the phone in that month.
+
+END_PGML
+
+##############################################
+
+$s1=$y2-$y1;
+$s2=$x2-$x1;
+$s3=$m*$x1;
+$s4=-$s3;
+$s5=$m*$x3;
+$s6=$y4-$b;
+
+$outputy1 = $y1<0 ? "($y1)" : $y1;
+$outputx1 = $x1<0 ? "($x1)" : $x1;
+
+BEGIN_PGML_SOLUTION
+
+a)    A line's equation in point-slope form looks like [` y=m(x-x_0)+y_0 `], where [`m`] is the slope, and [`(x_0,y_0)`] is some point we know to be on the line. We first need to find the line's slope. To find the slope, we need two points on the line. We have been given that [`([$x1],[$y1])`] and [`([$x2],[$y2])`] are points on the linear model, so we can use the slope formula:
+
+    [`` \text{slope}=\frac{y_{2}-y_{1}}{x_{2}-x_{1}} ``]
+
+    First, we mark which number corresponds to which variable in the formula:
+
+    [`` ([$x1],[$y1]) \longrightarrow (x_{1},y_{1}) ``]
+
+    [`` ([$x2],[$y2]) \longrightarrow (x_{2},y_{2}) ``]
+
+    Now we substitute these numbers into the corresponding variables in the slope formula:
+
+    [`` \begin{aligned}\text{slope}&=\frac{y_{2}-y_{1}}{x_{2}-x_{1}}\\&=\frac{[$y2]-[$outputy1]}{[$x2]-[$outputx1]}\\&=\frac{[$s1]}{[$s2]}\\&=[$m] \end{aligned}``]
+
+    This line's slope is [`[$m]`]. This implies you have to pay [`[$cm]`] per minute that you use the phone.
+
+    So now we have that [` y=[$m](x-x_0)+y_0 `]. We can either use [`(x_0,y_0)=([$x1],[$y1])`] or [`(x_0,y_0)=([$x2],[$y2])`] to get [`[$ansPS]`].
+
+b)    In one month, you spent [`[$x3]`] minutes on the phone. To find out the bill, we substitute [`[$x3]`] in for [`x`] in the equation [` y=[$m](x-[$x1])+[$y1] `], and we have:
+
+    [``
+\begin{aligned}
+  y &= [$m]([$x3]-[$x1]) +[$y1] \\
+  y &= [$y3]
+\end{aligned}
+``]
+
+    If you spent [`[$x3]`] minutes over the phone in a month, your bill for that month would be [`[$cy3]`].
+
+c)    In one month, you had a cell phone bill of [`[$cy4]`]. To find how many minutes you spent on the phone that month, we substitute [`[$y4]`] in for [`y`] in the equation [` y=[$m](x-[$x1])+[$y1] `], and we have:
+
+    [``
+\begin{aligned}
+  y &= [$m](x-[$x1]) +[$y1] \\
+  [$y4] &= [$m](x-[$x1]) +[$y1] \\
+  [@$y4-$y1@] &= [$m](x-[$x1])\\ 
+  \frac{[@$y4-$y1@]}{[$m]} &= x - [$x1]\\
+  [@($y4-$y1)/$m@] &= x - [$x1]\\
+  [@($y4-$y1)/$m+$x1@] &= x\\
+  [$x4] &= x
+\end{aligned}
+``]
+
+    If your bill was [`[$cy4]`] in one month, you must have spent [`[$x4]`] minutes on the phone.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

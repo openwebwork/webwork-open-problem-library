@@ -1,0 +1,166 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given two points, find a line's equation in slope-intercept form.
+# Application problem. Slope is positive.
+# 
+# Last updated: Jordan 8/30/13; Carl Yao, 7/9/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Lines')
+## KEYWORDS('linear','equation','slope','slope-intercept','application')
+## DBCCSS('F-LE.2','8.F.3','A-CED','S-ID.7')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserAssignment.pl",
+  "parserOneOf.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+Context("Numeric")->variables->add(y=>'Real');
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->flags->set(showExtraParens=>0);
+
+$m=random(10,30,1)/100;
+$b=random(110,190,1)/10;
+
+$x1=random(10,15,1);
+$y1=$m*$x1+$b;
+$x2=random(16,20,1);
+$y2=$m*$x2+$b;
+$x3=random(25,30,1);
+$y3=$m*$x3+$b;
+$x4=random(50,60,1);
+$y4=$m*$x4+$b;
+
+parser::Assignment->Allow;
+$ansSI=Formula("y=$m*x+$b")->reduce;
+
+Context("Numeric");
+parser::Assignment->Allow;
+Context()->variables->add(y=>'Real');
+Context()->flags->set(tolType=>'absolute');
+Context()->variables->set(x=>{limits=>[$x1,$x2]});
+Context()->operators->set(
+'+' => {class => 'bizarro::BOP::add', isCommand => 1},
+'-' => {class => 'bizarro::BOP::subtract', isCommand => 1},
+);
+
+$ansPS = OneOf(Formula("y=$m*(x-$x1)+$y1"),Formula("y=$m*(x-$x2)+$y2"));
+$ansPS_evaluator = $ansPS -> cmp(
+      checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroAdd=>1,bizarroSub=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      Value->Error("Your answer is a line equation for the right line, but it is not in the expected point-slope form") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroAdd=>0,bizarroSub=>0);
+      return 1;
+});
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+A biologist has been observing a tree's height. [`[$x1]`] months into the observation, the tree was [`[$y1]`] feet tall. [`[$x2]`] months into the observation, the tree was [`[$y2]`] feet tall.
+
+Let [`x`] be the number of months passed since the observations started, and let [`y`] be the tree's height at that time, in feet. Use a linear equation to model the tree's height as the number of months pass.
+
+a) A point-slope equation to model this is [______________]{$ansPS_evaluator}.
+
+b) [`[$x3]`] months after the observations started, the tree would be [___________]{$y3} feet in height.
+
+c) [___________]{$x4} months after the observation started, the tree would be [`[$y4]`] feet tall.
+
+END_PGML
+
+##############################################
+
+$s1=$y2-$y1;
+$s2=$x2-$x1;
+$s3=$m*$x1;
+$s4=-$s3;
+$s5=$m*$x3;
+$s6=$y4-$b;
+
+$outputy1 = $y1<0 ? "($y1)" : $y1;
+$outputx1 = $x1<0 ? "($x1)" : $x1;
+
+BEGIN_PGML_SOLUTION
+
+a)    A line's equation in point-slope form looks like [` y=m(x-x_0)+y_0 `], where [`m`] is the slope, and [`(x_0,y_0)`] is some point we know to be on the line. We first need to find the line's slope. To find the slope, we need two points on the line. We have been given that [`([$x1],[$y1])`] and [`([$x2],[$y2])`] are points on the linear model, so we can use the slope formula:
+
+    [`` \text{slope}=\frac{y_{2}-y_{1}}{x_{2}-x_{1}} ``]
+
+    First, we mark which number corresponds to which variable in the formula:
+
+    [`` ([$x1],[$y1]) \longrightarrow (x_{1},y_{1}) ``]
+
+    [`` ([$x2],[$y2]) \longrightarrow (x_{2},y_{2}) ``]
+
+    Now we substitute these numbers into the corresponding variables in the slope formula:
+
+    [`` \begin{aligned}\text{slope}&=\frac{y_{2}-y_{1}}{x_{2}-x_{1}}\\&=\frac{[$y2]-[$outputy1]}{[$x2]-[$outputx1]}\\&=\frac{[$s1]}{[$s2]}\\&=[$m] \end{aligned}``]
+
+    This line's slope is [`[$m]`]. This implies that the tree is growing by [`[$m]`] feet each month.
+
+    So now we have that [` y=[$m](x-x_0)+y_0 `]. We can either use [`(x_0,y_0)=([$x1],[$y1])`] or [`(x_0,y_0)=([$x2],[$y2])`] to get [`[$ansPS]`].
+
+b)    After [`[$x3]`] months, we can find the height of the tree if we substitute [`[$x3]`] in for [`x`] in the equation [` y=[$m](x-[$x1])+[$y1] `], and we have:
+
+    [``
+\begin{aligned}
+  y &= [$m]([$x3]-[$x1]) +[$y1] \\
+  y &= [$y3]
+\end{aligned}
+``]
+
+    So after [`[$x3]`] months, the tree is [`[$y3]`] feet tall.
+
+c)    To find when the tree was [`[$y4]`] feet tall, we substitute [`[$y4]`] in for [`y`] in the equation [` y=[$m](x-[$x1])+[$y1] `], and we have:
+
+    [``
+\begin{aligned}
+  y &= [$m](x-[$x1]) +[$y1] \\
+  [$y4] &= [$m](x-[$x1]) +[$y1] \\
+  [@$y4-$y1@] &= [$m](x-[$x1])\\
+  \frac{[@$y4-$y1@]}{[$m]} &= x - [$x1]\\
+  [@($y4-$y1)/$m@] &= x - [$x1]\\
+  [@($y4-$y1)/$m+$x1@] &= x\\
+  [$x4] &= x
+\end{aligned}
+``]
+
+    So the tree was [`[$y4]`] feet tall after [`[$x4]`] months.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+

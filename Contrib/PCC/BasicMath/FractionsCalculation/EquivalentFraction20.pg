@@ -29,14 +29,24 @@ loadMacros(
   "MathObjects.pl",
   "PGML.pl",
   "contextFraction.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl",
 );
 
 ##############################################
 
-Context("LimitedNumeric");
+Context("Numeric");
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(showStudentAnswer=>'parsed');
+Context()->operators->set(
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+);
 
-$den1 = random(2,9,1);
+
+$den1 = random(2,19,1);
 do {$num1 = random(1,$den1-1,1);} until (gcd($num1,$den1)==1);
 
 $factor=random(2,5,1);
@@ -44,17 +54,34 @@ $factor=random(2,5,1);
 $den2 = $factor*$den1;
 $num2 = $factor*$num1;
 
+$answer = Formula("$num2/$den2");
+$evaluator = $answer -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      my $OK = (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0);
+      Value::Error("Your fraction is equivalent to the given fraction but it does not have denominator $den2.") unless $OK;
+      return $OK;
+}); 
+
+
 ##############################################
 
 TEXT(beginproblem());
 
 BEGIN_PGML
 
-Find an equivalent fraction to [`\frac{[$num1]}{[$den1]}`]:
+Find an equivalent fraction to [`\frac{[$num1]}{[$den1]}`] with denominator [`[$den2]`].
 
-    [`` \frac{[$num1]}{[$den1]} = \frac{[$num2]}{?} ``]
-
-The question mark should be the number [________]{$den2}.
+[________]{$evaluator}
 
 END_PGML
 
