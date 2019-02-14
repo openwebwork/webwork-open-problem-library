@@ -1,0 +1,138 @@
+## DBsubject(Statistics)
+## DBchapter(Time series)
+## DBsection(Autocorrelation)
+## Level(4)
+## level(4)
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+## do not need to download data
+@data = rserve_eval('
+sigma <- round(runif(1, min=0.2, max=0.9), 1)
+beta1 <- round(runif(1, min=-0.9, max=-0.5), 1)
+beta2 <- round(runif(1, min=-0.6, max=-0.1), 1)
+beta3 <- round(runif(1, min=0.1, max=0.4), 1)
+
+# part (a)
+ans.a <- sigma^2 * (1 + beta1^2 + beta2^2 + beta3^2)
+ans.b <- sigma^2 * (beta1 + beta1 * beta2 + beta2 * beta3)
+ans.c <- sigma^2 * (beta2 + beta1 * beta3) / ans.a
+
+ans.a <- round(ans.a, 4)
+ans.b <- round(ans.b, 4)
+ans.c <- round(ans.c, 4)
+c(ans.a, ans.b, ans.c, sigma, beta1, beta2, beta3)
+');
+
+$sigma = $data[3];
+$beta1 = $data[4];
+$beta2 = $data[5];
+$beta3 = $data[6];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Let \(Z_t\) denote a white noise process with mean zero and variance \($sigma ^2 \). Define the stochastic process \(X_t\) by
+
+\[ X_t = Z_t + $beta1 Z_{t-1} + $beta2 Z_{t-2} + $beta3 Z_{t-3}
+\]
+Provide the following, each to two decimal places.
+
+$BR
+$BR
+$BBOLD Part (a)  $EBOLD
+\( Var(X_t) \)
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (b) $EBOLD
+\( Cov(X_t, X_{t+1})\)
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (c) $EBOLD
+The autocorrelation function of \(X_t\) at lag 2.
+\{ans_rule(7)\}
+$BR
+$BR
+
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($data[0], tol=> 0.02) );
+ANS( num_cmp($data[1], tol=> 0.02) );
+ANS( num_cmp($data[2], tol=> 0.02) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+
+BEGIN_SOLUTION
+$BBOLD Part (a) $EBOLD
+We have 
+$BR
+\[ 
+Var(X_t ) = $sigma ^2 * (1 + {($beta1)}^2 + {($beta2)}^2 + {($beta3)}^2) = $data[0].
+\]
+
+$BBOLD Part (b) $EBOLD
+The value is found via
+$BR
+\[ 
+\begin{eqnarray*}
+Cov(X_t, X_{t+1}) &=& Cov(Z_t + $beta1 Z_{t-1} + $beta2 Z_{t-2} + $beta3 Z_{t-3},  \\
+ && Z_{t+1} + $beta1 Z_{t} + $beta2 Z_{t-1} + $beta3 Z_{t-2} )\\
+&=& $sigma^2 * ($beta1 + {($beta1 * $beta2)} + {($beta2 * $beta3)} = $data[1].
+\end{eqnarray*}
+\]
+
+$BBOLD Part (c) $EBOLD
+To find the acf at lag 2, we first require \(Cov(X_t, X_{t + 2}) \) :
+$BR
+\[ 
+\begin{eqnarray*}
+Cov(X_t, X_{t+2}) &=& Cov(Z_t + $beta1 Z_{t-1} + $beta2 Z_{t-2} + $beta3 Z_{t-3}, \\
+&& Z_{t+2} + $beta1 Z_{t+1} + $beta2 Z_t + $beta3 Z_{t-1}) \\
+&=& $sigma^2  * ($beta2 + {($beta1 * $beta3)}).
+\end{eqnarray*}
+\]
+The acf at lag 2 is therefore
+\[ 
+\begin{eqnarray*}
+\frac{Cov(X_t, X_{t+2})}{Var(X_t)} = $data[2].
+\end{eqnarray*}
+\]
+
+END_SOLUTION
+
+ENDDOCUMENT();

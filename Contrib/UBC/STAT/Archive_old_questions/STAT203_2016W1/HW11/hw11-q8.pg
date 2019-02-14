@@ -1,0 +1,301 @@
+#########################################################
+##KEYWORDS('Statistical inference'; 'hypothesis test', 'one--sample t test';
+##'create a graphic and hence describe a data distribution', 'find a 95%
+##confidence interval for mean', 'find the test statistic and P-value for a t
+##test', 'decide whether or not to reject the null hypothesis'.) 
+# DESCRIPTION
+## DBsubject('Statistics')
+## DBchapter('Hypothesis Testing')
+## DBsection('One sample mean - t')
+## Date('2015/12/30')
+## Author('Nelson Chen')
+## Institution('University of British Columbia')
+## level('4')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+
+####plots
+$plot=rserve_start_plot('png');
+rserve_eval('
+y <- c(-0.83, -0.18, 0.14, -1.46, -0.48, -1.04, 0.25,
+-0.34, -0.81, -0.83, -0.60, 0.34, -0.75, 0.37, 0.26, 0.46, -0.03, -0.32,
+-0.53, -1.55, -0.90, -0.95, -0.13, -0.75, 0.59, -0.06, 0.39, -0.40, -0.84,
+-0.56, 0.44, 0.18, 0.28, -0.41, -0.26, 0.64, -0.51, -0.36, 0.49, 0.21, 0.17,
+0.13, -0.63, -1.24, 0.57, -0.78)
+x <- sample(y, 44)
+hist(x, xlab="Change in lead content", main="Histogram
+of Changes in Lead Content in Soil, Pre to Post Hurricane")
+');
+$plotpath=rserve_finish_plot($plot);
+
+@x= rserve_eval('
+x
+');
+
+
+#########Table
+####Build table
+$Table = 
+"\(       
+\begin{array}{ccccccc}
+@x[0] &  @x[1] & @x[2] & @x[3] & @x[4] & @x[5] & @x[6] & @x[7] & @x[8] & @x[9]  \\
+
+@x[10] & @x[11] & @x[12] & @x[13]  & @x[14] & @x[15] & @x[16] & @x[17] & @x[18] & @x[19]   \\
+
+@x[20] &  @x[21] & @x[22] & @x[23] & @x[24] & @x[25] & @x[26] & @x[27] &
+  @x[28] & @x[29]  \\
+
+@x[30] &  @x[31] & @x[32] & @x[33] & @x[34] & @x[35] & @x[36] & @x[37] & @x[38] & @x[39]  \\
+
+@x[40] &  @x[41] & @x[42] & @x[43]
+\end{array}
+\)"
+;
+
+######Q1
+@stat= rserve_eval('
+ttest <- t.test(x)
+tem<-ttest$statistic
+round(tem, 3) 
+');
+
+
+@p= rserve_eval('
+p = round(ttest$p.value, 3)
+');
+
+
+######CI
+
+@meanx= rserve_eval('
+round(mean(x), 4)
+');
+
+@sdx= rserve_eval('
+round(sd(x), 4)
+');
+
+
+@lower= rserve_eval('
+tem<-mean(x) - 2.0167*sd(x)/sqrt(44)
+round(tem, 3) 
+');
+
+@upper= rserve_eval('
+tem<-mean(x) + 2.0167*sd(x)/sqrt(44)
+round(tem, 3) 
+');
+
+############
+@ans_c_correct = rserve_eval('
+rc<-0
+if(p<0.05){
+if(ttest$statistic<0){
+rc<-1  
+}
+if(ttest$statistic>0){
+rc<-2  
+}
+}
+rc
+');
+
+$ans_c_correct = $ans_c_correct[0];
+
+$qu_c = "Assuming you test your null hypothesis at the 5% significance level,
+which of the following would you conclude?";
+
+@ans_c_all = ("There is no evidence to reject the claim that mean soil lead did not
+change after the hurricanes.",
+"There is evidence to support the claim that mean soil lead
+concentration declined after the hurricanes.",
+"There is evidence to support the claim that mean soil lead
+concentration increased after the hurricanes."
+);
+
+$ans_c = $ans_c_all[$ans_c_correct];
+
+$mc_c = new_multiple_choice();
+$mc_c->qa(
+  $qu_c,
+  $ans_c
+);
+$mc_c->makeLast(
+$ans_c_all[0],  $ans_c_all[1], $ans_c_all[2]
+);
+
+
+######Q1
+
+$ans_1_correct = "Unimodal, centred at a value below zero.";
+
+$qu_1 = "Create a graph of the data, following recommended principles of good
+graph design. Which of the following best describes the distribution?";
+
+
+$mc_1 = new_multiple_choice();
+$mc_1->qa(
+  $qu_1,
+  $ans_1_correct
+);
+
+$mc_1->extra(
+"Unimodal, centred at a value above zero.",
+"Bimodal, centred at a value below zero.",
+"Bimodal, centred at a value above zero.",
+"Uniform (that is, flat).",
+);
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Hurricanes Katrina and Rita caused the flooding of large parts of New
+Orleans, leaving behind large amounts of new sediment. Before the
+hurricanes, the soils in New Orleans were known to have high concentrations
+of lead, which is a dangerous environmental toxin. Suppose 44 sites had been
+monitored before the hurricanes for soil lead content, as measured in mg/kg,
+and the soil from each of these sites was measured again after the
+hurricanes (Zahran \(et~ al\). 2010). The data given below show the log of
+the ratio of the soil lead content after the hurricanes and the soil lead
+content before the hurricane -- we will call this variable the
+"change in soil lead." (Therefore,
+numbers less than zero show a reduction in soil lead content after the
+hurricanes, and numbers greater than zero show increases.)
+$BR
+$BR
+$BCENTER
+$Table
+$ECENTER
+$BR
+$BR
+$BR
+Zahran, S., H. W. Mielke, C. R. Gonzales, E. T. Powell, and S. Weiler
+(2010): New Orleans before and after hurricanes Katrina/Rita: A
+quasi-experiment of the association between soil lead and children's blood
+lead. \(Environmental ~Science ~and~ Technology\) $BBOLD 44, $EBOLD 4433--4440.
+$BR
+$BR
+$BBOLD(a) $EBOLD 
+\{ $mc_1->print_q() \}
+$BR
+\{ $mc_1->print_a() \}
+$BR
+$BR
+
+$BBOLD(b) $EBOLD
+Determine a 95% confidence interval for the mean change in soil lead.
+Give your bounds to three decimal places.
+$BR
+(\{  ans_rule(7) \}, \{  ans_rule(7) \})
+$BR
+$BR
+
+$BBOLD(c) $EBOLD
+To test the null hypothesis that mean soil lead did not change after
+the hurricanes, provide your test statistic to three decimal places. \{  ans_rule(7) \}
+$BR
+$BR
+
+$BBOLD(d) $EBOLD
+Assume a two--sided alternative hypothesis. Provide the P-value of
+your test to 3 decimal places. \{  ans_rule(7) \}
+$BR
+$BR
+
+
+$BBOLD(e) $EBOLD
+\{ $mc_c->print_q() \}
+$BR
+\{ $mc_c->print_a() \}
+
+
+END_TEXT
+#########################################################
+## Answers evaluation (Required)
+ANS( radio_cmp( $mc_1 -> correct_ans( ) ) );
+ANS( num_cmp(@lower[0], tol=> 0.011) );
+ANS( num_cmp(@upper[0], tol=> 0.011) );
+ANS( num_cmp(@stat[0], tol=> 0.011) );
+ANS( num_cmp(@p[0], tol=> 0.011) );
+ANS( radio_cmp( $mc_c -> correct_ans( ) ) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+$BBOLD (a) $EBOLD 
+$BR
+$BR
+$BCENTER
+\{ image($plotpath, width=>400, height=>250)   \}
+$ECENTER
+$BR
+$BR
+The distribution appears unimodal, centred at a value below zero. 
+$BR
+$BR
+
+$BBOLD (b) $EBOLD The 95% confidence interval for the mean is 
+\(\bar{x}\pm t^{\ast} \times s/\sqrt{44} \), where \(t^{\ast}\)is the 97.5 percentile of
+the \(t_{43}\) distribution, specifically 2.0167. Hence the required interval is 
+\( 
+@meanx[0] \pm (@sdx[0]/\sqrt{44}) \times 2.0167. 
+\)
+$BR
+$BR
+
+$BBOLD (c) $EBOLD The test statistic is 
+$BCENTER
+\(
+\frac{@meanx[0]}{@sdx[0]/\sqrt{44}}=@stat[0].  
+\)
+$ECENTER
+$BR
+$BR
+
+$BBOLD (d) $EBOLD We should compare the test statistic with the t distribution on 43
+degrees of freedom. As the test is two--sided, the P-value is @p[0]. 
+$BR
+$BR
+
+$BBOLD (e) $EBOLD As \( @p[0]< 0.05\), we reject the
+null hypothesis that mean soil lead did not change after the hurricanes.
+There is evidence to support the claim that mean soil lead concentration
+changed after the hurricanes. 
+$BR
+$BR
+
+END_SOLUTION
+ENDDOCUMENT();

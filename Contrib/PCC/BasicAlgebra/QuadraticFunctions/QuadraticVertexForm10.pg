@@ -23,6 +23,7 @@ loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
   "PGML.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl",
 );
 
@@ -31,27 +32,54 @@ loadMacros(
 TEXT(beginproblem()); 
 
 Context("Numeric");
+Context()->operators->set(
+'+' => {class => 'bizarro::BOP::add', isCommand => 1},
+'-' => {class => 'bizarro::BOP::subtract', isCommand => 1},
+'*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+);
+
 
 $a = non_zero_random(-9,9,1);
 $h = non_zero_random(-9,9,1);
 $k = non_zero_random(-9,9,1);
 $ans = Compute("$a*(x-$h)^2+$k");
 
+$evaluator = $ans -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroAdd=>1,bizarroSub=>1,bizarroMul=>1,bizarroDiv=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      my $OK = (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroAdd=>0,bizarroSub=>0,bizarroMul=>0,bizarroDiv=>0);
+      Value::Error("Your answer is equivalent to the correct answer, but not in vertex form") unless $OK;
+      return $OK;
+});
+
+
 ##############################################
 
 BEGIN_PGML
 
-A parabola's vertex form looks like [` f(x) = a(x-h)^2+k `].
+Write the vertex form for the quadratic function [`f`], whose vertex is [`([$h],[$k]) `] and has leading coefficient [`a=[$a]`].
 
-Write the vertex form of a parabola, whose vertex is at [`([$h],[$k]) `] and the value of [`a`] is [`[$a]`].
-
-    [`` f(x) =``] [_________________]{$ans}
+    [`` f(x) =``] [_________________]{$evaluator}
 
 END_PGML
 
 ##############################################
 
-$showPartialCorrectAnswers = 1;
 
 BEGIN_PGML_SOLUTION
 

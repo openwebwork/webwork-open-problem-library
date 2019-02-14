@@ -1,0 +1,191 @@
+# DESCRIPTION
+# Problem from 'Mathematics: The Language of Electrical and Computer Engineering', Viniotis and Trussell, 3rd ed.
+# WeBWorK problem written by Joel Trussell, <hjt@ncsu.edu>
+# ENDDESCRIPTION
+
+## DBsubject(Electrical Engineering)
+## DBchapter(Laplace Transforms)
+## DBsection(Problems)
+## Institution(North Carolina State University)
+## Author(H. J. Trussell)
+## MO(1)
+## TitleText1('Mathematics: The Language of Electrical and Computer Engineering')
+## AuthorText1('Viniotis and Trussell')
+## EditionText1('3')
+## Section1('.')
+## Problem1('8 16 21')
+## KEYWORDS('Laplace','Differential Equation','Inverse')
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "AnswerFormatHelp.pl",
+  "unorderedAnswer.pl",
+  "parserMultiAnswer.pl",
+  "parserFunction.pl",
+  "unionLists.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+
+#############################
+#  Setup
+
+Context("Complex");
+Context()->variables->are(
+s=>"Real",
+t=>"Real"
+);
+
+# Redefine the Heaviside function so the answer checker will take either 1 or #h(t).
+#parserFunction("h(t)" => "1");
+# skip above and use step - need to assign it
+## required to use step function
+Context()->functions->add(
+  step => {
+    class => 'Parser::Legacy::Numeric',
+    perl => 'Parser::Legacy::Numeric::do_step'
+  },
+);
+parserFunction("u(t)" => "step(t)");
+
+Context()->flags->set(
+  tolerance => 0.001,
+  tolType => "absolute",
+);
+
+
+# create differential equation with roots below
+# complex roots for the input, real for the system- 1st order
+# this means swapping r3 and (r1 and r2) 
+# force pure cosine f0r this problem
+# PFE of c1/(s+r1) + c2/(s-r2) + c3/(s-r3)
+
+$a = 0; # real part - force pure cosine
+$w =  random(1,6,1); # imaginary part - frequency
+$r1 = $a + $w*i;
+$r2 = $a - $w*i; #complex conjugate
+$r3 = -random(1,9,1); ; # third root - for system
+
+$A = non_zero_random(-6,6,1); # magnitude of input cosine
+
+# c1 and c2 are complex conjugates
+# since magnitude and phase are not easy to determine as integers
+# let's just work the problem directly
+
+
+# solve for coefficients of diffEq  y'-r3*y = A y_s
+# where Y_s(s) = 2*A*s/(s^2+w^2)
+# need to solve for A, y(0)
+
+$y0 = random(1,6,1);
+
+# constants for Partial Fraction
+$b2 = $y0;
+$b1 = $A;
+$b0 = $y0*$w**2;
+$wsqr = $w**2;
+
+$frac = Formula(" ($b2 * s^2 + $b1*s + $b0 )/[(s-$r3)*(s^2 + $wsqr)] ")->reduce;
+
+# compute c3 by usual PFE method
+$c3 = ($b2*(($r3)**2) + $b1*$r3 + $b0 )/(($r3)**2 + $w**2);
+$c2 = ($b2*(($w*i)**2) + $b1*$w*i + $b0)/(2*$w*i *($w*i-$r3));
+
+$wsq = (($w*i)**2);
+$b1wi = $b1*$w*i;
+$wi2 = 2*$w*i;
+$wimr3 = ($w*i-$r3);
+
+$mag = abs($c2);
+#$phi = arg($c2);
+#$c2re = Re($c2);
+$c2conj = conj($c2);
+$c2im = -($c2-$c2conj)*i;
+$c2re = $c2+$c2conj;
+
+# compute phi in range [-pi,pi]
+if ($c2re > 0 ) {$phi = atan($c2im/$c2re);} 
+elsif ($c2im > 0) {$phi = atan($c2im/$c2re) + pi;}
+else {$phi = atan($c2im/$c2re) - pi;}
+
+$fac1 = Formula("$mag*e^($phi*i)/(s-$w*i)")->reduce;
+$fac2 = Formula("$mag*e^(-$phi*i)/(s+$w*i)")->reduce;
+$fac3 = Formula("$c3/(s-$r3)")->reduce;
+
+
+
+$ft = Formula("(2*$mag*cos($w*t+$phi)  + $c3*e^($r3*t))*u(t)")->reduce;
+
+
+#############################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+This problem is related to Problems 8.16-21 in the text. 
+
+$PAR
+Consider the differential equation \( y'(t) - $r3 y(t) = $A  cos( $w t) u(t) \), 
+$BR with initial condition \( y(0) = $y0,\) 
+
+$PAR
+Find the Laplace transform of the solution  \( Y(s). \) Write the solution as a single fraction in \( s \)
+$BR
+\( Y(s) = \) \{ ans_rule(60)\} \{ AnswerFormatHelp("formulas") \}
+$PAR
+
+END_TEXT
+
+ANS( $frac-> cmp());
+
+BEGIN_TEXT
+
+
+Find the partial fraction decomposition of \( Y(s) \). Enter all factors as first order terms in \( s \), that is, all terms should be of the form \( \frac{c}{s-p} \), where \( c \) is a constant and the root \( p \) is a constant. Both \( c \) and \( p \) may be complex. 
+$BR
+$BR
+\( \displaystyle Y(s) = \) \{ ans_rule(20)\}  \(+\)  \{ ans_rule(20)\}  \(+\) \{ ans_rule(20)\}
+
+END_TEXT
+
+UNORDERED_ANS(  $fac1->cmp(), $fac2->cmp(), $fac3->cmp() );
+
+BEGIN_TEXT
+
+
+$PAR Find the inverse Laplace transform of \( \displaystyle Y(s) \). The solution must consist of all real terms. (Remeber to use \( u(t).\))
+$BR
+$BR
+\( \displaystyle y(t) = {\mathcal L}^{-1} \left\lbrace Y(s) \right\rbrace = \)
+\{ ans_rule(50) \}
+\{ AnswerFormatHelp("formulas") \}
+
+
+END_TEXT
+Context()->normalStrings;
+
+
+##############################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+# note that ALL answers in a problem must be unordered!!
+# in this case, the terms are unordered and checked as such, but it is 
+# highly unlikely anyone would enter the last answer in the wrong place
+# but so what if they did
+
+ANS( $ft->cmp() );
+
+
+ENDDOCUMENT();
+

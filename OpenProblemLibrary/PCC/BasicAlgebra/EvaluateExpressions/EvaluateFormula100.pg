@@ -1,0 +1,170 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given radius and height, find the volume of a cylinder both in terms
+# of pi and decimals.
+#
+# Last edited by Carl Yao on 1/24/2016
+#
+# ENDDESCRIPTION
+
+## DBCCSS('8.G.9')
+## DBsubject(Algebra)
+## DBchapter(Algebra of real numbers and simplifying expressions)
+## DBsection(Evaluating expressions)
+## Institution(PCC)
+## Author(Alex Jordan, Carl Yao, Chris Hughes)
+## Level(3)
+## MO(1)
+## KEYWORDS('volume','cylinder')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserNumberWithUnits.pl",
+  "parserFormulaWithUnits.pl",
+  "answerHints.pl",
+  "PGgraphmacros.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+$refreshCachedImages = 1;
+Context("Numeric");
+Context()->flags->set(reduceConstants=>0);
+
+do {$height = random(2,10,1);
+$radius = random(2,10,1);} until (abs($height-2*$radius)<4);
+
+$heightU = NumberWithUnits("$height m");
+$diameter = $radius*2;
+$radiusSquared = $radius**2;
+$radiusU = NumberWithUnits("$radius m");
+$diameterU = NumberWithUnits("$diameter m");
+
+$pi = Compute("pi");
+
+$piConstant = $height*$radiusSquared;
+$volumeDE = sprintf("%.2f", $pi*$radiusSquared*$height );
+
+
+Context()->constants->remove('pi');
+Context()->variables->are(pi=>'Real');
+Context()->variables->set(pi => {TeX=>'\pi'});
+
+$ansVolumePIU = FormulaWithUnits("$piConstant pi m^3");
+$ansVolumeDEU = NumberWithUnits("$volumeDE m^3");
+
+$xmin=0;
+$xmax=4*$radius;
+$ymin=0;
+$ymax=1.5*$height;
+
+$gr = init_graph(0,0,$xmax,$ymax,
+size=>[240,240*$ymax/$xmax]
+);
+
+$gr->moveTo($radius,$height/4);
+$gr->lineTo($radius,5*$height/4,'blue',2);
+$gr->moveTo(3*$radius,$height/4);
+$gr->lineTo(3*$radius,5*$height/4,'blue',2);
+$xfunc = sub { my $t = shift();
+    return $radius*cos($t)+2*$radius; };
+$yfuncTop = sub { my $t = shift();
+    return $height/8*sin($t)+5*$height/4; };
+$yfuncBot = sub { my $t = shift();
+    return $height/8*sin($t)+$height/4; };
+$Top = new Fun( $xfunc, $yfuncTop, $gr );
+$Top->domain(0,6.2832);
+$Bot = new Fun( $xfunc, $yfuncBot, $gr );
+$Bot->domain(-3.14159,0);
+$Bot2 = new Fun( $xfunc, $yfuncBot, $gr );
+$Bot2->domain(3.14159/5, 4*3.14159/5);
+$Bot2->weight(1);
+$gr->lb( new Label(3*$radius+$radius/10,3*$height/4,"h",
+    'black','left','middle'));
+$gr->moveTo(2*$radius,5*$height/4);
+$gr->lineTo(3*$radius,5*$height/4,'blue',1);
+$gr->lb( new Label(2.5*$radius,5*$height/4,"r",
+    'black','center','bottom'));
+$gr->new_color("darkblue",  100,100,255);
+$gr->new_color("lightblue", 214,230,244);
+$gr->fillRegion([2*$radius,$height,"darkblue"]);
+$gr->fillRegion([1.5*$radius,1.5*$height,"lightblue"]);
+
+
+##############################################
+
+TEXT(beginproblem());
+$alt = "a cylinder width its height marked h and its base radius marked r";
+
+BEGIN_PGML
+
+A cylinder's volume can be calculated by the formula [`V=\pi r^2h`], where [`V`] stands for volume, [`r`] for the base radius and [`h`] for the cylinder's height.
+
+>>[@image( insertGraph($gr), width=>240, 
+    height=>(240*$ymax/$xmax), tex_size=>800, extra_html_tags => "alt = '$alt' title = '$alt'")@]*<<
+
+Use the formula to calculate the cylinder's volume if its base's radius is [`[$radiusU]`], and its height is [`[$heightU]`]. [@KeyboardInstructions(q!(Type [|pi|]* for [`\pi`], and [|m^3|]* for cubic meters.)!)@]**
+
+a) This cylinder's volume, in terms of [`\pi`], is [_____________].
+
+b) This cylinder's volume, rounded to the hundredth place, is [_____________].
+
+
+END_PGML
+
+##############################################
+
+$s1 = $height*$radiusSquared;
+
+ANS($ansVolumePIU->cmp(
+   correct_ans_latex_string=>$ansVolumePIU->TeX
+   )->
+     withPostFilter(AnswerHints( 
+     sub {
+       my ($correct,$student,$ans) = @_;
+       return (Formula($student)->isConstant);
+     } => "Your answer should be in terms of pi",
+))
+);
+
+ANS($ansVolumeDEU->cmp(tolType=>absolute,tolerance=>0.005));
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+We will substitute [`r=[$radius]`] and [`h=[$height]`] into the formula [` V= \pi r^{2} h `].
+
+a)    In Part a), we will leave [`\pi`] unrounded:
+
+    [``\begin{aligned}
+      V & = \pi r^{2} h \\
+        & = \pi \cdot [$radius]^{2} \cdot [$height] \\
+        & = \pi \cdot [$s1] \\
+        & = [$s1] \pi \textrm{ m}^3
+      \end{aligned}``]
+
+    Don't forget the volume unit [`\textrm{m}^3`].
+
+b)  To find the decimal version, we replace [`\pi`] with its decimal value, and we have:
+
+    [``\begin{aligned}[t]
+      V& = [$s1] \pi \\
+       & \approx [$s1] \cdot 3.1415926\ldots \\
+       & \approx [$ansVolumeDEU]
+     \end{aligned}``]
+
+    Don't forget the volume unit [`\textrm{m}^3`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

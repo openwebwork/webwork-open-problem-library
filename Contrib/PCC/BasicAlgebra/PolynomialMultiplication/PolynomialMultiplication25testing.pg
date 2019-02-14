@@ -1,0 +1,629 @@
+# WeBWorK problem written by Chris Hughes
+# Portland Community College
+#
+# Template:
+# Find product of the two binomials
+#
+#    (x+a)(x+b)
+#
+#
+# a and b are integers on the interval [1,10], and $b!=$a
+# 
+# Last updated: Carl Yao, 7/04/13
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Polynomial and Rational Functions')
+## DBsection('Polynomial Functions')
+## KEYWORDS('exponent','multiply','polynomial','binomial','FOIL')
+## DBCCSS('A-APR.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "contextLimitedPolynomial.pl",
+  "PGgraphmacros.pl",
+#  "PCCMultiplyPolynomials.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+$var1 = RandomVariableName(type=>'variable');
+do {$var2 = RandomVariableName(type=>'variable');} until ($var1 ne $var2);
+Context()->variables->are($var1=>'Real',$var2=>'Real');
+
+# setup the first binomial: (x+$a)
+$a = random(1,10,1);
+@poly1array = ( [1,$a,-4],[$var1,2,1,0],[$var2,2,1,0] );
+
+# setup the binomial: (x+$b)
+$b=$a;
+$b = random(1,10,1) while($b==$a);
+@poly2array = ( [1,$b],[$var1,1,0],[$var2,1,0] );
+
+($ans, $problem, $output) = multiplyPolynomials(~~@poly1array,~~@poly2array);
+
+######################################################
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Find the product of the two *bi*nomials.
+
+    [``[$problem]= ``][________________________________]{$ans}
+
+END_PGML
+
+######################################################
+# This file's multiplyPolynomials subroutine takes two parameters:
+#   references of two 2-dimensional arrays.
+# Those two arrays represent two polynomials to be multiplied.
+# Each polynomial can be a binomial or trinomial.
+# Each polynomial can have up to two variables.
+# This file can multipy (x+2)(x+3), (x+2y)(x+3y), (xy+2)(xy+3), (x^2+x+1)(x+1)
+
+# Each 2-dimensional array's first array stores the coefficients of all terms.
+# Each 2-dimensional array's second array stores each variable
+#   and its exponents in each term in the polynomial.
+# For example, the array ( [1,2,3] ['x',2,1,0] ) represents 
+#    the polynomial (x^2+2x+3).
+# The array ( [1,2,3] ['x',2,1,0] ['y',2,1,0] ) represents 
+#    the polynomial (x^2y^2+2xy+3).
+#
+# The multiplyPolynomials returns three values.
+# The first returned value is the problem's answer as a math object.
+# The second returned value is the problem to be displayed in the question.
+# The third returned value is the output string to be used in the solution.
+#
+# The output covers the following methods to multiply two polynomials:
+#   Difference of Squares Formula
+#   Perfect Square Formula
+#   Using the distributive property
+#   FOIL
+#   the Generic Rectangle Method
+#
+
+$refreshCachedImages = 1;
+
+# This subroutine fills empty terms in the parameter array like ['x',2,1,0]
+#   with 1 if the variable is missing, and
+#   with 0 if any exponent is missing.
+#
+sub fill {
+   my $ref = shift;
+   if (!(defined($ref->[0]))) {
+      $ref->[0]=1;
+   }
+   for my $i (1..3) {
+      if (!(defined($ref->[$i]))) {
+         $ref->[$i]=0;
+      }
+   }
+   return;
+}
+
+
+sub multiplyPolynomials {
+
+   my ($poly1Ref,$poly2Ref) = @_;
+   my @tempPoly1 = @{$poly1Ref};
+   my @tempPoly2 = @{$poly2Ref};
+
+   my $outputString ="";
+
+       ### @poly1Coef stores the first polynomial's coefficients. ###
+       ### @poly1Var1 stores the first variable's exponents in each term. ###
+       ### @poly1Var2 stores the second variable's exponents in each term. ###
+   my @poly1Coef = ($tempPoly1[0][0],$tempPoly1[0][1],
+      defined($tempPoly1[0][2]) ? $tempPoly1[0][2] : 0
+   );
+   my @poly1Var1 = ($tempPoly1[1][0],$tempPoly1[1][1],$tempPoly1[1][2], $tempPoly1[1][3]);
+   fill(~~@poly1Var1);
+   my @poly1Var2 = ($tempPoly1[2][0],$tempPoly1[2][1],$tempPoly1[2][2], $tempPoly1[2][3]);
+   fill(~~@poly1Var2);
+
+       ### @poly2Coef stores the second polynomial's coefficients. ###
+       ### @poly2Var1 stores the first variable's exponents in each term. ###
+       ### @poly2Var2 stores the second variable's exponents in each term. ###
+   my @poly2Coef = ($tempPoly2[0][0],$tempPoly2[0][1],
+      defined($tempPoly2[0][2]) ? $tempPoly2[0][2] : 0
+   );
+   my @poly2Var1 = ($tempPoly2[1][0],$tempPoly2[1][1],$tempPoly2[1][2], $tempPoly2[1][3]);
+   fill(~~@poly2Var1);
+   my @poly2Var2 = ($tempPoly2[2][0],$tempPoly2[2][1],$tempPoly2[2][2], $tempPoly2[2][3]);
+   fill(~~@poly2Var2);
+
+      ### @poly1Terms stores the first polynomial's each term. ###
+   my @poly1Terms;
+   for my $i (0..2) {
+      $poly1Terms[$i] = Compute("$poly1Coef[$i]*$poly1Var1[0]**$poly1Var1[$i+1]*$poly1Var2[0]**$poly1Var2[$i+1]")->reduce;
+   }
+   my $poly1 = Compute("$poly1Terms[0]+$poly1Terms[1]+$poly1Terms[2]")->reduce;
+
+      ### @poly2Terms stores the second polynomial's each term. ###
+   my @poly2Terms;
+   for my $i (0..2) {
+      $poly2Terms[$i] = Compute("$poly2Coef[$i]*$poly2Var1[0]**$poly2Var1[$i+1]*$poly2Var2[0]**$poly2Var2[$i+1]")->reduce;
+   }
+   my $poly2 = Compute("$poly2Terms[0]+$poly2Terms[1]+$poly2Terms[2]")->reduce;
+
+   my $problem = ($poly1->string eq $poly2->string) ? Compute("$poly1**2")->reduce : Compute("$poly1*$poly2")->reduce;
+
+      ### Calculate the answer with sage. ###
+   my $v1 = ($poly1Var1[0] ne '1') ? $poly1Var1[0] : 'x';
+   my $v2 = ($poly1Var2[0] ne '1') ? $poly1Var2[0] : 'x';
+   my $v3 = ($poly2Var1[0] ne '1') ? $poly2Var1[0] : 'x';
+   my $v4 = ($poly2Var2[0] ne '1') ? $poly2Var2[0] : 'x';
+$SageCode1=<<END;
+var('$v1')
+var('$v2')
+var('$v3')
+var('$v4')
+ans = expand($poly1*$poly2)
+
+WEBWORK['ans']=ans
+END
+
+   my $result= AskSage($SageCode1,{
+       accepted_tos=>true, 
+   });
+
+   my $ans= Compute($result->{webwork}->{ans})->reduce;
+
+### $squareExtra is used to display (a+b)^2 ###
+###   if the polynomials form a perfect square. ###
+   my $squareExtra = ($poly1->string eq $poly2->string) ? Compute("$poly1*$poly2")->reduce : "";
+
+      ### Displays solution for the Perfect Square formula. ###
+   if ( ($squareExtra ne "") && ($poly1Coef[2]==0) ) {
+      $outputString .= $BBOLD.
+                                 'Perfect Square Formula: '.
+                                 $EBOLD.
+                                 'When we multiply two binomials which happen '.
+                                 'to form a perfect square, like '.
+                                 '\('.
+                                 $problem->TeX.
+                                 '\)'.
+                                 ', we can use the Perfect Square Formula: '.
+                                 '\['.
+                                 '(a\pm b)^2=a^2\pm2ab+b^2'.
+                                 '\]'.
+                                 $PAR.
+                                 'For '.
+                                 '\('.
+                                 $problem->TeX.
+                                 '\)'.
+                                 ', '.
+                                 '\('.
+                                 $poly1Terms[0]->TeX.
+                                 '\)'.
+                                 ' corresponds to '.
+                                 '\(a\)'.
+                                 ' in the formula, and '.
+                                 '\(';
+      my $plusOrMinus, $b;
+      if ($poly1Coef[1]>0) {
+         $plusOrMinus = '+';
+         $b = $poly1Terms[1];
+      } else {
+         $plusOrMinus = '-';
+         $b = Compute("-$poly1Terms[1]");
+      }
+      $outputString .= $b->TeX.
+                                 '\)'.
+                                 ' corresponds to '.
+                                 '\(b\)'.
+                                 ' in the formula. Using the formula, we have:'.
+                                 '\[\begin{aligned}[t]'.
+                                 $problem->TeX.
+                                 '&='.
+                                 '('.
+                                 $poly1Terms[0]->TeX.
+                                 ')^2'.
+                                 $plusOrMinus.
+                                 '2('.
+                                 $poly1Terms[0]->TeX.
+                                 ')('.
+                                 $b->TeX.
+                                 ')'.
+                                 '+('.
+                                 $b->TeX.
+                                 ')^2'.
+                                 '\newline &='.
+                                 $ans->TeX.
+                                 '\end{aligned}\]'.
+                                 $PAR;
+   }
+
+      ### Displays solution for the Difference of Squares formula. ###
+   my $negPoly2Term2 = Compute("-$poly2Terms[1]");
+   if ( ($poly1Terms[0]->string eq $poly2Terms[0]->string) && 
+         ($poly1Terms[1]->string eq $negPoly2Term2->string) && 
+         ($poly1Coef[2]==0) && ($poly2Coef[2]==0) ) {
+      $outputString .= $BBOLD.
+                                 'Difference of Squares Formula: '.
+                                 $EBOLD.
+                                 'Note that '.
+                                 '\('.
+                                 $problem->TeX.
+                                 '\)'.
+                                 ' happens to match the Perfect Square Formula: '.
+                                 '\['.
+                                 '(a+b)(a-b)=a^2-b^2'.
+                                 '\]'.
+                                 $PAR.
+                                 'For '.
+                                 '\('.
+                                 $problem->TeX.
+                                 '\)'.
+                                 ', '.
+                                 '\('.
+                                 $poly1Terms[0]->TeX.
+                                 '\)'.
+                                 ' corresponds to '.
+                                 '\(a\)'.
+                                 ' in the formula, and '.
+                                 '\(';
+      my $b;
+      if ($poly1Coef[1]>0) {
+         $b = $poly1Terms[1];
+      } else {
+         $b = Compute("-$poly1Terms[1]");
+      }
+      $outputString .= $b->TeX.
+                                 '\)'.
+                                 ' corresponds to '.
+                                 '\(b\)'.
+                                 ' in the formula. Using the formula, we have:'.
+                                 '\[\begin{aligned}[t]'.
+                                 $problem->TeX.
+                                 '&='.
+                                 '('.
+                                 $poly1Terms[0]->TeX.
+                                 ')^2-('.
+                                 $b->TeX.
+                                 ')^2'.
+                                 '\newline &='.
+                                 $ans->TeX.
+                                 '\end{aligned}\]'.
+                                 $PAR;
+   }
+
+      ### Displays solution for the distributive property. ###
+   $outputString .= $BBOLD.
+                              'Distributive Property: '.
+                              $EBOLD.
+                              'The most straightforward way to multiply polynomials is to simply use the distributive property:'.
+                               '\[\begin{aligned}[t]'.
+                               $problem->TeX.
+                               '&=';
+
+   if ($poly1->string eq $poly2->string) {
+      $outputString .= $squareExtra->TeX.
+                                 '\newline &=';
+   }
+
+   my $distributive1stStep = "";
+   for my $i (0..2) {
+      $distributive1stStep .= $poly2Terms[$i].'*('.$poly1.')+';
+   }
+   $distributive1stStep .= '0';
+   $distributive1stStep = Compute($distributive1stStep)->reduce;
+   $outputString .= $distributive1stStep->TeX.
+                              '\newline &=';
+
+      ### Use sage to calculate each term ###
+      ###    when we multiply (a+b+c)(d+e+f) ###
+   my $distributive2ndStep = "";
+   my @products, $counter=0;
+   
+   for my $i (0..2) {
+      for my $j (0..2) {
+$SageCode1=<<END;
+var('$v1')
+var('$v2')
+var('$v3')
+var('$v4')
+product = $poly1Terms[$j]*$poly2Terms[$i];
+WEBWORK['product']=product
+END
+
+         my $result= AskSage($SageCode1,{
+            accepted_tos=>true, 
+         });
+         $products[$counter++] = Compute($result->{webwork}->{product})->reduce;
+         $distributive2ndStep .= $products[$counter-1]->string.'+';
+      }
+   }
+   $distributive2ndStep .= "0";
+   $distributive2ndStep = Compute($distributive2ndStep)->reduce;
+   my $finalLine = "";
+   if ($distributive2ndStep->string ne $ans->string) {
+      $finalLine = '\newline &='.$ans->TeX;
+   }
+
+   $outputString .= $distributive2ndStep->TeX.
+                              $finalLine.
+                              '\end{aligned}\]'.
+                              $PAR;
+
+   if ( ($poly1Coef[2] eq '0') && ($poly2Coef[2] eq '0') ) {
+      my $first = $products[0];
+      my $outside = $products[3];
+      my $inside = $products[1];
+      my $last = $products[4];
+      my $FOIL2ndStep = Compute("$first+$outside+$inside+$last")->reduce;
+
+      ### Displays solution for FOIL. ###
+      $outputString .= $BBOLD.
+                                 'FOIL: '.
+                                 $EBOLD.
+                                 'When we multiply two binomials, we can use'.
+                                 ' the FOIL method.'.
+                                 $PAR.
+                                 'For '.
+                                 '\(';
+      if ($poly1->string eq $poly2->string) {
+         $outputString .= $problem->TeX.'='.$squareExtra->TeX;
+      } else {
+         $outputString .= $problem->TeX;
+      }
+      $outputString .= '\)'.
+                                 ', we have:'.
+                                 $PAR.
+                                 $BBOLD.
+                                 $SPACE.$SPACE.$SPACE.$SPACE.
+                                 'F'.
+                                 $EBOLD.
+                                 'irst: '.
+                                 '\('.'('.
+                                 $poly1Terms[0]->TeX.
+                                 ')('.
+                                 $poly2Terms[0]->TeX.
+                                 ')='.
+                                 $first->TeX.
+                                 '\)'.
+                                 $PAR.
+                                 $BBOLD.
+                                 $SPACE.$SPACE.$SPACE.$SPACE.
+                                 'O'.
+                                 $EBOLD.
+                                 'utside: '.
+                                 '\('.'('.
+                                 $poly1Terms[0]->TeX.
+                                 ')('.
+                                 $poly2Terms[1]->TeX.
+                                 ')='.
+                                 $outside->TeX.
+                                 '\)'.
+                                 $PAR.
+                                 $BBOLD.
+                                 $SPACE.$SPACE.$SPACE.$SPACE.
+                                 'I'.
+                                 $EBOLD.
+                                 'nside: '.
+                                 '\('.'('.
+                                 $poly1Terms[1]->TeX.
+                                 ')('.
+                                 $poly2Terms[0]->TeX.
+                                 ')='.
+                                 $inside->TeX.
+                                 '\)'.
+                                 $PAR.
+                                 $BBOLD.
+                                 $SPACE.$SPACE.$SPACE.$SPACE.
+                                 'L'.
+                                 $EBOLD.
+                                 'ast: '.
+                                 '\('.'('.
+                                 $poly1Terms[1]->TeX.
+                                 ')('.
+                                 $poly2Terms[1]->TeX.
+                                 ')='.
+                                 $last->TeX.
+                                 '\)'.
+                                 $PAR.
+                                 'By FOIL, we have:'.
+                                 '\[\begin{aligned}[t]'.
+                                 $problem->TeX.
+                                 '&='.
+                                 $FOIL2ndStep->TeX;
+
+      $finalLine = "";
+      if ($FOIL2ndStep->string ne $ans->string) {
+         $finalLine = '\newline &='.$ans->TeX;
+      }
+
+      $outputString .= $finalLine.
+                                 '\end{aligned}\]'.
+                                 $PAR;
+   }
+
+     #### Make two pictures ###
+
+   my @labels;
+   $labels[0] = '';
+   for my $i (0..2) {
+      $labels[$i+1] = $poly1Terms[$i]->string;
+      $labels[4*$i+4] = $poly2Terms[$i]->string;
+      $labels[$i+5] = $products[$i]->string;
+      $labels[$i+9] = $products[$i+3]->string;
+      $labels[$i+13] = $products[$i+6]->string;
+   }
+   for my $i (0..15) {
+      $labels[$i] =~ s/~~*//g;
+   }
+
+   my $xmin = 0;         #The viewing window
+   my $xmax = 10;
+   my $ymin = 0;
+   my $ymax = 10;
+   @picture = ( );
+   my $xStart = 2;
+   my $xEnd = 8;
+   my $yStart = 2;
+   my $yEnd = 8;
+   my @x, @y;
+   if ($poly1Coef[2] eq '0') {
+      @x = (2,5,8,8);
+      for my $i (0..3) {
+         $labels[4*$i+3] = "";
+      }
+   } else {
+      @x = (2,4,6,8);
+   }
+   if ($poly2Coef[2] eq '0') {
+      @y = (8,5,2,2);
+      for my $i (12..15) {
+         $labels[$i] = "";
+      }
+   } else {
+      @y = (8,6,4,2);
+   }
+
+   my $cushion = $ymax/50;
+      
+   for (my $i=0;$i<=1;$i++) {
+      $picture[$i] = init_graph($xmin,$ymin,$xmax,$ymax, pixels=>[400,400]);
+      
+      $picture[$i]->moveTo($xStart,$yStart);
+      $picture[$i]->lineTo($xEnd,$yStart, blue,3);
+      $picture[$i]->lineTo($xEnd,$yEnd, blue,3); 
+      $picture[$i]->lineTo($xStart,$yEnd, blue,3);
+      $picture[$i]->lineTo($xStart,$yStart, blue,3);
+      
+      for my $j (1..2) {
+         $picture[$i]->moveTo($x[$j],$y[0]);
+         $picture[$i]->lineTo($x[$j],$yStart, blue,2);
+      
+         $picture[$i]->moveTo($xStart,$y[$j]);
+         $picture[$i]->lineTo($xEnd,$y[$j], blue,2);
+       }
+
+      for my $j (0..2) {
+         $picture[$i]->lb( new Label(($x[$j]+$x[$j+1])/2, $y[0]+$cushion,"$labels[$j+1]",'black','center','middle'));
+      }
+
+      for my $j (0..2) {
+            $picture[$i]->lb( new Label($x[0]-$cushion, ($y[$j]+$y[$j+1])/2,"$labels[4*$j+4]",'black','right','middle'));
+      }
+   }
+      
+   for my $i (0..2) {
+      $picture[1]->lb( new Label(($x[$i]+$x[$i+1])/2, ($y[0]+$y[1])/2,"$labels[$i+5]",'black','center','middle'));
+      $picture[1]->lb( new Label(($x[$i]+$x[$i+1])/2, ($y[1]+$y[2])/2,"$labels[$i+9]",'black','center','middle'));
+      $picture[1]->lb( new Label(($x[$i]+$x[$i+1])/2, ($y[2]+$y[3])/2,"$labels[$i+13]",'black','center','middle'));
+   }
+
+   my $numOfBoxes;
+   if ( ($poly1Coef[2]==0) && ($poly2Coef[2]==0) ) {
+      $numOfBoxes = 4;
+   } elsif ( ($poly1Coef[2]==0) || ($poly2Coef[2]==0) ) {
+      $numOfBoxes = 6;
+   } else {
+      $numOfBoxes=9;
+   }
+
+   my $baseList = ($poly1Coef[2]==0) ? "$labels[1] and $labels[2]" : "$labels[1], $labels[2] and $labels[3]";
+   my $heightList = ($poly2Coef[2]==0) ? "$labels[4] and $labels[8]" : "$labels[4], $labels[8] and $labels[12]";
+
+   $alt0 = "The graph has $numOfBoxes generic rectangles. Labels for the bases of the top-row rectangles are: $baseList. Labels for the heights of the left-colum rectangles are: $heightList.";
+
+   my $areaList1 = ($poly1Coef[2]==0) ? "$labels[5] and $labels[6]" : "$labels[5], $labels[6] and $labels[7]";
+
+   my $areaList2 = ($poly1Coef[2]==0) ? "$labels[9] and $labels[10]" : "$labels[9], $labels[10] and $labels[11]";
+
+   my $areaList3;
+   if ($poly2Coef[2]==0) {
+      $areaList3 = "";
+   } else {
+      $areaList3 = ($poly1Coef[2]==0) ? " The areas of rectangles in the next row are $labels[13] and $labels[14]" : " The areas of rectangles in the next row are $labels[13], $labels[14] and $labels[15]";
+   }
+      
+   $alt1 = "The graph has $numOfBoxes generic rectangles. Labels for the bases of the top-row rectangles are: $baseList. Labels for the heights of the left-colum rectangles are: $heightList. The areas of the top-row rectangles are $areaList1. The areas of rectangles in the next row are $areaList2.$areaList3";
+      
+      #### End two pictures ###
+
+      ### Displays solution for the Generic Rectangle Method. ###
+   $outputString .= $BBOLD.
+                              'Generic Rectangle Method: '.
+                              $EBOLD.
+                              'When we multiply two polynomials, we can always use'.
+                              ' the Generic Rectangle Method.';
+
+   if ($poly1->string eq $poly2->string) {
+      $outputString .= " Note that ".
+                                 '\('.
+                                 $problem->TeX.'='.$squareExtra->TeX.
+                                 '\)';
+   }
+
+   $outputString .= $PAR.
+                              'We mark the bases of the top-row rectangles '.
+                              "with the first polynomial's terms, ".
+                              'and mark the heights of the left-colum rectangles '.
+                              "with the second polynomials's terms, we have:".
+                              $PAR;
+
+  $outputString .= $BCENTER.
+                             image(insertGraph( $picture[0]  ), tex_size=>400, height=>400, width=>400, extra_html_tags=>"alt= '$alt0' title= '$alt0'").
+                             $ECENTER.
+                             $PAR;
+
+   $outputString .= "Next, we calculate each rectangle's area:".
+                              $PAR;
+
+  $outputString .= $BCENTER.
+                             image(insertGraph( $picture[1]  ), tex_size=>400, height=>400, width=>400, extra_html_tags=>"alt= '$alt1' title= '$alt1'").
+                             $ECENTER.
+                             $PAR;
+
+   $finalLine = "";
+   if ($distributive2ndStep->string ne $ans->string) {
+      $finalLine = '\newline &='.$ans->TeX;
+   }
+
+   $outputString .= "Finally, we add up all rectangle's area, and the result ".
+                              "is those two polynomial's product:".
+                              '\[\begin{aligned}[t]'.
+                               $problem->TeX.
+                               '&='.
+                               $distributive2ndStep->TeX.
+                               $finalLine.
+                               '\end{aligned}\]'.
+                               $PAR;
+
+   Context("LimitedPolynomial-Strict");
+   Context()->variables->are($v1=>'Real',$v2=>'Real',$v3=>'Real',$v4=>'Real');
+   $ans = Formula($ans);
+
+   return ($ans, $problem, $outputString);
+}
+
+
+
+##############################################
+BEGIN_PGML_SOLUTION
+
+[$output]*
+
+END_PGML_SOLUTION
+##############################################
+
+ENDDOCUMENT();

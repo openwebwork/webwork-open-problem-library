@@ -2,7 +2,7 @@
 # Portland Community College
 #
 # Template:
-# Solve the following rational equation
+# Solve the equation.
 #
 #       a/x+b/(x+c)=d
 #
@@ -23,13 +23,13 @@
 DOCUMENT();
 
 loadMacros(
-      "PGstandard.pl",
-      "MathObjects.pl",
-      "parserAssignment.pl",
-      "answerHints.pl",
-      "PGML.pl",
-     "contextFraction.pl",
-   "PCCmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "answerHints.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "contextFiniteSolutionSets.pl",
+  "PCCmacros.pl",
   "PGcourse.pl",
 );
 
@@ -40,29 +40,9 @@ Context("Fraction")->flags->set(
             showMixedNumbers=>0,
             showExtraParens=>0);
 Context()->noreduce('(-x)-y','(-x)+y');
-parser::Assignment->Allow;
-Context()->operators->redefine(',',using=>',',from=>'Numeric');
-Context()->operators->redefine('or',using=>',',from=>'Numeric');
-Context()->operators->set(
-  ','=>{string=>' or ',TeX=>'\hbox{ or }'},
-  'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
-);
-Context()->lists->set(List => {separator => " or "});
-Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
-  = "Please simplify your answer further";
 
 $var = RandomVariableName(type=>'variable');
 Context()->variables->are($var=>'Real');
-
-# add solution strings to context- this means that if
-# students enter these (and they are not correct), then 
-# WW will not give a Context warning
-Context()->strings->add("no real solutions"=>{},
-  "no real solution"=>{alias=>'no real solutions'}, 
-  "none"=>{alias=>'no real solutions'}, 
-  "no solution"=>{alias=>'no real solutions'}, 
-  "no solutions"=>{alias=>'no real solutions'}, 
-  );
 
 do {
    do {
@@ -86,69 +66,27 @@ $commonD = Formula("$var*($var+$c)")->reduce;
 $left = Formula("$a/$var+$b/($var+$c)")->reduce;
 $right = $d;
 
-$ans = Compute("$var = $x2, $var = $x1");
+$mycontext=Context();
+
+Context("FiniteSolutionSets");
+$ans = Compute("{$x2,$x1}");
 
 ##############################################
 
 TEXT(beginproblem());
 BEGIN_PGML
 
-Solve the following rational equation; the answer could be in the form *[`[$var]`] = ___ *, *no solution*, or *all real numbers*. 
-
-If there are more than one solution, use commas to separate them. For example: [`[$var]=1,[$var]=-1`].
+Solve the equation.
 
      [`` [$left] = [$right] ``]
 
-     [__________________________________]
+     [__________________________________]{$ans}
 
 END_PGML
 
 ##############################################
 
-$showPartialCorrectAnswers = 1;
-ANS($ans->cmp(
-  entry_type => "a solution",
-  checker => sub {
-    my ($correct,$student,$ans,$nth,$value) = @_;
-    if ($correct->type eq "Assignment") {
-      my ($svar,$sfrac) = $student->value; # get the variable and fraction
-      #return 0 unless Value::classMatch($sfrac,'Fraction') && $sfrac->isReduced;
-      if(Value::classMatch($sfrac,'Fraction'))
-      {
-        return 0 unless $sfrac->isReduced;
-      }
-    }
-    return $correct == $student;
-  },
-  extra => sub {
-    my ($student,$ansHash,$nth,$value) = @_;
-    if($student eq "no real solutions")
-    {
-         $student->context->setError("This equation does have some solutions- try using the square root method","",undef,undef,$Value::CMP_WARNING)
-         unless $ans->{isPreview};
-         return;
-    }
-    if ($student->type ne "Assignment" && $ansHash->{student_formula}->type ne "Assignment") {
-      $student->context->setError("Your $nth solution should be written $var = $US$US$US","",undef,undef,$Value::CMP_WARNING)
-         unless $ans->{isPreview};
-      return;
-    }
-    my ($svar,$sfrac) = $student->value; # get the variable and fraction
-    if (Value::classMatch($sfrac,'Fraction') && !$sfrac->isReduced) {
-      $student->context->setError("Your $nth $value is not reduced","",undef,undef,$Value::CMP_WARNING)
-         unless $ans->{isPreview};
-      return;
-    }
-    return Value::Real->typeMatch($student);
-  }
-)->withPostFilter(AnswerHints(
-  ["$var=$a","$var=-$a"] => "Are you sure you have all the solutions?",
-  [$a,-$a] => ["Your solution is a correct one, but you should write $var = $US$US$US<br>Are you sure you have all the solutions?",replaceMessage=>1],
-  ["$a,-$a","-$a,$a"] => ["Your solutions are correct, but you should write $var = $US$US$US",replaceMessage=>1],
-)));
-
-##############################################
-
+Context($mycontext);
 if ($d<0) {
 $s1 = Formula("$a/$var*$commonD+$b/($var+$c)*$commonD")->reduce;
 $s2 = Formula("$d*$commonD")->reduce;

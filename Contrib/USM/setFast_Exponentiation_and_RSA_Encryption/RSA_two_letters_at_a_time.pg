@@ -1,0 +1,191 @@
+##DESCRIPTION
+##  Cryptography: RSA with multi-letter numbers
+##ENDDESCRIPTION
+
+##KEYWORDS('cryptography', 'encryption', 'number theory', 'RSA')
+
+## DBsubject('Cryptography')
+## DBchapter('Public-key cryptography')
+## DBsection('RSA')
+## Date('7/24/2018')
+## Author('John Perry')
+## Institution('University of Southern Mississippi')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "scaffold.pl",
+   #"source.pl",        # allows code to be displayed on certain sites.
+   #"PGcourse.pl",      # Customization file for the course
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+
+$maximum_number_of_letters = 729;
+
+$p = 19;
+$q = 43;
+$n = $p * $q;
+@keys = ( 13, 17, 23, 25 );
+$key = @keys[ random(0,3) ];
+$phi_n = ( $p - 1 ) * ( $q - 1 );
+
+@texts = (
+  "where are you hidden beloved",
+  "why have you wounded my soul",
+  "why do you weep whom do you seek",
+  "cast the net over the right side"
+);
+$text = @texts[ random(0,3) ];
+$encoded_len = length($text) / 2;
+
+@plaintext = ();
+@encoded = ();
+@encrypted = ();
+for ($i = 0; $i < length($text); ++$i) {
+  $c = substr($text, $i, 1);
+  if (ord($c) == ord(' ')) { $m = 26; }
+  else { $m = ord($c) - ord('a'); }
+  push( @plaintext, $m);
+  $m *= 27;
+  $i += 1;
+  $c = substr($text, $i, 1);
+  if (ord($c) == ord(' ')) { $m += 26; }
+  else { $m += ord($c) - ord('a'); }
+  push( @plaintext, $m % 27 );
+  push( @encoded, $m );
+  $new_char = 1;
+  for ($j = 0; $j < $key; ++$j) {
+    $new_char *= $m;
+    $new_char %= $n;
+  }
+  push( @encrypted, $new_char );
+}
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+We will encrypt a message
+using the usual mapping
+\[ a\mapsto0,\quad b\mapsto1,\quad \ldots,\quad z\mapsto25, \quad\textit{space}\mapsto26\ . \]
+In addition to this, we will encode each pair of letters as one number, so that the message
+<center><span style="font-weight:bold;">i do</span></center>
+would encode <i>not</i> as
+<center><span style="color:red;font-weight:bold;">8 26 3 14</span> (bad!)</center>
+but rather as
+<center><span style="font-weight:bold;color:#008844;">242 95</span> (good!)</center>
+because
+<center><span style="font-weight:bold;color:red;">8</span> &times; 27 + <span style="color:red;font-weight:bold;">26</span> = <span style="font-weight:bold;color:#008844;">242</span>&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;&nbsp;&nbsp;&nbsp;<span style="font-weight:bold;color:red;">3</span> &times; 27 + <span style="color:red;font-weight:bold;">14</span> = <span style="font-weight:bold;color:#008844;">95</span>.</center>
+$PAR
+(This is closer to what happens in real-world encryption.)
+
+END_TEXT
+Context()->normalStrings;
+
+Scaffold::Begin();
+
+Section::Begin("Part 1: Set up for encryption");
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Before we proceed, we first must know how many different values can appear in an encoded message. When we encode pairs of 27 characters, we can see \(27^a\) different values, where
+$PAR
+\(a=\) \{ ans_rule(5) \}
+$PAR
+So we will use the prime numbers $p and $q, since
+$PAR
+\($p\times$q=\) \{ ans_rule(5) \}
+$PAR
+&hellip;and this number is larger than \(27^a\).
+$PAR
+For a public encryption key, we will use $key, since \(\gcd($key, \phi($p\times$q))=1\). You should verify this, and use the verification to determine the private decryption key. Enter both \( \phi($p\times$q) \) and the decryption key \( d \) in the blanks below.
+$PAR
+<table><tbody>
+<tr><td style="text-align:right;">\( \phi($p\times$q)= \)</td><td>\{ ans_rule(5) \}</td></tr>
+<tr><td style="text-align:right;">\( d= \)</td><td> \{ ans_rule(5) \}</td></tr>
+</tbody></table>
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( num_cmp(2) );
+ANS( num_cmp($n) );
+ANS( num_cmp($phi_n) );
+ANS( Compute(0)->cmp(
+  checker => sub {
+    my ( $correct, $d, $hash ) = @_;
+    return ( $d * $key ) % $phi_n == 1;
+  }
+));
+
+Section::End();
+
+Section::Begin("Part 2: Encoding the text");
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Consider the message
+<center><span style="color:red;font-weight:bold;color:blue;">$text</span></center>
+$PAR
+Before encrypting, we have to encode the plaintext as numbers. Translate each letter of the message into a number. Enter all the numbers as a comma-separated list in the box below.
+$PAR
+\{ ans_rule(40) \}
+$PAR
+When we encode these numbers, we will pair them together, as we did above with <span style="font-weight:bold;">i do</span>. That gives us a list of $encoded_len integers. Write these integers in the blank below.
+$PAR
+\{ ans_rule(40) \}
+
+Context()->normalStrings;
+END_TEXT
+
+ANS( List(@plaintext)->cmp() );
+ANS( List(@encoded)->cmp() );
+
+Section::End();
+
+Section::Begin("Part 3: Encryption");
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Once encrypted using RSA, the &ldquo;ciphertext&rdquo; numbers are
+$PAR
+
+\{ ans_rule(40) \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( List(@encrypted)->cmp() );
+
+Section::End();
+
+Scaffold::End();
+
+ENDDOCUMENT();

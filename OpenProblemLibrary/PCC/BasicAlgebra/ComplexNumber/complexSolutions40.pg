@@ -1,0 +1,171 @@
+# WeBWorK problem written by Carl Yao, 2014
+# Portland Community College
+#
+# Template:
+# Solve the following quadratic equation with complex solutions
+#
+#       2x^2 + 8 = 4
+#
+#
+#
+# Last updated: Carl Yao 10/4/14
+# ENDDESCRIPTION
+
+## DBCCSS('A-REI.4.b')
+## DBsubject(Algebra)
+## DBchapter(Quadratic equations and functions)
+## DBsection(Complex roots)
+## Institution(PCC)
+## Author(Alex Jordan, Carl Yao, Chris Hughes)
+## Level(3)
+## MO(1)
+## KEYWORDS('solve','quadratic','equation','complex','square root')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserAssignment.pl",
+  "answerHints.pl",
+  "PGML.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl"
+);
+
+##############################################
+    
+sub breakRadical {
+   my $num = $_[0];
+   my $i = 2;
+   my $out = 1;
+   my $in = $num;
+   while ($i<=sqrt($in)) {
+      if ($in%($i**2)==0) {
+         $out = $out*$i;
+         $in = $in/($i**2);
+      } else {
+         $i++;
+      }
+   }
+   return ($out,$in);
+}
+
+#############################################
+
+Context("LimitedRadical");
+Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0, formatStudentAnswer=>parsed);
+                               
+parser::Assignment->Allow;
+
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+    Context()->operators->redefine('or',using=>',',from=>'Numeric');
+    Context()->operators->set(
+      ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+      'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+    );
+    Context()->lists->set(List => {separator => " or "});
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  "no solution"=>{alias=>'no real solutions'}, 
+  "no solutions"=>{alias=>'no real solutions'}, 
+  );
+
+$var = 'x';
+Context()->variables->add(i=>'Real');
+
+do {
+   do {
+      $c=1;
+      $d = non_zero_random(-10,10,1);
+      $e = non_zero_random(-10,10,1);
+      $radical = -($d**2-4*$c*$e);
+   } until ($radical>4);
+   ($out,$in) = &breakRadical($radical);
+   $a = -$d/(2*$c);
+   $b = $out/(2*$c);
+} until ( ($a==int($a)) && ($in!=1) && ($b==int($b)) );
+
+if ($b==1) {
+   $ans = List(Formula("$var=$a+sqrt($in)*i"),Formula("$var=$a-sqrt($in)*i"));
+} else {
+   $ans = List(Formula("$var=$a+$b*sqrt($in)*i"),Formula("$var=$a-$b*sqrt($in)*i"));
+}
+
+$func = Compute("$c*$var**2+$d*$var+$e")->reduce;
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+Solve the quadratic equation. There are possible complex solutions.
+
+* Enter multiple answers separated by commas, such as [`x=1,x=-1`]
+* If you need to use the square root symbol, 
+as in [`x=\sqrt{17}`], type it using: *sqrt(17)*
+
+     [` [$func] =0 `]
+
+     [__________________________________]
+
+END_PGML
+
+##############################################
+
+
+$showPartialCorrectAnswers = 1;
+ANS($ans->cmp(list_checker => ~~&radicalListCheck)->
+             withPostFilter(AnswerHints( 
+             "no real solutions" => ["Please find complex solutions." , replaceMessage => 1] 
+             ))
+);
+
+
+##############################################
+
+$g = $c*$e*4-$d**2;
+
+if ($b==1) {
+   $output1 = "x &= $a \pm \sqrt{$in}i ";
+   $output2 = "x=$a+ \ \text{sqrt}($in)i, x=$a- \ \text{sqrt}($in)i";
+} else {
+   $output1 = "x &= $a \pm $b \sqrt{$in}i ";
+   $output2 = "x=$a+$b \ \text{sqrt}($in)i, x=$a-$b \ \text{sqrt}($in)i";
+}
+
+
+BEGIN_PGML_SOLUTION
+
+The polynomial [`[$func]`] cannot be factored, so we use the quadratic formula.
+
+By [`[$func]`], we know [`a=1, b=[$d] \text{ and } c=[$e] `]. Now we have:
+
+    [``
+   \begin{aligned}
+      x &= \frac{-b \pm \sqrt{b^{2} - 4ac}}{2a} \\
+      x &= \frac{-([$d]) \pm \sqrt{([$d])^{2} - 4([$c])([$e])}}{2([$c])} \\
+      x &= \frac{[$d*-1] \pm \sqrt{[$d**2] - [$c*$e*4]}}{[$c*2]} \\
+      x &= \frac{[$d*-1] \pm \sqrt{[$d**2-$c*$e*4]}}{[$c*2]} \\
+      x &= \frac{[$d*-1] \pm \sqrt{[$g]}i}{[$c*2]} \\
+      x &= \frac{[$d*-1] \pm [$out]\sqrt{[$in]}i}{[$c*2]} \\
+      x &= \frac{[$d*-1]}{[$c*2]} \pm \frac{[$out]\sqrt{[$in]}i}{[$c*2]} \\
+      [$output1]
+   \end{aligned}
+    ``]
+
+For this problem's solution, we need to type in [` [$output2] `]
+
+Note that _all_ quadratic equations have *two* (possibly repeated) solutions; in this problem both solutions are complex numbers. 
+
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();

@@ -1,0 +1,239 @@
+#########################################################
+# DESCRIPTION
+## DBsubject(Probability)
+## DBchapter(Sample Space)
+## DBsection(Bayes theorem -- inverse probability)
+## Date(2015/07/05)
+## Institution(University of British Columbia)
+## Author(Nelson Chen)
+## Level(2)
+## KEYWORDS('Probability'; 'events, conditional')
+## level('3')
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+###
+@p1 = rserve_eval('
+x <-rnorm(n=100, mean=0, sd=1)
+x1 <- x[x>1]
+x2 <- x[0<x & x<0.1]
+x3 <- x[0.1<x & x<0.4]
+x4 <- x[0.4<x & x<0.7]
+x5 <- x[0.7<x & x<1]
+x6<-100-length(c(x1, x2, x3, x4, x5))
+p1 <- round(length(x1)/100, 2)
+');
+
+@p2 = rserve_eval('
+p2 <- round(length(x2)/100, 2)
+');
+
+@p3 = rserve_eval('
+p3 <- round(length(x3)/100, 2)
+');
+
+@p4 = rserve_eval('
+p4 <- round(length(x4)/100, 2)
+');
+
+@p5 = rserve_eval('
+p5 <- round(length(x5)/100, 2)
+');
+
+@p6 = rserve_eval('
+p6<-round(x6/100, 2)
+');
+
+@q1= rserve_eval('
+round(p3+p6, 2)
+');
+
+@q2= rserve_eval('
+round(p1+p2+p3, 2)
+');
+
+@q3= rserve_eval('
+round(p3/(p3+p6), 2)
+');
+
+@q4= rserve_eval('
+round(p3/(p1+p2+p3), 2)
+');
+
+@q5= rserve_eval('
+round((p2+p3)/(p5+p2+p3+p6), 2)
+');
+
+
+$q1ans = $q1[0];
+$q2ans = $q2[0];
+$q3ans = $q3[0];
+$q4ans = $q4[0];
+$q5ans = $q5[0];
+
+
+####Build table
+$Table = 
+"\(    
+\begin{array}{cc}
+& \mbox{Read Business Section} \\
+\mbox{Trade Stocks} & 
+\begin{array}{c|ccc}
+ & \text{Regularly} &  \text{Occasionally} &  \text{Never} \\ 
+\hline
+ \text{Yes}  & $p1[0] &  $p2[0] &  $p3[0] \\
+ \text{No}  & $p4[0] & $p5[0] & $p6[0] \\
+\end{array}
+\end{array}
+\)"
+;
+
+
+$r1=$p1[0]+$p2[0]+$p3[0];
+$r2=$p4[0]+$p5[0]+$p6[0];
+
+$c1=$p1[0]+$p4[0];
+$c2=$p2[0]+$p5[0];
+$c3=$p3[0]+$p6[0];
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+Subscribers to a local newspaper were asked whether they regularly, occasionally, or never read the business section, and also whether they had traded in the stock market over the last year. The table below shows proportions of subscribers in six joint classifications. 
+$BR
+$BR
+$BCENTER
+$Table
+$ECENTER
+$BR
+$BR
+Answer the following questions, rounding your answers to two decimal places where appropriate.
+$BR
+$BR
+$BBOLD (a) $EBOLD What is the probability that a randomly chosen subscriber never reads the business section? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD (b) $EBOLD What is the probability that a randomly chosen subscriber has
+traded stocks over the last year? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD (c) $EBOLD What is the probability that a subscriber who never reads the
+business section has traded stocks over the last year? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD (d) $EBOLD What is the probability that a subscriber who traded stocks over
+the last year never reads the business section? \{  ans_rule(7) \} 
+$BR
+$BR
+$BBOLD (e) $EBOLD What is the probability that a subscriber who does not regularly
+read the business section traded stocks over the last year? \{  ans_rule(7) \} 
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($q1ans, tol=> 0.02) );
+ANS( num_cmp($q2ans, tol=> 0.02) );
+ANS( num_cmp($q3ans, tol=> 0.02) );
+ANS( num_cmp($q4ans, tol=> 0.02) );
+ANS( num_cmp($q5ans, tol=> 0.02) );
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+In the following we assume the responders comprise a simple random sample of the readers of the newspaper. It is helpful to add the marginal probabilities to the table:
+$BR
+$BR
+$BCENTER  
+\(
+\begin{array}{cc}
+& \mbox{Read Business Section} \\
+\mbox{Trade Stocks} &      
+\begin{array}{c|ccc|c}
+       & \text{Regularly} &  \text{Occasionally} &  \text{Never} & \\ 
+\hline
+ \text{Yes}  & $p1[0] &  $p2[0] &  $p3[0] & $r1    \\
+ \text{No}  & $p4[0] & $p5[0] & $p6[0]  & $r2   \\ 
+\hline
+   & $c1 & $c2 & $c3 &      
+\end{array}
+\end{array}
+\)
+$ECENTER
+$BR
+$BR
+$BBOLD (a) $EBOLD The estimated probability that a reader never reads the business section is $p3[0]+$p6[0]=$q1ans. 
+$BR
+$BR
+$BBOLD (b) $EBOLD The estimated probability that a reader trades stocks is $p1[0]+$p2[0]+$p3[0]=$q2ans.
+$BR
+$BR
+$BBOLD (c) $EBOLD We require the probability that a reader trades in stocks given that he or she never reads the business section. This conditional probability is 
+$BR
+$BCENTER 
+\(
+\frac{P(\text{Trades stocks and never reads business section})} {P(\text{Never reads business section})} =$p3[0] / $c3=$q3ans. 
+\)
+$ECENTER
+$BR
+$BR
+$BBOLD (d) $EBOLD We require the probability that a reader never reads the business section given that he or she traded stocks. This conditional probability is
+$BR
+$BCENTER 
+\(
+\frac{P(\text{Trades stocks and never reads business section})}{P(\text{Trade stocks})} =$p3[0] / $r1=$q4ans. 
+\)
+$ECENTER
+$BR
+$BR
+$BBOLD (d) $EBOLD We require the probability that a reader traded stocks given
+that he or she does not regularly read the business section. This conditional probability is
+$BR
+$BCENTER 
+\(
+\frac{P(\text{Trades stocks and does not regularly read the business section})}{P(\text{Does not regularly read business section} ) }=($p2[0]+$p3[0])/($c2+$c3)=$q5ans. 
+\)
+$ECENTER
+
+
+
+
+
+    
+
+
+END_SOLUTION
+ENDDOCUMENT();

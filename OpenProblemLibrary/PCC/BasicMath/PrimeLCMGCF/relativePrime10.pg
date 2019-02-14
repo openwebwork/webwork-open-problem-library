@@ -1,0 +1,221 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Find a number relative prime to a given prime number.
+#
+# Last edited: Yao 10/1/2017
+#
+# ENDDESCRIPTION
+
+## DBCCSS('6.NS.4')
+## DBsubject(Number theory)
+## DBchapter(Divisibility)
+## DBsection(Definitions)
+## Institution(PCC)
+## Author(Carl Yao)
+## Level(4)
+## MO(1)
+## KEYWORDS('prime')
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+
+);
+
+##############################################
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+
+# Input is a number and reference to an array saving the number's 
+# prime factorization.
+
+sub primeFactor {
+   my ($n,$ar_primeFactor) = @_;
+   my $prime=2;
+   while (1) {
+      while ($n%$prime==0) {
+         ${$ar_primeFactor}[scalar @{$ar_primeFactor}] = $prime;
+         $n=$n/$prime;
+      }
+      if ($n==1) {return;}
+      $prime = &nextPrime($prime);
+   }
+}
+
+# Input is a reference to an array of numbers.
+# Output is all numbers connected by ' \cdot '.
+
+sub cdotNumbers {
+   my $ra_factors = shift;
+   my @nums = @$ra_factors;
+   my $line1Output = "";
+   my $power = 1;
+   my $len = scalar(@nums);
+   if ($len==1) {return $nums[0];}
+   for (my $i=1;$i<$len;$i++) {
+      if ($nums[$i] != $nums[$i-1]) {
+         if ($power==1) {
+            $line1Output .= "$nums[$i-1]".' \cdot ';
+         } else {
+            $line1Output .= "$nums[$i-1]^$power".' \cdot ';
+            $power = 1;
+         }
+      } else {
+         $power++;
+      }
+   }
+   if ($power==1) {
+      $line1Output .= "$nums[$len-1]";
+   } else {
+      $line1Output .= "$nums[$len-1]^$power";
+   }
+   return $line1Output;
+}
+
+#This subroutine returns 1 if the number is prime.
+sub isPrime {
+   my $num = shift;
+   if ($num%2==0) {return 0;}
+   for (my $i=3; $i<=int(sqrt($num)); $i=$i+2) {
+      if ($num%$i==0) {return 0;}
+   }
+   return 1;
+}
+
+
+
+
+
+################################################
+
+Context("Numeric");
+
+$num1 = list_random(2,3,5,7);
+
+@num1Factor = ();
+primeFactor($num1,~~@num1Factor);
+$num1Output = cdotNumbers(~~@num1Factor);
+
+sub uniq {
+    my %seen;
+    grep !$seen{$_}++, @_;
+}
+@num1FactorNoDup = uniq(@num1Factor);
+@num1FactorNoDup = num_sort(@num1FactorNoDup);
+$num1FactorNoDupList = join( ',', @num1FactorNoDup );
+
+@primes = (2,3,5,7,11,13,17,19);
+for (my $i=0;$i<=$#primes;$i++) {
+   for (my $j=0;$j<=$#num1Factor;$j++) {
+      if ($primes[$i]==$num1Factor[$j]) {
+         splice @primes, $i, 1;
+         $i--;
+         last;
+      }
+   }
+}
+$primesList = join( ',', @primes );
+
+@examples = ();
+$product0 = $primes[0]**2;
+$examples[1] = "$primes[0]^2=$product0";
+$product1 = $primes[0]*$primes[1];
+$examples[0] = "$primes[0] \cdot $primes[1]=$product1";
+$product2 = $primes[0]*$primes[2];
+$examples[2] = "$primes[0] \cdot $primes[2]=$product2";
+$product3 = $primes[1]*$primes[2];
+$examples[3] = "$primes[1] \cdot $primes[2]=$product3";
+
+$examplesOutput = $product0.', '.$product1.', '.$product2.', '.$product3.' ...';
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+A *composite* number relatively prime to [`[$num1]`] is [_______].
+
+END_PGML
+
+#############################################
+
+ANS(Compute(2)->cmp(correct_ans => "any of $examplesOutput", 
+                     correct_ans_latex_string => "\text{any of }$examplesOutput",
+                     checker=>sub{
+  my ( $correct, $student, $ansHash ) = @_;
+  return ( (gcd($student,$num1)==1) && (!(isPrime($student))) );
+}
+)->withPostFilter(AnswerHints( 
+  sub{
+  my ( $correct, $student, $ansHash ) = @_;
+  return ( (gcd($student,$num1)==1) && (isPrime($student)) );
+  } => "This number is relatively prime with $num1, but it is not a composite number.",
+  sub{
+  my ( $correct, $student, $ansHash ) = @_;
+  return ( (!(gcd($student,$num1)==1)) && (!(isPrime($student))) );
+  } => "This number is a composite number, but it is not relatively prime with $num1",
+))
+);
+
+#############################################
+
+BEGIN_PGML_SOLUTION
+
+Two numbers are relatively prime if they don't share any factors, except [`1`].
+
+[`[$num1]`] happens to be a prime number.
+
+A number relatively prime to [`[$num1]`] cannot share any of its factors, which is simply [`[$num1]`] itself.
+
+However, we cannot simply choose a prime number which is not [`[$num1]`], because the answer must be a compositive number.
+
+One easy method is to find two or more prime numbers which are not [`[$num1]`], and use their product to form a composite number.
+
+A list of prime numbers which are not [`[$num1]`] have: [`[$primesList]`], ...
+
+The product of the first two numbers in the list is:
+
+    [``[$examples[0]]``]
+    
+[`[$product0]`] is a composite number because it has factors [`[$primes[0]]`] and [`[$primes[1]]`], and it's relatively prime to [`[$num1]`], because they don't share any factors except [`1`].
+
+Similarly, we can use other prime numbers which are not [`[$num1]`]'s factors to find other correct answers:
+
+    [``[$examples[1]]``]
+    
+    [``[$examples[2]]``]
+        
+    [``[$examples[3]]``]
+    
+    [``\ldots``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
+

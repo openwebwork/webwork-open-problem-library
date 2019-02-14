@@ -4,3 +4,6 @@ Contributors (github):
 * xcompass
 * chenhao6459new
 * changebo
+* adentremont
+* gohsc
+* gianni-co

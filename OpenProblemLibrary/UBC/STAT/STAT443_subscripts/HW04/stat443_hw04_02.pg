@@ -1,0 +1,202 @@
+## DBsubject(Statistics)
+## DBchapter(Time series)
+## DBsection(Forecasting)
+## Level(4)
+## level(3)
+
+#########################################################
+DOCUMENT(); 
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+## do not need to download data
+@data = rserve_eval('
+alpha <- round(runif(1, min=0.2, max=0.8),3)
+beta <- round(runif(1, min=0.1, max=0.6),3)
+sigma <- round(runif(1, min=1, max=6),3)
+x <- arima.sim(n = 60, list(ar = c(alpha), ma = c(beta)), sd = sigma)
+y <- rnorm(1, sd = sigma)
+dat = round(x[60],3)
+dat_est = round(x[60]+y,3)
+
+# part (a)
+ans.a <- alpha * dat + beta * (dat - dat_est)
+ans.b <- ans.a - 1.96 * sigma
+ans.c <- alpha * ans.a
+ans.d <- ans.c + 1.96 * sigma * sqrt(1 + (alpha + beta)^2) 
+dat3 <- alpha * ans.c
+ans.e <- dat3 - 1.96 * sigma * sqrt(1 + (alpha + beta)^2 + (alpha^2 + alpha*beta)^2) 
+
+ans.a = round(ans.a, 4)
+ans.b = round(ans.b, 4)
+ans.c = round(ans.c, 4)
+ans.d = round(ans.d, 4)
+ans.e = round(ans.e, 4)
+
+c(ans.a, ans.b, ans.c, ans.d, ans.e, sigma, alpha, beta, dat, dat_est)
+');
+
+$sigma = $data[5];
+$alpha = $data[6];
+$beta = $data[7];
+$dat = $data[8];
+$dat_est = $data[9];
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+
+BEGIN_TEXT
+Suppose \(Z_t\) is white noise with mean zero. After suitable pre-processing, the monthly sales of a consumer product was modelled by the process 
+ \[ X_t = $alpha X_{t-1} + Z_t + $beta Z_{t-1}. \]
+Five years of monthly observations were used in fitting the above model, the most recent observation being $dat and the corresponding fitted value being $dat_est. The estimate of the standard deviation of \(Z_t\) is found to be $sigma. Provide answers to the following to three decimal places.
+
+$BR
+$BR
+$BBOLD Part (a)  $EBOLD
+Using the model, provide a prediction for the next value in the series.
+$BR
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (b) $EBOLD
+Find an approximate 95% confidence interval for the prediction in (a). What is the lower bound on your interval?
+$BR
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (c) $EBOLD
+What is the predicted value for the month after the one you predicted in (a)?
+$BR
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (d) $EBOLD
+Find an approximate 95% confidence interval for the prediction in (c). What is the upper bound on your interval?
+$BR
+\{ans_rule(7)\}
+$BR
+$BR
+$BBOLD Part (e) $EBOLD
+Find the predicted value for two months after the one you predicted in (a). Find an approximate 95% confidence interval for
+the prediction, and provide the lower bound on your interval.
+$BR
+\{ans_rule(7)\}
+$BR
+$BR
+END_TEXT
+
+#########################################################
+## Answers evaluation (Required)
+ANS( num_cmp($data[0], tol=> 0.01) );
+ANS( num_cmp($data[1], tol=> 0.01) );
+ANS( num_cmp($data[2], tol=> 0.01) );
+ANS( num_cmp($data[3], tol=> 0.01) );
+ANS( num_cmp($data[4], tol=> 0.01) );
+
+
+#########################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+
+BEGIN_SOLUTION
+$BBOLD Part (a) $EBOLD
+Assuming we have \(N = 60\) observations, we have that the
+next forecasted value would be
+\[
+\hat{x}_{60}(1) = $alpha \times $dat +  $beta \times z_{60} 
+\]
+where \(z_{60}\) is the observed residual ($dat - $dat_est). Hence the forecast is $data[0].
+$BR
+$BR
+$BBOLD Part (b) $EBOLD
+Recall that the MA representation of an ARIMA model via
+\[X_t =\sum_{i=0}^{\infty }\psi _{i}Z_{t-i}
+\]
+enables prediction intervals. Assuming approximate Normality for the forecast errors an approximate \( \left( 1-\alpha \right) 100\)% prediction interval is given by 
+\[
+\hat{x}_{N}(l) \pm z_{\alpha /2}\hat{\sigma}\sqrt{\sum_{i=0}^{l-1} \hat{\psi}_{i}^{2}},
+\]
+where \(l\) is the lead time, \(z_{\alpha /2}\) is the \(\frac{\alpha }{2}\) percentage point of the \(N\left( 0,1\right)\) distribution and \(\hat{\sigma}\) is an estimate of the standard deviation of \(Z_t\). The weight {\( \psi _{i} \)} can be found by direct division or by equating coefficients in powers of \(B\) in 
+\[\psi \left( B\right) \phi \left( B\right) =\theta \left( B\right) .\]
+In this case the ARMA(1,1) process
+\[
+X_t =$alpha X_{t-1} +$beta Z_{t-1} +Z_t
+\]
+takes
+\[
+\phi \left( B\right) =1-$alpha B
+\]
+and
+\[
+\theta \left( B\right) =1+$beta B,
+\]
+defining a stationary and invertible process. Now
+\[
+\begin{eqnarray*}
+\psi \left( B\right)  &=&\theta \left( B\right) \phi \left( B\right) ^{-1} \\ 
+&=&\left( 1+$beta B\right) \left( 1-$alpha B\right) ^{-1} \\
+&=&\left( 1+$beta B\right) \left( 1+$alpha B+$alpha^{2}B^{2}+$alpha^{3}B^{3}+\cdots \right)  \\
+&=&1+\left( $alpha+$beta\right) B+\left( $alpha^{2}+$alpha\times $beta\right) B^{2} \\
+&&+\left( $alpha^{3}+$alpha^{2}\times $beta\right) B^{3}+\cdots +\left( $alpha^{j}+$alpha^{j-1}\times $beta\right) B^{j}+\cdots .
+\end{eqnarray*}
+\]
+Alternatively the ARMAtoMA command in R can be used; for instance ARMAtoMA($alpha, $beta, 3) gives the first three values, \(\psi _{1}, \psi _{2}\) and \(\psi _{3}\). The approximate 95% prediction interval for (a) is
+\[
+\hat{x}_{60}(1) \pm 1.96\times $sigma\sqrt{1},
+\]
+the lower bound being \( \hat{x}_{60}(1) - 1.96 \times $sigma = \) $data[1].
+$BR
+$BR
+$BBOLD Part (c) $EBOLD
+The two-step ahead predictor for this model is
+\[
+\hat{x}_{60}(2)=$alpha\hat{x}_{60}(1)   = $data[2].
+\]
+$BR
+$BBOLD Part (d) $EBOLD
+From above, the approximate 95% prediction interval for the value above is
+\[
+\hat{x}_{60}(2) \pm 1.96\times $sigma\sqrt{1+\left( $alpha+$beta\right) ^{2}}.
+\]
+The upper bound is therefore \(\hat{x}_{60}(2) +1.96\times  $sigma\sqrt{1+\left( $alpha+$beta\right) ^{2}}=\) $data[3]. 
+$BR
+$BR
+$BBOLD Part (e) $EBOLD
+The three-step ahead predictor for this model is
+\[
+\hat{x}_{60}(3) = $alpha\hat{x}_{60}(2).
+\]
+The approximate 95% prediction interval for the value above is
+\[
+\hat{x}_{60}(3) \pm 1.96\times $sigma\sqrt{1+\left(  $alpha+$beta\right) ^{2}+\left( $alpha^{2}+$alpha\times $beta\right)^{2}}.
+\] 
+The lower bound is \(\hat{x}_{60}(3) -1.96\times  $sigma\sqrt{1+\left( $alpha+$beta\right) ^{2}+\left(  $alpha^{2}+$alpha\times $beta\right) ^{2}}=\) $data[4]. 
+
+
+END_SOLUTION
+
+ENDDOCUMENT();

@@ -1,0 +1,139 @@
+#########################################################
+## DESCRIPTION
+## Design matrices for randomized block design
+## ENDDESCRIPTION
+#########################################################
+
+#########################################################
+## DBsubject(Statistics)
+## DBchapter(Experimental design)
+## DBsection(Concepts)
+## Date(2016/11/07)
+## Institution(UBC)
+## Author(Bo Chang)
+## Level(3)
+#########################################################
+
+#########################################################
+## Initializations:
+DOCUMENT();
+
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGML.pl",
+  "PGcourse.pl"
+);
+# variables for answers
+
+#########################################################
+## Setup: this is where we use Perl and PG objects (Required)
+
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+# Main Text
+Context()->texStrings;
+
+# variables for answers
+@p=rserve_eval('
+p <- sample(8:12, 1)
+');
+
+@q=rserve_eval('
+q <- sample(2:3, 1)
+');
+
+@two_pow_q=rserve_eval('
+2^q
+');
+
+@ansa=rserve_eval('
+2^(p-q)
+');
+
+@ansb=rserve_eval('
+max(2^(p-q)-1-p*(p+1)/2, 0)
+');
+
+
+$ansa=@ansa[0];
+$ansb=@ansb[0];
+
+$mcquesc =  new_multiple_choice();
+$mcquesc->qa(
+ "Can the model with an intercept, all main effects,
+and all 2-factor interaction effects be fit by least squares with this design?
+",
+"Yes");
+$mcquesc->extra("No", "It depends");
+
+BEGIN_TEXT
+
+An experiment has \(p = @p[0]\) treatment 
+and blocking factors.
+All @p[0] factors have 2 levels and the design is a 
+\(1 / @two_pow_q[0]\) fractional factorial.
+
+
+
+$BR
+$BR
+$BBOLD Part a) $EBOLD
+How many observations (runs) will the experiment have?
+\{ ans_rule(6) \}
+
+$BR
+$BR
+$BBOLD Part b) $EBOLD
+The linear model for analysis has an intercept, all main effects,
+and all 2-factor interaction effects,
+but no higher-order interaction effects.
+How many df are there for residuals?
+(If the number of model parameters exceeds the number of observations, enter zero.)
+\{ ans_rule(6) \}
+
+$BR
+$BR
+$BBOLD Part c) $EBOLD
+\{ $mcquesc->print_q() \}
+$BR
+\{ $mcquesc->print_a() \}
+$BR
+
+
+
+END_TEXT
+
+#########################################################
+$showPartialCorrectAnswers = 1;
+ANS( num_cmp($ansa, tol=> 0.005) );
+ANS( num_cmp($ansb, tol=> 0.005) );
+ANS( radio_cmp($mcquesc->correct_ans()) ); 
+
+########################################################
+BEGIN_SOLUTION
+
+END_SOLUTION
+#########################################################
+
+ENDDOCUMENT();
+

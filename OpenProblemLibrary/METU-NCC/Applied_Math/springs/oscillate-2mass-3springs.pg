@@ -1,0 +1,223 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+
+## DBsubject(Vibrations)
+## DBchapter(Two DOF vibration)
+## Date(April 2014)
+## Institution(METU NCC)
+## Author(Benjamin Walter)
+## Level(4)
+## MO(1)
+## KEYWORDS('linear algebra','spring system')
+## RESOURCES('spring-2mass-3springs.png')
+
+######################################
+#  Initialization
+
+DOCUMENT() ;        
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserVectorUtils.pl",
+  "contextFraction.pl",
+  "problemRandomize.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+#######################################
+#  Setup
+
+Context('Fraction');
+
+$showPartialCorrectAnswers = 0;
+$showPartialCredit = 0;
+
+
+$pr = ProblemRandomize(onlyAfterDue=>0,style=>"Button");
+
+$i=random(1,6,1);
+
+if($i < 3){
+ $eval1 = Compute("4");   $eval2 = Compute("9");
+ $a = random(5,6,1);   $d = 13 - $a;
+ if ($a == 5) {$c = list_random(1,4);}  
+ if ($a == 6) {$c = list_random(1,2,3);}
+ $b = (13*$a-$a*$a-36) / $c; 
+} if($i == 3) {
+ $eval1 = Compute("1");   $eval2 = Compute("4");
+ $a = 2;   $b = 2;
+ $c = 1;   $d = 3;
+} if($i > 3) {
+ $eval1 = Compute("1");   $eval2 = Compute("9");
+ $a = list_random(2,3,4);   $d = 10 - $a;
+ $c = $a - 1;
+ $b = 8 - $c;
+} 
+
+$c3 = random(1,4,1); $c3f = Compute("$c3");
+
+$m1 = $c3/$c;        $m1f = Compute("$c3f/$c")->reduce;
+$m2 = $c3/$b;        $m2f = Compute("$c3f/$b")->reduce;
+
+$c1 = ($a-$c)*$m1;   $c1f = Compute("($a-$c)*$m1f")->reduce;  
+$c2 = ($d-$b)*$m2;   $c2f = Compute("($d-$b)*$m2f")->reduce;
+
+$freq1 = sqrt($eval1); $freq2 = sqrt($eval2);
+$freq1b = $freq1;      $freq2b = $freq2;
+
+Context('Matrix');
+
+$K = Matrix([[$c1+$c3, -$c3],[-$c3, $c2+$c3]]);
+$A = Matrix([[$a, -$b],[-$c, $d]])->transpose;
+$evec1 = Matrix([[$c],[$a-$eval1]]); 
+$evec2 = Matrix([[$d-$eval2],[$b]]);
+$evec1b = Matrix([[$c],[$a-$eval1]]); 
+$evec2b = Matrix([[$d-$eval2],[$b]]);
+
+$u0 = Matrix([[non_zero_random(-2,2,1)],[random(-2,2,1)]]);
+$du0 = Matrix([[random(-2,2,1)],[non_zero_random(-2,2,1)]]);
+
+$V = Matrix([$evec1->transpose->row(1),$evec2->transpose->row(1)])->transpose; 
+($dim,$acoeff,$B) = $V->solve_LR($u0);
+$fV = $V*Matrix([[$freq1,0],[0,$freq2]]);
+($dim,$bcoeff,$B) = $fV->solve_LR($du0);
+
+$acoeff1=$acoeff->element(1);   $acoeff2=$acoeff->element(2);
+$bcoeff1=$bcoeff->element(1);   $bcoeff2=$bcoeff->element(2);
+$evec11=$evec1->element(1,1);   $evec21=$evec2->element(1,1);
+$evec12=$evec1->element(2,1);   $evec22=$evec2->element(2,1);
+
+
+Context('Numeric');
+Context()->variables->add(t=>'Real');
+
+$f1 = Formula("$acoeff1*$evec11*cos(sqrt($eval1)*t) + $acoeff2*$evec21*cos(sqrt($eval2)*t) +
+               $bcoeff1*$evec11*sin(sqrt($eval1)*t) + $bcoeff2*$evec21*sin(sqrt($eval2)*t)")->reduce;
+$f2 = Formula("$acoeff1*$evec12*cos(sqrt($eval1)*t) + $acoeff2*$evec22*cos(sqrt($eval2)*t) +
+               $bcoeff1*$evec12*sin(sqrt($eval1)*t) + $bcoeff2*$evec22*sin(sqrt($eval2)*t)")->reduce;
+
+
+
+#######################################
+#  Main text
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Consider the following spring system.
+
+$BR
+
+\{ image( "spring-2mass-3springs.png", width=>170, height=>220,  
+tex_size=>900, extra_html_tags=>'alt="Spring System"' ) \}
+
+\(c_1 = $c1f,\quad c_2 = $c2f,\quad c_3 = $c3f \\
+  m_1 = $m1f,\quad m_2 = $m2f \)
+
+$BR
+$HR
+$BR
+
+Write the stiffness matrix \(K = \)\{ $K->ans_array() \}
+
+$BR
+
+Write the matrix \(M^{-1}K = \) \{ $A->ans_array() \}
+
+$BR
+$HR
+$BR
+
+Find the eigenvalues and eigenvectors of \(M^{-1}K\)
+
+$BR
+
+\(\qquad \bullet\) Smaller eigenvalue = \{ $eval1->ans_rule(5) \}  
+with eigenvector \{ $evec1->ans_array() \} 
+
+$BR
+
+\(\qquad \bullet\) Larger eigenvalue = \{ $eval2->ans_rule(5) \}
+with eigenvector \{ $evec2->ans_array() \}
+
+$BR
+$HR
+$BR
+
+If this spring system oscillates without any external forces present, then
+the position of each mass satisfies the following general formula:
+$BCENTER
+\( 
+\mathbf{u}(t) = 
+\Bigl(a_1 \cos\bigl(\) \{ans_rule(5)\}\(\ t\bigr) + 
+      b_1 \sin\bigl(\) \{ans_rule(5)\}\(\ t\bigr) \Bigr)\) 
+  \{ $evec1b->ans_array() \}
+$BR
+\( {\ }\qquad \quad + 
+\Bigl(a_2 \cos\bigl(\) \{ans_rule(5)\}\(\ t\bigr) + 
+      b_2 \sin\bigl(\) \{ans_rule(5)\}\(\ t\bigr) \Bigr)\) 
+  \{ $evec2b->ans_array() \}
+$ECENTER
+
+If the system begins oscillation with initial position
+ \(\mathbf{u}(0) = $u0 \) and initial velocity \(\mathbf{u}'(0) = $du0\) 
+then the position of the masses at time \(t\) is given by 
+$BCENTER
+\(u_1(t) = \) \{ans_rule(100) \} $BR
+\(u_2(t) = \) \{ans_rule(100) \}
+$ECENTER
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#######################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1 ;
+
+ANS( $K->cmp() );
+ANS( $A->cmp() );
+
+
+ANS( $eval1->cmp() );
+ANS( $evec1->cmp( checker=>sub {
+ my ($correct, $student, $ansHash) = @_;
+ return !(($student->isZero) || ($student->element(1)*$correct->element(2) != $student->element(2)*$correct->element(1))); 
+}) );
+
+ANS( $eval2->cmp() );
+ANS( $evec2->cmp( checker=>sub {
+ my ($correct, $student, $ansHash) = @_;
+ return !(($student->isZero) || ($student->element(1)*$correct->element(2) != $student->element(2)*$correct->element(1))); 
+}) );
+
+
+ANS( $freq1->cmp() );
+ANS( $freq1b->cmp() );
+ANS( $evec1b->cmp( checker=>sub {
+ my ($correct, $student, $ansHash) = @_;
+ return !(($student->isZero) || ($student->element(1)*$correct->element(2) != $student->element(2)*$correct->element(1))); 
+}) );
+
+ANS( $freq2->cmp() );
+ANS( $freq2b->cmp() );
+ANS( $evec2b->cmp( checker=>sub {
+ my ($correct, $student, $ansHash) = @_;
+ return !(($student->isZero) || ($student->element(1)*$correct->element(2) != $student->element(2)*$correct->element(1))); 
+}) );
+
+
+ANS( $f1->cmp() );
+ANS( $f2->cmp() );
+
+
+COMMENT('Integer Eigenvectors; nonzero initial pos and velocity');
+
+ENDDOCUMENT();
