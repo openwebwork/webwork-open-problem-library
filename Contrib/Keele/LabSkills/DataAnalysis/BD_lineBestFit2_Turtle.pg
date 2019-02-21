@@ -1,0 +1,179 @@
+##DESCRIPTION
+##  Draw a line of best fit to experimental data 
+##	gradient is positive and all X values are positive
+##ENDDESCRIPTION
+
+##KEYWORDS('experiment', 'data', 'best fit', 'linear regression')
+
+## DBsubject('Experimental Skills')
+## DBchapter('Data Analysis')
+## DBsection('Line of Best Fit')
+## Date('22/7/2016')
+## Author('Boyd Duffee')
+## Institution('Keele University')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1(')
+## Problem1('')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "PGgraphmacros.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "niceTables.pl",
+   "DataAnalysis.pl",
+   #"source.pl",        # allows code to be displayed on certain sites.
+   #"PGcourse.pl",      # Customization file for the course
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+
+$starting_gradient = random(0.6, 3, 0.1);
+$starting_intercept = random(-2, 10, 0.5);
+$stepsize = 5;
+
+$N = random(5, 8, 1);
+@xdata = map { $_ * $stepsize } 1 .. $N;
+@ydata = map { make_noisy($_, 0.5, 3, '%d') }				# add experimental noise
+	map { $starting_gradient * $_ + $starting_intercept } 	# plot theoretical values
+	@xdata;
+
+#### linear regression ####
+$line = my_linear_regression(~~@xdata, ~~@ydata);
+$min_gradient = sprintf("%.2f", $line->{gradient} - $line->{delta_gradient});
+$max_gradient = sprintf("%.2f", $line->{gradient} + $line->{delta_gradient});
+$min_intercept = sprintf("%.2f", $line->{intercept} - $line->{delta_intercept});
+$max_intercept = sprintf("%.2f", $line->{intercept} + $line->{delta_intercept});
+
+#### graph ####
+@ysorted = num_sort(@ydata);
+($xmin, $ymin) =  (min(-1, $xdata[0]), min(-1,$ysorted[0]));
+($xmax, $ymax) =  (roundup($xdata[-1]), roundup($ydata[-1]));
+
+$pixels = 20;
+$graph_width = $pixels *($xmax - $xmin);
+$graph_height = $pixels * ($ymax - $ymin);
+($xgrid, $ygrid) = ($xmax - $xmin, $ymax - $ymin);
+
+$graph = init_graph($xmin, $ymin, $xmax, $ymax,
+	grid => [$xgrid, $ygrid],
+	axes => [0, 0],
+	size => [$graph_width, $graph_height] );
+
+for ($i = 0; $i < $N; $i++) {
+	push @points, closed_circle($xdata[$i], $ydata[$i], 'black');
+}
+$graph->stamps( @points );
+
+add_scientific_grid($graph);
+
+$graph_solution = init_graph($xmin, $ymin, $xmax, $ymax,
+	grid => [$xgrid, $ygrid],
+	axes => [0, 0],
+	size => [$graph_width, $graph_height] );
+$graph_solution->stamps( @points );
+
+add_scientific_grid($graph_solution);
+
+# the solution line of best fit
+add_best_fit_to_graph($graph_solution, $line);
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+Year 3 started an experiment to measure how fast Myrtle, the class turtle, would
+move towards her favourite lettuce.
+Their teacher, Mrs. Steele, called out the time every $stepsize seconds and
+a student would mark the position on the floor where Myrtle was. 
+Unfortunately, no one remembered to mark Myrtle's starting position.
+$PAR
+Using the data collected in the table below, estimate Myrtle's speed and starting
+position.
+$PAR
+$BCENTER
+\{ 
+DataTable(
+  [
+    ["\(x\) (s)", @xdata],
+    ["\(y\) (cm)", @ydata],
+  ],
+  caption => "Myrtle's position, y, at time x",
+  midrules => 1,
+  align => join('|', map {'c'} @xdata),
+);
+\}
+$ECENTER
+$PAR
+The students then plotted the data on a graph, shown below.
+$BCENTER
+\{ image( insertGraph($graph), width=>$graph_width, 
+    height=>$graph_height, tex_size=>800 ) \}
+$ECENTER
+$PAR
+What is your estimate of Myrtle's speed and starting position based on the data?
+$PAR
+\(v_{Myrtle}\) = \{ ans_rule(20) \}  cm/s
+$PAR
+Starting position = \{ ans_rule(20) \} cm
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS(Real($line->{gradient})->with(tolerance => (1.01 * $line->{delta_gradient}), tolType => 'absolute')->cmp);
+ANS(Real($line->{intercept})->with(tolerance => $line->{delta_intercept}, tolType => 'absolute')->cmp);
+
+
+##############################################################
+#
+#  Solutions
+#
+#
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+The best estimate for Myrtle's speed is \{ sprintf("%.2f", $line->{gradient}) \} \( {\rm cm/s} \) and
+her starting position was \{ sprintf("%.1f", $line->{intercept}) \} \( {\rm cm} \) from the zero point on the scale.
+$PAR
+
+$BCENTER
+\{ image( insertGraph($graph_solution), width=>$graph_width, 
+    height=>$graph_height, tex_size=>800 ) \}
+$ECENTER
+$PAR
+Your estimate of Myrtle's speed should have been between these two lines
+\[ y = $min_gradient x + $max_intercept \]
+\[ y = $max_gradient x + $min_intercept \]
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT('Needs work - should use "t" instead of "x" and "x" or "d" instead of "y"');
+ENDDOCUMENT();        
