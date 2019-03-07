@@ -34,22 +34,31 @@ TEXT(beginproblem());
 #############################
 #  Setup
 
-# eigenvector = a + b i
+Context("Complex-Matrix");
+Context()->variables->are(
+     t=>"Real",
+  'c1'=>"Real",
+  'c2'=>"Real",
+);
+
+# eigenvector real and imaginary parts = a + b i
 my $a0 = non_zero_random(-5,5,1);   my $b0 = 0; #random(-5,5,1);    
 my $a1 = random(-5,5,1);            my $b1 = non_zero_random(-5,5,1);
 
-# eigenvalue = alpha + beta i
+# eigenvalue real and imaginary parts = alpha + beta i
 my $alpha = random(-5,5,1);
 my $beta  =  random(1,5,1);
 
-Context("Complex");
+# eigenvalue and its conjugate
+
 $lambda1 = Complex("$alpha+$beta i");  
 $lambda2 = Complex("$alpha-$beta i");
 
+# eigenvector and its conjugate (their coefficients) 
 $evec10 = Complex("$a0+$b0 i");  $evec20 = Complex("$a0-$b0 i");  
 $evec11 = Complex("$a1+$b1 i");  $evec21 = Complex("$a1-$b1 i");
 
-Context("Complex-Matrix");
+# the real matrix A in the problem is $A/$det. $A and $det are pure imaginary
 
 my $A = Matrix([$evec10, $evec20], [$evec11, $evec21]) *
         Matrix([$lambda1, 0], [0, $lambda2]) *
@@ -58,17 +67,8 @@ my $A = Matrix([$evec10, $evec20], [$evec11, $evec21]) *
 # dealing with det separately improves numerical accuracy
 my $det = $evec10*$evec21 - $evec20*$evec11;
 
-my $A11 = Re($A->element(1,1)); my $A12 = Re($A->element(1,2));
-my $A21 = Re($A->element(2,1)); my $A22 = Re($A->element(2,2));
-
-
-Context("Numeric");
-Context()->variables->are(
-   t=>"Real",
-'c1'=>"Real",
-'c2'=>"Real",
-);
-
+my $A11 = $A->element(1,1); my $A12 = $A->element(1,2);
+my $A21 = $A->element(2,1); my $A22 = $A->element(2,2);
 
 # first fundamental solution 
 my $sol10 = Formula("e^{$alpha*t}*($a0*cos($beta*t) - $b0*sin($beta*t))")->reduce(); 
@@ -79,8 +79,8 @@ my $sol20 = Formula("e^{$alpha*t}*($a0*sin($beta*t) + $b0*cos($beta*t))")->reduc
 my $sol21 = Formula("e^{$alpha*t}*($a1*sin($beta*t) + $b1*cos($beta*t))")->reduce();
 
 # solution functions
-my $x = Formula("$sol10*c1 + $sol20*c2")->reduce();
-my $y = Formula("$sol11*c1 + $sol21*c2")->reduce();
+my $x = ($sol10*Formula("c1") + $sol20*Formula("c2"))->reduce();
+my $y = ($sol11*Formula("c1") + $sol21*Formula("c2"))->reduce();
 
 my $cosbt = Formula("cos($beta t)");
 my $sinbt = Formula("sin($beta t)");
@@ -161,15 +161,15 @@ $multiansB = MultiAnswer($sol10, $sol20, $sol11, $sol21)->with(
       my @score = (0,0);
       if ($c[0]->typeMatch($s[0]) && $c[1]->typeMatch($s[1]) && 
           $c[2]->typeMatch($s[2]) && $c[3]->typeMatch($s[3])) {
-        if ((($s[0] != 0) || ($s[2] != 0)) && 
-            (Formula("$A11*$s[0] + $A12*$s[2]") == Formula("$det*$s[0]")->D('t')) &&
-            (Formula("$A21*$s[0] + $A22*$s[2]") == Formula("$det*$s[2]")->D('t')) ) {
+        if ( ( ($s[0] != Formula(0)) || ($s[2] != Formula(0)) ) && 
+            ($A11*$s[0] + $A12*$s[2] == ($det*$s[0])->D('t')) &&
+            ($A21*$s[0] + $A22*$s[2] == ($det*$s[2])->D('t')) ) {
           $score[0] = 1;
         } else {
           Value::Error("First fundamental solution is incorrect!");
-        } if ((($s[1] != 0) || ($s[3] != 0)) && 
-            (Formula("$A11*$s[1] + $A12*$s[3]") == Formula("$det*$s[1]")->D('t')) &&
-            (Formula("$A21*$s[1] + $A22*$s[3]") == Formula("$det*$s[3]")->D('t')) &&
+        } if ( ( ($s[1] != Formula(0)) || ($s[3] != Formula(0)) ) && 
+            ($A11*$s[1] + $A12*$s[3] == ($det*$s[1])->D('t')) &&
+            ($A21*$s[1] + $A22*$s[3] == ($det*$s[3])->D('t')) &&
             ($s[1]*$s[2] != $s[0]*$s[3]) ) {
           $score[1] = 1;
         } else {
@@ -194,17 +194,17 @@ $multiansC = MultiAnswer($x, $y)->with(
       my @c = ($sol10, $sol20, $sol11, $sol21);      
       my @score = (0,0);
       if ($c[0]->typeMatch($S[0]) && $c[1]->typeMatch($S[1])) {  
-        $S[0] = Formula("$S[0] + c1c2");   $S[1] = Formula("$S[1] + c1c2");
+#        $S[0] = Formula("$S[0] + c1c2");   $S[1] = Formula("$S[1] + c1c2");
         my @s = ($S[0]->substitute(c1=>1,c2=>0),$S[0]->substitute(c1=>0,c2=>1),
                  $S[1]->substitute(c1=>1,c2=>0),$S[1]->substitute(c1=>0,c2=>1));
-        if ((($s[0] != 0) || ($s[2] != 0)) && 
-            (Formula("$A11*$s[0] + $A12*$s[2]") == Formula("$det*$s[0]")->D('t')) &&
-            (Formula("$A21*$s[0] + $A22*$s[2]") == Formula("$det*$s[2]")->D('t')) ) {
+        if ( ( ($s[0] != Formula(0)) || ($s[2] != Formula(0) ) ) && 
+            ($A11*$s[0] + $A12*$s[2] == ($det*$s[0])->D('t')) &&
+            ($A21*$s[0] + $A22*$s[2] == ($det*$s[2])->D('t')) ) {
            $score[0] = 1;
          } 
-         if ((($s[1] != 0) || ($s[3] != 0)) && 
-            (Formula("$A11*$s[1] + $A12*$s[3]") == Formula("$det*$s[1]")->D('t')) &&
-            (Formula("$A21*$s[1] + $A22*$s[3]") == Formula("$det*$s[3]")->D('t')) &&
+         if ( ( ($s[1] != Formula(0)) || ($s[3] != Formula(0)) ) && 
+            ($A11*$s[1] + $A12*$s[3] == ($det*$s[1])->D('t')) &&
+            ($A21*$s[1] + $A22*$s[3] == ($det*$s[3])->D('t')) &&
             ($s[1]*$s[2] != $s[0]*$s[3]) ) {
            $score[1] = 1; 
          }
@@ -271,9 +271,9 @@ $SPACE $SPACE \(\lambda_2 = $lambda2 \) with
     \end{array}
   \right\rbrack. \)
 $PAR
-Write the solution to the linear system 
-  \(\boldsymbol{\vec{r}\,'} = \mathrm{A}\boldsymbol{\vec{r}}\)
-in the following forms.
+Write the general $BBOLD real $EBOLD solution for the linear system 
+  \(\boldsymbol{\vec{r}\,'} = \mathrm{A}\boldsymbol{\vec{r}}\), 
+in the following forms:
 
 $BR
 $PAR
