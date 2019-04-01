@@ -1,0 +1,190 @@
+##DESCRIPTION
+##  read a Vernier scale in mm
+##  <b.duffee(at)keele(dot)ac(dot)uk>
+##ENDDESCRIPTION
+
+##KEYWORDS('lab', 'experimental skills', 'vernier' )
+
+## DBsubject('Experimental Skills')
+## DBchapter('Measurement')
+## DBsection('Vernier scales')
+## Date('11/7/2017')
+## Author('Boyd Duffee')
+## Institution('Keele University')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## ProblemWeight('2')
+## Note('Needs Work')
+## QuestionType('Numerical')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "parserNumberWithUnits.pl",
+   "PGgraphmacros.pl",
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+$showHint = 1;
+$showHelpLink = 0;
+
+##############################################################
+#
+#  Setup and Answers
+#
+Context("Numeric");
+
+$length_ruler = 35;
+$measurement = NumberWithUnits( random(0.1, $length_ruler - 10, 0.1), 'mm');
+ANS( $measurement->cmp );
+
+$graph_width = 32*$length_ruler;
+$graph_height = 400;
+$tex_size = 1000;
+
+$length = 10 * $length_ruler;
+$height = 100;
+$scale_bot = $height/2;
+$tick_small = 0.65 * $height;
+$tick_medium = 0.75 * $height;
+$tick_big = 0.85 * $height;
+$tick_vernier = 0.25 * $height;
+$increment = 10;
+
+$vernier = init_graph(-$length_ruler/2.5, 0, $length, $height, size => [$length, $height], );
+$vernier_solution = init_graph(-$length_ruler/2.5, 0, $length, $height, size => [$length, $height], );
+
+# draw the upper scale
+sub draw_ruler {
+	my ($v) = @_; 
+	$v->moveTo(0, $scale_bot); $v->lineTo($length, $scale_bot, 'black');
+	for ($x = 0; $x < $length; $x += $increment) {
+		$v->moveTo($x, $scale_bot);
+		if (! ($x % (10 * $increment)) ) {
+			$v->lineTo($x, $tick_big, 'black');
+			$v->lb( new Label($x, $tick_big, $x/10 . " mm", 'black','center','bottom'));
+		}
+		if (! ($x % (5 * $increment)) ) {
+			$v->lineTo($x, $tick_medium, 'black');
+		}
+		else {
+			$v->lineTo($x, $tick_small, 'black');
+		}
+	}
+	return $v;
+}
+
+# draw the vernier scale
+sub draw_vernier {
+	my ($v) = @_; 
+	$start_v = $measurement->value() * $increment;
+	$end_v = $start_v + 9 * $increment;
+	$n = 0;
+	for ($x = $start_v; $x <= $end_v; $x += $increment -1) {
+		$v->moveTo($x, $scale_bot);
+		$v->lineTo($x, $tick_vernier, 'black');
+		$v->lb( new Label($x, $tick_vernier, $n++ % 10, 'black','center','top'));
+	}
+	return $v;
+}
+
+
+# draw the solution of the graph
+sub draw_solution {
+	my ($v) = @_; 
+
+	my $ruler_reading = int($measurement->value);
+	my $vernier_reading = int($measurement->value * 10  - $ruler_reading * 10);
+	my $height_solution = $ruler_reading % 5 ? $tick_small : $ruler_reading % 10 ? $tick_medium : $tick_big;
+	$v->lb( new Label($ruler_reading*$increment, $height_solution, "$ruler_reading mm", 
+		'red','center','bottom')
+	);
+	$v->moveTo($ruler_reading*$increment, $scale_bot);
+	$v->lineTo($ruler_reading*$increment, $height_solution, 'red');
+
+	my $start_v_sol = ($vernier_reading + $ruler_reading) * $increment;
+	$v->moveTo($start_v_sol, $scale_bot);
+	$v->lineTo($start_v_sol, $tick_vernier, 'red');
+	$v->lb( new Label($start_v_sol, $tick_vernier, $vernier_reading, 
+		'red','center','top')
+	);
+}
+
+# because we can't copy or clone a graph object
+draw_ruler($vernier);
+draw_vernier($vernier);
+draw_ruler($vernier_solution);
+draw_vernier($vernier_solution);
+draw_solution($vernier_solution);
+
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Practice reading the scale on a Vernier caliper
+
+$PAR
+$BCENTER
+\{ image( insertGraph($vernier), width => $graph_width, height => $graph_height, tex_size => $tex_size ) \}
+$ECENTER
+$PAR
+
+What length is indicated on the scale?
+
+$PAR
+measured length = \{ ans_rule(35) \} 
+\{ $showHelpLink ? helpLink("units") : q{} \}
+$PAR
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################################
+#
+#  Solutions, Hints and Author's Comments
+#
+
+BEGIN_HINT
+\{ htmlLink( 'https://en.wikipedia.org/wiki/Vernier_scale', 'Wikipedia' ) \}
+has more than you ever wanted to know about Vernier scales.
+END_HINT
+
+Context()->texStrings;
+BEGIN_SOLUTION
+$PAR $BBOLD SOLUTION $EBOLD $PAR
+
+The measured length is \($measurement\) as shown in red below.
+
+$PAR
+$BCENTER
+\{ image( insertGraph($vernier_solution), width=> $graph_width, height=> $graph_height, tex_size=> $graph_height ) \}
+$ECENTER
+$PAR
+
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT('Lab skills - reading Vernier scales (in mm)');
+COMMENT('Best problem for coding standard');
+
+ENDDOCUMENT();
