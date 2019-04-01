@@ -1,0 +1,147 @@
+##DESCRIPTION
+##  Algebra problem: Simplify a given rational expression by reducing
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra', 'algebra, operations with rational expressions', 'algebra, simplifying rational expression', 'rational expressions', 'rational expression')
+## DBsubject(Algebra)
+## DBchapter(Operations on polynomial and rational expressions)
+## DBsection(Simplify rational expressions)
+## Level(2)
+## Author(K. Andrew Parker)
+## Institution(CUNY City Tech)
+## Language(en)
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+# define custom answer checker
+$rationalChecker = sub {
+     my ($correct,$student,$ansHash) = @_; 
+     # sometimes students will factor out a negative
+     my $negated = 1; #-1 for negated=>TRUE
+     Value->Error("Your answer doesn't contain any variables. <BR> Perhaps you oversimplified?") unless $student->class eq "Formula";
+     if ($student->{tree}->class eq "UOP" && $student->{tree}{uop} eq 'u-') {
+          $student = Formula($student->{tree}->{op});
+          $negated = -1;
+     }
+     # give students a hint if division is not the final operation 
+     Value->Error("Check the answer preview box. Maybe you forgot parenthesis around your numerator or denominator?") unless $student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!/!; # match "/" with or without spacing
+     return 0 unless $correct == $student*$negated; # student is incorrect
+     my $cnum = Formula($correct->{tree}{lop});
+     my $snum = Formula($student->{tree}{lop});
+     my $cden = Formula($correct->{tree}{rop});
+     my $sden = Formula($student->{tree}{rop});
+     Value->Error("Your answer can be reduced further") unless ($cnum == $snum*$negated || $cden == $sden*$negated); 
+     return 1;
+};
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+
+$nCoeff = random(2,9,1);
+do { $dCoeff = random(2,9,1); } until ( gcf($nCoeff,$dCoeff) == 1 );
+
+$common = random(2,6,1);
+
+$nRoot = non_zero_random(-9,9,1);
+
+$nA = $common*$nCoeff;
+$nB = $common*$nCoeff*$nRoot;
+$nBabs = abs($nB);  #for solution
+$nBrem = $nCoeff*$nRoot; #for solution
+$dB = $common*$dCoeff;
+
+$numer = Formula("$nA*x^2 - $nB*x")->reduce;
+$denom = Formula("$dB*x")->reduce;
+
+$rationalExp = Formula("$numer/$denom")->reduce;
+# define answer with test point corresponding to reduce-able factor "x"
+$answer = Formula("$nCoeff*(x-$nRoot)/$dCoeff")->with(test_at=>[[0]]);
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Reduce the following rational expression:
+\[ $rationalExp \]
+$PAR
+\{ans_rule(20)\}
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+# comparison is forced to agree at x=0, replace domain "hint" with something 
+# more specific regarding what's wrong with the student answer
+ANS($answer->cmp(
+    showDomainErrors=>1, 
+    checker=>$rationalChecker)->withPostFilter(
+    sub { 
+        my $ans = shift; 
+        $ans->{ans_message} = "You're on the right track, but your answer can still be reduced." 
+        if $ans->{ans_message} eq "The domain of your function doesn't match that of the correct answer";
+        return $ans; 
+    }
+));
+
+
+Context()->texStrings;
+BEGIN_HINT
+
+Look for the greatest common factor amongst all three terms:
+\( $nA x^2, $nBabs x, $dB x\)
+
+END_HINT
+BEGIN_SOLUTION
+
+The greatest common factor of \( $nA x^2, $nBabs x, \text{and} \, $dB x\) is \( $common x \).
+$PAR
+If we factor out \( $common x \) from the numerator and the denominator, we end up with: 
+$BR
+\( \displaystyle \frac{$common x \cdot ( $nCoeff x - $nBrem )}{$common x \cdot $dCoeff} \)
+$BR
+which can be rewritten as:
+\( \displaystyle \left(\frac{$common x}{$common x}\right) \left(\frac{$nCoeff x - $nBrem}{$dCoeff}\right) = (1)\left(\frac{$nCoeff x - $nBrem}{$dCoeff}\right) = \frac{$nCoeff x - $nBrem}{$dCoeff}\)
+$PAR
+$BITALIC Note: $EITALIC $BR
+You may have factored the numerator differently:
+\( $nA x (x - $nRoot) \)
+$PAR
+which would look like: \( \displaystyle \frac{$nA x (x - $nRoot)}{$dB x} \)
+$BR
+in that case, the most we can reduce is still \( $common x \), leaving us with:
+\( \displaystyle \frac{$nCoeff (x-$nRoot)}{$dCoeff} \)
+$BR
+which works out to be the same answer if you re-distribute the $nCoeff in the numerator.
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        
