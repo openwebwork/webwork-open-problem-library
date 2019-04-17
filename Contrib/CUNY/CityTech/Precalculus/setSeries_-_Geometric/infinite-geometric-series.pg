@@ -1,0 +1,139 @@
+##DESCRIPTION
+##  Algebra problem: true or false for inequality 
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra', 'inequality', 'fraction')
+
+## DBsubject('Calculus')
+## DBchapter('Infinite sequences and series')
+## DBsection('Geometric')
+## Date('8/3/2018')
+## Author('K. Andrew Parker')
+## Institution('City Tech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "niceTables.pl",
+   "contextFraction.pl",
+   "parserMultiAnswer.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Fraction");
+Context()->flags->set(
+    reduceConstants=>0,
+    reduceConstantFunctions=>0,
+);
+Context()->variables->are(n=>"Real");
+    
+@n = ( random(9,18,1), random(20,30,1), random(35,50,1), random(70,95,1) );
+
+foreach my $i (0..3) {
+    my $plusminus = ($i>1)?1:0;
+    my $fraction = ($i%2 == 1)?1:0;
+    my $r = random(2,9,1);
+    my $n = ($r>2)?random(2,$r-1,1):1;
+    $n = $n*(-1)**$plusminus;
+    $ratio[$i] = ($fraction==0)?Real($r*(-1)**$plusminus):Fraction($n,$r);
+    $init[$i] = random(2,9,1);
+    $seq[$i][0] = Fraction($init[$i]);
+    foreach my $j (1..4) {
+        $seq[$i][$j] = $seq[$i][$j-1] * $ratio[$i];
+    }
+    $seqDisp[$i] = List($seq[$i][0],$seq[$i][1],$seq[$i][2],$seq[$i][3],$seq[$i][4]);
+    if ($n[$i] % 10 == 1 && $n[$i] > 20) { $th[$i] = "st" }
+    elsif ($n[$i] % 10 == 2 && $n[$i] > 20) { $th[$i] = "nd" }    
+    elsif ($n[$i] % 10 == 3 && $n[$i] > 20) { $th[$i] = "rd" }
+    else { $th[$i] = "th" }
+    $nth[$i] = Formula("$init[$i]*$ratio[$i]^($n[$i]-1)");
+    $closedForm[$i] = Formula("$init[$i]*($ratio[$i])^(n-1)");
+    $closedFormTeX[$i] = $closedForm[$i]->TeX;
+    $sn[$i] = Formula("$init[$i] * ( ( 1 - ($ratio[$i])^($n[$i]) )/( 1 - $ratio[$i] ) )");
+    $infSum[$i] = Formula("$init[$i] * ( 1 / (1-$ratio[$i]) )") if ( abs($ratio[$i]) < 1 );
+    $infSum[$i] = String("DNE")->with(typeMatch=>'Value::Real') if ( abs($ratio[$i]) >= 1 );
+}
+
+Context("LimitedNumeric");
+Context()->{error}{msg}{"Can't use '+' in this context"} 
+  = "Addition is disabled for this problem. <BR> Compute a decimal approximation for your answer instead.";
+Context()->{error}{msg}{"Can't use '-' in this context"} 
+  = "Subtraction is disabled for this problem. <BR> Compute a decimal approximation for your answer instead.";
+Context()->{error}{msg}{"Can't use '*' in this context"} 
+  = "Multiplication is disabled for this problem. <BR> Compute a decimal approximation for your answer instead.";
+Context()->{error}{msg}{"Can't use '/' in this context"} 
+  = "Division is disabled for this problem. <BR> Compute a decimal approximation for your answer instead.";
+Context()->{error}{msg}{"Can't use '^' in this context"} 
+  = "Exponents are disabled for this problem. Compute a decimal approximation for your answer instead.";
+Context()->{error}{msg}{"Can't use '**' in this context"} 
+  = "Exponents are disabled for this problem. Compute a decimal approximation for your answer instead.";
+
+$multiAns = MultiAnswer(Real(0.5),Real(0.5**10),Real(0.5**100))->with(
+    singleResult=>1,
+    allowBlankAnswers=>1,
+    checker => sub {
+        my ( $correct, $student, $self ) = @_;
+        my ( $rStu, $r10Stu, $r100Stu ) = @{$student};
+        Value::Error("Please enter a common ratio between -1 and 1") if ( $rStu eq "" );
+        $self->setMessage(1,"Using zero as a common ratio makes for a very boring sequence. \(\{0,0,0,0,\dots\}\)") if ( $rStu == 0 );
+        $self->setMessage(1,"You must select a common ratio between -1 and 1") if ( abs($rStu) >= 1 );
+        $self->setMessage(2,"You have incorrectly computed \(($rStu)^{10}\)") if ( $r10Stu != ($rStu)**10 );
+        $self->setMessage(3,"You have incorrectly computed \(($rStu)^{100}\)") if ( $r100Stu != ($rStu)**100 );
+        return ( abs($rStu) < 1 && $r10Stu == ($rStu)**10 && $r100Stu == ($rStu)**100 && $rStu != 0 );
+    });
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ### Infinite Geometric Sums ### <<
+
+Find the requested sums:  
+
+* Use "DNE" if the requested sum _does not exist_.
+
+1. If possible, compute the sum of *all* terms in the sequence [`a = \left\{ [$seqDisp[0]], \dots \right\} `]  
+
+    The sum is [____________________]{$infSum[0]}  
+
+1. If possible, compute the sum of *all* terms in the sequence [`b = \left\{ [$seqDisp[1]], \dots \right\} `]  
+
+    The sum is [____________________]{$infSum[1]}  
+
+1. If possible, compute the sum of *all* terms in the sequence [`c = \left\{ [$seqDisp[2]], \dots \right\} `]  
+
+    The sum is [____________________]{$infSum[2]}  
+
+1. If possible, compute the sum of *all* terms in the sequence [`d = \left\{ [$seqDisp[3]], \dots \right\} `]  
+
+    The sum is [____________________]{$infSum[3]}  
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+
+ENDDOCUMENT();        

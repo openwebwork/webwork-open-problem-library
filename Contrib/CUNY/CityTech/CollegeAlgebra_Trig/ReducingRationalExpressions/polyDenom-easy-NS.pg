@@ -1,0 +1,131 @@
+##DESCRIPTION
+##  Algebra problem: Reduce a given rational expression
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra', 'algebra, operations with rational expressions', 'algebra, simplifying rational expression', 'rational expressions', 'rational expression', 'factoring')
+## DBsubject(Algebra)
+## DBchapter(Operations on polynomial and rational expressions)
+## DBsection(Simplify rational expressions)
+## Level(2)
+## Author(K. Andrew Parker)
+## Institution(CUNY City Tech)
+## Language(en)
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextRationalFunction.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+# use "test_at" instead of rationalChecker so we don't eliminate (a/b)x as a valid soln
+
+$rationalChecker = sub {
+     my ($correct,$student,$ansHash) = @_; 
+     my $negated = 1; #-1 for negated=TRUE
+     Value->Error("Your answer doesn't contain any variables. <BR> Perhaps you oversimplified?") unless $student->class eq "Formula";
+     if ($student->{tree}->class eq "UOP" && $student->{tree}{uop} eq 'u-') {
+          $student = Formula($student->{tree}->{op});
+          $negated = -1;
+     }
+     Value->Error("Check the answer preview box. Maybe you forgot parenthesis around your numerator or denominator?") unless $student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!/!;
+     return 0 unless $correct == $student*$negated;
+     my $cnum = Formula($correct->{tree}{lop});
+     my $snum = Formula($student->{tree}{lop});
+     my $cden = Formula($correct->{tree}{rop});
+     my $sden = Formula($student->{tree}{rop});
+     Value->Error("Your answer can be reduced further") unless ($cnum == $snum*$negated || $cden == $sden*$negated);
+     return 1;
+};
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+
+$nCoeff = random(2,9,1);
+do { $dCoeff = random(2,9,1); } until ( gcf($nCoeff,$dCoeff) == 1 );
+
+$common = random(2,6,1);
+
+$nRoot = non_zero_random(-9,9,1);
+$dRoot = $nRoot;
+
+$nA = $common*$nCoeff;
+$nB = $common*$nCoeff*$nRoot;
+$dB = $common*$dCoeff;
+$dC = $common*$dCoeff*$dRoot;
+
+$numer = Formula("$nA*x^2 - $nB*x")->reduce;
+$denom = Formula("$dB*x-$dC")->reduce;
+
+$rationalExp = Formula("$numer/$denom")->reduce;
+$answer = Formula("$nCoeff*x/$dCoeff")->with(test_at=>[[0],[$nRoot]]);
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Reduce the following rational expression:
+\[ $rationalExp \]
+$PAR
+\{ans_rule(20)\}
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($answer->cmp(showDomainErrors=>0) );
+
+# rationalChecker stops students entering (a/b)x instead of ax/b, let's try without...
+# checker=>$rationalChecker));
+
+Context()->texStrings;
+BEGIN_HINT
+
+Completely factor the numerator, then completely factor the denominator.
+$BR
+Reduce any common factors.
+
+END_HINT
+BEGIN_SOLUTION
+
+Factor the numerator: $BR
+\( $nA x^2 - $nB x = $nA x ( x - $nRoot ) \)
+$PAR
+Factor the denominator: $BR
+\( $dB x - $dC = $dB ( x - $dRoot ) \)
+$PAR
+Now our original fraction may be rewritten: $BR
+\( \displaystyle \frac{$numer}{$denom} = \frac{$nA x (x-$nRoot)}{$dB (x-$dRoot)} = \left(\frac{$nA x}{$dB}\right) \left(\frac{x-$nRoot}{x-$dRoot}\right) = \left(\frac{$nA x}{$dB}\right) \left( 1 \right) = \frac{$nA x}{$dB} \)
+$PAR
+Now we identify the GCF of \( $nA x \) and \( $dB \) to be \( $common \): $BR
+\( \displaystyle \frac{$nA x}{$dB} = \frac{$common \cdot $nCoeff x}{$common \cdot $dCoeff} = \left(\frac{$common}{$common}\right)\left(\frac{$nCoeff x}{$dCoeff}\right) = \left( 1 \right) \left(\frac{$nCoeff x}{$dCoeff}\right) = \frac{$nCoeff x}{$dCoeff}\)
+
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        
