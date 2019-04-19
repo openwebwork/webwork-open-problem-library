@@ -1,0 +1,222 @@
+##DESCRIPTION
+## 
+##ENDDESCRIPTION
+
+## DBsubject()
+## DBchapter()
+## DBsection()
+## Date()
+## Author()
+## Level()
+## KEYWORDS('')
+## Institution('University of British Columbia')
+## TitleText('TBD')
+## EditionText('TBD')
+## AuthorText('TBD')
+## Section('TBD')
+## Problem('TBD')
+##############################################################
+
+DOCUMENT();
+
+loadMacros(   
+	"PGstandard.pl",     # Standard macros for PG language
+	"MathObjects.pl",
+	"PGML.pl",
+	"parserPopUp.pl",
+	"parserMultiAnswer.pl",
+	"parserRadioButtons.pl",
+	"parserFunction.pl",
+	"PGgraphmacros.pl",
+	"niceTables.pl",
+	"PGauxiliaryFunctions.pl",
+	#"source.pl",        # allows code to be displayed on certain sites.
+	#"PGcourse.pl", 	 # Customization file for the course
+   	);
+
+TEXT(beginproblem());
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->functions->add(
+  H => {
+    class => 'Parser::Legacy::Numeric',
+    perl => 'Parser::Legacy::Numeric::do_step'
+  },
+);
+Context()->variables->add(t=>"Real");
+Context()->variables->remove("x");
+parserFunction("r(t)"=>"t H(t)");
+
+sub getXYLimits { 
+	#gets the xmin, xmax, ymin, ymax values of a function
+	#neutral = the constant y value before and after both spikes in function
+	my ($func,$neutral) = @_; 
+
+	for($i = -50; $i<=50; $i+=.1){
+		my $yVal = $func->eval(t=>$i);
+		if ($yVal!=$neutral){
+			$xmin = $i - .1;
+			last;
+		}
+	}
+
+	for($i = 50; $i>=-50; $i-=.1){
+		my $yVal = $func->eval(t=>$i);
+		if ($yVal!=$neutral){
+			$xmax= $i + .1;
+			last;
+		}
+	}
+
+	$xmin = $xmin <= -1 ? $xmin : -1;
+	$xmax = $xmax >= 1 ? $xmax : 1;
+	$xmin = floor($xmin);
+	$xmax = ceil($xmax);
+
+	$ymax = $neutral; $ymin = $neutral;
+	for($i = $xmin; $i <= $xmax; $i+=.1){
+		my $yVal = $func->eval(t=>$i);
+		if($yVal > $ymax) {
+			$ymax = $yVal;
+		}
+		if($yVal < $ymin) {
+			$ymin = $yVal;
+		}
+	}
+
+	$ymin = $ymin <= -1 ? $ymin : -1;
+	$ymax = $ymax >= 1 ? $ymax : 1;
+
+	$ymin = floor($ymin);
+	$ymax = ceil($ymax);
+
+	return($xmin, $xmax, $ymin, $ymax);
+}
+
+$randHalf = random(0,1,1);
+
+if($randHalf == 1){
+	$half1 = 1;
+	$half2 = .5;
+}
+else {
+	$half2 = 1;
+	$half1 = .5;
+}
+
+#given
+do{$alpha = random(-4,4,1);}while($alpha == 0 or $alpha == 1 or $alpha == -1);
+do{$beta = random(-2,2,1);}while($beta == 0 or $beta == 1 or $beta == -1);
+do{$a = random(-4,4,1);}while($a == 0 or $a == 1 or $a == -1);
+do{$b = random(-4,4,1);}while($b == 0 or $b == 1 or $b == -1);
+do{$c = random(-4,4,1);}while($c == 0 or $c == 1 or $c == -1);
+do{$d = random(-4,4,1);}while($d == 0 or $d == 1 or $d == -1);
+parserFunction("x(t)"=>"($half1(r(t) - 2 r(t - 1) + r(t - 2 )) - $half2(r(-t) - 2 r(-t - 1) + r(-t - 2 )))");
+
+$f1 = Formula("$a + $alpha x($beta t - $b)");
+$f2 = Formula("$a - $alpha x(-$beta t - $b)");
+$f3 = Formula("$c + $alpha x(-$beta t + $b)");
+$f4 = Formula("-$a + $c x($beta t - $d)");
+
+($xmin[1],$xmax[1],$ymin[1],$ymax[1]) = getXYLimits($f1,$a);
+($xmin[2],$xmax[2],$ymin[2],$ymax[2]) = getXYLimits($f2,$a);
+($xmin[3],$xmax[3],$ymin[3],$ymax[3]) = getXYLimits($f3,$c);
+($xmin[4],$xmax[4],$ymin[4],$ymax[4]) = getXYLimits($f4,-$a);
+
+$ymax = max($ymax[1],$ymax[2],$ymax[3],$ymax[4],1)+1;
+$ymin = min($ymin[1],$ymin[2],$ymin[3],$ymin[4],-1)-1;
+$xmax = max($xmax[1],$xmax[2],$xmax[3],$xmax[4],2)+1;
+$xmin = min($xmin[1],$xmin[2],$xmin[3],$xmin[4],-2)-1;
+
+$xgrid = $xmax + abs($xmin);
+$ygrid = $ymax + abs($ymin);
+
+#computation 
+$fig = init_graph($xmin,$ymin,$xmax,$ymax,axes=>[0,0],size=>[400,300],grid=>[$xgrid,$ygrid]);
+$f = Formula("x(t)");
+$f_graph = new Fun($f->perlFunction,$fig); $f_graph->steps(100); $f_graph->color("red"); 
+
+$dotted = Formula("x(t)");
+
+$fig1 = init_graph($xmin,$ymin,$xmax,$ymax,axes=>[0,0],size=>[400,300],grid=>[$xgrid,$ygrid]);
+$f_graph = new Fun($dotted->perlFunction,$fig1); $f_graph->steps(100); $f_graph->color("red"); $f_graph->weight(1);
+$f_graph = new Fun($f1->perlFunction,$fig1); $f_graph->steps(100); 
+
+$fig2 = init_graph($xmin,$ymin,$xmax,$ymax,axes=>[0,0],size=>[400,300],grid=>[$xgrid,$ygrid]);
+$f_graph = new Fun($dotted->perlFunction,$fig2); $f_graph->steps(100); $f_graph->color("red"); $f_graph->weight(1);
+$f_graph = new Fun($f2->perlFunction,$fig2); $f_graph->steps(100);
+
+$fig3 = init_graph($xmin,$ymin,$xmax,$ymax,axes=>[0,0],size=>[400,300],grid=>[$xgrid,$ygrid]);
+$f_graph = new Fun($dotted->perlFunction,$fig3); $f_graph->steps(100); $f_graph->color("red"); $f_graph->weight(1);
+$f_graph = new Fun($f3->perlFunction,$fig3); $f_graph->steps(100);
+
+$fig4 = init_graph($xmin,$ymin,$xmax,$ymax,axes=>[0,0],size=>[400,300],grid=>[$xgrid,$ygrid]);
+$f_graph = new Fun($dotted->perlFunction,$fig4); $f_graph->steps(100); $f_graph->color("red"); $f_graph->weight(1);
+$f_graph = new Fun($f4->perlFunction,$fig4); $f_graph->steps(100);
+
+
+##############################################################
+#
+#  PGML 
+#
+#
+
+BEGIN_TEXT
+
+$h $i $j $k
+
+A signal, \(x(t)\) is given in the figure below.
+
+$BCENTER \{image(insertGraph($fig), width=>400, height=>300, tex_size=>500)\} $ECENTER $PAR
+
+For each signal \(y(t)\) (in blue) shown in the figures 1 to 4, find the coefficients \(a\), \(b\), \(c\) and \(d\) so that \(y(t)=a + b x(c t - d)\). $BR $BR 
+
+\{
+	DataTable(
+		[	
+			[image(insertGraph($fig1), width=>400, height=>300, tex_size=>500),image(insertGraph($fig2), width=>400, height=>300, tex_size=>500)],
+			['Figure 1','Figure 2'],
+			[image(insertGraph($fig3), width=>400, height=>300, tex_size=>500),image(insertGraph($fig4), width=>400, height=>300, tex_size=>500)],
+			['Figure 3','Figure 4'], 
+		],
+		center => 1,
+		allcellcss=>'padding-left:20px; padding-right:20px; padding-top:0px;  margin:auto; font-weight:bold;',
+		);
+\} $BR
+
+Figure 1:$BR \(a=\)\{ans_rule(5)\}, \(b=\)\{ans_rule(5)\}, \(c=\)\{ans_rule(5)\}, \(d=\)\{ans_rule(5)\} $PAR
+Figure 2:$BR \(a=\)\{ans_rule(5)\}, \(b=\)\{ans_rule(5)\}, \(c=\)\{ans_rule(5)\}, \(d=\)\{ans_rule(5)\} $PAR
+Figure 3:$BR \(a=\)\{ans_rule(5)\}, \(b=\)\{ans_rule(5)\}, \(c=\)\{ans_rule(5)\}, \(d=\)\{ans_rule(5)\} $PAR
+Figure 4:$BR \(a=\)\{ans_rule(5)\}, \(b=\)\{ans_rule(5)\}, \(c=\)\{ans_rule(5)\}, \(d=\)\{ans_rule(5)\} $PAR
+
+END_TEXT
+
+ANS(num_cmp($a,tol=>.1));
+ANS(num_cmp($alpha,tol=>.1));
+ANS(num_cmp($beta,tol=>.1));
+ANS(num_cmp($b,tol=>.1));
+
+ANS(num_cmp($a,tol=>.1));
+ANS(num_cmp(-$alpha,tol=>.1));
+ANS(num_cmp(-$beta,tol=>.1));
+ANS(num_cmp($b,tol=>.1));
+
+ANS(num_cmp($c,tol=>.1));
+ANS(num_cmp($alpha,tol=>.1));
+ANS(num_cmp(-$beta,tol=>.1));
+ANS(num_cmp(-$b,tol=>.1));
+
+ANS(num_cmp(-$a,tol=>.1));
+ANS(num_cmp($c,tol=>.1));
+ANS(num_cmp($beta,tol=>.1));
+ANS(num_cmp($d,tol=>.1));
+
+##############################################################
+
+ENDDOCUMENT();
