@@ -6,3 +6,4 @@ Queen's University Contributors (github):
 University of British Columbia Contributors (github):
 * adentremont
 * gianni-co
+* wchanwanfong

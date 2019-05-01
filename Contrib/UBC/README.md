@@ -7,3 +7,4 @@ Contributors (github):
 * adentremont
 * gohsc
 * gianni-co
+* wchanwanfong
