@@ -6,6 +6,7 @@
 ## Author(Monika Keindl)
 ## MLT(factorForm)
 ## Level(4)
+## MO(1)
 ## KEYWORDS('identity', 'trigonometry', 'equation')
 ##ENDDESCRIPTION
 
@@ -17,84 +18,131 @@ DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "PGasu.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
   "PGcourse.pl"
 );
 
 TEXT(&beginproblem);
 
-## trig functions to mix Tangent with
-@funcTex=("\sin(x)","\cos(x)");
+Context("Numeric");
+Context()->variables->add(k=>"Real"); 
+Context()->flags->set(
+  reduceConstants => 0,
+  reduceConstantFunctions => 0
+);
 
-## randomize function  in (f)(b*tan-a)=0
-$ind=random(0,1,1);
+Parser::Number::NoDecimals();
 
-## randomize constants
-@a=('\sqrt{3}','','\sqrt{3}','-\sqrt{3}','-','-\sqrt{3}');
-@b=(3,'','',3,'','');
-$constind=random(0,5,1);
+## trig functions to mix Tangent with, and their roots 
+## there are two answer formulas if f = sin(x), but only 
+## one if f = cos(x) because cos(x) cancels the denominator of tan(x)
 
-## angles and periods
-@ang=([0,$PI],                                               #sine
-      [$PI/2,3*$PI/2],                                       #cosine 
-      [$PI/6,$PI/4,$PI/3,5*$PI/6,3*$PI/4,2*$PI/3],           #tangent         
-      );
+$f_is_cos=random(0,1,1);  # f index
 
-@ans=num_sort($ang[$ind][0],$ang[$ind][1],$ang[2][$constind]);
+if ($f_is_cos){
+  $f = Compute("cos(x)");
+}
+else {
+  $f = Compute("sin(x)");
+  $f_root = Compute("k*pi");
+}
 
-@period=();
+## randomize tangent formula and its additional roots 
 
-for ($i=0;$i<3; $i++) { 
-                       if ($ans[$i]==0 || $ans[$i]==$PI || $ans[$i]==$PI/2 || $ans[$i]==3*$PI/2)
-		              {
-			      $period[$i]="2*k*$PI";
-                       	      }
-			      else {
-			           $period[$i]="k*$PI";
-			           }        
-};
+$tan_ind=random(0,5,1);
+if ($tan_ind == 0){
+  $ques = Compute("3*$f*tan(x)-sqrt(3)*$f");
+  $add_root = Compute("pi/6+k*pi");
+}
+elsif ($tan_ind == 1){
+  $ques = Compute("$f*tan(x)-$f");
+  $add_root = Compute("pi/4+k*pi");
+}
+elsif ($tan_ind == 2){
+  $ques = Compute("$f*tan(x)-sqrt(3)*$f");
+  $add_root = Compute("pi/3+k*pi");
+}
+elsif ($tan_ind == 3){
+  $ques = Compute("$f*tan(x)+sqrt(3)*$f");
+  $add_root = Compute("2*pi/3+k*pi");
+}
+elsif ($tan_ind == 4){
+  $ques = Compute("$f*tan(x)+$f");
+  $add_root = Compute("3*pi/4+k*pi");
+}
+else {
+  $ques = Compute("3*$f*tan(x)+sqrt(3)*$f");
+  $add_root = Compute("5*pi/6+k*pi");
+}
 
-$A=join';',@ans;
-$B=join';',@period;
+if ($f_is_cos){ 
+  $ans = $add_root;
+}
+else{  
+  $ans = MultiAnswer($f_root, $add_root)->with(
+    singleResult => 0,
+    checker => sub {
+      my ($correct, $student, $self) =@_;
+      my ( $f1stu, $f2stu ) = @{$student};
+      my ( $f1, $f2 ) = @{$correct};
+      if ( ($f1 == $f1stu && $f2 == $f2stu) ||
+	   ($f1 == $f2stu && $f2 == $f1stu) ) {
+	  return [1,1];
+      } else {
+	if ($f1 == $f1stu || $f2 == $f1stu) {
+	   return [1,0];
+	} elsif ($f1 == $f2stu || $f2 == $f2stu) {
+	      return [0,1];
+	} else {
+	      return [0,0];
+	}
+      }
+    }
+  );
+}
 
+Context()->texStrings;
 BEGIN_TEXT
-
-\($b[$constind]$funcTex[$ind]\tan(x)-$a[$constind]$funcTex[$ind]=0\)
-
 $PAR
 
-Find all angles in radians that satisfy the equation. For each solution enter first 
-the angle solution in \([0,\pi)\) or \([0,2\pi)\) (depending on the trigonometric function) then the period. When 2 or more solutions are available 
-enter them in increasing order of the angles.
-(e.g. \(x=\pi/2 +2k\pi\) or \(x=3\pi/2 +k\pi\) etc.)
+Find all angles \(x\) (in radians) that satisfy the equation 
 
+\[$ques=0.\]
 
-$BR
-Note: You are not allowed to use decimals in your answer. Use pi for \(\pi\).
+Your answers should be formulas that look like
+\[ x = \text{angle}+k*\text{period}\]
+where \(k=\cdots,-2,-1,0,1,2,\cdots\) ranges over the integers, \( 0\leq \text{angle} < \text{period} \),  and period is the smallest positive "period" that makes the formula work. 
+$PAR
+Note: decimal answers are not allowed, so, for example, if \(\pi\) appears in your answer call it $BBOLD pi $EBOLD not 3.14159 . 
 
 $PAR
-
-\(x\) = \{ans_rule(20)\} \(+\) \{ans_rule(20)\}
+The solutions of the equation are:
 $PAR
-or
-$PAR
-\(x\) = \{ans_rule(20)\} \(+\) \{ans_rule(20)\}
-$PAR
-or
-$PAR
-\(x\) = \{ans_rule(20)\} \(+\) \{ans_rule(20)\}
-$PAR
-
 END_TEXT
+Context()->normalStrings;
 
-ANS(exact_no_trig($ans[0]) );
-ANS(function_cmp($period[0],"k"));
-ANS(exact_no_trig($ans[1]) );
-ANS(function_cmp($period[1],"k"));
-ANS(exact_no_trig($ans[2]) );
-ANS(function_cmp($period[2],"k"));
 
+if ($f_is_cos){
+Context()->texStrings;
+BEGIN_TEXT
+\(x\) = \{$ans->ans_rule(20)\} $BR
+(Warning: division by zero is not allowed!)
+END_TEXT
+Context()->normalStrings;
+}
+else {
+Context()->texStrings;
+BEGIN_TEXT
+\(x\) = \{$ans->ans_rule(20)\} 
+$BR
+or
+$BR
+\(x\) = \{$ans->ans_rule(20)\}. 
+END_TEXT
+Context()->normalStrings;
+}
+
+ANS($ans->cmp());
 
 ENDDOCUMENT(); 

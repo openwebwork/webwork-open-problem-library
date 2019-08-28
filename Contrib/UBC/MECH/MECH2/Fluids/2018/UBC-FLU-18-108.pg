@@ -1,0 +1,139 @@
+##DESCRIPTION
+## 
+## Created by the UBC Faculty of Applied Science.  
+## Project led by Agnes d'Entremont, Jonathan Verrett, and Negar M. Harandi. 
+##
+## Contact: agnes.dentremont@mech.ubc.ca
+##
+## This work is licensed under the Creative Commons
+## Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+## <https://creativecommons.org/licenses/by-sa/4.0/>
+##
+## We gratefully acknowledge the financial support for this 
+## project provided by UBC Vancouver students via the Teaching
+## and Learning Enhancement Fund. We also gratefully acknowledge
+## additional funding support from BCcampus, the UBC Department of
+## Mechanical Engineering, and the UBC Applied Science Dean’s Office.  
+##
+## This work was completed on the traditional, ancestral, and unceded
+## territory of the Musqueam people. 
+##
+##ENDDESCRIPTION
+
+## DBsubject(Fluid mechanics)
+## DBchapter(Viscous flow in ducts)
+## DBsection(Turbulent pipe flow)
+## Institution('University of British Columbia')
+## Author(UBC Engineering)
+## Date()
+## Level()
+## KEYWORDS('')
+## RESOURCES('')
+## TitleText('TBD')
+## EditionText('TBD')
+## AuthorText('TBD')
+## Section('TBD')
+## Problem('TBD')
+## Beginner
+
+
+DOCUMENT();
+
+loadMacros(   
+	"PGstandard.pl",     # Standard macros for PG language
+	"MathObjects.pl",
+	"PGML.pl",
+	"parserPopUp.pl",
+	"parserMultiAnswer.pl",
+	"parserRadioButtons.pl",
+	#"source.pl",        # allows code to be displayed on certain sites.
+	#"PGcourse.pl", 	 # Customization file for the course
+   	);
+
+TEXT(beginproblem());
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+#given
+$r = random(0,20,1);;
+$Length = 5 + $r * .5;#(5,15,0.5) [m]
+$FlowRateTmp = 1 + $r * .5;#(1,11,0.5) [L/min]
+$PressureDropTmp = 50 + 10 * $r;#(50,250,10) [kPa]
+
+$PressureDrop = $PressureDropTmp*1000;
+$FlowRate = $FlowRateTmp/60000;
+
+$TubeDiaGuess1 = 0.6*0.0254;
+$TubeDiaGuess2 = 0.5*0.0254;
+$dFunc1 = 1;
+
+do{
+	$TubeArea1 = pi/4*($TubeDiaGuess1**2);
+	$AvgVel1 = $FlowRate/$TubeArea1;
+	$FricCoeff1 = ($PressureDrop/(998*9.81) - 6.9*($AvgVel1**2)/(2*9.81) - 5000/(998*9.81))*(2*$TubeDiaGuess1*9.81/($Length*($AvgVel1**2)));
+	$ReNum1 = 998*$AvgVel1*$TubeDiaGuess1/0.001;
+	$Alpha1 = (0.0002/$TubeDiaGuess1)/3.7 + (2.51/$ReNum1)*($FricCoeff1**(-0.5));
+	$Func1 = ($FricCoeff1**(-0.5)) + 2*log10($Alpha1);
+
+	$TubeArea2 = pi/4*($TubeDiaGuess2**2);
+	$AvgVel2 = $FlowRate/$TubeArea2;
+	$FricCoeff2 = ($PressureDrop/(998*9.81) -6.9*($AvgVel2**2)/(2*9.81) - 5000/(998*9.81))*(2*$TubeDiaGuess2*9.81/($Length*($AvgVel2**2)));
+	$ReNum2 = 998*$AvgVel2*$TubeDiaGuess2/0.001;
+	$Alpha2 = (0.0002/$TubeDiaGuess2)/3.7 + (2.51/$ReNum2)*($FricCoeff2**(-0.5));
+	$Func2 = ($FricCoeff2**(-0.5)) + 2*log10($Alpha2);
+
+	if (abs($TubeDiaGuess2 - $TubeDiaGuess1) > 0){
+		$dFunc2 = ($Func2 - $Func1)/($TubeDiaGuess2 - $TubeDiaGuess1);
+	}
+	else{
+		$dFunc2 = $dFunc1;
+	}
+
+	$TubeDiaTmp = $TubeDiaGuess2 - $Func2/$dFunc2;
+
+	if ($TubeDiaTmp > 0.5*$TubeDiaGuess2){
+		$TubeDia = $TubeDiaGuess2 - $Func2/$dFunc2;
+	}
+	else{
+		$TubeDia = 0.5*$TubeDiaGuess2;
+	}
+
+	$err = abs($TubeDia - $TubeDiaGuess2);
+
+	$TubeDiaGuess1 = $TubeDiaGuess2;
+	$TubeDiaGuess2 = $TubeDia;
+	$dFunc1 = $dFunc2;
+
+}while($err >= 1/(10**6));
+
+$Ans = $TubeDia/0.0254;# [in]
+
+#set tolerance
+Context()->flags->set(
+tolerance=>.025,
+tolType=>'absolute');
+
+##############################################################
+#
+#  PGML 
+#
+#
+
+BEGIN_PGML
+
+An experimental setup contains [`[$Length]`] [`m`] of tubing with roughness [`0.0002`] [`m`] connecting a needle valve ([`K = 1.2`]), four [`90^{\circ}`] bends (each with [`K = 1.1`]), a flowmeter ([`K = 1.3`]), and a heatsink. It is desired that this system operate at a maximum flowrate of [`[$FlowRateTmp]`] [`L/min`] with water at [`20^{\circ}C`] as the working fluid. At this flowrate, the pressure drop across the heatsink is [`5`] [`kPa`]. The circulation pump that is available for the setup can deliver a total head of [`[$PressureDropTmp]`] [`kPa`] at this flowrate. In order to minimize costs, determine the smallest tube diameter that will allow for these operating conditions.
+
+[`D=`] [_____]{"$Ans"} [`in`]
+
+_Hint: The easiest way to solve this problem is to solve the nonlinear Colebrook equation (the equation plotted in the Moody chart) using a simple Newton's method algorithm implemented in Microsoft Excel. Alternatively, you may use the fsolve(Function,InitialGuess) function in MATLAB. Regardless of the method used, ensure that you arrive at a similar solution via manual iteration as practice for exams._
+
+END_PGML
+
+##############################################################
+
+ENDDOCUMENT();

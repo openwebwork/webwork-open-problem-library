@@ -16,9 +16,10 @@ DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
-  "Parser.pl",
+  "MathObjects.pl",
+  "parserPopUp.pl",
+  "PGgraphmacros.pl",
   "freemanMacros.pl",
-  "PGchoicemacros.pl",
   "PGcourse.pl"
 );
 
@@ -30,10 +31,6 @@ loadMacros(
 
 TEXT(beginproblem());
 
-@label_positive_negative = ("?", "Positive", "Negative");
-@label_increase_decrease = ("?", "Increasing", "Decreasing");
-@label_max_min = ("?", "Local Max", "Local Min", "Neither");
-
 ################# Setting up the problem goes here.
 ### Book
 #$a = 1;
@@ -42,52 +39,35 @@ TEXT(beginproblem());
 $a = non_zero_random(-10,10,1);
 $b = random(1,8,1);
 
-
-$realsmall = 0.0001;
-
 $f = Formula("$a/(x^2 + $b)");
 $fprime = $f->D('x')->reduce;
 
 
 $cp1 = Real(0);
 
+if ($a>0){
+  $max_min_ans = "Local maximum";
+  $left_inc_dec_ans = "increasing";
+  $left_pos_neg_ans = "positive";
+  $right_inc_dec_ans = "decreasing";
+  $right_pos_neg_ans = "negative";
+}
+else {
+  $max_min_ans = "Local minimum";
+  $left_inc_dec_ans = "decreasing";
+  $left_pos_neg_ans = "negative";
+  $right_inc_dec_ans = "increasing";
+  $right_pos_neg_ans = "positive";
+}
 
-$critical_points = $cp1;
+$max_min = PopUp(["?","Local maximum","Local minimum"],$max_min_ans);
+$left_inc_dec = PopUp(["?","increasing","decreasing"],$left_inc_dec_ans);
+$left_pos_neg = PopUp(["?","positive","negative"],$left_pos_neg_ans);
+$right_inc_dec = PopUp(["?","increasing","decreasing"],$right_inc_dec_ans);
+$right_pos_neg = PopUp(["?","positive","negative"],$right_pos_neg_ans);
 
 $int1 = Interval('(',-infinity, $cp1, ')');
 $int2 = Interval('(',$cp1, infinity, ')');
-
-# evaluate f' on each of the intervals to test for sign & for f increaseing/decreaseing
-$int1_fprime = Real(sgn($fprime->eval(x=>random($cp1-1,$cp1-$realsmall))));
-$int2_fprime = Real(sgn($fprime->eval(x=>non_zero_random($cp1+$realsmall,$cp1+1))));
-
-if($int1_fprime > 0){
-  $int1_sign = "Positive";
-  $int1_increase = "Increasing";
-}
-else{
-  $int1_sign = "Negative";
-  $int1_increase = "Decreasing";
-}
-
-if($int2_fprime > 0){
-  $int2_sign = "Positive";
-  $int2_increase = "Increasing";
-}
-else{
-  $int2_sign = "Negative";
-  $int2_increase = "Decreasing";
-}
-
-
-
-# find if f is a min/max
-if($int1_fprime > 0 && $int2_fprime < 0){
-	$cp1_max = "Local Max";
-}
-else{
-	$cp1_max = "Local Min";
-}
 
 Context()->texStrings;
 
@@ -95,19 +75,19 @@ BEGIN_TEXT
 \{ textbook_ref_exact("Rogawski ET 2e", "4.3","37") \}
 $PAR
 Find the critical point and the interval on which the given function is increasing or decreasing, and apply the First Derivative Test to the critical point.
-Let $BR \(f(x) = \{$f->reduce->TeX\} \)
+Let $BR \(f(x) = $f \)
 
 $PAR
 Critical Point = \{ans_rule()\}
 $PAR
-Is \(f\) a maximum or minumum at the critical point? \{pop_up_list([@label_max_min]) \}
+Is \(f\) a maximum or minumum at the critical point? \{$max_min->menu()\}
 
 $PAR
 The interval on the left of the critical point is \{ans_rule()\}. $BR
-On this interval, \(f\) is \{pop_up_list([@label_increase_decrease]) \} while \(f'\) is \{pop_up_list([@label_positive_negative]) \}.
+On this interval, \(f\) is \{$left_inc_dec->menu() \} while \(f'\) is \{ $left_pos_neg->menu() \}.
 $BR$BR
 The interval on the right of the critical point is \{ans_rule()\}. $BR
-On this interval, \(f\) is \{pop_up_list([@label_increase_decrease]) \} while \(f'\) is \{pop_up_list([@label_positive_negative]) \}.
+On this interval, \(f\) is \{ $right_inc_dec->menu() \} while \(f'\) is \{ $right_pos_neg->menu() \}.
 END_TEXT
 
 ######################## Answer starts here.
@@ -115,16 +95,22 @@ END_TEXT
 Context()->normalStrings;
 
 
-ANS($critical_points->cmp);
-ANS(str_cmp( $cp1_max )); 
+ANS($cp1->cmp);
+ANS($max_min->cmp()); 
 
 ANS($int1->cmp);
-ANS(str_cmp($int1_increase));
-ANS(str_cmp($int1_sign)); 
+ANS($left_inc_dec->cmp());
+ANS($left_pos_neg->cmp()); 
 
 ANS($int2->cmp);
-ANS(str_cmp($int2_increase));
-ANS(str_cmp($int2_sign)); 
+ANS($right_inc_dec->cmp());
+ANS($right_pos_neg->cmp()); 
+
+## solution
+
+$ht = abs($a/$b);
+$gr = init_graph(-5,-$ht,5,$ht, axes=>[0,0], grid=>[5,5],size=>[400,400]);
+add_functions($gr,"$a/(x**2+$b) for x in <-5,5> using color:blue and weight:2");
 
 Context()->texStrings;
 
@@ -132,20 +118,22 @@ SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR
 $SOL
 $PAR
-Let \(f(x)= \{ $f->reduce->TeX\}\). Then
-\[ f'(x)  =  \{ $fprime->reduce->TeX \} = 0 \]
-yields critical points \(c= \{$critical_points->TeX \}\).
+Let \(f(x)= $f\). 
+$PAR
+Then the equation 
+\( f'(x)  =  $fprime  = 0 \) 
+yields one critical point \(c= $cp1\).
+$PAR
+
+\{image(insertGraph($gr),width=>200, height=>200,tex_size=>800)\}
 
 $PAR
 
-\{ image("ex4337.png", width=>300, height=>200) \}$PAR
-
-
+$PAR
 It can be observed that the interval on the left of the critical point is \((\)\(-\)\(\infty\),\(0\)\()\).$PAR
-On this interval, \(f\) is increasing while \(f'\) is positive.$PAR
+On this interval, \(f\) is $left_inc_dec_ans while \(f'\) is $left_pos_neg_ans.$PAR
 The interval on the right of the critical point is \((0,\ \infty)\).$PAR
-On this interval, \(f\) is decreasing while \(f'\) is negative.
-
+On this interval, \(f\) is $right_inc_dec_ans while \(f'\) is $right_pos_neg_ans.
 
 
 END_SOLUTION
