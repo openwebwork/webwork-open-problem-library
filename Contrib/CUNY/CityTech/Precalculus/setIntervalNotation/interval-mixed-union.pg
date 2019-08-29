@@ -1,0 +1,266 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS()
+
+## DBsubject('Algebra')
+## DBchapter('Algebra of real numbers and simplifying expressions')
+## DBsection('Inequalities and intervals')
+## Date('6/29/2018')
+## Author('K. Andrew Parker')
+## Institution('City Tech')
+## TitleText1('Precalculus')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGgraphmacros.pl",
+   "PGML.pl",
+   "contextInequalities.pl",
+   "PGchoicemacros.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Interval");
+
+@range = (-8..8);
+
+%prob = ();
+@lint = ();
+@rint = ();
+@int = ();
+@simpint = ();
+
+foreach my $i (0..3) {
+    # choose 3 points from range, put them in ascending order
+    @slice = PGsort(sub {$_[0] < $_[1]}, NchooseK(17,3)); 
+    $prob{$i}{l} = $range[$slice[0]]; # left-most value
+    $prob{$i}{m} = $range[$slice[1]]; # middle value
+    $prob{$i}{r} = $range[$slice[2]]; # right-most value
+    # depending on which problem, these might not all be used...
+    $prob{$i}{le} = random(0,1,1); # left equality?
+    $prob{$i}{me} = random(0,1,1); # middle equality?
+    $prob{$i}{re} = random(0,1,1); # right equality?
+    # generate left interval
+}
+
+#a) (-inf,l} U {m,inf) - {r}
+$lint[0] = ($prob{0}{le}==1)?Interval("(-inf,$prob{0}{l}]"):Interval("(-inf,$prob{0}{l})");
+$rint[0] = ($prob{0}{me}==1)?Interval("[$prob{0}{m},$prob{0}{r})U($prob{0}{r},inf)") : Interval("($prob{0}{m},$prob{0}{r})U($prob{0}{r},inf)");
+$int[0] = Compute("$lint[0] U $rint[0]");
+$prob{0}{re} = 0; # this point is never included... (update hash)
+
+#simplified interval (w/o excluding r) for use in solutions
+$simpint[0] = ($prob{0}{me}==1)?Interval("$lint[0] U [$prob{0}{m},inf)") : Interval("$lint[0] U ($prob{0}{m},inf)");
+
+
+#b) (-inf,m} - {l} U {r,inf)
+$lint[1] = ($prob{1}{me}==1)?Interval("(-inf,$prob{1}{l})U($prob{1}{l},$prob{1}{m}]"):Interval("(-inf,$prob{1}{l})U($prob{1}{l},$prob{1}{m})");
+$rint[1] = ($prob{1}{re}==1)?Interval("[$prob{1}{r},inf)") : Interval("($prob{1}{r},inf)");
+$int[1] = Compute("$lint[1] U $rint[1]");
+$prob{1}{le} = 0; #this point is never included... (update hash)
+
+#c) {l,m} U {r,inf)
+if ($prob{2}{le} == 1) {
+    $lint[2] = ($prob{2}{me}==1) ? Interval("[$prob{2}{l},$prob{2}{m}]") : Interval("[$prob{2}{l},$prob{2}{m})");
+} else {
+    $lint[2] = ($prob{2}{me}==1) ? Interval("($prob{2}{l},$prob{2}{m}]") : Interval("($prob{2}{l},$prob{2}{m})");
+};
+$rint[2] = ($prob{2}{re}==1) ? Interval("[$prob{2}{r},inf)") : Interval("($prob{2}{r},inf)");
+$int[2] = Compute("$lint[2] U $rint[2]");
+
+#d) (-inf,l} U {m,r}
+$lint[3] = ($prob{3}{le}==1) ? Interval("(-inf,$prob{3}{l}]") : Interval("(-inf,$prob{3}{l})");
+if ($prob{3}{me} == 1) {
+    $rint[3] = ($prob{3}{re}==1) ? Interval("[$prob{3}{m},$prob{3}{r}]") : Interval("[$prob{3}{m},$prob{3}{r})");
+} else {
+    $rint[3] = ($prob{3}{re}==1) ? Interval("($prob{3}{m},$prob{3}{r}]") : Interval("($prob{3}{m},$prob{3}{r})");
+};
+$int[3] = Compute("$lint[3] U $rint[3]");
+
+
+
+
+Context("Inequalities");
+
+# Construct an inequality for each
+@ineq = ();
+@simpineq= ();
+foreach my $i (0..3) {
+    $ineq[$i] = Inequality($int[$i]);
+}
+$simpineq[0] = Inequality($simpint[0]);
+
+@solutions = ();
+
+$solutions[0] = 'First consider the simpler inequality expression "[` [$simpineq[0]] `]" i.e., where the point [`x = [$prob{0}{r}]`] is *not* excluded; this corresponds to simply the union of two intervals: [` [$simpint[0]] `]  
+
+    In order to exclude the number [`x = [$prob{0}{r}]`] from the solution, we split up the latter interval into two separate intervals:';
+
+Context("Numeric");
+
+# Create the graphs
+foreach my $i (0..4) {
+    $gr[$i] = init_graph(-9,-1,9,1, size=>[612,68]);
+    # x-axis
+    $gr[$i] -> moveTo(-9,0);
+    $gr[$i] -> lineTo(9,0,'black','1');
+    # x-axis ticks entered as y-value, color, list of x-values
+    $gr[$i] -> h_ticks(0,"black",-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8);
+    # labels for tickmarks
+    foreach my $j (0..8) {
+        $gr[$i]->lb( new Label($j,-0.5,$j, 'black','center','middle'));
+        $gr[$i]->lb( new Label(-$j,-0.5,-$j, 'black','center','middle'));
+    }
+}
+
+#do shading separately - each problem is a different pattern
+#a) (-inf,l} U {m,inf) - {r}
+    $gr[0] -> moveTo($prob{0}{l},0);
+    $gr[0] -> arrowTo(-9,0,'blue',3);
+    $gr[0] -> moveTo($prob{0}{m},0);
+    $gr[0] -> arrowTo(9,0,'blue',3);
+
+#b) (-inf,m} - {l} U {r,inf)
+    $gr[1] -> moveTo($prob{1}{m},0);
+    $gr[1] -> arrowTo(-9,0,'blue',3);
+    $gr[1] -> moveTo($prob{1}{r},0);
+    $gr[1] -> arrowTo(9,0,'blue',3);
+
+#c) {l,m} U {r,inf)
+    $gr[2] -> moveTo($prob{2}{l},0);
+    $gr[2] -> lineTo($prob{2}{m},0,'blue',3);
+    $gr[2] -> moveTo($prob{2}{r},0);
+    $gr[2] -> arrowTo(9,0,'blue',3);
+
+#d) (-inf,l} U {m,r}
+    $gr[3] -> moveTo($prob{3}{m},0);
+    $gr[3] -> lineTo($prob{3}{r},0,'blue',3);
+    $gr[3] -> moveTo($prob{3}{l},0);
+    $gr[3] -> arrowTo(-9,0,'blue',3);
+
+# separate loop for the stamps (this is why we "fixed" the hash values)
+foreach my $i (0..3) {
+    if ( $prob{$i}{le} == 1 ) {
+        $gr[$i] -> stamps( closed_circle($prob{$i}{l},0,'blue') );
+    } else {
+        $gr[$i] -> stamps( open_circle($prob{$i}{l},0,'blue') );
+    };
+    if ( $prob{$i}{me} == 1 ) {
+        $gr[$i] -> stamps( closed_circle($prob{$i}{m},0,'blue') );
+    } else {
+        $gr[$i] -> stamps( open_circle($prob{$i}{m},0,'blue') );
+    };
+    if ( $prob{$i}{re} == 1 ) {
+        $gr[$i] -> stamps( closed_circle($prob{$i}{r},0,'blue') );
+    } else {
+        $gr[$i] -> stamps( open_circle($prob{$i}{r},0,'blue') );
+    };
+}
+
+# graph for the example
+$gr[4] -> moveTo(-6,0);
+$gr[4] -> arrowTo(-9,0,'blue',3);
+$gr[4] -> moveTo(1,0);
+$gr[4] -> arrowTo(9,0,'blue',3);
+
+$gr[4] -> stamps( open_circle(-6,0,'blue') );
+$gr[4] -> stamps( closed_circle(1,0,'blue') );
+$gr[4] -> stamps( open_circle(3,0,'blue') );
+
+@perm = NchooseK(4,4);
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Consider the following set, which consists of the union of two intervals, but with the single point [`x=3`] excluded:
+
+>> [@ image(insertGraph($gr[4]),width=>612, height=>68, tex_size=>700) @]* <<
+
+As an interval expression, this is the set of all numbers [`x`] such that [` x < -6 `] or [` x \ge 1 `] *_and_* [` x \not=3 `].
+
+In order to express this set in interval notation, we express it as the union of 3 separate intervals:
+[` (-\infty, -6) \cup [1,3) \cup (3,\infty) `]
+
+Do you understand why this excludes the number 3 from the set? 
+
+Rewrite each of the following interval expressions in _interval notation_:
+
+* Type "inf" and "-inf" for [`\infty`] and [`-\infty`], respectively.
+* Type the capital letter "U" to represent the union symbol [`\cup`].
+
+
+a.
+>> [@ image(insertGraph($gr[ $perm[0]]),width=>612, height=>68, tex_size=>700) @]* <<
+
+>> as an inequality: [` [$ineq[$perm[0]]] `] <<  
+>> in interval notation: [____________________________]{$int[$perm[0]]} <<
+
+b.
+>> [@ image(insertGraph($gr[ $perm[1]]),width=>612, height=>68, tex_size=>700) @]* <<
+
+>> as an inequality: [` [$ineq[$perm[1]]] `] <<  
+>> in interval notation: [____________________________]{$int[$perm[1]]} <<
+
+c.
+>> [@ image(insertGraph($gr[ $perm[2]]),width=>612, height=>68, tex_size=>700) @]* <<
+
+>> as an inequality: [` [$ineq[$perm[2]]] `] <<  
+>> in interval notation: [____________________________]{$int[$perm[2]]} <<
+
+d.
+>> [@ image(insertGraph($gr[ $perm[3]]),width=>612, height=>68, tex_size=>700) @]* <<
+
+>> as an inequality: [` [$ineq[$perm[3]]] `] <<  
+>> in interval notation: [____________________________]{$int[$perm[3]]} <<
+
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+BEGIN_PGML_HINT
+
+* Think about each inequality: is [`x`] _larger_ or _smaller_ than the specified number?
+* Is the number _included_ in the range ([`\le`] or [`\ge`])? Or is it _excluded_ ([`<`] or [`>`])?
+*  The order matters. When you write an interval such as [`(a,b]`], the number on the left, [`a`], has to be always smaller than the number on the right, [`b`].  Likewise, [`-\infty`] always goes on the left, and [`\infty`] always goes on the right.
+
+END_PGML_HINT
+
+
+BEGIN_PGML_SOLUTION
+
+a. [$solutions[$perm[0]]]** [` [$int[$perm[0]]] `]  
+
+b. [$solutions[$perm[1]]]** [` [$int[$perm[1]]] `]  
+
+c. [$solutions[$perm[2]]]** [` [$int[$perm[2]]] `]  
+
+d. [$solutions[$perm[3]]]** [` [$int[$perm[3]]] `]  
+
+END_PGML_SOLUTION
+ENDDOCUMENT();        

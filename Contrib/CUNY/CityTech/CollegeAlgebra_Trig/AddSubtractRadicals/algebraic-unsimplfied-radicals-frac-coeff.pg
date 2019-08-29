@@ -1,0 +1,202 @@
+##DESCRIPTION
+##  Algebra problem: Simplify and then add or subtract expressions involving radicals
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra', 'radical', 'radicals', 'radical expression')
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Level(2)
+## Author(K. Andrew Parker)
+## Institution(CUNY City Tech)
+## Language(en)
+
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextLimitedPowers.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+    ###########################
+    #
+    #  Subclass the numeric functions
+    #
+    package my::Function::numeric;
+    our @ISA = ('Parser::Function::numeric');
+
+    #
+    #  Override sqrt() to return a special value (usually 1) when evaluated
+    #  effectively eliminating it from the product.
+    #
+    sub sqrt {
+      my $self = shift;
+      my $value = $self->context->flag("setSqrt");
+      return $value+1 if $value && $_[0] == 1;  # force sqrt(1) to be incorrect
+      return $value if $value;
+      return $self->SUPER::sqrt(@_);
+    }
+
+    #
+    #  end of subclass
+    #
+    package main;
+
+    ###########################
+
+    Context("Numeric")->variables->are(
+      a => ["Real", limits => [0,2]],
+      b => ["Real", limits => [0,2]],
+    );
+
+Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0);
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+LimitedPowers::OnlyPositiveIntegers();
+Parser::Number::NoDecimals();
+
+$rad = list_random(2,3,5,6);
+
+$c1 = random(2,6,1);
+do { $c2 = random(2,6,1); } until ( $c1 != $c2 );
+do { $c3 = random(2,6,1); } until ( $c1 != $c3 && $c2 != $c3 && $c1+$c2 != $c3 );
+
+$n1 = $c1 + 1;
+$n2 = $c2 - 1;
+
+$c = $c1 + $c2 - $c3; # n1 + n2 - c3 : but the +1 and -1 will cancel
+
+$rad1 = $rad*$c1**2;
+$rad2 = $rad*$c2**2;
+$rad3 = $rad*$c3**2;
+
+$problem = Formula("($n1/$c1) a b sqrt( $rad1 a^3 ) + ($n2/$c2) sqrt( $rad2 a^5 b^2) - a^2 b sqrt($rad3 a)");
+
+$ans = Formula("$c a^2 b sqrt( $rad a )");
+
+### For solutions
+$c12 = $c1**2;
+$c22 = $c2**2;
+$c32 = $c3**2;
+$cOut1 = $n1;
+$cOut2 = $n2;
+$cOut3 = $c3;
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Add or subtract the radical expression, if possible. 
+$BR Do not use rational exponents in your answer.
+$PAR
+\[ \large{ $problem } \]
+$BR
+\{ans_rule(10)\}
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($ans->cmp(checker => sub {
+      my ($correct,$student,$ans) = @_;
+      return 0 if $ans->{isPreview} || $correct != $student;
+      Context()->flags->set(setSqrt => 1);
+      delete $correct->{test_values}, $student->{test_values};
+      my $OK = ($correct == $student); # check if equal when sqrt's are replaced by 1
+      Context()->flags->set(setSqrt => 0);
+      Value::Error("You must simplify your answer further") unless $OK;
+      return $OK;
+})->withPostFilter(sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "Use 'sqrt(...)' instead of rational exponents." 
+    if $ans->{ans_message} eq "Powers must be positive integer constants";
+  return $ans; 
+}));
+
+Context()->texStrings;
+BEGIN_HINT
+
+Try simplifying each radical separately.
+$PAR
+You might find that they have a common factor after all!
+
+END_HINT
+BEGIN_SOLUTION
+
+$BBOLD First, reduce \( \sqrt{$rad1 a^3} \): $EBOLD $BR
+We'll set aside the \( \frac{$n1}{$c1} a b \) while we simplify the radical. $BR
+\( \displaystyle \sqrt{$rad1 a^3} = \sqrt{$c12 \cdot $rad \cdot a^2 \cdot a} \)
+$BR
+\( \displaystyle \sqrt{$c12 \cdot $rad \cdot a^2 \cdot a} = \sqrt{$c12} \cdot \sqrt{$rad} \cdot \sqrt{a^2} \cdot \sqrt{a} \)
+$BR
+\( \displaystyle \sqrt{$c12} \cdot \sqrt{$rad} \cdot \sqrt{a^2} \cdot \sqrt{a} = $c1 \cdot \sqrt{$rad} \cdot a \cdot \sqrt{a} = $c1 a \sqrt{$rad a} \)
+$PAR
+Now bring back \( \frac{$n1}{$c1} a b \) and combine it with our simplified radical:
+$BR
+\( \displaystyle \frac{$n1}{$c1} a b \sqrt{ $rad1 a^3 } = \left( \frac{$n1}{$c1} a b\right) \left($c1 a \sqrt{$rad a}\right) = $n1 a^2 b \sqrt{$rad a} \)
+$PAR
+$BBOLD Then reduce \( \sqrt{$rad2 a^5 b^2} \): $EBOLD $BR
+Just like the previous term, we set aside \( \frac{$n2}{$c2} \) while we simplify the radical. $BR
+\( \displaystyle \sqrt{$rad2 a^5 b^2} = \sqrt{$c22 \cdot $rad \cdot a^4 \cdot a \cdot b^2} \)
+$BR
+\( \displaystyle \sqrt{$c22 \cdot $rad \cdot a^4 \cdot a \cdot b^2} = \sqrt{$c22} \cdot \sqrt{$rad} \cdot \sqrt{a^4} \cdot \sqrt{a} \cdot \sqrt{b^2} \)
+$BR
+\( \displaystyle \sqrt{$c22} \cdot \sqrt{$rad} \cdot \sqrt{a^4} \cdot \sqrt{a} \cdot \sqrt{b^2} = $c2 \cdot \sqrt{$rad} \cdot a^2 \cdot \sqrt{a} \cdot b = $c2 a^2 b \sqrt{$rad a} \)
+$PAR
+Now bring back \( \frac{$n2}{$c2} \) and combine it with our simplified radical:
+$BR
+\( \displaystyle \frac{$n2}{$c2} \sqrt{ $rad2 a^5 b^2} = \left( \frac{$n2}{$c2}\right) \left($c2 a^2 b \sqrt{$rad a}\right) = $n2 a^2 b \sqrt{$rad a} \)
+$PAR
+$BBOLD Finally, reduce \( \sqrt{$rad3 a} \): $EBOLD $BR
+Once again, we set \( a^2 b \) aside while we simplify the radical. $BR
+\( \displaystyle \sqrt{$rad3 a} = \sqrt{$c32 \cdot $rad \cdot a} \)
+$BR
+\( \displaystyle \sqrt{$c32 \cdot $rad \cdot a} = \sqrt{$c32} \cdot \sqrt{$rad} \cdot \sqrt{a} \)
+$BR
+\( \displaystyle \sqrt{$c32} \cdot \sqrt{$rad} \cdot \sqrt{a} = $c3 \sqrt{$rad a} \)
+$PAR
+Now bring back \( a^2 b \) and combine it with our simplified radical:
+$BR
+\( \displaystyle a^2 b \sqrt{$rad3 a} = \left( a^2 b\right) \left($c3 \sqrt{$rad a}\right) = $c3 a^2 b \sqrt{$rad a} \)
+$PAR
+$BBOLD Now return to the original problem with our simplified radicals: $EBOLD $BR
+\( \displaystyle $problem = $cOut1 a^2 b \sqrt{$rad a} + $cOut2 a^2 b \sqrt{$rad a} - $cOut3 a^2 b \sqrt{$rad a} \)
+$PAR
+Factor out the \( a^2 b \sqrt{$rad a} \): $BR
+\( \displaystyle $cOut1 a^2 b \sqrt{$rad a} + $cOut2 a^2 b \sqrt{$rad a} - $cOut3 a^2 b \sqrt{$rad a} = a^2 b \sqrt{$rad a} \left( $cOut1 + $cOut2 - $cOut3\right) \)
+$PAR
+Combine the constant terms: $BR
+\( \displaystyle a^2 b \sqrt{$rad a} \left( $cOut1 + $cOut2 - $cOut3 \right) = a^2 b \sqrt{$rad a}\left($c\right) = $ans \)
+$BR
+
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        
