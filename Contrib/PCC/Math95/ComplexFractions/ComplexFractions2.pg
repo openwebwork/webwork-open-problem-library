@@ -13,6 +13,7 @@ loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
   "contextRationalFunction.pl",
+  "bizarroArithmetic.pl",
   "PCCmacros.pl",
   "PGML.pl",
   
@@ -38,8 +39,32 @@ $as = $a/gcd($a,$b);
 $bs = $b/gcd($a,$b);
 
 Context("RationalFunction");
+Context()->operators->set(
+'*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+);
+
+
 Context()->variables->are($var[0]=>'Real',$var[1]=>'Real',$var[2]=>'Real');
 $ans = Formula("($bs*$var[1]^3)/$as")->reduce;
+
+$evaluator = $ans -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0);
+      Value::Error("Your answer is equivalent to the correct answer, but not in the expected form.
+                    Maybe it needs to be simplified, factored, expanded, have its denominator rationalized, etc.") unless $OK;
+      return $OK;
+});
 
 ##############################################
 
@@ -48,7 +73,7 @@ BEGIN_PGML
 
 Simplify this expression. [@KeyboardInstructions('Just enter the simplified expression. Do not try to enter its restricted domain.')@]**
 
-[``\frac{[$num]}{[$den]}=``][__]{$ans}{width=>40}
+[``\frac{[$num]}{[$den]}=``][__]{$evaluator}{width=>40}
 
 END_PGML
 

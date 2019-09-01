@@ -29,11 +29,12 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "parserAssignment.pl",
-  "answerHints.pl",
   "PGML.pl",
-  "contextLimitedRadical.pl",
+  "AnswerFormatHelp.pl",
+  "contextFiniteSolutionSets.pl",
    "PCCmacros.pl",
+  "PGgraphmacros.pl",
+  "PCCgraphMacros.pl",
   "PGcourse.pl",
 );
 
@@ -41,48 +42,71 @@ loadMacros(
 
 Context("Numeric");
 Context()->noreduce('(-x)-y','(-x)+y');
-Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0, formatStudentAnswer=>parsed);
 $var = RandomVariableName(type=>'variable');
 Context()->variables->are($var=>'Real');
-
-parser::Assignment->Allow;
-
-Context()->operators->redefine(',',using=>',',from=>'Numeric');
-    Context()->operators->redefine('and',using=>',',from=>'Numeric');
-    Context()->operators->set(
-      ','=>{string=>' and ',TeX=>'\hbox{ and }'},
-      'or'=>{string=>' and ',TeX=>'\hbox{ and }'}
-    );
-    Context()->lists->set(List => {separator => " and "});
-
-# add solution strings to context- this means that if
-# students enter these (and they are not correct), then 
-# WW will not give a Context warning
-Context()->strings->add("no real solutions"=>{},
-  "no real solution"=>{alias=>'no real solutions'}, 
-  "none"=>{alias=>'no real solutions'}, 
-  "no solution"=>{alias=>'no real solutions'}, 
-  "no solutions"=>{alias=>'no real solutions'}, 
-  );
 
 do {
    do {
       $a = non_zero_random(-5,5,0.1);
       $b = non_zero_random(-20,20,0.1);
       $c = non_zero_random(-20,20,1);
-      $e = non_zero_random(-7,7,1);
+      $e = random(30,50,0.1)*random(-1,1,2);
       $C = $c-$e;
       $d = ($b)**2-4*$a*$C;
    } until ( ($d>0) );
    $x0 = (-$b+sqrt($d))/(2*$a);
    $x1 = (-$b-sqrt($d))/(2*$a);
    $func = Compute("$a*$var**2+$b*$var+$c")->reduce;
-} until ( ($x0>-10) && ($x1>-10) && ($x0<10) && ($x1<10) );
+} until ( abs($x0-$x1)>20);
+$vertexX = -$b/(2*$a);
+$vertexY = $func->eval($var=>$vertexX);
+$y0 = $e;
+$y1 = $e;
 
-$ans = Formula("$var=$x0,$var=$x1");
+$x0Show = Round($x0,3);
+$x1Show = Round($x1,3);
 
-$x0Show = int($x0*100+0.5*($x0>0?1:-1))/100;
-$x1Show = int($x1*100+0.5*($x1>0?1:-1))/100;
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$x0,$x1,0,$vertexX],[$vertexY,$e,0]);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+  $gr = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+
+  $gr->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (Real($j) == 0) {next;}
+    $gr->lb( new Label(-$marksep[0]/8, $j, $j,'black','right','middle'));
+  }
+  
+   add_functions($gr, "$func for $var in <$min[0],$max[0]> using color:blue and weight:2");
+   add_functions($gr, "$e for $var in <$min[0],$max[0]> using color:blue and weight:2");
+  $lor0 = $x0<$x1 ? 'left' : 'right';
+  $lor1 = $x1<$x0 ? 'left' : 'right';
+  $gr->stamps( closed_circle($x0,$y0,'red') );
+  $gr->lb( new Label($x0,$y0,"($x0Show,$y0)", 'red',$lor0,'bottom','small'));
+  $gr->stamps( closed_circle($x1,$y1,'red') );
+  $gr->lb( new Label($x1,$y1,"($x1Show,$y1)", 'red',$lor1,'top','small'));
+  $alt = "This is the graphs of f($var)=$func and g($var)=$e. They intersect at ($x0Show,$y0) and ($x1Show,$y1). Those two points are marked and labeled.";
+
+
+Context("FiniteSolutionSets");
+Context()->flags->remove("NumberCheck");
+Context()->variables->are($var=>'Real');
+Context()->flags->set(
+  tolerance => 0.01,
+  tolType => "absolute",
+);
+$ans = Formula("{$x0,$x1}");
 
 ##############################################
 TEXT(beginproblem());
@@ -106,17 +130,21 @@ BEGIN_PGML_SOLUTION
 
 We will use desmos.com to solve this equation.
 
+>>[@ image(insertGraph($gr), tex_size=>400, height=>400, width=>400,
+extra_html_tags=>"alt= '$alt' title= '$alt'"
+) @]*<<
+
 Step 1: Go to desmos.com, click on Start Graphing.
 
-Step 2: In the first textbox, enter [` f(x)=[$func] `].
+Step 2: In the first textbox, enter [` f([$var])=[$func] `].
 
 Step 3: In the second textbox, enter [` y=[$e] `].
 
-Step 4: Zoom out on the window, if needed, until you can see the intersections of [`f(x)`] and [`y`]. Alternatively, click on the Graph Settings icon (looking like a tool) and define the ranges of [`x`]-axis and [`y`]-axis.
+Step 4: Zoom out on the window, if needed, until you can see the intersections of [`f([$var])`] and [`y`]. Alternatively, click on the Graph Settings icon (looking like a tool) and define the ranges of [`x`]-axis and [`y`]-axis. In case you need help, set the [`x`] range to [`[$min[0]],[$max[0]]`] and [`y`] range to [`[$min[1]],[$max[1]]`].
 
 Step 5: Click on the intersections, and desmos shows the solution [`([$x0Show],[$e])`] and [`([$x1Show],[$e])`].
 
-    The system equation's solutions are [`[$var]=[$x0Show]`] and [`[$var]=[$x1Show]`].
+The equation's solutions are [`[$ans]`].
 
 END_PGML_SOLUTION
 

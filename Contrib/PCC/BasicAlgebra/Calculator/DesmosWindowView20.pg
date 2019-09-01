@@ -1,0 +1,219 @@
+#######################################
+###    Generated from PreTeXt source   
+###    on 2018-08-20T01:24:29-07:00    
+###                                    
+###   http://mathbook.pugetsound.edu   
+###                                    
+#######################################
+## DBsubject()
+## DBchapter()
+## DBsection()
+## Level()
+## KEYWORDS()
+## TitleText1()
+## EditionText1()
+## AuthorText1()
+## Section1(not reported)
+## Problem1(10.3.11)
+## Author()
+## Institution()
+## Language(en-US)
+
+DOCUMENT();
+
+############################################################
+# Load Macros
+############################################################
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "AnswerFormatHelp.pl",
+  "PCCmacros.pl",
+  "parserMultiAnswer.pl",
+  "PGgraphmacros.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+);
+
+############################################################
+# Header
+############################################################
+COMMENT('Authored in PreTeXt');
+TEXT(beginproblem());
+
+############################################################
+# PG Setup
+############################################################
+Context("Interval");
+Context()->noreduce('(-x)-y','(-x)+y');
+do {
+  do {
+    $a = random(0.001,0.005,0.0001)*random(-1,1,2);
+    $b = random(10,50,1)*random(-1,1,2);
+    $c = random(1000,5000,1)*random(-1,1,2);
+    $d = ($b)**2-4*$a*$c;
+  } until ($d > 0);
+  $xInt1 = Round((-$b-sqrt($d))/(2*$a),3);
+  $xInt2 = Round((-$b+sqrt($d))/(2*$a),3);
+} until ($xInt2-$xInt1)>10000;
+$func = Formula("$a x^2 + $b x + $c")->reduce;
+$vertexX = Round(-$b/(2*$a),3);
+$vertexY = Round($func->eval(x=>$vertexX),3);
+#important values to appear in plot
+@keypoints = (Point(0,$c), Point($vertexX,$vertexY), Point($xInt1,0), Point($xInt2,0) );
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$xInt1,$xInt2,100,-100],[$c,$vertexY,0]);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+  $gr = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (Real($j) == 0) {next;}
+    $gr->lb( new Label(-$marksep[0]/8, $j, $j,'black','right','middle'));
+  }
+
+add_functions($gr, "$func for x in <$min[0],$max[0]> using color:red and weight:1");
+
+
+$gr->stamps( closed_circle($xInt1,0,'blue') );
+$gr->lb( new Label($xInt1,0,"($xInt1,0)", 'blue','center','bottom'));
+$gr->stamps( closed_circle($xInt2,0,'blue') );
+$gr->lb( new Label($xInt2,0,"($xInt2,0)", 'blue','center','bottom'));
+$gr->stamps( closed_circle(0,$c,'blue') );
+$gr->stamps( closed_circle($vertexX,$vertexY,'blue') );
+$TB = ($a>0) ? 'top' : 'bottom';
+$gr->lb( new Label($vertexX,$vertexY,"($vertexX,$vertexY)", 'blue','center',$TB));
+
+$alt = "This is the graph of f(x)=$func, with critical points ($xInt1,0), ($xInt2,0), (0,$c) and ($vertexX,$vertexY) marked and labeled.";
+
+@x;
+@y;
+for my $keypoint (@keypoints) {
+  push(@x, ($keypoint->value)[0]);
+  push(@y, ($keypoint->value)[1]);
+};
+
+$x = Interval("[$min[0],$max[0]]");
+$y = Interval("[$min[1],$max[1]]");
+$multians = MultiAnswer($x, $y)->with(
+  singleResult => 1,
+  checker => sub {
+    my ($correct, $student, $self) = @_;
+    my ($xstu, $ystu) = @{$student};
+    my ($xcor, $ycor) = @{$correct};
+    my ($xmin,$xmax) = $xstu->value;
+    my ($ymin,$ymax) = $ystu->value;
+    #check end points are not infinite
+    if ($xmin->type eq 'Infinity' or $xmax->type eq 'Infinity' or $ymin->type eq 'Infinity' or $ymax->type eq 'Infinity')
+      {Value::Error("The dimensions of a viewing window cannot be infinite.");}
+    my @errors;
+    #Check important points are all present;
+    for my $keypoint (@keypoints) {
+      if (!$xstu->contains(($keypoint->value)[0]) or !$ystu->contains(($keypoint->value)[1]) ) {
+        push(@errors,"Your viewing window does not contain the important point $keypoint.");
+      }
+    }
+    #Check important points are not right on the boundary;
+    my %xbounds = map { $_ => 1 } ($xmin,$xmax);
+    my %ybounds = map { $_ => 1 } ($ymin,$ymax);
+    for my $keypoint (@keypoints) {
+      if (exists($xbounds{($keypoint->value)[0]}) or exists($ybounds{($keypoint->value)[1]})) {
+        push(@errors,"The important point $keypoint is on the border of your viewing window.");
+      }
+    }
+    if (@errors) {
+      Value::Error(join("$BR",@errors));
+    }
+    #At this point, if for each of the four edges, some key point is within 20% of that edge,
+    #call it good. This may leave other key points appearing very close together.
+    my $xstudiameter = $xmax - $xmin;
+    my $ystudiameter = $ymax - $ymin;
+    my ($rightOK, $topOK, $leftOK, $bottomOK) = (0,0,0,0);
+    for my $keypoint (@keypoints) {
+      if (Interval($xmax-0.2*$xstudiameter,$xmax)->contains(($keypoint->value)[0])) {
+        $rightOK = 1;
+      }
+      if (Interval($ymax-0.2*$ystudiameter,$ymax)->contains(($keypoint->value)[1])) {
+        $topOK = 1;
+      }
+      if (Interval($xmin,$xmin+0.2*$xstudiameter)->contains(($keypoint->value)[0])) {
+        $leftOK = 1;
+      }
+      if (Interval($ymin,$ymin+0.2*$ystudiameter)->contains(($keypoint->value)[1])) {
+        $bottomOK = 1;
+      }
+    }
+    if ($rightOK and $topOK and $leftOK and $bottomOK)
+      {return 1};
+    #Check important points are not visually too close together;
+    #For a 160x100-pixel TI-89, we ask for at least two pixels of separation
+    #using the taxicab metric
+    for my $keypoint1 (@keypoints) {
+      for my $keypoint2 (@keypoints) {
+        if ($keypoint1 != $keypoint2 and abs((($keypoint1->value)[0]-($keypoint2->value)[0])/($xmax - $xmin))*160 + abs((($keypoint1->value)[1]-($keypoint2->value)[1])/($ymax - $ymin))*100 < 2) {
+          Value::Error("Your viewing window makes the important points $keypoint1 and $keypoint2 appear too close together.");
+        }
+      }
+    }
+    #Check that the plot doesn't have the appearance of vertical lines;
+    #For a 160-pixel wide TI-89, we ask for at least four pixels of separation
+
+    if ($a > 0) {
+      @xentry = ((-$b-sqrt($b**2 - 4*$a*($c-$ymax)))/(2*$a), (-$b+sqrt($b**2 - 4*$a*($c-$ymax)))/(2*$a));
+    }
+    else {
+      @xentry = ((-$b-sqrt($b**2 - 4*$a*($c-$ymin)))/(2*$a), (-$b+sqrt($b**2 - 4*$a*($c-$ymin)))/(2*$a));
+    }
+    for my $xval1 (@xentry) {
+      for my $xval2 (@xentry) {
+        if ($xval1 != $xval2 and abs(($xval1 - $xval2)/($xmax - $xmin)) < 3/160) {
+          Value::Error('Your settings make it appear like a vertical or almost vertical line is part of the plot');
+        }
+      }
+    }
+    return 1;
+  }
+);
+
+############################################################
+# Body
+############################################################
+
+BEGIN_PGML
+Let [`f(x)=[$func]\text{.}`] Choose an appropriate window for graphing [`f`] that shows its key features.
+
+[@KeyboardInstructions(q?Use interval notation. Many answers are possible.?)@]**
+
+The [`x`]-interval could be [__]{$multians}{width => 20} and the [`y`]-interval could be [__]{$multians}{width => 20}.
+
+END_PGML
+
+############################################################
+# End Problem
+############################################################
+
+BEGIN_PGML_SOLUTION
+
+Go to desmos.com, click on Starting Graphing, enter the function [`f(x)=[$func]`] into the first text box.
+
+Continue to zoom out until you can see the parabola's two [`x`]-intercepts, [`y`]-intercept and vertex. Those are the function's critical points. You can further adjust your window to get a closer and better view of those points.
+
+In case you are stuck, you could click on the wrench icon on the top right (Graph Settings) and set the range for [`x`] to [`[$min[0]],[$max[0]]`] and the range for [`y`] to [`[$min[1]],[$max[1]]`]. You should see a graph similar to this:
+
+>>[@ image( insertGraph($gr), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$alt' title = '$alt'"  )@]*<<
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
