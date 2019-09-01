@@ -1,0 +1,128 @@
+##DESCRIPTION
+##  3x3 Eigenvalue/Eigenvector computation with 2-d eigenspace 
+##ENDDESCRIPTION
+
+## DBsubject('Linear Algebra')
+## DBchapter('Eigenvalues and eigenvectors')
+## DBsection('Computing eigenvalues and eigenvectors')
+## Date('5/2/2018')
+## Author('K. Andrew Parker')
+## Institution('New York City College of Technology')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "parserMultiAnswer.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Vector");
+
+# orthogonal basis for 2-d vector space associated to the repeated eigenvalue
+do {
+    $v = Vector(random(-2,2,1),random(-2,2,1),random(-2,2,1));
+    $w = Vector(random(-2,2,1),random(-2,2,1),random(-2,2,1));
+} until ( $v . $u == 0 );
+
+# expand to a basis for R^3
+# prevent the determinant from ballooning
+do {
+    $u = Vector(random(-2,2,1),random(-2,2,1),random(-2,2,1));
+    $S = Matrix($u,$v,$w)->transpose;
+    $detS = $S->det;
+} until ($detS != 0 && abs($detS) <= 6);
+
+# generate eigenvalues that are equivalent modulo determinant of S
+# this will ensure an integer-valued matrix for the problem
+# cap the repeated eigenvalue to ensure reasonable characteristic polynomial
+$lambda2 = non_zero_random(-3,3,1);
+do { $lambda1 = non_zero_random(-2*$detS+$lambda2,6,$detS); } until ($lambda1 != $lambda2 && abs($lambda1) <= 6);
+$lambda3 = $lambda2;
+
+# compute the matrix to be solved
+$SInv = $S->inverse;
+$M = $S * Matrix([$lambda1,0,0],[0,$lambda2,0],[0,0,$lambda3]) * $SInv;
+
+# this should probably be re-written as a multiAns question
+# since eigenvalues and eigenvectors ought to be paired
+# and because the eigenspace is 2-d, a custom answer checker needs to be used
+# check that M has the desired effect, and the two solutions provided
+# by the student are orthogonal or normal depending on how strict you want it
+$values = List($lambda1, $lambda2, $lambda3);
+$vectors = List($u, $v, $w);
+
+$multians = MultiAnswer($lambda1, $u, $lambda2, $v, $lambda3, $w)->with(
+    singleResult => 1,
+    checker => sub {
+        my ( $correct, $student, $ans ) = @_;
+        my ( $sVal1, $sVec1, $sVal2, $sVec2, $sVal3, $sVec3 ) = @{$student};
+        my ( $cVal1, $cVec1, $cVal2, $cVec2, $cVal3, $cVec3 ) = @{$correct};
+        return 0 if $ans->{isPreview};
+        # First check for the correct list of eigenvalues
+        Value::Error("At least one of your eigenvalues is incorrect") if ( List($sVal1, $sVal2, $sVal3) != List($cVal1, $cVal2, $cVal3) );
+        # Then confirm eigenvector times M is the appropriate multiple.
+        Value::Error("Your first eigenvector is incorrect.") if ( Vector($M*$sVec1) != Vector($sVal1*$sVec1) );
+        Value::Error("Your second eigenvector is incorrect.") if ( Vector($M*$sVec2) != Vector($sVal2*$sVec2) );
+        Value::Error("Your third eigenvector is incorrect.") if ( Vector($M*$sVec3) != Vector($sVal3*$sVec3) );
+        # optionally, confirm that 2-d eigenspace has orthogonal basis
+        # otherwise, use `!($sVec1->isParallel($sVec2))`
+        Value::Error("You don't have an orthogonal basis for \(\lambda = $sVal1\)") if ($sVal1 == $sVal2 && $sVec1 . $sVec2 != 0);
+        Value::Error("You don't have an orthogonal basis for \(\lambda = $sVal1\)") if ($sVal1 == $sVal3 && $sVec1 . $sVec3 != 0);
+        Value::Error("You don't have an orthogonal basis for \(\lambda = $sVal2\)") if ($sVal2 == $sVal3 && $sVec2 . $sVec3 != 0);
+        # optionally, confirm that all eigenvectors are unit vectors
+        Value::Error("Your first eigenvector is not a unit vector.") unless ( norm($sVec1) == 1 );
+        Value::Error("Your second eigenvector is not a unit vector.") unless ( norm($sVec2) == 1 );
+        Value::Error("Your third eigenvector is not a unit vector.") unless ( norm($sVec3) == 1 );
+        return 1;
+    }
+);
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Find the eigenvalues and eigenvectors for \( $M \):
+$BR
+$PAR
+First eigenvalue: \{$multians->ans_rule\} and its eigenvector: \{$multians->ans_rule\}
+$BR
+Second eigenvalue: \{$multians->ans_rule\} and its eigenvector: \{$multians->ans_rule\}
+$BR
+Third eigenvalue: \{$multians->ans_rule\} and its eigenvector: \{$multians->ans_rule\}
+$BR
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($multians->cmp);
+#ANS($values->cmp);
+#ANS($vectors->cmp);
+
+ENDDOCUMENT();        

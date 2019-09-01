@@ -25,9 +25,9 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "MatrixReduce.pl",
   "contextFraction.pl",
   "parserPopUp.pl",
-  "parserMultiAnswer.pl",
   "PGcourse.pl"
 );
 
@@ -35,115 +35,44 @@ TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
 
-###########################################################################
-# setup contexts and variables 
-###########################################################################
-sub dispMat {
-  my $A = shift;
-  my @d = $A->dimensions;
-  my @a = ();
-  my $dA = "\left[\begin{array}{";
-  for (my $i = 0; $i < $d[1]; $i++) {
-    $dA = $dA."r";
+Context("Fraction");
+Context()->parens->set("[" => {formMatrix => 1});
+Context()->variables->add(s=>"Real"); 
+
+# check to see if fraction represents an integer
+
+sub isInteger {
+  my $x = shift();
+  $x = Real($x);
+  if ( abs($x - round($x)) < 10**(-6) ){
+    return 1; 
   }
-  $dA = $dA."}";
-  for (my $i = 0; $i < $d[0]; $i++) {
-    for (my $j = 0; $j < $d[1]; $j++) {
-      $a[$i][$j] = $A->element($i+1,$j+1);
-      if ($j != $d[1] - 1) {
-        $dA = $dA." $a[$i][$j] & ";
-      } elsif ($j == $d[1] - 1 && $i != $d[0] -1) {
-        $dA = $dA." $a[$i][$j] \\";
-      } else {
-        $dA = $dA." $a[$i][$j]";
-      }
-    }
-  }
-  $dA = $dA."\end{array}\right]";
-  return ($dA, @a);
+  else { return 0;}
 }
 
-sub rref_frac {
-  my $m = shift(); # dimensions of matrix
-  my $n = shift();
-  my (@mat) = @_; 
-  my $failed = 0;
-  for (my $i = 0; $i < $m; $i++) {
-    for ($j = 0; $j < $n; $j++) {
-      $mat[$i][$j] = Fraction($mat[$i][$j]);
-    }
-  }
-  
-  my $lead = 0;
-  while ($lead <= $m) {
-    for (my $i = $lead; $i < $m; $i++) {
-      my $tmp = $mat[$i][$lead]; 
-      if ($tmp == 0) {
-        $failed = 1; $i = $m; $lead = $m;
-      } else {
-        for (my $j = $lead; $j < $n; $j++) {
-          $mat[$i][$j] = Fraction($mat[$i][$j]/$tmp);
-        }
-      }
-    }
-    
-    for (my $i = $lead+1; $i < $m; $i++) {
-      for (my $j = $lead; $j < $n; $j++) {
-        $mat[$i][$j] = Fraction($mat[$i][$j] - $mat[$lead][$j]);
-      }
-    }
-    $lead++;
-  }
-  if ($failed == 0) {
-    $lead = 0;
-    do {
-      for (my $i = $lead; $i < $m-1; $i++) {
-        for (my $j = $lead + 1; $j < $m; $j++) {
-          my $tmp = Fraction($mat[$i][$j]);
-          for (my $k = $j; $k < $n; $k++) {
-             $mat[$i][$k] = Fraction($mat[$i][$k] - $tmp*$mat[$j][$k]);
-          }
-        }
-        $lead = $lead + 1;
-      }
-    } until ($lead == $m-1);
-  }
-  return ($failed,@mat);
-}
-
-Context()->texStrings;
 do {
-  $A = Matrix([random(-1,1,2)*random(6,10), random(-1,1,2)*random(1,4), 0, random(-1,1,2)*random(2,4),random(-1,1,2)*random(6,10)], [random(-1,1,2)*random(6,10), random(-1,1,2)*random(1,4), 5, random(-1,1,2)*random(2,4),random(-1,1,2)*random(6,10)], [random(-1,1,2)*random(6,10), random(-1,1,2)*random(1,4), 7, random(-1,1,2)*random(2,4),random(-1,1,2)*random(6,10)]);
-  Context("Fraction")->texStrings;
-  ($dA, @a) = dispMat($A);
+  $A = Matrix([
+    [random(-1,1,2)*random(6,10), random(-1,1,2)*random(1,4), 0, random(-1,1,2)*random(2,4), random(-1,1,2)*random(6,10)], 
+    [random(-1,1,2)*random(6,10), random(-1,1,2)*random(1,4), 5, random(-1,1,2)*random(2,4), random(-1,1,2)*random(6,10)], 
+    [random(-1,1,2)*random(6,10), random(-1,1,2)*random(1,4), 7, random(-1,1,2)*random(2,4), random(-1,1,2)*random(6,10)]
+  ]);
+  $A = apply_fraction_to_matrix_entries($A);
+  $Ared = rref($A);
 
-  ($failed,@a) = rref_frac(3,5,@a);
-  ($s1,$s2,$s3) = ($a[0][3]->eval(), $a[1][3]->eval(), $a[2][3]->eval());
-  ($t1,$t2,$t3) = ($a[0][4]->eval(), $a[1][4]->eval(), $a[2][4]->eval());
-} until ($s1 != floor($s1) && $s2 != floor($s2) && $s3 != floor($s3) && $t1 != floor($t1) && $t2 != floor($t2) && $t3 != floor($t3) && !$failed);
-($s[0],$s[1],$s[2]) = ($a[0][3], $a[1][3], $a[2][3]);
-($x[0],$x[1],$x[2]) = ($a[0][4], $a[1][4], $a[2][4]);
+  ($s1,$s2,$s3) = ($Ared->element(1,4), $Ared->element(2,4), $Ared->element(3,4));
+  ($t1,$t2,$t3) = ($Ared->element(1,5),$Ared->element(2,5), $Ared->element(3,5));
+} until (
+    ! isInteger($s1) && ! isInteger($s2) && ! isInteger($s3) 
+    && ! isInteger($t1) && ! isInteger($t2) && ! isInteger($t3)
+  );
 
-$dEch = "\left[\begin{array}{rrrr}";
-for ($i = 0; $i <= 2; $i++) {
-  $dEch = $dEch."$a[$i][0] & $a[$i][1] & $a[$i][2] & $a[$i][3] & $a[$i][4]";
-  $dEch = ($i != 2) ? $dEch."\\" : $dEch."\end{array}\right]";
-}
 
-Context("Matrix");
-$ech = Matrix([1,0,0,$t1],[0,1,0,$t2],[0,0,1,$t3]);
 $pop = PopUp(["select", "yes", "no"], "yes");
-$soln = MultiAnswer($t1,-$s1,$t2,-$s2,$t3,-$s3,0,1)->with(
-  singleResult=>0,
-  allowBlankAnswers => 1,
-  checker => sub {
-    my ($cor, $stud, $self) = @_;
-    my ($c1,$c2,$c3,$c4,$c5,$c6,$c7,$c8) = @{$cor};
-    my ($s1,$s2,$s3,$s4,$s5,$s6,$s7,$s8) = @{$stud};
-    my ($a1,$a2,$a3,$a4,$a5,$a6,$a7,$a8) = ($c1 == $s1, $c2 == $s2, $c3 == $s3, $c4 == $s4, $c5 == $s5, $c6 == $s6, $c7 == $s7, $c8 == $s8);
-    return [$a1,$a2,$a3,$a4,$a5,$a6,$a7,$a8];
-  }
-);
+
+$x1sol = Compute("$t1-$s1*s")->reduce;
+$x2sol = Compute("$t2-$s2*s")->reduce;
+$x3sol = Compute("$t3-$s3*s")->reduce;
+$x4sol = Compute("s");
 
 
 ###########################################################################
@@ -151,21 +80,16 @@ $soln = MultiAnswer($t1,-$s1,$t2,-$s2,$t3,-$s3,0,1)->with(
 ###########################################################################
 Context()->texStrings;
 BEGIN_TEXT
-Given that the matrix 
-$PAR\[ $dA \]$PAR
-is the augmented matrix for a linear system, use technology to perform the row operations needed to transform the matrix to reduced echelon form. Then determine if the system is consistent and if it is, find all solutions to the system.
+The matrix 
+\[ $A \]
+is the augmented matrix for a linear system of equations of the form $SPACE \(A \begin{pmatrix} x_1\\x_2\\x_3\\x_4 \end{pmatrix}=\begin{pmatrix} b_1 \\ b_2 \\ b_3  \end{pmatrix}\). $SPACE Use a calculator or computer to perform the row operations needed to transform the matrix into reduced echelon form. Then determine if the system is consistent.  If it is, use the reduced echelon form to find all solutions of the system.
 $PAR
-Reduced echelon form: \{ans_rule(50)\}
+Reduced echelon form: \{$Ared->ans_array\}
 $PAR
 Is the system consistent? \{$pop->menu()\}
 $PAR
-Solution: \((x_1,x_2,x_3,x_4) = \bigg(\) \{$soln->ans_rule(4)\} \(+\) \{$soln->ans_rule(4)\} \(s_1\), \{$soln->ans_rule(4)\} \(+\) \{$soln->ans_rule(4)\} \(s_1\), \{$soln->ans_rule(4)\} \(+\) \{$soln->ans_rule(4)\} \(s_1\), \{$soln->ans_rule(4)\} \(+\) \{$soln->ans_rule(4)\} \(s_1\bigg)\)
-$PAR ${BBOLD}Help:${EBOLD} To enter a matrix use $BBOLD [[ ],[ ]] $EBOLD. For example, to enter the \(2\times 3\) matrix
-$PAR\[
-\left[\begin{array}{ccc}
-1 & 2 & 3 \\ 6 & 5 & 4
-\end{array}\right]
-\]$PAR you would type [[1,2,3],[6,5,4]], so each inside set of [ ] represents a row. If there is no free variable in the solution, then type \(0\) in each of the answer blanks directly before each \(s_1\). For example, if the answer is \((x_1,x_2,x_3) = (5,-2,1)\), then you would enter \((5 + 0s_1, -2 + 0s_1, 1 + 0 s_1)\).  If the system is inconsistent, you do not have to type anything in the ${LQ}Solution${RQ} answer blanks.
+Solution: \((x_1,x_2,x_3,x_4) = \bigg(\) \{ans_rule(12)\}, \{ans_rule(12)\}, \{ans_rule(12)\},  \{ans_rule(12)\} \(\bigg)\)
+$PAR ${BBOLD}Help:${EBOLD} If there is one free variable in the solution call it \(s\).  If there are multiple free variables call them \(s, t, u, \ldots\).  If the system is inconsistent, do not type anything in the ${LQ}Solution${RQ} answer blanks.
 END_TEXT
 Context()->normalStrings;
 
@@ -173,9 +97,12 @@ Context()->normalStrings;
 ###########################################################################
 # check the answer  
 ###########################################################################
-ANS($ech->cmp());
+ANS($Ared->cmp());
 ANS($pop->cmp());
-ANS($soln->cmp());
+ANS($x1sol->cmp());
+ANS($x2sol->cmp());
+ANS($x3sol->cmp());
+ANS($x4sol->cmp());
 
 
 ###########################################################################
@@ -184,9 +111,9 @@ ANS($soln->cmp());
 Context()->texStrings;
 BEGIN_SOLUTION
 ${BBOLD}SOLUTION:${EBOLD} 
-Using a computer algebra system, the row echelon form is
-$PAR \[$dEch.\] $PAR
-We have a free variable \(x_4 = s_1\). Thus \(x_1 = $x[0] - $s[0] s_1\), \(x_2 = $x[1] - $s[1] s_1\), and \(x_3 = $x[2] - $s[2] s_1\).
+Using a computer algebra system, one finds that the row echelon form is
+$PAR \[$Ared .\] $PAR
+We have one free variable \(x_4 = s\). Thus \(x_1 = $x1sol\), \(x_2 = $x2sol\), and \(x_3 = $x3sol\).
 END_SOLUTION
 Context()->normalStrings;
 
