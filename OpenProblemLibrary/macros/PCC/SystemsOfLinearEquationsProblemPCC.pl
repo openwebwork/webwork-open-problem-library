@@ -193,30 +193,30 @@ if ($lcd1 == 1 and $lcd2 == 1) {
 elsif ($lcd1 == 1) {
   $Attack = $Attack."
 
-    [`\\left\\{\\begin{aligned}
+    [```\\left\\{\\begin{aligned}
   $left1 & =  $right1\\\\
   $lcd2\\left($left2\\right) & =  $lcd2\\left($right2\\right)
-  \\end{aligned}\\right.`]
+  \\end{aligned}\\right.```]
 
     ";
 }
 elsif ($lcd2 == 1) {
   $Attack = $Attack."
 
-    [`\\left\\{\\begin{aligned}
+    [```\\left\\{\\begin{aligned}
   $lcd1\\left($left1\\right) & =  $lcd1\\left($right1\\right)\\\\
   $left2 & =  $right2
-  \\end{aligned}\\right.`]
+  \\end{aligned}\\right.```]
 
     ";
 }
 else {
   $Attack = $Attack."
 
-    [`\\left\\{\\begin{aligned}
+    [```\\left\\{\\begin{aligned}
   $lcd1\\left($left1\\right) & =  $lcd1\\left($right1\\right)\\\\
   $lcd2\\left($left2\\right) & =  $lcd2\\left($right2\\right)
-  \\end{aligned}\\right.`]
+  \\end{aligned}\\right.```]
 
     ";
 };
@@ -236,12 +236,12 @@ $fsided = $fsided*$lcd2;
 
 $Attack = $Attack."
 
-    [`\\left\\{
+    [```\\left\\{
     \\begin{aligned}
       $left1 & =  $right1\\\\
       $left2 & =  $right2 
     \\end{aligned}
-    \\right.`]
+    \\right.```]
 
 ";
 
@@ -284,12 +284,12 @@ if ($asided != Fraction(1,1) and $bsided != Fraction(1,1) and $csided != Fractio
 
     $Attack = $Attack."Since there is a coefficient of [`-1`], it is wise to add the corresponding term to both sides of that equation, so that we have a coefficient of [`1`] to work with. 
 
-    [`\\left\\{
+    [```\\left\\{
     \\begin{aligned}
       $left1 & =  $right1\\\\
       $left2 & =  $right2 
     \\end{aligned}
-    \\right.`]
+    \\right.```]
 
 ";
     }
@@ -322,10 +322,10 @@ if ($asided != Fraction(1,1) and $bsided != Fraction(1,1) and ($csided == Fracti
 
   $Attack = $Attack." Since the second equation has a coefficient of [`1`], it is convenient to change the order of the equations.
 
-    [`\\left\\{\\begin{aligned}
+    [```\\left\\{\\begin{aligned}
       $left1 & =  $right1\\\\
       $left2 & =  $right2 
-    \\end{aligned}\\right.`]
+    \\end{aligned}\\right.```]
 
 ";
 
@@ -368,15 +368,15 @@ if ($asided == Fraction(1,1)) {
 
 "Since one of the coefficients of [`$x`] is [`1`], it is wise to solve for the [`$x`] in terms of the other variable and then use substitution to complete the problem.
 
-    [`
+    [```
     \\begin{aligned}
       $left1 & =  $right1 &\\text{(from the first equation)}
     \\end{aligned}
-    `]
+    ```]
 
 which we can substitute in for [`$x`] into the second equation:
 
-    [`\\begin{aligned}
+    [```\\begin{aligned}
       $left2 & =  $right2 &\\text{(from the second equation)}\\\\
       $leftStep & = $rightStep\\\\";
 
@@ -386,12 +386,12 @@ which we can substitute in for [`$x`] into the second equation:
       }
 
   if ($determinant == 0 and ($leftNextStep != $rightNextStep)) {
-    $Attack = $Attack."\\end{aligned}`]
+    $Attack = $Attack."\\end{aligned}```]
 
 Since this is a false equation no matter what the values of [`$x`] and [`$y`] are, the system has no solutions.";
   }
   elsif ($determinant == 0 and ($leftNextStep == $rightNextStep)) {
-    $Attack = $Attack."\\end{aligned}`]
+    $Attack = $Attack."\\end{aligned}```]
 
 Since this is a true equation no matter what the values of [`$x`] and [`$y`] are, the system has infinitely many solutions - just pick any value for [`$y`] and then let [`$left1 =  $right1`].";
   }
@@ -399,7 +399,7 @@ Since this is a true equation no matter what the values of [`$x`] and [`$y`] are
     $Attack = $Attack."
       $y &= $ysol
     \\end{aligned}
-    `]";
+    ```]";
 
   Context()->normalStrings;
   $left1 = Formula($left1);
@@ -424,13 +424,13 @@ We can substitute this for [`$y`] back into the first equation to find [`$x`].";
     $left1 = "$bsided\\left($ysol\\right)+$esided" if ($xside1 == 1);
     $Attack = $Attack."
 
-    [`
+    [```
     \\begin{aligned}
-      $left1 & =  $right1 &\\text{(from the first equation, after we had solved for $x in terms of $y)}\\\\
+      $left1 & =  $right1 &\\text{(from the first equation, after we had solved for }$x\\text{ in terms of} $y\\text{)}\\\\
       $leftStep &= $rightStep\\\\
       $leftNextStep &= $rightNextStep
     \\end{aligned}
-    `]
+    ```]
 
 So the solution is [`$x=$xsol, $y=$ysol`].";
 
@@ -471,15 +471,15 @@ So the solution is [`$x=$xsol, $y=$ysol`].";
 
 "Since one of the coefficients of [`$y`] is [`1`], it is wise to solve for [`$y`] in terms of the other variable and then use substitution to complete the problem.
 
-    [`
+    [```
     \\begin{aligned}
       $left1 & =  $right1 &\\text{(from the first equation)}
     \\end{aligned}
-    `]
+    ```]
 
 which we can substitute in for [`$y`] into the second equation:
 
-    [`\\begin{aligned}
+    [```\\begin{aligned}
       $left2 & =  $right2 &\\text{(from the second equation)}\\\\
       $leftStep & = $rightStep\\\\";
 
@@ -490,12 +490,12 @@ which we can substitute in for [`$y`] into the second equation:
 
   Context()->flags->set(showExtraParens=>1);
   if ($determinant == 0 and ($leftNextStep != $rightNextStep)) {
-    $Attack = $Attack."\\end{aligned}`]
+    $Attack = $Attack."\\end{aligned}```]
 
 Since this is a false equation no matter what the values of [`$x`] and [`$y`] are, the system has no solutions.";
   }
   elsif ($determinant == 0 and ($leftNextStep == $rightNextStep)) {
-    $Attack = $Attack."\\end{aligned}`]
+    $Attack = $Attack."\\end{aligned}```]
 
 Since this is a true equation no matter what the values of [`$x`] and [`$y`] are, the system has infinitely many solutions - just pick any value for [`$x`] and then let [`$left1 =  $right1`].";
   }
@@ -503,7 +503,7 @@ Since this is a true equation no matter what the values of [`$x`] and [`$y`] are
     $Attack = $Attack."
       $x &= $xsol
     \\end{aligned}
-    `]";
+    ```]";
 
   Context()->normalStrings;
   $left1 = Formula($left1);
@@ -528,13 +528,13 @@ We can substitute this back for [`$x`] into the first equation to find [`$y`].";
     $left1 = "$asided\\left($xsol\\right)+$esided" if ($yside1 == 1);
     $Attack = $Attack."
 
-    [`
+    [```
     \\begin{aligned}
-      $left1 & =  $right1 &\\text{(from the first equation, after we had solved for $y in terms of $x)}\\\\
+      $left1 & =  $right1 &\\text{(from the first equation, after we had solved for }$y\\text{ in terms of }$x\\text{)}\\\\
       $leftStep &= $rightStep\\\\
       $leftNextStep &= $rightNextStep
     \\end{aligned}
-    `]
+    ```]
 
 So the solution is [`$x=$xsol, $y=$ysol`].";
 
@@ -579,29 +579,29 @@ else{
   
   $Attack = $Attack." Since no coefficients are [`1`] or [`-1`], we choose to use the method of elimination, also known as the addition method. The first step is to algebraically rearrange both equations into the standard form with all variables aligned on the left and constants on the right.
 
-    [`\\left\\{\\begin{aligned}
+    [```\\left\\{\\begin{aligned}
       $left1 & =  $right1\\\\
       $left2 & =  $right2 
-    \\end{aligned}\\right.`]
+    \\end{aligned}\\right.```]
 
 Then we identify a common multiple of the [`$y`] coefficients. In this case, a common multiple is [`$lcmy`]. We rescale each equation so that the coefficients of [`$y`] become [`$lcmy`] and [`-$lcmy`].
 
-    [`\\left\\{\\begin{aligned}
+    [```\\left\\{\\begin{aligned}
       $left1Step & =  $right1Step\\\\
       $left2Step & =  $right2Step
-    \\end{aligned}\\right.`]
+    \\end{aligned}\\right.```]
 
 
-    [`\\left\\{\\begin{aligned}
+    [```\\left\\{\\begin{aligned}
       $left1NextStep & =  $right1NextStep\\\\
       $left2NextStep & =  $right2NextStep
-    \\end{aligned}\\right.`]
+    \\end{aligned}\\right.```]
 
 And now if we add left sides and right sides:
 
-    [`\\begin{aligned}
+    [```\\begin{aligned}
       $leftLastStep & =  $rightLastStep\\\\
-    \\end{aligned}`]
+    \\end{aligned}```]
 
 ";
 
@@ -624,22 +624,22 @@ And now if we add left sides and right sides:
 
   $Attack = $Attack."So [`$x = $xsol`]. Now we go back to an earlier stage and take the same steps to eliminate [`$x`].
 
-    [`\\left\\{\\begin{aligned}
+    [```\\left\\{\\begin{aligned}
       $left1Step & =  $right1Step\\\\
       $left2Step & =  $right2Step
-    \\end{aligned}\\right.`]
+    \\end{aligned}\\right.```]
 
 
-    [`\\left\\{\\begin{aligned}
+    [```\\left\\{\\begin{aligned}
       $left1NextStep & =  $right1NextStep\\\\
       $left2NextStep & =  $right2NextStep
-    \\end{aligned}\\right.`]
+    \\end{aligned}\\right.```]
 
 And now if we add left sides and right sides:
 
-    [`\\begin{aligned}
+    [```\\begin{aligned}
       $leftLastStep & =  $rightLastStep\\\\
-    \\end{aligned}`]
+    \\end{aligned}```]
 
 So [`$y=$ysol`]. So the solution to the system is [`$x=$xsol, $y=$ysol`].
 

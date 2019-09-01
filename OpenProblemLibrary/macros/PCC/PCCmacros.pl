@@ -18,6 +18,25 @@ To use it, load the macro file:
 =cut
 
 ###############################
+#Name: perlround
+#Input: a number to round, then a place to round to. e.g. 2=>hundredths, 0=>whole, -1=>tens
+#Output: $x rounded to the $n place. This attempts to overcome quirks with rounding when the cut part is like 0.005
+################################
+sub perlround {
+  # number to round
+  my $x = shift;
+  # place to round. e.g. 2=>hundredths, 0=>whole, -1=>tens
+  my $n = shift;
+  # "fix" non-integer input
+  $n = int($n);
+  # corresponding integer to round up or down
+  my $X = $x*10**$n;
+  $X = ($X-sprintf("%.0f", $X) eq 0.5) ? int($X+1) : sprintf("%.0f", $X);
+  return $X/10**$n;
+}
+
+
+###############################
 #Name: RandomName
 #Input: None required
 #Optional Input: 'sex' => male or female
@@ -889,6 +908,7 @@ sub radicalListCheck {
                     $q = $fullCorrectValue[$k];
                     if (Formula($q) == Formula($p)) {
                           $numericallyCorrect = 1;
+                          my ($setSqrt, $setRoot) = (Context()->flag("setSqrt"), Context()->flag("setRoot"));
                           Context()->flags->set(checkSqrt => $setSqrt, checkRoot => $setRoot, bizarroAdd => 1, bizarroSub => 1, bizarroMul => 1, bizarroDiv => 1);
                           delete $p->{test_values};
                           delete $q->{test_values};

@@ -28,10 +28,9 @@ loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
   "PGML.pl",
-  "pccTables.pl",
-  "contextPolynomialFactors.pl",
+  "PCCmacros.pl",
+  "bizarroArithmetic.pl",
   "PGcourse.pl",
-
 );
 
 ##############################################
@@ -43,24 +42,79 @@ $a = random(2,5,1)*random(-1,1,2);
 $b = non_zero_random(-5,5,1);
 $c = random(-5,-2,1);
 
-Context("PolynomialFactors")->flags->set(singlePowers=>1);
-Context()->flags->set(reduceConstants=>0);
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+
+Context()->operators->set(
+'*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'+' => {class => 'bizarro::BOP::add', isCommand => 1},
+'-' => {class => 'bizarro::BOP::subtract', isCommand => 1},
+);
 
 $f = Formula("$a*x**2+$b*x")->reduce;
 
 $ans1 = Formula("$f+$c")->reduce;
+$evaluator1 = $ans1->cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      Context()->flags->set(bizarroAdd=>1,bizarroSub=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroAdd=>0,bizarroSub=>0);
+      Value::Error("Your answer is equivalent to the correct answer, but not in the expected form${BR}Maybe it needs to be simplified more") unless $OK;
+      return $OK;
+});
 
 $o = 2*$a*$c+$b;
 $p = $a*($c)**2+$b*$c;
 $ans2 = Formula("$a*x**2+$o*x+$p")->reduce;
+$evaluator2 = $ans2->cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      Context()->flags->set(bizarroMul=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroMul=>0);
+      Value::Error("Your answer is equivalent to the correct answer, but not in the expected form${BR}Maybe it needs to be simplified more") unless $OK;
+      return $OK;
+});
 
 $ac = $a*$c;
 $bc = $b*$c;
 $ans3 = Formula("$ac*x**2+$bc*x")->reduce;
+$evaluator3 = $ans3->cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      Context()->flags->set(bizarroMul=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroMul=>0);
+      Value::Error("Your answer is equivalent to the correct answer, but not in the expected form${BR}Maybe it needs to be simplified more") unless $OK;
+      return $OK;
+});
 
 $q = $a*$c*$c;
 $ans4 = Formula("$q*x**2+$bc*x")->reduce;
-
+$evaluator4 = $ans4->cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      Context()->flags->set(bizarroMul=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      my $OK = ($correct == $student);
+      Context()->flags->set(bizarroMul=>0);
+      Value::Error("Your answer is equivalent to the correct answer, but not in the expected form${BR}Maybe it needs to be simplified more") unless $OK;
+      return $OK;
+});
 
 
 
@@ -71,21 +125,19 @@ BEGIN_PGML
 
 Let [`f`] be a function given by [`f(x)=[$f]`]. Find and simplify the following: 
 
-a) [`f(x)+[$c]={}`][_________________________________________]{$ans1}  
+a. [`f(x)+[$c]={}`][_]{$evaluator1}{10}
 
-a) [`f(x+[$c])={}`][_________________________________________]{$ans2}  
+a. [`f(x+[$c])={}`][_]{$evaluator2}{10}
 
-a) [`[$c]f(x)={}`][_________________________________________]{$ans3}  
+a. [`[$c]f(x)={}`][_]{$evaluator3}{10}
 
-a) [`f([$c]x)={}`][_________________________________________]{$ans4}  
+a. [`f([$c]x)={}`][_]{$evaluator4}{10}
 
-    
+
 END_PGML
 
 ##############################################
 
-Context("Numeric");
-Context()->noreduce('(-x)-y','(-x)+y');
 $s1 = Formula("$a*(x+$c)**2+$b*(x+$c)")->reduce;
 $r = 2*$c;
 $c2 = $c*$c;

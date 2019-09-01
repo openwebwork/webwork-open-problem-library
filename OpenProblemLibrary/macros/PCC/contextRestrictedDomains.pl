@@ -39,7 +39,7 @@ sub _contextRestrictedDomains_init {
     checkSqrt => 0, 
     checkRoot => 0,
     setSqrt => exp(1)/main::ln(2),
-    wrongFormMessage => 'Your answer is algebraically equivalent to the correct answer, but not in the expected form. Maybe it is not fully simplified.',
+    wrongFormMessage => 'Your answer is algebraically equivalent to the correct answer, but not in the expected form. Maybe it is not fully simplified. Maybe something is not completely factored. Maybe it is not in the expected form for some other reason.',
     
   );
   $context->noreduce('(-x)+y','(-x)-y');
@@ -106,7 +106,7 @@ class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
        if ($dom->type eq 'Number' and $prevdom->class eq 'Formula' and $prevdom->type eq 'Interval') {
          if (defined $prevdom->{tree}->{bop}) {
            if ($prevdom->{tree}->{bop} eq '!=') {
-             my $x = ($context->variables->variables)[0];
+             my $x = (Context()->variables->variables)[0];
              $alteredStudentList = Formula($alteredStudentList->string.", $x != $dom");
            }
            else {$alteredStudentList = Formula($alteredStudentList->string.", $dom");}
@@ -135,13 +135,17 @@ class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
      my $correctExpression = ($correctFormula->value)[0];
      my $correctDomain = ($correctFormula->value)[1];
      $correctDomain = Compute("$correctDomain");
+     # If the correct answer has (-inf, inf) as the domain, don't print that in the correct answer
+     if ($correctDomain == Interval("(-inf,inf)")) {
+       $ansHash->{correct_ans_latex_string} = $correctExpression->TeX;
+     }
      my $trueDomain = $correctDomain;
      if (defined($correctFormula->{trueDomain})) {$trueDomain = $correctFormula->{trueDomain};}
 
      # Check math expression
      my $expression_cmp = $correctExpression->cmp->evaluate($studentExpression->string);
      my $expressionOK = $expression_cmp->{score};
-     push(@errors,'Your expression is not correct') unless ($expressionOK or $expression_cmp->{ans_message});
+     push(@errors,'Your expression is not correct') unless ($expressionOK or $expression_cmp->{ans_message} or $ansHash->{isPreview});
      push(@errors,$expression_cmp->{ans_message}) if $expression_cmp->{ans_message};
      
      # Check student's domain
@@ -151,7 +155,7 @@ class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
      my $correctUnion = Interval($correctDomain);
      if (!$correctUnion->contains($studentUnion) or !$studentUnion->contains($trueUnion)) {
        $domainOK = 0;
-       push(@errors,'Your domain is not correct') unless ($studentFormula->type eq 'Number');
+       push(@errors,'Your domain is not correct') unless ($studentFormula->type eq 'Number' or $ansHash->{isPreview});
        push(@errors,'You need to specify the restricted domain') if ($studentFormula->type eq 'Number' and $expressionOK);
      };
 

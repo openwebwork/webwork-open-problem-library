@@ -98,10 +98,12 @@ sub NiceGraphParameters{
         5 => abs( 5*10**$tickexp[$i]-($high[$i]-$low[$i])/$adjRoughTickNum[$i]));
      $tickcoef[$i] = .2;
      for my $key (.2, .5, 1, 2, 5)
-       {$tickcoef[$i] = $key if ($tickcoefs{$key}<$tickcoefs{$tickcoef[$i]});};
+       # division by 1.7 is a hack to make ticks more frequent
+       # this may need redoing if problems are reported
+       {$tickcoef[$i] = $key if ($tickcoefs{$key}<$tickcoefs{$tickcoef[$i]}/1.7);};
   $marksep[$i] = 10**($tickexp[$i])*$tickcoef[$i];
-  $ticknum[$i] = 2*round(($high[$i]-$low[$i])/2/$marksep[$i]);
-  $max[$i] = round($high[$i]/$marksep[$i])*$marksep[$i];
+  $ticknum[$i] = 2*ceil(($high[$i]-$low[$i])/2/$marksep[$i]);
+  $max[$i] = ceil($high[$i]/$marksep[$i])*$marksep[$i];
   $min[$i] = $max[$i] - $marksep[$i]*$ticknum[$i];
   @temp = ();
   };

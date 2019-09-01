@@ -27,39 +27,19 @@
 DOCUMENT();
 
 loadMacros(
-      "PGstandard.pl",
-      "MathObjects.pl",
-      "answerHints.pl",
-      "PGML.pl",
-      "contextLimitedRadical.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "contextFiniteSolutionSets.pl",
+  "parserOneOf.pl",
   "PCCmacros.pl",
+  "answerHints.pl",
   "PGcourse.pl",
 );
 
 ##############################################
     
-Context("LimitedRadical");
-#Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0, formatStudentAnswer=>parsed);
-                               
-Context()->operators->redefine(',',using=>',',from=>'Numeric');
-Context()->operators->redefine('or',using=>',',from=>'Numeric');
-Context()->operators->set(
-      ','=>{string=>' or ',TeX=>'\hbox{ or }'},
-      'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
-    );
-Context()->lists->set(List => {separator => " or "});
-
-# add solution strings to context- this means that if
-# students enter these (and they are not correct), then 
-# WW will not give a Context warning
-Context()->strings->add("no real solutions"=>{},
-  "no real solution"=>{alias=>'no real solutions'}, 
-  "none"=>{alias=>'no real solutions'}, 
-  );
-
-$mymsg = "Are you sure your solution satisfies the equation?";
-Context()->{error}{msg}{"Unexpected character '='"} 
-  = "$mymsg";
 
 $var = "x";
 $a = -1;
@@ -74,8 +54,49 @@ while( ($b**2-4*$a*$c)>=0 or abs($b**2-4*$a*$c)>180 )
 }
 $questionFormula = Formula("$a*$var^2+$b*$var+$c")->reduce;
 
-# for the answer
-$ans = Compute("no real solutions");
+$disc = $b**2 - 4*$a*$c;
+$squarepart = 1;
+$nonsquarepart = $disc;
+do {
+  if ($nonsquarepart % 4 == 0) {$squarepart *= 4; $nonsquarepart /= 4}
+  if ($nonsquarepart % 9 == 0) {$squarepart *= 9; $nonsquarepart /= 9}
+  if ($nonsquarepart % 25 == 0) {$squarepart *= 25; $nonsquarepart /= 25}
+  if ($nonsquarepart % 49 == 0) {$squarepart *= 49; $nonsquarepart /= 49}
+  if ($nonsquarepart % 121 == 0) {$squarepart *= 121; $nonsquarepart /= 121}
+  if ($nonsquarepart % 169 == 0) {$squarepart *= 169; $nonsquarepart /= 169}
+} until (
+  ($nonsquarepart % 4 != 0) and
+  ($nonsquarepart % 9 != 0) and
+  ($nonsquarepart % 25 != 0) and
+  ($nonsquarepart % 49 != 0) and
+  ($nonsquarepart % 121 != 0) and
+  ($nonsquarepart % 169 != 0)
+);
+Context("Fraction");
+$rational = Fraction(-$b,2*$a);
+$coefficient = Fraction(sqrt($squarepart),2*$a);
+Context("FiniteSolutionSets");
+Context()->variables->add(i => 'Real');
+
+$nonsquarepart = -$nonsquarepart;
+
+$solution = ($nonsquarepart != -1) ?
+  Formula("{$rational + $coefficient i sqrt($nonsquarepart),$rational - $coefficient i sqrt($nonsquarepart)}") :
+  Formula("{$rational + $coefficient i,$rational - $coefficient i}");
+
+
+
+$ans = String("no real solutions");
+
+$evaluator = $ans->cmp(typeMatch=>'')->withPostFilter(AnswerHints( 
+  sub {
+    my ($correct,$student,$ans) = @_;
+    if ($student->class eq 'Formula') {
+      return $student->usesOneOf('i');
+    }
+  } => "If you are saying there are no real solutions, the instructions are to enter 'no real solutions'.",
+));
+
 
 ##############################################
 
@@ -85,7 +106,7 @@ Solve the equation.
 
      [` [$questionFormula]= 0`]
 
-     [_______________________]
+     [_______________________]{$evaluator}
 
 [@KeyboardInstructions("Enter multiple answers separated by commas, as in [|x=1, x=-1|]*. If you need to use the square root symbol, as in [`x=\\sqrt{17}`], type it as [|x=sqrt(17)|]*. If there are no real solutions, enter [|no real solutions|]*.")@]**
 
@@ -93,21 +114,6 @@ END_PGML
 
 ##############################################
 
-ANS($ans->cmp(checker=>sub {
-     my ($correct,$student,$ansHash) = @_;
-     if(!Value::String->typeMatch($student))
-     {
-        Value->Error("$mymsg");
-        return 0;
-     }
-        $check = ($student->value eq "no real solutions");
-        Value->Error("$mymsg") unless($check);
-        return $check;
-    },
-));
-
-
-##############################################
 
 BEGIN_PGML_SOLUTION
 This equation does 
