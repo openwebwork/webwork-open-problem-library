@@ -1,0 +1,162 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Associated matrices)
+## Date(09/30/2018)
+## Institution(NAU)
+## Author(Nandor Sieben)
+## Level(3)
+## MO(1)
+## KEYWORDS('linear algebra','magic square','matrix','linear operator')
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "MatrixReduce.pl",
+  "rank.pl",
+  "PGcourse.pl"
+);
+$showPartialCorrectAnswers = 1;
+TEXT(beginproblem()); 
+
+Context("Fraction");
+Context() -> parens -> set ("[" => {formMatrix => 1});
+# Context("Matrix");
+
+$B1 = Matrix([[1,0,-1],[-2,0,2],[1,0,-1]]);
+$B2 = Matrix([[0,1,-1],[-1,0,1],[1,-1,0]]);
+
+$M1 = Matrix([[1,1,1],[1,1,1],[1,1,1]]);
+$ML = Matrix([[-1,-1],[2,1]]);
+
+$a = non_zero_random(-9,9,1);
+$b = non_zero_random(-9,9,1);
+$A = $a*$B1+$b*$B2;
+$LA = Matrix([Vector($A->column(3)),Vector($A->column(2)),Vector($A->column(1))]);
+
+
+sub magic {
+my ($m) = @_;
+return 0 if $m->element(1,1)+$m->element(1,2)+$m->element(1,3) !=0;
+return 0 if $m->element(2,1)+$m->element(2,2)+$m->element(2,3) !=0;
+return 0 if $m->element(3,1)+$m->element(3,2)+$m->element(3,3) !=0;
+return 0 if $m->element(1,1)+$m->element(1,2)+$m->element(1,3) !=0;
+return 0 if $m->element(2,1)+$m->element(2,2)+$m->element(2,3) !=0;
+return 0 if $m->element(3,1)+$m->element(3,2)+$m->element(3,3) !=0;
+return 0 if $m->element(1,1)+$m->element(2,2)+$m->element(3,3) !=0;
+return 0 if $m->element(3,1)+$m->element(2,2)+$m->element(1,3) !=0;
+return 1;
+}
+
+
+$multians = MultiAnswer($B1, $B2)->with(
+singleResult => 1,
+checker => sub {
+my ( $correct, $student, $self ) = @_;
+my @s = @{$student};
+my @c = @{$correct};
+$s0 = Matrix($s[0]); 
+$s1 = Matrix($s[1]);
+
+$goodbasis=0;
+
+if (! magic($s0)) {
+  $self->setMessage(1,"Not zero-magic.");
+  return 0 ;
+} 
+if (! magic($s1)) {
+  $self->setMessage(2,"Not zero-magic.");
+  return 0 ;
+}
+
+if (rank(Matrix(
+      [$s0->element(1,1),$s0->element(1,2),$s0->element(1,3),
+       $s0->element(2,1),$s0->element(2,2),$s0->element(2,3),
+       $s0->element(3,1),$s0->element(3,2),$s0->element(3,3)],
+      [$s1->element(1,1),$s1->element(1,2),$s1->element(1,3),
+        $s1->element(2,1),$s1->element(2,2),$s1->element(2,3),
+        $s1->element(3,1),$s1->element(3,2),$s1->element(3,3),]
+    )) != 2) {
+      $self->setMessage(1,"Dependent.");
+      $self->setMessage(2,"Dependent.");
+    return 0;
+}
+
+$goodbasis=1;
+return 1;
+}
+);
+
+sub mycheck {
+  my ($correct, $student, $ansHash) = @_;
+  return 0 if (! $goodbasis);
+  my $t  = Matrix($student);
+  my $Ls0 = Matrix([Vector($s0->column(3)),Vector($s0->column(2)),Vector($s0->column(1))]);
+  if ($Ls0 != ($t->element(1,1)*$s0 + $t->element(2,1)*$s1) ) {
+    Value->Error("Incorrect first column"); # this does not seem to work, don't know why
+    return 0;
+  }
+  my $Ls1 = Matrix([Vector($s1->column(3)),Vector($s1->column(2)),Vector($s1->column(1))]);
+  if ($Ls1 != ($t->element(1,2)*$s0 + $t->element(2,2)*$s1) ) {
+    Value->Error("Incorrect second column"); # this does not seem to work, don't know why
+    return 0;
+  }
+  return 1;
+}
+
+
+Context()->texStrings;
+BEGIN_TEXT
+A square matrix \( A \) is called $BITALIC zero-magic $EITALIC.
+if the sum of the numbers in each row, column, and diagonal is 0.
+Let \( V \) be the vector space of \( 3\times 3\) zero-magic squares.
+$BR
+
+Consider the linear operator \( L:V\to V \) that rotates the matrix by 90 degrees counterclockwise.
+$BR
+
+(a) Find 
+$BR
+\( L($A) = \) \{ $LA->ans_array(3) \}.
+
+$BR
+
+(b) Find an ordered basis \( B \) for \( V \). 
+
+$BR
+
+\( B = ( \)
+\{ $multians->ans_array(3) \},
+\{ $multians->ans_array(3) \} 
+\( ) \).
+
+$BR
+
+(c) Find the matrix \( [L]_B^B \) of \( L \) in your chosen basis \( B \).
+
+$BR
+
+\( [L]_B^B = \)
+\{ $ML->ans_array(3) \}.
+
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $LA->cmp() );
+ANS( $multians->cmp() );
+ANS( $ML->cmp( checker=>~~&mycheck ) );
+
+;
+
+ENDDOCUMENT();
+
+
+
+

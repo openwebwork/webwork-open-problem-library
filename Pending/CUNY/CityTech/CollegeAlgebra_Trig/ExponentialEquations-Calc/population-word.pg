@@ -1,0 +1,201 @@
+##DESCRIPTION
+##  Algebra problem: exponential model of population growth
+##ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Exponential and logarithmic expressions and functions)
+## DBsection(Exponential and logarithmic equations)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(5)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'exponential', 'exponential equation', 'logarithms', 'logarithm', 'exponential growth population', 'population growth')
+
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+
+@country = ("China","India","Pakistan","Indonesia","Nigeria","Bangladesh","Brazil","Mexico","Egypt","Japan");
+@pop = (1572,1462,344,311,279,265,247,147,114,109);
+@rate = (0.0079,0.0177,0.0226,0.0138,0.0251,0.0195,0.0151,0.0151,0.0180,0.0017);
+$i = random(0,9,1);
+
+$past = random(4,14,1);
+$pastYr = $past+2000;
+$pastAns = 10**6*$pop[$i]*(1+$rate[$i])**$past;
+$pastAnsRound = round($pastAns,0);
+
+$future = random(19,26,1);
+$futureYr = $future+2000;
+$futureAns = 10**6*$pop[$i]*(1+$rate[$i])**$future;
+$futureAnsRound = round($futureAns,0);
+
+$year2Bil = floor(log(2000/$pop[$i])/log(1+$rate[$i]))+2000;
+
+$year0 = $pop[$i]*(1+$rate[$i])**0;
+$year0actual = round(10**6*$year0);
+
+
+Context("LimitedNumeric");
+Context()->flags->set(tolType=>'absolute', tolerance=>0.5);
+Context()->{format}{number} = "%.10g";
+Context()->{error}{msg}{"You are not allowed to type decimal numbers in this problem"} 
+  = "Round your answer to the nearest whole person.";
+   package my::Real;
+   our @ISA = ('Value::Real');    # subclass of this Value::Real
+   
+   sub string {
+     my $self = shift; my $x = $self->SUPER::string(@_);  # get the original string output
+     my ($n,@rest) = split(/([.E])/,$x,1);                # break it into the integer part and the rest
+     while ($n =~ m/[0-9]{4}(,|$)/)                       # add commas as needed
+       {$n =~ s/([0-9])([0-9]{3})(,|$)/$1,$2$3/}
+     return join("",$n,@rest);                            # return the final string
+   }
+   
+   sub TeX {
+     my $self = shift;
+     my $n = $self->SUPER::TeX(@_);     # original TeX uses string(), so commas are already there
+     $n =~ s/,/{,}/g;                   # just make sure they have the correct spacing
+     return $n;
+   }
+   
+   package main;    # end of package my::Real;
+   
+   Context()->{value}{Real} = "my::Real";   
+   Context()->{format}{number} = "%f#";   
+
+Parser::Number::NoDecimals();
+
+   #
+   # Allow commas every three digits in numbers
+   #
+   Context()->{pattern}{number} = '(?:(?:\d{1,3}(?:\,\d{3})+|\d+)(?:\.\d*)?|\.\d+)(?:E[-+]?\d+)?';
+   Context()->{pattern}{signedNumber} = '[-+]?(?:(?:\d{1,3}(?:\,\d{3})+|\d+)(?:\.\d*)?|\.\d+)(?:E[-+]?\d+)?';
+   Context()->flags->set(NumberCheck => sub {
+     my $self = shift;                              # the Number object
+     my $value = $self->{value_string};             # the original string
+     $value =~ s/,//g;                              # remove commas
+     $self->{value} = $value + 0;                   # make sure it is converted to a number
+     $self->{isOne} = ($self->{value} == 1);        # set marker indicating if the value is 1
+     $self->{isZero} = ($self->{value} == 0);       # set marker indicating if the value is 0
+   });
+   Context()->update;
+
+$pastAnsRound = Real("$pastAnsRound")->with(tolType=>'absolute', tolerance=>10);
+$futureAnsRound = Real("$futureAnsRound")->with(tolType=>'absolute', tolerance=>10);
+$year0actual = Real("$year0actual");
+
+Context("LimitedNumeric");
+Parser::Number::NoDecimals();
+Context()->{error}{msg}{"You are not allowed to type decimal numbers in this problem"} 
+  = "We never use decimals when discussing what year it is.";
+
+$year2Bil = Real("$year2Bil")->with(tolType=>'absolute',tolerance=>0.005);
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+The population of [$country[$i]] can be modeled by the function
+
+>> [`` P(t) = [$pop[$i]] ( 1 + [$rate[$i]] )^t ``] <<  
+
+where [` P(t) `] measures the population in millions and [` t `] represents the number of years since 2000.
+
+1. Using this model, what was the population of [$country[$i]] in [$pastYr]? [____________]
+
+1. Predict the population of [$country[$i]] in [$futureYr]. [____________]
+
+1. If this growth rate continues, in what year will the population of [$country[$i]] reach 2 billion people? [______]  
+
+END_PGML
+
+BEGIN_PGML_HINT
+  
+**Hints:**
+* [` P(t) `] measures the population in _millions_ from the year 2000. So in 2000, [` t = 0 `], and we get [` P(0) =  [$year0] `] - but that's the population in _millions_. The actual population is [$year0actual].
+* Be careful when dealing with decimal answers for the last part. Does it make a difference if the population hits 2 billion in January or December of a given year?
+* Recall the change of base formula for logarithms: [` \log_b(A) `] can be calculated as [`` \frac{\ln(A)}{\ln(b)} ``]
+
+END_PGML_HINT
+
+ANS($pastAnsRound->cmp->withPostFilter(sub { 
+  my $ans = shift; 
+  my $student = $ans->{student_ans};
+  my $correct = $ans->{correct_ans};
+  $student =~ s/,//g;                              # remove commas
+  $correct =~ s/,//g;                              # remove commas
+  my $error = abs($student - $correct);
+  my $millErr = abs($student*10**6 - $correct);
+  $ans->{ans_message} = "You're close, but it looks like you rounded your answer too much."
+  if ( $error > 0.5 && $error < 500000 );
+  $ans->{ans_message} = "You're on the right track, but remember that P(t) is measured in millions. <BR> Does $student make sense as the population of $country[$i]?"
+  if ( $millErr > 0.5 && $millErr < 500000 );
+  $ans->{ans_message} = "Your answer should not contain parenthesis. Compute the result as a number." 
+    if $ans->{ans_message} eq "Unexpected character '('";
+  $ans->{ans_message} = "Your answer should not contain any operations. Compute the final result as a number." 
+    if ( $ans->{ans_message} eq "Can't use '^' in this context" || $ans->{ans_message} eq "Can't use '+' in this context" || $ans->{ans_message} eq "Can't use '-' in this context" || $ans->{ans_message} eq "Can't use '*' in this context" || $ans->{ans_message} eq "Can't use '/' in this context" );
+  return $ans; 
+}));
+ANS($futureAnsRound->cmp->withPostFilter(sub { 
+  my $ans = shift; 
+  my $student = $ans->{student_ans};
+  my $correct = $ans->{correct_ans};
+  $student =~ s/,//g;                              # remove commas
+  $correct =~ s/,//g;                              # remove commas
+  my $error = abs($student - $correct);
+  my $millErr = abs($student*10**6 - $correct);
+  $ans->{ans_message} = "You're close, but it looks like you rounded your answer too much."
+  if ( $error > 0.5 && $error < 500000 );
+  $ans->{ans_message} = "You're on the right track, but remember that P(t) is measured in millions. <BR> Does $student make sense as the population of $country[$i]?"
+  if ( $millErr > 0.5 && $millErr < 500000 );
+  $ans->{ans_message} = "Your answer should not contain parenthesis. Compute the result as a number." 
+    if $ans->{ans_message} eq "Unexpected character '('";
+  $ans->{ans_message} = "Your answer should not contain any operations. Compute the final result as a number." 
+    if ( $ans->{ans_message} eq "Can't use '^' in this context" || $ans->{ans_message} eq "Can't use '+' in this context" || $ans->{ans_message} eq "Can't use '-' in this context" || $ans->{ans_message} eq "Can't use '*' in this context" || $ans->{ans_message} eq "Can't use '/' in this context" );
+  return $ans; 
+}));
+ANS($year2Bil->cmp->withPostFilter(sub { 
+  my $ans = shift; 
+  my $student = $ans->{student_ans};
+  my $correct = $ans->{correct_ans};
+  $ans->{ans_message} = "It looks like you're forgetting that `t = 0` corresponds to the year 2000."
+  if ( $student+2000 == $correct || $student + 1999 == $correct );
+  $ans->{ans_message} = "You might want to reconsider your rounding strategy. <BR> Do we start rounding up to the next year once it hits July?"
+  if ( $student == $correct +1 );
+  $ans->{ans_message} = "Your answer should not contain parenthesis. Compute the result as a number." 
+    if $ans->{ans_message} eq "Unexpected character '('";
+  $ans->{ans_message} = "Your answer should not contain any operations. Compute the final result as a number." 
+    if ( $ans->{ans_message} eq "Can't use '^' in this context" || $ans->{ans_message} eq "Can't use '+' in this context" || $ans->{ans_message} eq "Can't use '-' in this context" || $ans->{ans_message} eq "Can't use '*' in this context" || $ans->{ans_message} eq "Can't use '/' in this context" );
+  return $ans; 
+}));
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

@@ -1,0 +1,219 @@
+##DESCRIPTION
+##  Algebra problem: true or false for inequality 
+##ENDDESCRIPTION
+
+
+## DBsubject(Trigonometry)
+## DBchapter(Trigonometric functions)
+## DBsection(Sine & cosine functions - definitions, graphs, & properties)
+## Date(7/19/2018)
+## Institution(City Tech)
+## Author(K. Andrew Parker)
+## MO(1)
+## KEYWORDS('algebra', 'inequality', 'fraction')
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "PGchoicemacros.pl",
+   "niceTables.pl",
+   "parserPopUp.pl",
+   "contextFraction.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 0;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Fraction");
+Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0);
+
+@psDen = (2,3,4,6);
+#shuffle denominators, then pick two more for a total of 6
+@psDen = @psDen[ NchooseK(4,4) ];
+$psDen[4] = $psDen[ random(0,1,1) ];
+$psDen[5] = $psDen[ random(2,3,1) ];
+
+@shift = ();
+@absShift = ();
+@phaseShift = ();
+@f = ();
+@solution = ();
+@numbers = ("zero","one","two","three","four","five");
+
+foreach my $i (0..5) {
+    do { $psNum[$i] = non_zero_random(-$psDen[$i]+1,$psDen[$i]-1,1); } until (gcf(abs($psNum[$i]),$psDen[$i])==1); # make sure the fraction keeps denom
+    foreach my $j (0..$i) {
+        if ($i == $j) {last}
+        if ($psDen[$j] == $psDen[$i] && $psNum[$j] == $psNum[$i]) {
+            $psNum[$i] = -1*$psNum[$i]; # the opposite sign will be safe
+        }
+    }
+    $shift[$i] = Fraction($psNum[$i],$psDen[$i]);
+    $absNum[$i] = abs($psNum[$i]); # format chicanery
+    $absNumPi[$i] = ($absNum[$i]==1)?Formula("pi"):Formula("$absNum[$i]pi");
+    $phaseShift[$i] = Formula("$shift[$i] pi");
+    $psReal[$i] = Real("$shift[$i] pi"); # for plotting x=0 shift
+    $f[$i] = ($psNum[$i]>0)?Compute("sin(x - ($absNumPi[$i]) / $psDen[$i])"):Compute("sin(x + ($absNumPi[$i]) / $psDen[$i])"); # chicanery
+    $solution[$i] = {};
+    $solution[$i]->{lr} = ($psNum[$i]>0)?"right":"left";
+    $solution[$i]->{frac} = "halves" if ($psDen[$i] == 2);
+    $solution[$i]->{frac} = "thirds" if ($psDen[$i] == 3);
+    $solution[$i]->{frac} = "quarters" if ($psDen[$i] == 4);
+    $solution[$i]->{frac} = "sixths" if ($psDen[$i] == 6);
+    $solution[$i]->{count} = $numbers[ $absNum[$i] ];
+    $solution[$i]->{shift} = Formula("($absNumPi[$i]) / $psDen[$i]");
+    $solution[$i]->{replace} = ($psNum[$i]>0)?Compute("x - ($absNumPi[$i]) / $psDen[$i]"):Compute("x + ($absNumPi[$i]) / $psDen[$i]");
+}
+
+$pi = pi;
+$twopi = 2*pi;
+$twopi1 = 2*pi-.05; # for marking the graph visibly
+foreach my $i (0..5) {
+    my $xGrid = 4*$psDen[$i];
+    $im[$i] = init_graph(-$twopi,-3,$twopi,3,axes=>[0,0],size=>[400,400], grid=>[$xGrid,6]);
+    add_functions($im[$i],"sin(x) for x in <-$twopi,$twopi> using color:gray and weight:1");
+    $im[$i]->lb( 'reset' );
+    $im[$i]->lb( new Label(pi,-.1,"pi",'black','center','top') );
+    $im[$i]->moveTo(pi,-.075);
+    $im[$i]->lineTo(pi,0.075,'black',2);
+    $im[$i]->lb( new Label($twopi,-.1,"2pi",'black','right','top') );
+    $im[$i]->moveTo($twopi1,-.075);
+    $im[$i]->lineTo($twopi1,0.075,'black',2);
+    $im[$i]->lb( new Label(-$pi,-.1,"-pi",'black','center','top') );
+    $im[$i]->moveTo(-$pi,-.075);
+    $im[$i]->lineTo(-$pi,0.075,'black',2);
+    $im[$i]->lb( new Label(-$twopi,-.1,"-2pi",'black','left','top') );
+    $im[$i]->moveTo(-$twopi1,-.075);
+    $im[$i]->lineTo(-$twopi1,0.075,'black',2);
+    $im[$i]->lb( new Label(0,1,"1",'black','right','middle') );
+    $im[$i]->lb( new Label(0,-1,"-1",'black','right','middle') );
+    #$im[$i]->h_ticks(0,"black","-2 pi","-pi","pi","2 pi");
+    #$im[$i]->v_ticks(0,"black",-6,-5,-4,-3,-2,-1,1,2,3,4,5,6);
+    add_functions($im[$i],"$f[$i] for x in <-$twopi,$twopi> using color:blue and weight: 2");
+    #($im[$i]->fn)[0]->steps(100);
+    $im[$i]->stamps(closed_circle(0,0,'gray'));
+    $im[$i]->stamps(closed_circle($psReal[$i],0,'blue'));
+}
+#@alphaChoice = ("A","B","C","D","E","F");
+#@perm = NchooseK(6,6);
+#@fIm = @im[ @perm ]; # shuffle the chosen images
+#@ansChoice = @alphaChoice[invert(@perm)]; # correct for the shuffle
+
+@fIm = @im;
+
+#$q1 = PopUp(["?","A","B","C","D","E","F"],$ansChoice[0]);
+#$q2 = PopUp(["?","A","B","C","D","E","F"],$ansChoice[1]);
+#$q3 = PopUp(["?","A","B","C","D","E","F"],$ansChoice[2]);
+#$q4 = PopUp(["?","A","B","C","D","E","F"],$ansChoice[3]);
+
+##############################################################
+#
+#  Text
+#
+#
+
+
+BEGIN_PGML
+
+>> ### Practice ### <<
+
+Enter an equation for each graph:
+
+[@ LayoutTable(
+  [
+    ['Graph A',['Graph B',rowcss=>"padding:1pt;"]],
+    [image(insertGraph($fIm[0]), width=>200, height=>200, tex_size=>400), [image(insertGraph($fIm[1]), width=>200, height=>200, tex_size=>400), rowcss=>"padding-bottom:2pt;padding-top:2pt"]],
+    ['\\( y = \\) '.$f[0]->ans_rule,['\\( y = \\) '.$f[1]->ans_rule,rowcss=>"padding:1pt;"]],
+    ['Graph C',['Graph D',rowcss=>"padding-top:15pt;padding-bottom:5pt;"]],
+    [image(insertGraph($fIm[2]), width=>200, height=>200, tex_size=>400), [image(insertGraph($fIm[3]), width=>200, height=>200, tex_size=>400), rowcss=>"padding-bottom:2pt;padding-top:2pt;"]],
+    ['\\( y = \\) '.$f[2]->ans_rule,['\\( y = \\) '.$f[3]->ans_rule,rowcss=>"padding:1pt;"]],
+    ['Graph E',['Graph F',rowcss=>"padding-top:15pt;padding-bottom:5pt;"]],
+    [image(insertGraph($fIm[4]), width=>200, height=>200, tex_size=>400), [image(insertGraph($fIm[5]), width=>200, height=>200, tex_size=>400), rowcss=>"padding-bottom:2pt;padding-top:2pt;"]],
+    ['\\( y = \\) '.$f[4]->ans_rule,['\\( y = \\) '.$f[5]->ans_rule,rowcss=>"padding:1pt;"]]
+    ],
+  align => 'c c',
+  center => 1,
+); @]***
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($f[0]->cmp);
+ANS($f[1]->cmp);
+ANS($f[2]->cmp);
+ANS($f[3]->cmp);
+ANS($f[4]->cmp);
+ANS($f[5]->cmp);
+
+# Solution can be improved with some distinction between "halves" and "half" etc
+
+BEGIN_PGML_SOLUTION
+
+1. *Graph A* is a sine wave that has been shifted to the [$solution[0]->{lr}]; 
+    
+    Looking at the grid lines, we see that the interval between 0 and [`\pi`] has been split into [$solution[0]->{frac}], and our graph has been shifted [$solution[0]->{lr}] by [$solution[0]->{count}] of those [$solution[0]->{frac}].
+    
+    If we want an equation for the sine wave that has been shifted [$solution[0]->{lr}] by [$solution[0]->{count}]-[$solution[0]->{frac}] of [`\pi`], we need to take [`y = \sin(x)`] and replace [`x`] by [`\left( [$solution[0]->{replace}] \right)`].
+    
+    Therefore, our equation for *Graph A* is [`y = [$f[0]]`].
+    
+1. *Graph B* is a sine wave that has been shifted to the [$solution[1]->{lr}]; 
+    
+    Looking at the grid lines, we see that the interval between 0 and [`\pi`] has been split into [$solution[1]->{frac}], and our graph has been shifted [$solution[1]->{lr}] by [$solution[1]->{count}] of those [$solution[1]->{frac}].
+    
+    If we want an equation for the sine wave that has been shifted [$solution[1]->{lr}] by [$solution[1]->{count}]-[$solution[1]->{frac}] of [`\pi`], we need to take [`y = \sin(x)`] and replace [`x`] by [`\left( [$solution[1]->{replace}] \right)`].
+    
+    Therefore, our equation for *Graph B* is [`y = [$f[1]]`].
+
+1. *Graph C* is a sine wave that has been shifted to the [$solution[2]->{lr}]; 
+    
+    Looking at the grid lines, we see that the interval between 0 and [`\pi`] has been split into [$solution[2]->{frac}], and our graph has been shifted [$solution[2]->{lr}] by [$solution[2]->{count}] of those [$solution[2]->{frac}].
+    
+    If we want an equation for the sine wave that has been shifted [$solution[2]->{lr}] by [$solution[2]->{count}]-[$solution[2]->{frac}] of [`\pi`], we need to take [`y = \sin(x)`] and replace [`x`] by [`\left( [$solution[2]->{replace}] \right)`].
+    
+    Therefore, our equation for *Graph C* is [`y = [$f[2]]`].
+
+1. *Graph D* is a sine wave that has been shifted to the [$solution[3]->{lr}]; 
+    
+    Looking at the grid lines, we see that the interval between 0 and [`\pi`] has been split into [$solution[3]->{frac}], and our graph has been shifted [$solution[3]->{lr}] by [$solution[3]->{count}] of those [$solution[3]->{frac}].
+    
+    If we want an equation for the sine wave that has been shifted [$solution[3]->{lr}] by [$solution[3]->{count}]-[$solution[3]->{frac}] of [`\pi`], we need to take [`y = \sin(x)`] and replace [`x`] by [`\left( [$solution[3]->{replace}] \right)`].
+    
+    Therefore, our equation for *Graph D* is [`y = [$f[3]]`].
+
+1. *Graph E* is a sine wave that has been shifted to the [$solution[4]->{lr}]; 
+    
+    Looking at the grid lines, we see that the interval between 0 and [`\pi`] has been split into [$solution[4]->{frac}], and our graph has been shifted [$solution[4]->{lr}] by [$solution[4]->{count}] of those [$solution[4]->{frac}].
+    
+    If we want an equation for the sine wave that has been shifted [$solution[4]->{lr}] by [$solution[4]->{count}]-[$solution[4]->{frac}] of [`\pi`], we need to take [`y = \sin(x)`] and replace [`x`] by [`\left( [$solution[4]->{replace}] \right)`].
+    
+    Therefore, our equation for *Graph E* is [`y = [$f[4]]`].
+
+1. *Graph F* is a sine wave that has been shifted to the [$solution[5]->{lr}]; 
+    
+    Looking at the grid lines, we see that the interval between 0 and [`\pi`] has been split into [$solution[5]->{frac}], and our graph has been shifted [$solution[5]->{lr}] by [$solution[5]->{count}] of those [$solution[5]->{frac}].
+    
+    If we want an equation for the sine wave that has been shifted [$solution[5]->{lr}] by [$solution[5]->{count}]-[$solution[5]->{frac}] of [`\pi`], we need to take [`y = \sin(x)`] and replace [`x`] by [`\left( [$solution[5]->{replace}] \right)`].
+    
+    Therefore, our equation for *Graph F* is [`y = [$f[5]]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

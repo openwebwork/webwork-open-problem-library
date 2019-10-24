@@ -1,0 +1,146 @@
+# WeBWorK problem written by Alex Jordan 
+# Portland Community College
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Functions)
+## DBsection(Exponential)
+## Institution(PCC)
+## Author(Alex Jordan)
+## MO(1)
+
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "parserFunction.pl",
+  "niceTables.pl",
+  "PGML.pl",
+  "PGcourse.pl",
+);
+
+
+
+TEXT(beginproblem());
+
+##############################################
+
+
+Context("Numeric");
+Context()->flags->set(reduceConstants=>0);
+
+$a = random(4.1,8.1,0.2);
+$b = round(2.718281828**$a);
+
+    ###########################
+    #
+    # Subclass the numeric functions
+    #
+    package my::Function::numeric;
+    our @ISA = ('Parser::Function::numeric');
+
+    #
+    # Override log() to sneakily return sin(x) when evaluated
+    #
+    sub log {
+      my $self = shift;
+      my $x = shift;
+      return sin($x);
+    }
+
+    #
+    # end of subclass
+    #
+    package main;
+
+
+    #
+    # make log() use our subclass
+    #
+    Context()->functions->set(log=>{class=>'my::Function::numeric'});
+    Context()->flags->set(reduceConstantFunctions=>0);
+    #
+    #
+
+
+Context()->flags->set(formatStudentAnswer=>'parsed');   
+Context()->flags->set(reduceConstantFunctions=>0);
+Context()->operators->undefine('*','+','-','/');        
+
+
+$multians = MultiAnswer(
+Compute($a), 
+Compute("ln($b)"))
+->with(
+  singleResult => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $f1stu, $f2stu ) = @{$student};
+      my ( $f1, $f2 ) = @{$correct};
+      if ( ($f1 == $f1stu && $f2 == $f2stu) ||
+           ($f1 == $f2stu && $f2 == $f1stu) ) {
+          return 1;
+      } else {
+          if ($f1stu == $f2stu) {
+              Value::Error("This equation is a true equation, but it is not what was asked for.");
+          } else {
+              return 0;
+          }
+      }
+  }
+);
+
+
+##############################################
+
+BEGIN_PGML
+
+Rewrite the statement using logarithms instead of exponents.  
+
+END_PGML
+BEGIN_TEXT
+$PAR    
+
+\{ 
+LayoutTable(
+[
+["\(e^{$a}\)","\({}={}\)","\($b\)"],
+[$multians->ans_rule(6),"\({}={}\)",$multians->ans_rule(12)], 
+],
+allcellcss=>'padding:0px; padding-bottom:6px;'
+)
+\}
+
+END_TEXT
+
+##############################################
+
+Context()->flags->set(formatStudentAnswers=>parsed);
+
+ANS( $multians->cmp() ); 
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+When one side of an equation is a number raised to a power, then that base can be moved to the other side of the equation in the form of a logarithm. That is
+
+    [`\begin{aligned}
+b^{\text{left}}&=\text{right}\\
+\underset{\hookrightarrow}{b}^{\text{left}}&=\text{right}\\
+\text{left} &= \log_b(\text{right})
+\end{aligned}`]
+
+So we have the equation 
+
+    [`[$a]=\ln([$b])`]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

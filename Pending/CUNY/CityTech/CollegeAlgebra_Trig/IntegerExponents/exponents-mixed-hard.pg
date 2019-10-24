@@ -1,0 +1,191 @@
+##DESCRIPTION
+##  Algebra problem: Simplify expressions using properties of exponents 
+##ENDDESCRIPTION
+
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of exponents)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'exponent', 'simplify exponents')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextRationalFunction.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+$warning = $showPartialCorrectAnswers == 1 ? "$PAR" : "$BBOLD Be careful! $EBOLD This problem will not specify which individual parts you get right. You must get them all correct at the same time! $PAR";
+
+# Select two variables for this problem
+@var = ("a", "b", "c", "d", "m", "n", "p", "q", "r", "s", "w", "x", "y", "z" );
+$one = random(0,13,1);
+ do { $two = random(0,13,1); } until ( $one != $two );
+
+# Force students to combine exponents within fractions
+$fractionChecker = sub {
+  my ($correct,$student,$ans) = @_;
+  $student = Formula($student);
+  Value->Error("It looks as though you have over-simplified your answer. <BR> Be sure that you're only reducing common factors!") if ($student->isConstant);
+if ( ! $ans->{isPreview} ) {
+  Value->Error("Your answer should be a fraction. Make sure you put parenthesis around your numerator and denominator.") unless ( $student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!/! );
+};
+  return 0 unless $correct == $student;
+  my $cden = Formula($correct->{tree}{rop});
+  my $sden = Formula($student->{tree}{rop});
+Value->Error("Your fraction can still be reduced.") unless $cden == $sden;
+  return 1;
+};
+
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+
+Context()->noreduce('x^(-a)');
+
+Context()->variables->are( 
+  $var[$one]=>Real, 
+  $var[$two]=>Real
+);
+
+$nCoeff = list_random( 3, 4, 5, 7 );
+do { $dCoeff = list_random( 3, 4, 5, 7); } until ( $nCoeff != $dCoeff );
+
+$n1 = -1*random(4,9,1);
+$m2 = -1*random(4,9,1);
+if ( random(0,1,1) == 0 ) {
+  $m1 = random( 2, 6, 1 );
+  do { $n2 = -1*random( 2, 7, 1 ); } until ( $n2 > $n1 + 1 );
+} else {
+  $n2 = random( 2, 6, 1 );
+  do { $m1 = -1*random( 2, 7, 1 ); } until ( $m1 > $m2 + 1 );
+};
+
+$p = random(2,3,1);
+$pDisp = -1*$p;
+
+$problemBase = Formula("($nCoeff*$var[$one]^$m1*$var[$two]^$n1)/($dCoeff*$var[$one]^$m2*$var[$two]^$n2)")->reduce;
+$problem = Formula("($problemBase)^$pDisp")->reduce;
+
+### Reverse numerator and denominator due to negative exponent outside
+
+$coeffD = $nCoeff ** $p;
+$coeffN = $dCoeff ** $p;
+$mAns = $p* ( $m1 - $m2 );
+$nAns = $p* ( $n2 - $n1 );
+
+### For solutions
+
+$mLiteral = $m1-$m2;
+$nLiteral = $n1-$n2;
+$nLitPos = $n2 - $n1;
+
+$answer = Formula("$coeffN*$var[$two]^$nAns/($coeffD*$var[$one]^$mAns)")->with(testAt=>[[0,0]]);
+
+Context()->operators->undefine("+"," +","+ ");
+Context()->operators->undefine("-"," -","- ");
+# Context()->operators->undefine("*"," *","* ");
+Context()->{error}{msg}{"Can't use '+' in this context"} 
+  = "Addition is disabled for this problem. Simplify the sum and resubmit your answer.";
+Context()->{error}{msg}{"Can't use '-' in this context"} 
+  = "Subtraction is disabled for this problem. Simplify the difference and resubmit your answer.";
+# Context()->{error}{msg}{"Can't use '*' in this context"} 
+#  = "Multiplication is disabled for this problem. Simplify the product and resubmit your answer.";
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+$warning
+Simplify \( \displaystyle{$problem} \) and write your answer without using negative exponents.
+$PAR
+\{$answer->ans_rule\}
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+Context("RationalFunction-Strict");
+Context()->variables->are( 
+  $var[$one]=>Real, 
+  $var[$two]=>Real
+);
+
+# LimitedPowers::OnlyPositiveIntegers();
+Context()->{error}{msg}{"Powers must be positive integer constants"} 
+  = "Please rewrite your answer without using negative exponents.";
+Context()->{error}{msg}{"You can only use powers of a variable or factor"} 
+  = "Compute the highlighted exponent and re-enter your answer.";
+Context()->{error}{msg}{"A variable can appear only once in each term of a polynomial"} 
+  = "You still have exponents that can be combined.";
+
+ANS(Compute($answer)->cmp(checker=>$fractionChecker) );
+#->withPostFilter(sub { 
+#  my $ans = shift; 
+#  $ans->{ans_message} = "Your answer isn't completely simplified." 
+#    if $ans->{ans_message} eq "The domain of your function doesn't match that of the #correct answer";
+#  return $ans; 
+#}));
+
+Context()->texStrings;
+BEGIN_HINT
+
+It might be easiest to simplify the fraction before applying the final exponent of $pDisp.
+$PAR
+Recall the exponent properties: $BR
+\( B^m \cdot B^n = B^{(m+n)} \)
+$BR
+\( \displaystyle \frac{B^m}{B^n} = B^{(m-n)} \)
+$BR
+and \( \left( B^m \right)^n = B^{(m\cdot n)} \)
+
+END_HINT
+BEGIN_SOLUTION
+
+If we begin by simplifying the fraction:
+$PAR
+\(\displaystyle \frac{$nCoeff}{$dCoeff} \) cannot be reduced.
+$BR
+\(\displaystyle \frac{$var[$one]^{$m1}}{$var[$one]^{$m2}} = $var[$one]^{($m1-($m2))} = $var[$one]^{$mLiteral}\)
+$BR
+\(\displaystyle \frac{$var[$two]^{$n1}}{$var[$two]^{$n2}} = $var[$two]^{($n1-($n2))} = $var[$two]^{$nLiteral} = \frac{1}{$var[$two]^{$nLitPos}} \)
+$PAR
+Putting this together, we have:
+\( \displaystyle $problemBase = \left(\frac{$nCoeff}{$dCoeff}\right) \left($var[$one]^{$mLiteral}\right) \left(\frac{1}{$var[$two]^{$nLitPos}}\right) = \frac{$nCoeff $var[$one]^{$mLiteral}}{$dCoeff $var[$two]^{$nLitPos}} \)
+$PAR
+Now that the fraction is simplified, we must still apply the final exponent of $pDisp.
+$BR
+\( \displaystyle \left( \frac{$nCoeff $var[$one]^{$mLiteral}}{$dCoeff $var[$two]^{$nLitPos}} \right)^{$pDisp} = \left(\frac{$dCoeff $var[$two]^{$nLitPos}}{$nCoeff $var[$one]^{$mLiteral}} \right)^$p = \frac{$dCoeff^$p $var[$two]^{($nLitPos \cdot $p)}}{$nCoeff^$p $var[$one]^{($mLiteral \cdot $p)}} = $answer \)
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        
