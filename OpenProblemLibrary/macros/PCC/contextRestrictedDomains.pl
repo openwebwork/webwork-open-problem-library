@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright @copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader$
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -61,7 +61,7 @@ sub _contextRestrictedDomains_init {
   $context->operators->redefine('where',using=>',',from=>'Numeric');
   $context->operators->redefine(',where',using=>',',from=>'Numeric');
   $context->operators->redefine(', where',using=>',',from=>'Numeric');
-  $context->operators->add('¿' => {precedence => .5, associativity => 'left', type => 'bin', string => ' != ', TeX => '\ne ',
+  $context->operators->add('â‰ ' => {precedence => .5, associativity => 'left', type => 'bin', string => ' != ', TeX => '\ne ',
 class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
   $context->functions->set(sqrt=>{class=>'restrictedDomains::Function::numeric'}); # override sqrt()
   $context->functions->add(identity => {class => 'restrictedDomains::Function::numeric'});
