@@ -20,9 +20,10 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "parserMultiAnswer.pl",
+#  "parserMultiAnswer.pl",
+#  "contextLimitedPolynomial.pl",
+  "contextPolynomialFactors.pl",
   "contextLimitedPowers.pl",
-  "contextLimitedPolynomial.pl",
   "PGcourse.pl"
 );
 
@@ -33,10 +34,14 @@ $showPartialCorrectAnswers = 1;
 ###########################################################################
 # setup contexts and variables 
 ###########################################################################
-Context("LimitedPolynomial-Strict");
-$var = list_random('a','b','m','n','x','y','z','w','p','q','r','s','t','u','v');
-Context()->variables->are($var=>"Real", uc($var)=>"Real");
-LimitedPowers::OnlyPositiveIntegers();
+#Context("LimitedPolynomial-Strict");
+#$var = list_random('a','b','m','n','x','y','z','w','p','q','r','s','t','u','v');
+#Context()->variables->are($var=>"Real", uc($var)=>"Real");
+#LimitedPowers::OnlyPositiveIntegers();
+
+Context("Numeric");
+
+# set up integer coefficients for factors
 
 do {
   $c = random(-1,1,2)*random(2,5);
@@ -47,42 +52,63 @@ do {
   $p = $m/$c;
 } until ($a > 1 && abs($b) > 1);
 
-$fac1 = "$n $var + $c";    $afac1 = Formula($fac1)->reduce;
-$fac2 = "$p $var + 1";    $afac2 = Formula($fac2)->reduce;
+# choose a variable
 
-$expn = "$a $var^2 + $b $var + $c";
+$var = list_random('a','b','m','n','x','y','z','w','p','q','r','s','t','u','v');
 
-$answer = MultiAnswer($afac1, $afac2)->with(
-  singleResult => 0,
-  allowBlankAnswers => 1,
-  checker => sub {
-    my ( $correct, $student, $self ) = @_;
-    my ( $c1, $c2 ) = @{$correct};
-    my ( $s1, $s2 ) = @{$student};
-    $s1 = Formula($s1) unless ($s1->type eq 'Formula' || $s1->type eq 'String');
-    $s2 = Formula($s2) unless ($s2->type eq 'Formula' || $s2->type eq 'String');
-    $s1 = Formula("$var^{1000}") if ($s1->type eq 'String'); #bogus answer
-    $s2 = Formula("$var^{500}") if ($s2->type eq 'String'); #bogus answer
-    if (($c1 == $s1 && $c1 == $s2) || ($c2 == $s1 && $c2 == $s2)) {
-      return [1,0];
-    } elsif (($c1 == -$s1 && $c1 == -$s2) || ($c2 == -$s1 && $c2 == -$s2)) {
-      return [1,0];
-    } elsif (($c1 == $s1 && $c2 == $s2) || ($c1 == $s2 && $c2 == $s1)) {
-      return [1,1];
-    } elsif (($c1 == -$s1 && $c2 == -$s2) || ($c1 == -$s2 && $c2 == -$s1)) {
-      return [1,1];
-    } elsif (($c1 == $s1 && $c2 != $s2) || ($c2 == $s1 && $c1 != $s2)) {
-      return [1,0];
-    } elsif (($c1 == -$s1 && $c2 == $s2) || ($c2 == -$s1 && $c1 == $s2)) {
-      return [0,1];
-    } elsif (($c1 == $s2 && $c2 != $s1) || ($c2 == $s2 && $c1 != $s1)) {
-      return [0,1];
-    }
-    return [0,0];
-  }
+Context()->variables->are($var=>"Real", uc($var)=>"Real");
+
+# Expanded form
+$expandedpoly = Formula("$n*$p*$var**2+($c*$p+$n)*$var+$c")->reduce;
+
+#Factored Form
+
+Context("PolynomialFactors-Strict");
+Context()->variables->are($var=>"Real", uc($var)=>"Real");
+Context()->flags->set(singleFactors=>0);
+LimitedPowers::OnlyIntegers(
+minPower => 0, maxPower => 1,
+message => "either 0 or 1",
 );
-$texanswer = "\(($fac1)($fac2)\)";
 
+$factoredpoly=Compute("($n*$var+$c)($p*$var+1)")->reduce;
+
+#$fac1 = "$n $var + $c";    $afac1 = Formula($fac1)->reduce;
+#$fac2 = "$p $var + 1";    $afac2 = Formula($fac2)->reduce;
+#
+#$expn = "$a $var^2 + $b $var + $c";
+#
+#$answer = MultiAnswer($afac1, $afac2)->with(
+#  singleResult => 0,
+#  allowBlankAnswers => 1,
+#  checker => sub {
+#    my ( $correct, $student, $self ) = @_;
+#    my ( $c1, $c2 ) = @{$correct};
+#    my ( $s1, $s2 ) = @{$student};
+#    $s1 = Formula($s1) unless ($s1->type eq 'Formula' || $s1->type eq 'String');
+#    $s2 = Formula($s2) unless ($s2->type eq 'Formula' || $s2->type eq 'String');
+#    $s1 = Formula("$var^{1000}") if ($s1->type eq 'String'); #bogus answer
+#    $s2 = Formula("$var^{500}") if ($s2->type eq 'String'); #bogus answer
+#    if (($c1 == $s1 && $c1 == $s2) || ($c2 == $s1 && $c2 == $s2)) {
+#      return [1,0];
+#    } elsif (($c1 == -$s1 && $c1 == -$s2) || ($c2 == -$s1 && $c2 == -$s2)) {
+#      return [1,0];
+#    } elsif (($c1 == $s1 && $c2 == $s2) || ($c1 == $s2 && $c2 == $s1)) {
+#      return [1,1];
+#    } elsif (($c1 == -$s1 && $c2 == -$s2) || ($c1 == -$s2 && $c2 == -$s1)) {
+#      return [1,1];
+#    } elsif (($c1 == $s1 && $c2 != $s2) || ($c2 == $s1 && $c1 != $s2)) {
+#      return [1,0];
+#    } elsif (($c1 == -$s1 && $c2 == $s2) || ($c2 == -$s1 && $c1 == $s2)) {
+#      return [0,1];
+#    } elsif (($c1 == $s2 && $c2 != $s1) || ($c2 == $s2 && $c1 != $s1)) {
+#      return [0,1];
+#    }
+#    return [0,0];
+#  }
+#);
+#$texanswer = "\(($fac1)($fac2)\)";
+#
 
 ###########################################################################
 # state the problem 
@@ -91,19 +117,25 @@ Context()->texStrings;
 BEGIN_TEXT
 Factor the expression and simplify your answer as much as possible:
 $PAR $BCENTER 
-\($expn = \big( \) \{ $answer->ans_rule(20) \} \( \big) \big( \) \{ $answer->ans_rule(20) \} \( \big) \) 
+\($expandedpoly = \)\{ ans_rule(40) \}  
 $ECENTER
 END_TEXT
 Context()->normalStrings;
+
+#BEGIN_TEXT
+#Factor the expression and simplify your answer as much as possible:
+#$PAR $BCENTER 
+#\($expn = \big( \) \{ $answer->ans_rule(20) \} \( \big) \big( \) \{ $answer->ans_rule(20) \} \( \big) \) 
+#$ECENTER
+#END_TEXT
 
 
 ###########################################################################
 # check the answer  
 ###########################################################################
-ANS($answer->cmp());
+#ANS($answer->cmp());
 
-
-
+ANS($factoredpoly->cmp());
 
 COMMENT('Desc: Factor an expression of the form a x^2 + b x + c, where a > 1. One factor always of form (p x + 1).');
 ENDDOCUMENT();

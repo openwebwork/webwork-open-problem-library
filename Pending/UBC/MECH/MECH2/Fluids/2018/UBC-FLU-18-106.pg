@@ -1,0 +1,130 @@
+##DESCRIPTION
+## 
+## Created by the UBC Faculty of Applied Science.  
+## Project led by Agnes d'Entremont, Jonathan Verrett, and Negar M. Harandi. 
+##
+## Contact: agnes.dentremont@mech.ubc.ca
+##
+## This work is licensed under the Creative Commons
+## Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+## <https://creativecommons.org/licenses/by-sa/4.0/>
+##
+## We gratefully acknowledge the financial support for this 
+## project provided by UBC Vancouver students via the Teaching
+## and Learning Enhancement Fund. We also gratefully acknowledge
+## additional funding support from BCcampus, the UBC Department of
+## Mechanical Engineering, and the UBC Applied Science Dean’s Office.  
+##
+## This work was completed on the traditional, ancestral, and unceded
+## territory of the Musqueam people. 
+##
+##ENDDESCRIPTION
+
+## DBsubject(Fluid mechanics)
+## DBchapter(Viscous flow in ducts)
+## DBsection(Turbulent pipe flow)
+## Institution('University of British Columbia')
+## Author(UBC Engineering)
+## Date()
+## Level()
+## KEYWORDS('')
+## RESOURCES('UBC-FLU-18-106.png')
+## TitleText('TBD')
+## EditionText('TBD')
+## AuthorText('TBD')
+## Section('TBD')
+## Problem('TBD')
+## Beginner
+
+
+DOCUMENT();
+
+#image scale
+$imgScale = .2;
+
+#image aspect ratio
+$width = $imgScale*3381;
+$height = $imgScale*1917;
+
+loadMacros(   
+	"PGstandard.pl",     # Standard macros for PG language
+	"MathObjects.pl",
+	"PGML.pl",
+	"parserPopUp.pl",
+	"parserMultiAnswer.pl",
+	"parserRadioButtons.pl",
+	#"source.pl",        # allows code to be displayed on certain sites.
+	#"PGcourse.pl", 	 # Customization file for the course
+   	);
+
+TEXT(beginproblem());
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+#given
+$r = random(0,20,1);
+$FlowRateTmp = 1000 + $r * 20;#(1000,1400,20) [L/min]
+$PipeDiaTmp = 3.5 + $r * 0.1;#(3.5,5.5,0.1) [in]
+$Length1 = 50 + $r * 2.5;#(50,100,2.5) [m]
+$Length2 = 100 + $r  *5;#(100,200,5) [m]
+$Length3 = 50 + $r * 2.5;#(50,100,2.5) [m]
+$Height = 50 + $r;#(50,70,1) [m]
+
+$FlowRate = $FlowRateTmp/60000;
+$PipeDia = $PipeDiaTmp*0.0254;
+$Length = $Length1 + $Length2 + $Length3;
+$PipeArea = pi/4*($PipeDia**2);
+$AvgVel = $FlowRate/$PipeArea;
+$ReNum = 998*$AvgVel*$PipeDia/0.001;
+
+$FricCoeffGuess = 0.01;
+
+do{
+	$Alpha = (0.001/$PipeDia)/3.7 + (2.51/$ReNum)*($FricCoeffGuess**(-0.5));
+	$Func = ($FricCoeffGuess**(-0.5)) + 2*log10($Alpha);
+	$dFunc = -0.5*($FricCoeffGuess**(-3/2)) + 2*(1/($Alpha*log(10)))*(2.51/$ReNum)*(-0.5*($FricCoeffGuess**(-3/2)));
+	$FricCoeff = $FricCoeffGuess - $Func/$dFunc;
+	$err = abs($FricCoeff - $FricCoeffGuess);
+	$FricCoeffGuess = $FricCoeff;
+}while($err >= 1/(10**6));
+
+$FricHead = $FricCoeff*$Length*($AvgVel**2)/(2*9.81*$PipeDia);
+$MinorHead = 3*($AvgVel**2)/(2*9.81);
+$GravHead = $Height;
+$PressureDrop = 9.81*998*($FricHead + $MinorHead + $GravHead);
+$Ans = $PressureDrop*$FlowRate/1000;# [kW]
+
+
+#set tolerance
+Context()->flags->set(
+tolerance=>.5,
+tolType=>'absolute');
+
+##############################################################
+#
+#  PGML 
+#
+#
+
+BEGIN_PGML
+
+[@ image("UBC-FLU-18-106.png", width=>[$width], height=>[$height]) @]*
+
+The pump shown in the figure transfer water at [`20^{\circ}C`] from reservoir [`A`] to reservoir [`B`] at a flowrate of [`[$FlowRateTmp]`] [`L/min`]. The pipe contains to two elbows, each with a flow resistance coefficient of [`1.5`]. The lengths of the three pipe segments are [`L_1 = [$Length1]`] [`m`], [`L_2 = [$Length2]`] [`m`], and [`L_3 = [$Length3]`] [`m`]. The vertical distance that the fluid is transferred is [`H = [$Height]`] [`m`]. If the pipe diameter is [`[$PipeDiaTmp]`] [`in`], determine the required pumping power. The surface roughness inside the pipe is [`0.001`] [`m`].
+
+[`P=`] [_____]{"$Ans"} [`kW`]
+
+_Hint: The easiest way to solve this problem is to solve the nonlinear Colebrook equation (the equation plotted in the Moody chart) using a simple Newton's method algorithm implemented in Microsoft Excel. Alternatively, you may use the fsolve(Function,InitialGuess) function in MATLAB. Regardless of the method used, ensure that you arrive at a similar solution via manual iteration as practice for exams._
+
+
+
+END_PGML
+
+##############################################################
+
+ENDDOCUMENT();

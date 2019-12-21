@@ -20,16 +20,19 @@
 ## EditionText2('1')
 ## Section2('14.5')
 ## Problem2('21 22 23 24 25 26 27 28 29 30')
+## MO(1)
 ## KEYWORDS('gradient' 'directional' 'derivative')
 
 DOCUMENT();
 loadMacros(
   "PGstandard.pl",
+  "MathObjects.pl",
   "PGchoicemacros.pl",
-  "PGmatrixmacros.pl",
   "PGcourse.pl"
 );
  
+Context("Vector");
+Context()->variables->are(x => "Real", y => "Real");
 
 ## Do NOT show partial correct answers
 $showPartialCorrectAnswers = 0;
@@ -40,41 +43,62 @@ $b = random(-5,5);
 $c = non_zero_random(-5,5);
 $d = non_zero_random(-5,5);
 
+$n = random(2,4);
+do { $m = random(2,4); } until ($n != $m);
+
 $r = random(1,5);
 $s = random($r+1, 13);
-$r2 = sqrt($s*$s - $r*$r);
+$r2sq = Compute("$s*$s - $r*$r")->reduce;
+$r2 = Compute("sqrt($r2sq)");
+
 ## Now <r/s, r2/s> is a unit vector
+$u = Vector(-$r/$s,$r2/$s);
+
+$f = Compute("$c*x*y^$n + $d * x^$m * y")->reduce;
+$fx = Compute("$c*y^$n + $m*$d*x^($m-1) * y")->reduce;
+$fy = Compute("$n*$c*x*y^($n-1) + $d * x^$m")->reduce;
+$gradf = Vector($fx,$fy);
+
+$fx_at_ab = $fx->eval(x=>$a,y=>$b);
+$fy_at_ab = $fy->eval(x=>$a,y=>$b);
+$gradf_at_ab = Vector($fx_at_ab,$fy_at_ab);
+$gradf_at_ab_dot_u = Compute("$gradf_at_ab . $u")->reduce;
 
 
 ## Ok, we are ready to begin the problem...
 ##
 TEXT(beginproblem());
 
+#########################################
+
+Context()->texStrings;
 BEGIN_TEXT
-Consider the function \(f(x,y) = 
-\{preformat($c, "x y^2")\} + \{preformat($d, "x^3 y")\} \).
+Consider the function \(f(x,y) = $f \).
 
 Find the gradient of \(f\): $BR
 \(\langle\)\{ans_rule(30)\}, \{ans_rule(30)\}\(\rangle\)
-$BR
 
+$BRBR
 Find the gradient of \(f\) at
 the point ($a, $b). $BR
 \(\langle\)\{ans_rule(30)\}, \{ans_rule(30)\}\(\rangle\)
 
-Find the rate of change of the function \(f\) at the point ($a, $b)  in the direction \(\mathbf u = \langle -$r/$s, \sqrt{\{$r2**2\}}/$s \rangle\).  $BR
+$BRBR
+Find the rate of change of the function \(f\) at the point ($a, $b)  in the direction
+\(\mathbf u = \left\langle \frac{-$r}{$s}, \frac{\sqrt{$r2sq}}{$s} \right\rangle\).  $BR
 \{ans_rule(60)\}
 END_TEXT
+Context()->normalStrings;
 
-ANS(fun_cmp("$c*y**2 + 3*$d * x**2 * y", vars=>["x", "y"]));
-ANS(fun_cmp("2*$c*x*y + $d*x**3", vars=>["x", "y"]));
+#########################################
 
-@gradf = ($c*($b)**2 + 3*$d * ($a)**2 * $b, 2*$c* $a*$b + $d*($a)**3);
-@u = (-$r/$s, $r2/$s); 
-ANS(num_cmp($c*($b)**2 + 3*$d * ($a)**2 * $b));
-ANS(num_cmp(2*$c* $a*$b + $d*($a)**3));
+ANS($fx->cmp());
+ANS($fy->cmp());
 
-ANS(num_cmp(vec_dot(~~@gradf, ~~@u)));
+ANS($fx_at_ab->cmp());
+ANS($fy_at_ab->cmp());
+
+ANS($gradf_at_ab_dot_u->cmp());
 
 ENDDOCUMENT();
 

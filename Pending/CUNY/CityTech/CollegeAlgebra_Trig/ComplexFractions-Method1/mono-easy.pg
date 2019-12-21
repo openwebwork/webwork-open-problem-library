@@ -1,0 +1,134 @@
+##DESCRIPTION
+##  Algebra problem: Simplify complex fraction
+##ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Operations on polynomial and rational expressions)
+## DBsection(Simplify rational expressions)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'algebra, operations with rational expressions', 'algebra, simplifying rational expression', 'rational expressions', 'rational expression')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+$rationalChecker = sub {
+     my ($correct,$student,$ansHash) = @_; 
+     $studentRaw = $student;
+     Value->Error("Your answer doesn't contain any variables. <BR> Perhaps you oversimplified?") unless $student->class eq "Formula";
+     if ($student->{tree}->class eq "UOP" && $student->{tree}{uop} eq 'u-') {
+          $student = Formula($student->{tree}->{op});
+     }
+     Value->Error("Check the answer preview box. Maybe you forgot parenthesis around your numerator or denominator?") unless $student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!/!;
+     return 0 unless $correct == $studentRaw;
+     my $cnum = Formula($correct->{tree}{lop});
+     my $snum = Formula($student->{tree}{lop});
+     my $cden = Formula($correct->{tree}{rop});
+     my $sden = Formula($student->{tree}{rop});
+     Value->Error("Your answer can be reduced further") unless (abs($cnum) == abs($snum) && abs($cden) == abs($sden));
+     return 1;
+};
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric")->flags->set(reduceConstants=>0,reduceConstantFunctions=>0);
+Context()->variables->are("x"=>Real,"y"=>Real);
+
+$NN = random(2,9,1);
+do { $ND = random(2,9,1); } until ( gcf($NN,$ND) == 1 );
+$Nx = random(4,6,1);
+$Ny = random(4,6,1);
+$fracN = Formula("($NN x^$Nx)/($ND y^$Ny)")->reduce;
+
+do { $DN = random(1,9,1); } until ( gcf($DN, $NN) == 1 );
+do { $DD = random(1,9,1); } until ( gcf($DD, $ND) == 1 && gcf($DD,$DN) == 1 );
+$Dx = random(1,$Nx-1,1);
+$Dy = $Ny;
+$fracD = Formula("($DN x^$Dx)/($DD x y^$Dy)")->reduce;
+$fracDinv = Formula("($DD x y^$Dy)/($DN x^$Dx)")->reduce;
+
+$ansNcoeff = $NN*$DD;
+$ansDcoeff = $ND*$DN;
+$ansNx = $Nx+1;
+$ansNxReduced = $ansNx - $Dx;
+$ansN = Formula("$NN*$DD x^($Nx-$Dx+1)")->reduce;
+$ansD = Formula("$ND*$DN")->reduce;
+
+$ans = Formula("$ansN/$ansD");
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Simplify the complex fraction:
+\[ \Large\frac{$fracN}{$fracD} \]
+$BR
+\{ans_rule(25)\}
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($ans->cmp(checker=>$rationalChecker));
+
+Context()->texStrings;
+BEGIN_HINT
+
+Remember that fractions are shorthand for division:$BR
+\[\Large\frac{$fracN}{$fracD}\]
+can be rewritten as
+\[ \displaystyle $fracN \div $fracD \]
+$PAR
+Do you remember how to divide fractions? There's a way to rewrite the division as a multiplication instead...
+
+END_HINT
+BEGIN_SOLUTION
+
+$BBOLD Begin by rewriting the division of fractions as multiplication by the reciprocal: $EBOLD $BR
+\( \displaystyle $fracN \div $fracD = $fracN \times $fracDinv \)
+$PAR
+$BBOLD Then multiply the fractions: $EBOLD $BR
+\( \displaystyle $fracN \times $fracDinv = \frac{($NN x^$Nx)($DD x y^$Dy)}{($ND y^$Ny)($DN x^$Dx)} = \frac{$ansNcoeff x^{$ansNx}y^{$Dy}}{$ansDcoeff x^{$Dx} y^{$Dy}} \)
+$PAR
+$BBOLD Now we must reduce our answer: $EBOLD $BR
+\( \displaystyle \frac{$ansNcoeff}{$ansDcoeff} \) does not reduce. $BR
+\( \displaystyle \frac{x^{$ansNx}}{x^{$Dx}} \) reduces to \( \displaystyle \frac{x^{$ansNxReduced}}{1} \) $BR
+\( \displaystyle \frac{y^{$Dy}}{y^{$Dy}} \) reduces to \( \displaystyle \frac{1}{1} \)
+$PAR
+$BBOLD Putting it all together, we end up with: $EBOLD $BR
+\( \displaystyle \left(\frac{$ansNcoeff}{$ansDcoeff}\right) \left(\frac{x^{$ansNxReduced}}{1}\right) \left(\frac{1}{1}\right)
+= $ans \)
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

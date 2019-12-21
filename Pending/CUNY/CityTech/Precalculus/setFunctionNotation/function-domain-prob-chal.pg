@@ -1,0 +1,231 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS()
+
+## DBsubject('Algebra')
+## DBchapter('Functions')
+## DBsection('Domain and range')
+## Date('6/4/2018')
+## Author('K. Andrew Parker')
+## Institution('City Tech')
+## TitleText1('Precalculus')
+
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGgraphmacros.pl",
+   "PGML.pl",
+   "contextFraction.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+Context()->noreduce('(-x)-y');
+
+# numer = sqrt(linear)
+$n1 = non_zero_random(-8,8,1);
+$n2 = non_zero_random(-8,8,1);
+$n = Formula("sqrt($n1 x - $n2)")->reduce;
+
+$bound = ($n1 > 0)? int($n2/$n1) + 1 : int($n2/$n1) - 1;
+
+Context()->noreduce('(-x)+y');
+# denom = quadratic: ($n1 x - $n2) * linear in domain of numerator 
+$dr2 = ($n1 > 0)? non_zero_random($bound, min($bound + 6,9), 1) : non_zero_random(max($bound - 6,-9), $bound, 1);
+# ($n1 x - $n2)*(x - $dr2)
+$dB = $n2+$n1*$dr2;
+$dC = $dr2*$n2;
+$d = Formula("$n1 x^2 - $dB x + $dC")->reduce;
+
+# f = numer / denom
+$f = Formula("$n/$d")->reduce;
+
+Context("LimitedFraction");
+Context()->flags->set(showMixedNumbers=>0);
+
+$fEnd = Fraction($n2,$n1)->reduce;
+$fEndReal = $n2/$n1;
+
+Context("Interval");
+
+$fDom = ($n1 > 0)? Compute("($fEnd,$dr2) U ($dr2,inf)") : Compute("(-inf,$dr2) U ($dr2,$fEnd)");
+
+$ineq = ( $n1 > 0 )? "\geq" : "\leq";
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+  
+
+Use interval notation to describe the domain of [`f(x)=\displaystyle[$f] `]:
+
+
+* Type "inf" and "-inf" for [`\infty`] and [`-\infty`], respectively.
+* Type the capital letter "U" to represent the symbol [`\cup`].
+* Type the capital letter "R" to represent the symbol [`\mathbb{R}`].
+
+[___________________________]{$fDom}
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+##############################################################
+#
+#  Hints
+#
+#
+
+
+
+BEGIN_PGML_HINT
+
+* Does your function have any *square roots*?  What _can't_ you take the square root of? 
+
+* Which values can't your *denominator* take?
+
+* Make sure to combine *all* restrictions for [`x`]. 
+
+* Remember: the domain consists of all values of [`x`] for which both the denominator and the square root can take.
+
+END_PGML_HINT
+
+##############################################################
+#
+#  Solutions
+#
+#
+
+########### Graph of the domain ##############
+
+foreach my $i (0..1) {
+    $gr[$i] = init_graph(-10,-1,10,1, size=>[408,68]);
+    # x-axis
+    $gr[$i] -> moveTo(-10,0);
+    $gr[$i] -> lineTo(10,0,'black','1');
+    # x-axis ticks entered as y-value, color, list of x-values
+    $gr[$i] -> h_ticks(0,"black",-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10);
+    # labels for tickmarks
+    foreach my $j (0..10) {
+        $gr[$i]->lb( new Label($j,-0.5,$j, 'black','center','middle'));
+        $gr[$i]->lb( new Label(-$j,-0.5,-$j, 'black','center','middle'));
+    }
+}
+
+$gr[0] -> moveTo($fEndReal,0);
+$gr[0] -> lineTo($dr2,0,'blue', 3);
+$gr[0] -> arrowTo(10,0,'blue', 3);
+$gr[0] -> stamps( open_circle($fEndReal,0,'blue') );
+$gr[0] -> stamps( open_circle($dr2,0,'blue') );
+
+$gr[1] -> moveTo($dr2,0);
+$gr[1] -> arrowTo(-10,0,'blue', 3);
+$gr[1] -> moveTo($dr2,0);
+$gr[1] -> lineTo($fEndReal,0,'blue', 3);
+$gr[1] -> stamps( open_circle($fEndReal,0,'blue') );
+$gr[1] -> stamps( open_circle($dr2,0,'blue') );
+
+
+$grf = ($n1 > 0)? $gr[0] : $gr[1];
+
+
+########### Graph of the function ##############
+
+# a graph object
+$gr = init_graph(-10,-10,20,10,
+axes=>[0,0],
+size=>[800,580],
+ticks=>[30,20],
+grid=>[30,20]); # or pixels=>[400,400]
+
+# plot a function
+@va = PGsort( sub {$_[0] < $_[1]} , ($dr2,$fEndReal) );
+
+add_functions($gr, "$f for x in <-10,$va[0]> using color:blue and weight:2");
+add_functions($gr, "$f for x in <$va[0],$va[1]> using color:blue and weight:2");
+add_functions($gr, "$f for x in <$va[1],20> using color:blue and weight:2");
+($gr->fn)[0]->steps(1000);
+($gr->fn)[1]->steps(1000);
+($gr->fn)[2]->steps(1000);
+
+# domain is > least vertical asymptote
+$gr->moveTo($va[0],0);
+$gr->arrowTo(20,0,'red',2);
+
+# open circles for V.A.
+$gr->stamps(open_circle($fEndReal,0,'red') );
+$gr->stamps(open_circle($dr2,0,'red') );
+
+# a dashed green line
+#    (only works for WeBWorK > 2.4)
+$gr->moveTo($fEndReal,-10);
+$gr->lineTo($fEndReal,10,'green',2,'dashed');
+
+$gr->moveTo($dr2,-10);
+$gr->lineTo($dr2,10,'green',2,'dashed');
+
+
+#x [$ineq] \dfrac{[$n2]}{[$n1]} 
+
+#########################################
+
+
+BEGIN_PGML_SOLUTION
+
+* First, let's take a look at the square root part of the function: [`\sqrt{[$n1] x - [$n2]}`]. We need   
+
+>> [`[$n1] x - [$n2]\geq 0 \quad\longrightarrow\quad [$n1] x \geq [$n2]
+\quad\longrightarrow\quad    x [$ineq] \displaystyle{[$fEnd]}`] <<
+
+* The denominator is [`[$n1] x^2 - [$dB] x + [$dC]`]. We need  
+
+>> [`[$n1] x^2 - [$dB] x + [$dC] \neq 0 \quad\longrightarrow\quad 
+([$n1] x - [$n2])(x - [$dr2]) \neq 0 \quad\longrightarrow\quad  
+x \neq \displaystyle{[$fEnd]}`] and [`x\neq \displaystyle{[$dr2]} `] <<  
+
+* Putting all restrictions together:
+
+>> [`x [$ineq] \displaystyle{[$fEnd]}, x \neq \displaystyle{[$fEnd]}`] and [`x\neq [$dr2]`] <<
+
+* The following interval satisfies all three restrictions:
+
+>> [@ image(insertGraph($grf),width=>408, height=>68, tex_size=>700) @]* <<
+
+* The domain of [`f`] is [` [$fDom] `].  
+
+* We can check our answer by graphing [` f(x)=\displaystyle{[$f]}`].
+
+>> [@ image( insertGraph($gr), width=>400, 
+    height=>400, tex_size=>800 ) @]*<<
+
+
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

@@ -1,0 +1,171 @@
+# WeBWorK problem written by Alex Jordan 
+# Portland Community College
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Functions')
+## DBsection('Exponential')
+## KEYWORDS()
+## TitleText1()
+## EditionText1()
+## AuthorText1()
+## Section1()
+## Problem1()
+## Author('Alex Jordan')
+## Institution('PCC')
+
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGgraphmacros.pl",
+  "PCCgraphMacros.pl",
+  "PGML.pl",
+  "parserAssignment.pl",
+  "contextPercent.pl",
+  "contextCurrency.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+);
+
+
+TEXT(beginproblem());
+
+##############################################
+
+
+Context("Numeric");
+Context()->flags->set(reduceConstants=>0);
+
+$x[0] = 2;
+$x[1] = 7;
+
+
+$y[0] = random(1000,5000,100);
+$factor = random(1.08,1.21,0.01);
+$y[1] = ceil($y[0]*($factor**($x[1]-$x[0])));
+
+$factor = ($y[1]/$y[0])**(1/($x[1]-$x[0]));
+
+$deposit = round($y[0]/($factor**2)*100)/100;
+$exponential = Compute("$deposit*$factor^x");
+
+
+$gr = init_graph(-1,-$y[0]/2,10,$y[1]*1.5, axes=>[0,0], size=>[400,400]);
+
+add_functions($gr, "$exponential for x in <-1,10> " .
+    "using color:blue and weight:1");
+
+$gr->lb( new Label($x[0],$y[0],"($x[0],$y[0])",
+    'black','left','top'));
+
+$gr->lb( new Label($x[1],$y[1],"($x[1],$y[1])",
+    'black','left','top'));
+
+$gr->stamps( closed_circle($x[0],$y[0],'black') );
+$gr->stamps( closed_circle($x[1],$y[1],'black') );
+
+
+
+
+
+Context("Numeric");
+Context()->variables->are(t=>'Real');
+parser::Assignment->Allow;
+parser::Assignment->Function("P");
+
+
+$deposit = round($y[0]/($factor**2)*100)/100;
+$exponential = Compute("P(t)=$deposit*$factor^t");
+
+Context("Currency");
+Context()->flags->set(trimTrailingZeros=>1);
+Context()->flags->set(tolerance=>0.501);
+Context()->currency->addSymbol("dollars","dollar");
+
+$depositC = Currency($deposit);
+
+Context("Percent");
+$rate = Percent($factor-1);
+
+
+##############################################
+$refreshCachedImages = 1;
+
+BEGIN_PGML
+
+This is a graph of the balance [`P`] in a bank account (measured in dollars), as a function of time [`t`] (measured in years since the initial deposit).
+
+[@EnlargeImageStatementPGML()@]**
+
+>> [@image( insertGraph($gr), width=>400, 
+    height=>400, tex_size=>800 ) @]* <<
+
+
+Find a possible formula for [`P(t)`], assuming the balance grew exponentially. Your answer should be in the form *P(t)=...*.
+
+    [__________________________]{$exponential}
+
+What was the initial balance?
+
+    [__________________________]{$depositC}
+
+What annual interest rate does the account pay?
+
+    [__________________________]
+
+
+
+END_PGML
+
+
+
+##############################################
+
+$showPartialCorrectAnswers = 1;
+
+ANS($rate->cmp()->withPostFilter(AnswerHints( 
+  sub {
+                        my ($correct,$student,$ans) = @_;
+                        return $student > 1;
+                } => "Did you mean to enter a %?",
+)));
+
+
+##############################################
+
+$x0 = $x[0];
+$x1 = $x[1];
+$y0 = $y[0];
+$y1 = $y[1];
+
+$year = ($x0 == 1) ? "year" : "years";
+
+BEGIN_PGML_SOLUTION
+
+Let the annual growth factor be [`b`]. At year [`[$x0]`] the balance was [`[$y0]`]. After [`[@$x1-$x0@]`] more years, it had grown to [`[$y1]`]. This tells us that:
+
+    [`\begin{aligned}
+[$y0](b)^{[@$x1-$x0@]} &= [$y1]\\
+b^{[@$x1-$x0@]} &= \frac{[$y1]}{[$y0]}\\
+b &= \sqrt[[@$x1-$x0@]]{\frac{[$y1]}{[$y0]}}\\
+b &\approx [$factor]
+\end{aligned}`]
+
+We can find [`a`], the initial value of the exponential function, by moving backwards in time [`[$x0]`] [$year] from year [`[$x0]`]:
+
+    [`\begin{aligned}
+a &\approx [$y0]\div([$factor])^{[$x0]}\\
+&\approx [$deposit]
+\end{aligned}`]
+
+So [`[$exponential]`]. The initial balance was [`[$depositC]`]. And the annual interest rate was [`[$factor]-1`], or [`[@($factor-1)*100@]%`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

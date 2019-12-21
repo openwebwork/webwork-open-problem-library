@@ -1,0 +1,150 @@
+# WeBWorK problem written by Alex Jordan 
+# Portland Community College
+#
+# Template:
+# Use rational exponents to write the expression. 
+#
+#       sqrt(a^2x)/cuberoot(x^2)
+#
+#
+# Last updated: Spoddeck 11/11/15
+# ENDDESCRIPTION
+
+
+##############################################
+
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "contextLimitedPowers.pl",
+  "contextFraction.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+
+##############################################
+
+
+TEXT(beginproblem());
+
+Context("Fraction");
+$var = list_random('x','y','z','t','r','m','n','a','b','c');
+Context()->variables->are($var=>'Real');
+Context()->flags->set(reduceConstants=>0);
+do {
+   $num1 = random(1,4,1);
+   do {$den1 = random(2,5,1);} until (gcd($num1,$den1)==1);
+   $num2 = random(1,5,1);
+   do {$den2 = random(2,10,1);} until ( ($den2!=$den1) && (gcd($den2,$num2)==1) );
+   $commonD = lcm($den1,$den2);
+   $f1 = $commonD/$den1;
+   $f2 = $commonD/$den2;
+   $frac = Fraction($num1*$den2-$num2*$den1,$den1*$den2)->reduce;
+   ($ansNum,$ansDen) = $frac->value;
+} until ($ansDen != $commonD);
+
+if ($den1==2) {
+   $a = list_random(2,3,5,7);
+} elsif ($den1==3) {
+   $a = list_random(2,3,5);
+} elsif ($den1==4) {
+   $a = random(2,3,1);
+} else {
+   $a = 2;
+}
+$b = $a**$den1;
+
+$s1 = ($num1==1) ? "$var" : "$var^{$num1}";
+$s2 = ($num2==1) ? "$var" : "$var^{$num2}";
+if ($den1==2) {
+   $problem = ($den2==2) ? "\frac{\sqrt{$b $s1}}{\sqrt{$s2}}" : "\frac{\sqrt{$b $s1}}{\sqrt[$den2]{$s2}}"; 
+} else {
+   $problem = ($den2==2) ? "\frac{\sqrt[$den1]{$b $s1}}{\sqrt{$s2}}" : "\frac{\sqrt[$den1]{$b $s1}}{\sqrt[$den2]{$s2}}"; 
+}
+
+Context("Numeric");
+Context()->operators->set(
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+);
+
+Context()->variables->are($var=>'Real');
+Context()->flags->set(reduceConstants=>0);
+Context()->operators->undefine('+');
+Context()->functions->undefine('sqrt');
+
+$ans = ($num1==1) ? Formula("$a*$var^($frac)") : Formula("$a*$var^($frac)");
+Context()->variables->set($var=>{limits=>[2,5]});
+
+$evaluator = $ans->cmp(
+     checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      Value->Error("Your answer is not in the expected form") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0);
+      return 1;
+  }
+);
+
+
+##############################################
+
+
+BEGIN_PGML
+
+Simplify the expression, answering with rational exponents and not radicals. [@KeyboardInstructions('To enter [`x^{m/n}`], type [|x^(m/n)|]*.')@]**
+
+[``[$problem]=``]    [_________________]{$evaluator}
+
+END_PGML
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+We will use the following properties:
+
+    [`` \sqrt[m]{x^n}=x^{\frac{n}{m}} ``]
+
+    [`` x^m \cdot x^n=x^{m+n} ``]
+
+    [`` \frac{x^m}{x^n}=x^{m-n} ``]
+
+The solution is:
+
+    [``
+\begin{aligned}
+   [$problem]
+   &= \frac{([$b][$s1])^{\frac{1}{[$den1]}}}{[$var]^{\frac{[$num2]}{[$den2]}}} \\
+   &= \frac{([$a]^[$den1][$s1])^{\frac{1}{[$den1]}}}{[$var]^{\frac{[$num2]}{[$den2]}}} \\
+   &= \frac{([$a]^[$den1])^{\frac{1}{[$den1]}}([$s1])^{\frac{1}{[$den1]}}}{[$var]^{\frac{[$num2]}{[$den2]}}} \\
+   &= \frac{[$a][$var]^{\frac{[$num1]}{[$den1]}}}{[$var]^{\frac{[$num2]}{[$den2]}}} \\
+   &= [$a][$var]^{\frac{[$num1]}{[$den1]}-\frac{[$num2]}{[$den2]}} \\
+   &= [$a][$var]^{\frac{[$num1*$f1]}{[$den1*$f1]}-\frac{[$num2*$f2]}{[$den2*$f2]}} \\
+   &= [$a][$var]^{\frac{[$num1*$f1-$num2*$f2]}{[$den1*$f1]}} \\
+   &= [$a][$var]^{[$frac]}
+\end{aligned}
+    ``]
+
+END_PGML_SOLUTION
+
+
+##############################################
+
+
+ENDDOCUMENT();

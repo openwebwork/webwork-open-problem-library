@@ -1,0 +1,269 @@
+##DESCRIPTION
+##  Algebra problem: true or false for inequality 
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra', 'inequality', 'fraction')
+
+## DBsubject('Algebra')
+## DBchapter('Rational equations and functions')
+## DBsection('Asymptotes')
+## Date('6/29/2018')
+## Author('K. Andrew Parker')
+## Institution('City Tech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "contextFraction.pl",
+   "parserPopUp.pl",
+   "PGgraphmacros.pl",
+   "PGchoicemacros.pl",
+   "niceTables.pl"
+
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 0;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Fraction");
+
+@roots = (-7,-6,-5,-4,-3,-2,-1,1,2,3,4,5,6,7);
+@rChoice = NchooseK(14,3);
+@r = @roots[ @rChoice ];
+
+@x = PGsort( sub {$_[0] < $_[1]} , @r );
+
+foreach my $i (0..2) {
+    $fac[$i] = Formula("x-$r[$i]")->reduce;
+}
+
+# if $i 0-2,3-5,6-8 set numer
+# i mod 3 (0 = irreducible) (1,2 = reducible)
+
+@rational = (
+    Formula("$fac[0]/($fac[1]*$fac[2])")->reduce,
+    Formula("$fac[0]/($fac[0]*$fac[2])")->reduce,
+    Formula("$fac[0]/($fac[1]*$fac[0])")->reduce,
+    Formula("$fac[1]/($fac[0]*$fac[2])")->reduce,
+    Formula("$fac[1]/($fac[1]*$fac[2])")->reduce,
+    Formula("$fac[1]/($fac[0]*$fac[1])")->reduce,
+    Formula("$fac[2]/($fac[0]*$fac[1])")->reduce,
+    Formula("$fac[2]/($fac[2]*$fac[1])")->reduce,
+    Formula("$fac[2]/($fac[0]*$fac[2])")->reduce,
+);
+
+# define the reduced formulas for rational_i (so we can place the open_circle)
+@reduce = (
+    Formula("$fac[0]/($fac[1]*$fac[2])")->reduce,
+    Formula("1/($fac[2])")->reduce,
+    Formula("1/($fac[1])")->reduce,
+    Formula("$fac[1]/($fac[0]*$fac[2])")->reduce,
+    Formula("1/($fac[2])")->reduce,
+    Formula("1/($fac[0])")->reduce,
+    Formula("$fac[2]/($fac[0]*$fac[1])")->reduce,
+    Formula("1/($fac[1])")->reduce,
+    Formula("1/($fac[0])")->reduce,
+);
+
+
+# rational_i has a VA (=1) or zero (=0) or hole (=2) or none (=3) for r_j
+$ra_tf = [[0,1,1],
+        [2,3,1],
+        [2,1,3],
+        [1,0,1],
+        [3,2,1],
+        [1,2,3],
+        [1,1,0],
+        [3,1,2],
+        [1,3,2]];
+
+$custom = sub {
+    my $ans = shift;
+    $ans->{ans_message} = "Asymptotes are lines, and must be expressed as equations - not just as numbers." if ($ans->{ans_message} =~ m/Your answer isn't a variable equal to a real number/);
+    return $ans;
+    };
+
+foreach my $i (0..8) {
+    my $x0L = $x[0]-0.00001;
+    my $x0R = $x[0]+0.00001;
+    my $x1L = $x[1]-0.00001;
+    my $x1R = $x[1]+0.00001;
+    my $x2L = $x[2]-0.00001;
+    my $x2R = $x[2]+0.00001;
+    $gr[$i] = init_graph(-10,-10,10,10, size=>[400,400], grid=>[10,10], axes=>[0,0]);
+    add_functions($gr[$i],"$rational[$i] for x in <-10,$x0L> using color:blue and weight:2");
+    add_functions($gr[$i],"$rational[$i] for x in <$x0R,$x1L> using color:blue and weight:2");
+    add_functions($gr[$i],"$rational[$i] for x in <$x1R,$x2L> using color:blue and weight:2");    
+    add_functions($gr[$i],"$rational[$i] for x in <$x2R,10> using color:blue and weight:2");
+    ($gr[$i]->fn)[0]->steps(200);
+    ($gr[$i]->fn)[1]->steps(200);
+    ($gr[$i]->fn)[2]->steps(200);
+    ($gr[$i]->fn)[3]->steps(200);
+    foreach my $j (0..2) {
+        if ($ra_tf->[$i][$j]==0) {
+            $y = $reduce[$i]->eval(x=>$r[$j]);
+            $gr[$i]->stamps( closed_circle($r[$j],$y,'blue') );
+            $gr[$i]->lb( new Label($r[$j],$y,"($r[$j],$y)", 'blue','bottom','right'));
+        };
+        if($ra_tf->[$i][$j]==1) {
+            $gr[$i]->moveTo($r[$j],-10);
+            $gr[$i]->lineTo($r[$j],10,'red',2,'dashed');
+        };    
+        if ($ra_tf->[$i][$j]==2) {
+            $y = $reduce[$i]->eval(x=>$r[$j]);
+            $gr[$i]->stamps( open_circle($r[$j],$y,'blue') );
+            $gr[$i]->lb( new Label($r[$j],$y,"($r[$j],$y)",'blue','bottom','left'));
+        };
+    }
+}
+
+@alphaChoice = ("A","B","C","D","E","F");
+@slice = NchooseK(9,6);
+@fChoice = @rational[ @slice ];
+@perm = NchooseK(6,6);
+@fIm = @gr[ @slice ];
+@fIm = @fIm[ @perm ]; # shuffle the chosen images
+@ansChoice = @alphaChoice[invert(@perm)]; # correct for the shuffle
+
+$q1 = PopUp(["?","A","B","C","D","E","F"],$ansChoice[0]);
+$q2 = PopUp(["?","A","B","C","D","E","F"],$ansChoice[1]);
+$q3 = PopUp(["?","A","B","C","D","E","F"],$ansChoice[2]);
+$q4 = PopUp(["?","A","B","C","D","E","F"],$ansChoice[3]);
+
+
+$gr1 = init_graph(-8,-8,8,8, size=>[300,300], grid=>[0,0], axes=>[0,0]);
+add_functions($gr1,"x/((x+1)(x+2)) for x in <-8,-2.00001> using color:blue and weight:2");
+add_functions($gr1,"x/((x+1)(x+2)) for x in <-1.99999,-1.000001> using color:blue and weight:2");
+add_functions($gr1,"x/((x+1)(x+2)) for x in <-0.9999999,8 > using color:blue and weight:2");
+$gr1->moveTo(-2,-8);
+$gr1->lineTo(-2,8,'red',2,'dashed');
+$gr1->moveTo(-1,-8);
+$gr1->lineTo(-1,8,'red',2,'dashed');
+
+
+$gr3 = init_graph(-8,-8,8,8, size=>[300,300], grid=>[0,0], axes=>[0,0]);
+add_functions($gr3,"1/(x+2) for x in <-8,-2.00001> using color:blue and weight:2");
+add_functions($gr3,"1/(x+2) for x in <-1.99999,8> using color:blue and weight:2");
+$gr3->moveTo(-2,-8);
+$gr3->lineTo(-2,8,'red',2,'dashed');
+$gr3->stamps( open_circle(-1,1,'blue') );
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ### Vertical Asymptotes and Holes ### <<
+
+Let's consider the rational function [`f(x)= \displaystyle{\frac{x}{(x+1)(x+2)}}`].
+
+
+Recall that:
+
+* the denominator of a rational function not only gives us the domain, but it produces the possible vertical asymptotes and possible holes. 
+
+* a hole on the graph of a rational function comes from a common factor between the numerator and denominator. 
+
+Is [`x=-1`] a vertical asymptote or a hole for [`f(x)`]? What about [`x=-2`]?
+
+Now, let's consider [`g(x) = \displaystyle{\frac{x+1}{(x+1)(x+2)}}`].
+
+Is [`x=-1`] a vertical asymptote or a hole for [`g(x)`]? What about [`x=-2`]?
+
+Let's analyze:
+
+The domain of both functions is [`(-\infty,-2)\cup(-2,-1)\cup(-1,\infty)`]. 
+
+[`f(x)`] will have two vertical asymptotes [`x=-2`] and [`x=-1`].
+
+On the other hand [`g(x)`] will have a vertical asymptotes at [`x=-2`] and a hole at [`x=-1`]. (Notice how (x+1) is a common factor between the numerator and the denominator). 
+
+By the way, both functions have a horizontal asymptote at [`y=0`] because the degree of the numerator is smaller than that of the denominator in both.
+
+
+We verify all the above with the graphs:
+
+>> [@ LayoutTable(
+  [
+    [image(insertGraph($gr1), width=>300, height=>300, tex_size=>600), [image(insertGraph($gr3), width=>300, height=>300, tex_size=>600),
+    rowcss=>"padding-bottom:2pt;"]],
+    ['f(x)',['g(x)']],
+    ],
+  align => 'c c ',
+  center => 1,
+);@]* <<
+
+
+We can also work backwards and deduce from the graph the factors present in the numerator, denominator or both for a rational function. For instance:
+
+* a hole gives us the same factor in both numerator and denominator. 
+
+* a vertical asymptote gives us a factor in the denominator (that is not in the numerator).
+
+* a root gives us a factor in the numerator (that is not in the denominator).
+
+
+Try to look at the graphs of [`f(x)`] and [`g(x)`] above and see if you can work out the pieces of the equation of each function. 
+
+Can you see how we can also read off the domain of [`f(x)`] and [`g(x)`] from its corresponding graph?
+
+>> ### Practice ### <<
+
+>> [@  LayoutTable(
+  [
+    [image(insertGraph($fIm[0]), width=>200, height=>200, tex_size=>400), [image(insertGraph($fIm[1]), width=>200, height=>200, tex_size=>400), rowcss=>"padding-bottom:2pt;"]],
+    ['Graph A',['Graph B',rowcss=>"padding:1pt;"]],
+    [image(insertGraph($fIm[2]), width=>200, height=>200, tex_size=>400), [image(insertGraph($fIm[3]), width=>200, height=>200, tex_size=>400), rowcss=>"padding-bottom:2pt;"]],
+    ['Graph C',['Graph D',rowcss=>"padding:1pt;"]],
+    [image(insertGraph($fIm[4]), width=>200, height=>200, tex_size=>400), [image(insertGraph($fIm[5]), width=>200, height=>200, tex_size=>400), rowcss=>"padding-bottom:2pt;"]],
+    ['Graph E',['Graph F',rowcss=>"padding:1pt;"]]
+    ],
+  align => 'c c',
+  center => 1,
+);@]* <<
+
+
+
+1.  [`\displaystyle y = [$fChoice[0]]`] is shown in graph [_]{$q1}
+
+1.  [`\displaystyle y = [$fChoice[1]]`] is shown in graph [_]{$q2}
+
+1.  [`\displaystyle y = [$fChoice[2]]`] is shown in graph [_]{$q3}
+
+1.  [`\displaystyle y = [$fChoice[3]]`] is shown in graph [_]{$q4}
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+BEGIN_PGML_HINT
+
+Think about where your rational function will have:
+* _vertical asymptotes_, 
+* _holes_, 
+* and _roots_.
+
+END_PGML_HINT
+
+ENDDOCUMENT();        
