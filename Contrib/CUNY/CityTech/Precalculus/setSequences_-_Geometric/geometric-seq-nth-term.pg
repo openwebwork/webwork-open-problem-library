@@ -39,6 +39,7 @@ Context()->flags->set(
     reduceConstantFunctions=>0,
 #    tolType=>'absolute'
     );
+Context()->variables->are();
 Parser::Number::NoDecimals();
 Context()->{error}{msg}{"You are not allowed to type decimal numbers in this problem"} 
   = "Decimals are not allowed for this problem, please use exact forms (such as fractions) instead of decimal approximations.";
@@ -63,6 +64,34 @@ foreach my $i (0..3) {
     $nth[$i] = Formula("$init[$i]*($ratio[$i])^($n[$i]-1)");
 }
 
+@sageCode = ();
+$i = 0;
+
+$extremeCheck = sub {
+  my ($correct, $student, $ans) = @_;
+  my $student_formula = $ans->{preview_text_string};
+  my $correct_formula = $ans->{correct_ans};
+  $sageCode = 
+<<END;
+a = '$student_formula'
+a = a.replace('[','(').replace(']',')').replace(')(',')*(')
+a = sage_eval(a)
+b = '$correct_formula'
+b = b.replace('[','(').replace(']',')').replace(')(',')*(')
+b = sage_eval(b)
+print(bool (a == b))
+END
+  
+  $sageReply = AskSage($sageCode,{accepted_tos=>'true'});
+#  $i++;
+  if (sageReturnedFail($sageReply)) {
+    Value::Error("Sage failed to evaluate your answer. <BR> Please notify your instructor.");
+  } else {
+    $result = ($sageReply =~ /^True/) ? 1 : 0;
+  }
+  return $result;
+};
+
 ##############################################################
 #
 #  Text
@@ -75,19 +104,19 @@ Use the pattern of "common ratios" to find the requested term from each sequence
 
 1. Consider the sequence [``a = \left \{ [$seqDisp[0]],\dots\right \} ``]  
     a. What is the common ratio? [__________]{$ratio[0]}  
-    b. What is the [`[$n[0]]^{[$th[0]]}`] term in the sequence? [_______________________________]{$nth[0]}  
+    b. What is the [`[$n[0]]^{[$th[0]]}`] term in the sequence? [_______________________________]{$nth[0]->cmp(checker=>$extremeCheck)}  
 
 1. Consider the sequence [``b = \left \{ [$seqDisp[1]],\dots\right \} ``]  
     a. What is the common ratio? [__________]{$ratio[1]}  
-    b. What is the [`[$n[1]]^{[$th[1]]}`] term in the sequence? [_______________________________]{$nth[1]}  
+    b. What is the [`[$n[1]]^{[$th[1]]}`] term in the sequence? [_______________________________]{$nth[1]->cmp(checker=>$extremeCheck)}  
 
 1. Consider the sequence [`c = \left \{ [$seqDisp[2]],\dots\right \} `]  
     a. What is the common ratio? [__________]{$ratio[2]}  
-    b. What is the [`[$n[2]]^{[$th[2]]}`] term in the sequence? [_______________________________]{$nth[2]}  
+    b. What is the [`[$n[2]]^{[$th[2]]}`] term in the sequence? [_______________________________]{$nth[2]->cmp(checker=>$extremeCheck)}  
 
 1. Consider the sequence [`d = \left \{ [$seqDisp[3]],\dots\right \} `]  
     a. What is the common ratio? [__________]{$ratio[3]}  
-    b. What is the [`[$n[3]]^{[$th[3]]}`] term in the sequence? [_______________________________]{$nth[3]}  
+    b. What is the [`[$n[3]]^{[$th[3]]}`] term in the sequence? [_______________________________]{$nth[3]->cmp(checker=>$extremeCheck)}  
 
 END_PGML
 

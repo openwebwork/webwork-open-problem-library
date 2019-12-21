@@ -1,0 +1,169 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS('calculus', '', '')
+
+## DBsubject('Calculus - single variable')
+## DBchapter('')
+## DBsection('')
+## Date('6/15/2019')
+## Author('K. Andrew Parker')
+## Institution('CityTech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->variables->add(y=>'Real');
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0,
+  tolerance=>5*10**(-10),
+  tolType=>'absolute'
+);
+
+$a = non_zero_random(-5,5,1);
+$A = abs($a);
+do { $B = non_zero_random(-5,5,1); } until (abs($A*$B) % 2 == 0);
+$C = non_zero_random(-5,5,1);
+$lead = (abs($A)==1) ? Formula("$A x^2")->reduce : Formula("1/$A x^2");
+$f = Formula("y + $B x + $C")->reduce;
+$f = $f->substitute(y=>$lead);
+$fa = $f->eval(x=>$a);
+
+# vertex is -AB/2
+$h = -$A*$B/2;
+$k = $f->eval(x=>$h);
+
+$dC = $C - $fa;
+$dy = Formula("y + $B x + $dC")->reduce;
+$dy = $dy->substitute(y=>$lead);
+
+$dx = Formula("x - $a")->reduce;
+
+$dydx = Formula("$dy/$dx")->with(test_at=>[[$a,0]],checkUndefinedPoints=>1);
+
+# cheat: slope is 2*sign(a) + B
+$df = Formula("2/$A x + $B");
+$slope = $df->eval(x=>$a);
+
+# but dividing out (x-a): (1/A)x + (B + sign(a))
+$signa = $a/abs($a);
+$remConst = $B + $signa;
+$remLead = (abs($A)==1) ? Formula("$A x")->reduce : Formula("1/$A x");
+$remFactor = Formula("y + $remConst")->reduce->substitute(y=>$remLead);
+
+# graph f(x) and label (a,f(a)) & vertex
+$xMin = -10;
+$xMax = 10;
+$yMin = -10;
+$yMax = 10;
+$gr = init_graph($xMin,$yMin,$xMax,$yMax,
+  size=>[500,500],
+  grid=>[20,20],
+  axes=>[0,0]);
+add_functions($gr, "$f for x in <$xMin,$xMax> using color:blue and weight:2");
+($gr->fn)[0]->steps(300);
+$gr->stamps(closed_circle($a,$fa,'black'));
+$gr->stamps(closed_circle($h,$k,'black'));
+$hAlign = ($a>0)?'left':'right';
+$gr->lb(new Label($a,$fa,"($a,$fa)",'black',$hAlign,'bottom'));
+$vAlign = ($A>0)?'top':'bottom';
+$gr->lb(new Label($h,$k,"($h,$k)",'black','center',$vAlign));
+
+
+$approxTable = DataTable(
+[
+  [[image(insertGraph($gr), width=>300, height=>300, tex_size=>300), noencase=>1]],
+  [['f(x) = '.$f->TeX,cellcss=>'padding-bottom:10pt;']],
+  [["compute the instantaneous slope at: \(($a,$fa)\)",noencase=>1]],
+],
+allcellcss=>'padding: 1pt;',
+align=>'c',
+encase=>['\(','\)']);
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+guiding text:  
+* fix the point where we want instantaneous slope: [`A: (a, f(a))`]
+* let second point, [`B`], vary so that it can "approach" [`A`]: [`B: (x, f(x))`]
+* then the secant slope: [` \dfrac{\Delta y}{\Delta x} = \dfrac{f(x)-f(a)}{x-a} `]
+* note that [`\dfrac{\Delta y}{\Delta x}`] is undefined if we let [`x=a`] 
+* in other words, we cannot make [`B`] and [`A`] be the same point... *duh,* slope needs _two_ points!
+* limits let us describe having two _separate_ points that get infinitely close: for [`B`] to "approach" [`A`], we use [``\lim_{x \to a} \left( \dfrac{\Delta y}{\Delta x} \right)``]
+* *SO* instantaneous slope: [`` \dfrac{dy}{dx} = \lim_{x \to a} \left(\dfrac{f(x)-f(a)}{x-a}\right) ``]
+* _note:_ [`dy`] and [`dx`] take the place of [`\Delta y`] and [`\Delta x`] because with instantanous rates of change, the individual "change" in [`y`] or in [`x`] is zero (we don't have two points for there to be any [`\Delta`]).
+* *however:* we've seen before that ratios of values that approach zero (as in [`\to \frac{0}{0}`]) may still produce a real limit.
+
+
+>> ### The instantaneous slope of [`f(x)`] ### <<
+>> #### (when [`f(x)`] is a polynomial) #### <<
+
+[$approxTable]***
+
+The secant slope through the points [`(x,f(x))`] and [`([$a],[$fa])`] is: [`` \frac{\Delta y}{\Delta x} = ``] [____________________________]{$dydx}
+
+And the instantaneous slope through [`([$a],[$fa])`] is: [`` \lim_{x \to [$a]} \left( \frac{\Delta y}{\Delta x} \right) = ``] [________________]{$slope}
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+
+
+
+BEGIN_PGML_HINT
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+[`` \frac{\Delta y}{\Delta x} = \dfrac{\left([$f]\right) - ([$fa])}{[$dx]} = \dfrac{[$dy]}{[$dx]} ``]
+
+[`` \dfrac{[$dy]}{[$dx]} = \dfrac{\left([$remFactor]\right)\left([$dx]\right)}{[$dx]}``]
+
+[`` \dfrac{\left([$remFactor]\right)\left([$dx]\right)}{[$dx]} = \left([$remFactor]\right)\left(\dfrac{[$dx]}{[$dx]}\right) ``]
+
+*separately:*  
+    [`` \lim_{x \to [$a]} \left([$remFactor]\right) = [$slope] ``]  
+    [`` \lim_{x \to [$a]} \left(\dfrac{[$dx]}{[$dx]}\right) = 1``]
+
+so [`` \lim_{x \to [$a]} \left(\left([$remFactor]\right)\left(\dfrac{[$dx]}{[$dx]}\right)\right) = ([$slope])(1) = [$slope] ``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        
+
