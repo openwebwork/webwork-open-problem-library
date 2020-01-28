@@ -7,7 +7,16 @@ loadMacros("PGchoicemacros.pl");
 sub _draggableProof_init {
   PG_restricted_eval("sub DraggableProof {new draggableProof(\@_)}");
 
-  $courseHtmlUrl = $envir{htmlURL};
+  my $courseHtmlUrl	= $envir{htmlURL};
+  my $wwHtmlUrl 	= $envir{webworkHtmlURL};
+  my $wwHtmlDir 	= $envir{webworkHtmlDirectory};
+  my $scriptPath	= "${wwHtmlUrl}js/vendor/jquery/modules/";
+
+#  if (-e "${wwHtmlDir}js/vendor/jquery/modules/jquery.nestable.js") {
+#    $scriptPath = $wwHtmlUrl.'js/vendor/jquery/modules/';
+#  } else {
+#    $scriptPath = $courseHtmlUrl.'js/';
+#  }
 
   # post global javascript
   main::POST_HEADER_TEXT(main::MODES(TeX=>"", HTML=><<"  END_SCRIPTS"));
@@ -15,7 +24,7 @@ sub _draggableProof_init {
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
 -->
-    <script src="$courseHtmlUrl/js/jquery.nestable.js"></script>
+    <script src="${scriptPath}jquery.nestable.js"></script>
 
     <script>
       function _nestableUpdate (e) {
