@@ -19,10 +19,9 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
+  "MathObjects.pl",
+  "parserRadioButtons.pl",
   "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "PGnumericalmacros.pl",
-  "PGmatrixmacros.pl",
   "parserMultiAnswer.pl",
   "PGcourse.pl"
 );
@@ -32,8 +31,10 @@ TEXT(beginproblem());
 
 $showPartialCorrectAnswers = 1;
 
+Context("Numeric");
+
 $flip = random(0,1,1);  # choose between dependent and independent vectors
-$lambda = new Matrix(3,1);
+
 # we'll scramble the vectors and coefficients
 @slice = NchooseK(3,3);
  
@@ -41,66 +42,40 @@ $v01 = non_zero_random(-5,5,1);
 $v02 = random(-5,5,1);
 $v03 = non_zero_random(-5,5,1);
 
-$vec[$slice[0]] = Matrix->new_column_matrix([$v01, $v02, $v03]);
+$vec[$slice[0]] = ColumnVector($v01,$v02,$v03);
+
 
 $mult = non_zero_random(-2,2,1);
 $d1 = non_zero_random(-3,3,1);
 $d2 = non_zero_random(-3,3,1);
 
-$v11 = $mult*$v01;
-$v12 = $mult*$v02+$d1;
-$v13 = $mult*$v03+$d2;
+$vec[$slice[1]] = $mult*$vec[$slice[0]]+ColumnVector(0,$d1,$d2);
 
-$vec[$slice[1]] = Matrix->new_column_matrix([ $v11, $v12, $v13 ]);
 
 if ($flip==0) {
 	$mult2 = non_zero_random(-2,2,1);
 	$mult3 = random(-2,2,1);
 	$d3 = non_zero_random(-5,5,1);
-	( $v21, $v22, $v23 ) = ( $mult2*$v01+$mult3*$v11, $mult2*$v02+$mult3*$v12, $mult2*$v03+$mult3*$v13+$d3 );
-	$vec[$slice[2]] = Matrix->new_column_matrix([ $mult2*$v01+$mult3*$v11, $mult2*$v02+$mult3*$v12, $mult2*$v03+$mult3*$v13+$d3 ]);
-    $lambda->assign($slice[0]+1 ,1,0);
-    $lambda->assign($slice[1]+1 ,1,0);
-    $lambda->assign($slice[2]+1 ,1,0);
+        $vec[$slice[2]] = $mult2*$vec[$slice[0]]+$mult3*$vec[$slice[1]] + ColumnVector(0,0,$d3);
+        @lambda = (Real(0),Real(0),Real(0));
 } else {
-	$lambda->assign($slice[0]+1 ,1, non_zero_random(-5,5,1) );
-	$lambda->assign($slice[1]+1 ,1, non_zero_random(-5,5,1) );
-	$vec[$slice[2]] = ( $lambda->element($slice[0]+1,1) )*$vec[$slice[0]] +( $lambda->element($slice[1]+1,1) ) *$vec[$slice[1]];
-	$lambda->assign($slice[2]+1,1,-1);
-	( $v21, $v22, $v23 ) = ( $vec[$slice[2]]->element(1,1),
-				 $vec[$slice[2]]->element(2,1),
-				 $vec[$slice[2]]->element(3,1) );
+        @lambda[@slice] = (Real(non_zero_random(-5,5,1)),Real(non_zero_random(-5,5,1)),Real(-1));
+        $vec[$slice[2]] =  $lambda[$slice[0]]*$vec[$slice[0]] + $lambda[$slice[1]] *$vec[$slice[1]];
 }
 
-
-$sl = new_pop_up_select_list();
-$sl->qa(
-"Determine whether or not the three vectors listed above are linearly independent or linearly dependent.",
-($flip==0) ? 'Linearly_Independent' : 'Linearly_Dependent',
-);
-$sl->choose(1);
-$sl->ra_pop_up_list(['No_Answer_Entered' => 'Select an Answer', 'Linearly_Independent' => 'Linearly Independent', 'Linearly_Dependent'
-=> 'Linearly Dependent']);
+$sl = RadioButtons(["Linearly independent","Linearly dependent"], ($flip==0) ? "Linearly independent" : "Linearly dependent");
 
 if ( $flip ) {
-    $coef = MultiAnswer( Compute($lambda->element(1,1)),
-			 Compute($lambda->element(2,1)),
-			 Compute($lambda->element(3,1)) )->with(
+    $coef = MultiAnswer( $lambda[0], $lambda[1], $lambda[2] )->with(
         singleResult=>1,
         checker=> sub {
 	    my ( $c, $s, $ans ) = @_;
 	    my @sans = @$s;
-	    my $zero = Compute(0);
-	    if ( $zero == $sans[0] && $zero == $sans[1] && $zero == $sans[2] ) {
+	    if ( $sans[0]->isZero && $sans[1]->isZero && $sans[2]->isZero ) {
 		$ans->setMessage(1, "Your responses should not be all zero.");
 		return 0;
 	    } else {
-		if ( $sans[$slice[0]]*$v01 + $sans[$slice[1]]*$v11 + 
-		     $sans[$slice[2]]*$v21 == 0 &&
-		     $sans[$slice[0]]*$v02 + $sans[$slice[1]]*$v12 + 
-		     $sans[$slice[2]]*$v22 == 0 &&
-		     $sans[$slice[0]]*$v03 + $sans[$slice[1]]*$v13 + 
-		     $sans[$slice[2]]*$v23 == 0  ) {
+		if ( ($sans[0]*$vec[0]+$sans[1]*$vec[1]+$sans[2]*$vec[2])->isZero ) {
 		    return 1;
 		} else {
 		    return 0;
@@ -115,12 +90,13 @@ if ( $flip ) {
 	} );
 }
 
+Context()->texStrings;
 BEGIN_TEXT
 
-\{ mbox( 'Let \( A = \)', display_matrix($vec[0]), ', \( B = \)', display_matrix($vec[1]), ', and \( C = \)',
-         display_matrix($vec[2]), '.' ) \}
+Let \( A = $vec[0]\), \( B = $vec[1]\),  and \( C = $vec[2]\)
 $BR
-\{$sl->print_q()\}  
+Are \(A\),\(B\) and \(C\) linearly dependent, or are they linearly independent?$BR
+\{$sl->buttons()\}
 $BR
 If they are linearly dependent, determine a non-trivial linear relation.
 Otherwise, if the vectors are linearly independent, enter 0's for 
@@ -130,8 +106,9 @@ $BR
 \{ $coef->ans_rule(10) \}\(B+\)
 \{ $coef->ans_rule(10) \}\(C =0\).
 END_TEXT
+Context()->normalStrings;
 
-ANS( str_cmp($sl->ra_correct_ans) );
+ANS( $sl->cmp() );
 ANS( $coef->cmp() );
 
 ENDDOCUMENT() ;        
