@@ -1,0 +1,136 @@
+##DESCRIPTION
+## Compute quadratic approximation and approximation to a solution using
+## the series.
+##ENDDESCRIPTION
+
+## DBsubject(Differential equations)
+## DBchapter(Systems of differential equations)
+## DBsection(Matrix exponential)
+## Institution(Oklahoma State University)
+## Author(Jiri Lebl)
+## Level(4)
+## MO(1)
+## TitleText1('Notes on Diffy Qs: Differential Equations for Engineers')
+## AuthorText1('Jiri Lebl')
+## EditionText1('5')
+## Section1('3.8')
+## Problem1('')
+## KEYWORDS('matrix exponential')
+
+########################################################################
+
+###########################
+# Initialization
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "AnswerFormatHelp.pl",
+  "PGmatrixmacros.pl",
+  "PGcourse.pl"
+);
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+###########################
+# Setup
+
+Context("Matrix");
+
+Context()->variables->are(t=>"Real");
+
+# define A
+do {
+  $a11 = non_zero_random(-5,5,1);
+  $a12 = non_zero_random(-5,5,1);
+  $a21 = non_zero_random(-5,5,1);
+  $a22 = non_zero_random(-5,5,1);
+} while ($a11*$a22 == $a12*$a21);
+
+$id = Value::Matrix->I(2);
+$A = Matrix([[$a11, $a12], [$a21, $a22]]);
+
+$v1 = random(2,6,1);
+do {
+  $v2 = non_zero_random(2,6,1);
+} while ($v1 == $v2);
+$v = Matrix([[$v1], [$v2]]);
+
+# this does not work, but that's what we want
+#$approxetA = Compute("$id + t*$A + (1/2)*$A*$A*t^2");
+$t = Compute("t");
+$tsq = Compute("t^2");
+$halfAsq = Compute("(1/2)*$A*$A");
+$b11 = ($id->element(1,1)+$t*$A->element(1,1)+$tsq*$halfAsq->element(1,1))->reduce;
+$b12 = ($id->element(1,2)+$t*$A->element(1,2)+$tsq*$halfAsq->element(1,2))->reduce;
+$b21 = ($id->element(2,1)+$t*$A->element(2,1)+$tsq*$halfAsq->element(2,1))->reduce;
+$b22 = ($id->element(2,2)+$t*$A->element(2,2)+$tsq*$halfAsq->element(2,2))->reduce;
+
+$approxetA = Matrix([$b11,$b12],[$b21,$b22]);
+
+#This does not work: $approxsol = $approxetA*v
+$approxsol = Matrix(
+ [$b11*$v1+$b12*$v2],
+ [$b21*$v1+$b22*$v2]
+)->reduce;
+
+###########################
+# Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+Consider
+\[
+A = $A
+\]
+Using the Taylor series expansion,
+compute the approximation (for small \(t\)) up to second degree (up to
+the term with \(t^2\)) of
+\( e^{tA} \).
+$PAR
+\{ mbox("\( e^{tA} \approx \)",
+    $approxetA->ans_array(20),
+    AnswerFormatHelp("formulas").$BR.AnswerFormatHelp("matrices"))
+\}
+$PAR
+Next, use the above approximation to the exponential to find an approximation (for small \(t\)) of the solution to \(\vec{x}' = A \vec{x}\) with initial condition \(\vec{x}(0) = $v \):
+$PAR
+\{ mbox("\( \vec{x}(t) \approx \)",
+    $approxsol->ans_array(40),
+    AnswerFormatHelp("formulas").$BR.AnswerFormatHelp("matrices"))
+\}
+END_TEXT
+Context()->normalStrings;
+
+###########################
+# Answer evaluation
+
+ANS($approxetA->cmp);
+ANS($approxsol->cmp);
+
+###########################
+# Main text
+
+Context()->texStrings;
+BEGIN_SOLUTION
+The Taylor series up to second order is
+\[
+e^{tA} \approx I + tA + \frac{t^2}{2}A^2
+=
+$id + t $A + t^2 $halfAsq 
+=
+$approxetA
+\]
+To solve \(\vec{x}' = A \vec{x}\) approximately with initial condition \(\vec{x}(0) = $v \), we multiply the approximation to \(e^{tA}\) by \($v\):
+\[
+\vec{x}(t) \approx
+$approxetA $v = $approxsol .
+\]
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Solution using Taylor series for matrix exponential");
+
+ENDDOCUMENT();

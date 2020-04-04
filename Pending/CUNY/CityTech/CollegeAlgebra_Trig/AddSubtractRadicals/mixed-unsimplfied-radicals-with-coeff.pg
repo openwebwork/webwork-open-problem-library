@@ -1,0 +1,187 @@
+##DESCRIPTION
+##  Algebra problem: Simplify and then add or subtract expressions involving radicals
+##ENDDESCRIPTION
+
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'radical', 'radicals', 'radical expression')
+
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextLimitedPowers.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+    ###########################
+    #
+    #  Subclass the numeric functions
+    #
+    package my::Function::numeric;
+    our @ISA = ('Parser::Function::numeric');
+
+    #
+    #  Override sqrt() to return a special value (usually 1) when evaluated
+    #  effectively eliminating it from the product.
+    #
+    sub sqrt {
+      my $self = shift;
+      my $value = $self->context->flag("setSqrt");
+      return $value+1 if $value && $_[0] == 1;  # force sqrt(1) to be incorrect
+      return $value if $value;
+      return $self->SUPER::sqrt(@_);
+    }
+
+    #
+    #  end of subclass
+    #
+    package main;
+
+    ###########################
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric")->flags->set(reduceConstants=>0, reduceConstantFunctions=>0,formatStudentAnswers=>'parsed');
+Context()->variables->are(x=>[Real, limits=>[0,2]], y=>[Real, limits=>[0,2]], z=>[Real, limits=>[0,2]]);
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+LimitedPowers::OnlyPositiveIntegers();
+Parser::Number::NoDecimals();
+
+$rad = list_random(2,3,5,6);
+
+$c1 = random(2,6,1);
+do { $c2 = random(2,6,1); } until ( $c1 != $c2 );
+do { $c3 = random(2,6,1); } until ( $c1 != $c3 && $c2 != $c3 );
+
+$out1 = random(1,5,1);
+$out2 = random(2,5,1);
+$out3 = random(1,5,1);
+
+$c = $out1 * $c1 + $out2 * $c2 - $out3 * $c3;
+
+$rad1 = $rad*$c1**2;
+$rad2 = $rad*$c2**2;
+$rad3 = $rad*$c3**2;
+
+$problem = Formula("$out1 sqrt($rad1) + $out2 sqrt($rad2) - $out3 sqrt($rad3)");
+# $problem = $prob->substitute(x=>$rad1, y=>$rad2, z=>$rad3);
+
+$ans = Formula("$c sqrt( $rad )");
+
+$c12 = $c1**2;
+$c22 = $c2**2;
+$c32 = $c3**2;
+$cOut1 = $c1*$out1;
+$cOut2 = $c2*$out2;
+$cOut3 = $c3*$out3;
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Add or subtract the radical expression, if possible. 
+$BR Do not use rational exponents in your answer.
+$PAR
+\[ \large{ $problem } \]
+$BR
+\{ans_rule(10)\}
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($ans->cmp(checker => sub {
+      my ($correct,$student,$ans) = @_;
+      my $studentFormula = $ans->{original_student_ans};
+      return 0 if $ans->{isPreview} || $correct != $studentFormula;
+      Context()->flags->set(setSqrt => 1);
+      delete $correct->{test_values}, $student->{test_values};
+      my $OK = ($correct == $studentFormula); # check if equal when sqrt's are replaced by 1
+      Context()->flags->set(setSqrt => 0);
+      delete $correct->{test_values}, $student->{test_values};
+      Value::Error("You must simplify your answer further.") unless $OK;
+      return $OK;
+    })->withPostFilter(sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "Use 'sqrt(...)' instead of rational exponents." 
+    if $ans->{ans_message} eq "Powers must be positive integer constants";
+  return $ans; 
+}));
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+Context()->texStrings;
+BEGIN_HINT
+
+Try simplifying each radical separately.
+$PAR
+You might find that they have a common factor after all!
+
+END_HINT
+BEGIN_SOLUTION
+
+$BBOLD First, reduce \( $out1 \sqrt{$rad1} \): $EBOLD $BR
+\( \displaystyle $out1 \sqrt{$rad1} = $out 1 \sqrt{$c12 \cdot $rad} \)
+$BR
+\( \displaystyle $out1 \sqrt{$c12 \cdot $rad} = $out1 \cdot \sqrt{$c12} \cdot \sqrt{$rad} \)
+$BR
+\( \displaystyle $out1 \cdot \sqrt{$c12} \cdot \sqrt{$rad} = $out1 \cdot $c1 \sqrt{$rad} = $cOut1 \sqrt{$rad} \)
+$PAR
+$BBOLD Then reduce \( $out2 \sqrt{$rad2} \): $EBOLD $BR
+\( \displaystyle $out2 \sqrt{$rad2} = $out2 \sqrt{$c22 \cdot $rad} \)
+$BR
+\( \displaystyle $out2 \sqrt{$c22 \cdot $rad} = $out2 \cdot \sqrt{$c22} \cdot \sqrt{$rad} \)
+$BR
+\( \displaystyle $out2 \cdot \sqrt{$c22} \cdot \sqrt{$rad} = $out2 \cdot $c2 \sqrt{$rad} = $cOut2 \sqrt{$rad} \)
+$PAR
+$BBOLD Finally, reduce \( $out3 \sqrt{$rad3} \): $EBOLD $BR
+\( \displaystyle $out3 \sqrt{$rad3} = $out3 \sqrt{$c32 \cdot $rad} \)
+$BR
+\( \displaystyle $out3 \sqrt{$c32 \cdot $rad} = $out3 \cdot \sqrt{$c32} \cdot \sqrt{$rad} \)
+$BR
+\( \displaystyle $out3 \cdot \sqrt{$c32} \cdot \sqrt{$rad} = $out3 \cdot $c3 \sqrt{$rad} = $cOut3 \sqrt{$rad} \)
+$PAR
+$BBOLD Now return to the original problem with our simplified radicals: $EBOLD $BR
+\( \displaystyle $problem = $cOut1 \sqrt{$rad} + $cOut2 \sqrt{$rad} - $cOut3 \sqrt{$rad} \)
+$PAR
+Factor out the \( \sqrt{$rad} \): $BR
+\( \displaystyle $cOut1 \sqrt{$rad} + $cOut2 \sqrt{$rad} - $cOut3 \sqrt{$rad} = \sqrt{$rad} \left( $cOut1 + $cOut2 - $cOut3\right) \)
+$PAR
+Combine the constant terms: $BR
+\( \displaystyle \sqrt{$rad} \left( $cOut1 + $cOut2 - $cOut3 \right) = \sqrt{$rad}\left($c\right) = $ans \)
+$BR
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();        

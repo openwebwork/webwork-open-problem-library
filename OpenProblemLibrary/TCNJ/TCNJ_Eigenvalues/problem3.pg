@@ -21,11 +21,7 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "PGmatrixmacros.pl",
-  "PGnumericalmacros.pl",
-  "PGdiffeqmacros.pl",
+  "MathObjects.pl",
   "parserMultiAnswer.pl",
   "PGcourse.pl"
 );
@@ -35,7 +31,7 @@ TEXT(beginproblem());
 
 $showPartialCorrectAnswers = 1;
 
-$a= new Matrix(3,3);
+Context("Matrix");
 
 # create an invertible matrix with det either 1  or -1
 
@@ -56,123 +52,41 @@ $a13 = $c * $a11 + $d * $a12 + $n;
 $a23 = $c * $a21 + $d * $a22;
 $a33 = $c * $a31 + $d * $a32;
 
-$det = - $a31 * $m * $n;
+$a = Matrix([[$a11, $a12, $a13],[$a21, $a22, $a23],[$a31, $a32, $a33]]);
 
-# define matrix
+$b = $a->inverse();
 
-	$a->assign(1,1, $a11 );
-	$a->assign(1,2, $a12 );
-	$a->assign(1,3, $a13 );
-	$a->assign(2,1, $a21 );
-	$a->assign(2,2, $a22 );
-	$a->assign(2,3, $a23 );
-	$a->assign(3,1, $a31 );
-        $a->assign(3,2, $a32 );
-        $a->assign(3,3, $a33 );
-	$a_lr = $a->decompose_LR();
-	$a_det = $a_lr->det_LR();
-
-# define inverse matrix
-	$b = $a_lr->invert_LR();
 
 # define eigenvalues
-    $e = new Matrix(3,3);
-    $e->one();
-    $e1 =  random(-5,-2,1);
-    $e2 = random(-1,1,2);
-    $e3 = random(2,5,1);
 
-    $e->assign(1,1,$e1);
-    $e->assign(2,2, $e2);
-    $e->assign(3,3, $e3 );
+    $e1 =  Real(random(-5,-2,1));
+    $e2 = Real(random(-1,1,2));
+    $e3 = Real(random(2,5,1));
+
+$e = Matrix([[$e1,0,0],[0,$e2,0],[0,0,$e3]]);
+
+$matrix = $a*$e*$b;
 
 # define eigenvectors
-	$v1 = new Matrix(3,1);
-	$v1->assign(1,1, $a11);
-        $v1->assign(2,1, $a21);
-        $v1->assign(3,1, $a31);
-        	$v2 = new Matrix(3,1);
-        	$v2->assign(1,1, $a12);
-        	$v2->assign(2,1, $a22);
-        	$v2->assign(3,1, $a32);
-        $v3 = new Matrix(3,1);
-        $v3->assign(1,1, $a13);
-        $v3->assign(2,1, $a23);
-        $v3->assign(3,1, $a33);
 
-# define final matrix
-	$matrix = $a * $e *$b;
-	$matrix_lr = $matrix->decompose_LR();
-	$matrix_det = $matrix_lr->det_LR();
+$v1 = Matrix([[$a11],[$a21],[$a31]]);
+$v2 = Matrix([[$a12],[$a22],[$a32]]);
+$v3 = Matrix([[$a13],[$a23],[$a33]]);
 
-foreach $i (1..3) {
-       foreach $j (1..3) {
-               $m[$i][$j] = $matrix->element($i,$j);
-               $m[$i][$j] = round($m[$i][$j]);
-               $matrix -> assign($i,$j,$m[$i][$j]);
-       }
-}
-
-## to check that we have a correct answer, just verify that
-##    the appropriate matrix multiplication works
-$ev = MultiAnswer( $e1, $e2, $e3 )->with(
-    singleResult => 1,
-    checkTypes => 0,
-    allowBlankAnswers => 1,
-    format =>  "Eigenvalues = (%s, %s, %s)",
-    tex_format =>  "\text{Eigenvalues }= (%s, %s, %s)" ,
-    checker => sub {
-        my ($correct, $student, $self ) = @_;
-	my ($stuE1, $stuE2, $stuE3) = @{$student}[0..2];
-        my $flag = 0;
-        my $counter =0;
-        if($stuE1){
-          if( $stuE1 == $e1 || $stuE1 == $e2 || $stuE1 == $e3){
-               $counter ++;
-          }
-        }
-        if($stuE2){
-          if( $stuE2 == $e1 || $stuE2 == $e2 || $stuE2 == $e3){
-               $counter ++;
-          }
-        }
-        if($stuE3){
-          if( $stuE3 == $e1 || $stuE3 == $e2 || $stuE3 == $e3){
-               $counter ++;
-          }
-        }
-        if($counter ==3 ){
-          if( $stuE1 != $stuE3 && $stuE1 != $stuE2 && $stuE2 != $stuE3){
-              $flag=1;
-          }else{
-              Value::Error("The eigenvalues of \(A\) are distinct.");
-          }
-        }else{
-          Value::Error("You have $counter correct eigenvalues.");
-        }  
-        return $flag;
-       
-    }
-);
-
-
-
+Context()->texStrings;
 BEGIN_TEXT
-
-\{ mbox( 'Find the eigenvalues of \(A\), given that \( A = \)', display_matrix($matrix) ) \} 
-$BR
-\{ mbox( 'and its eigenvectors are', display_matrix($v1), ',', display_matrix($v2), 'and', display_matrix($v3), '.' ) \}
-$BR
-The eigenvalues are \{$ev-> ans_rule(10)\},
-\{$ev-> ans_rule(10) \}, and
- \{$ev-> ans_rule(10) \}.
-
+Find the eigenvalues of \(A\), given that \( A = $matrix \) 
+$PAR
+and its eigenvectors are \( v_1 = $v1, v_2 = $v2\) and \(v_3 = $v3\).
+$PAR
+The corresponding eigenvalues are \(\lambda_1 = \)\{ans_rule(10)\}, 
+\(\lambda_2 = \)\{ans_rule(10)\}, and \(\lambda_2 = \)\{ans_rule(10)\}.
 END_TEXT
+Context()->normalStrings;
 
-ANS($ev->cmp() );	
-#ANS(num_cmp($e->element(1,1),tol=>.01));
-#ANS(num_cmp($e->element(2,2),tol=>.01));	
-#ANS(num_cmp($e->element(3,3),tol=>.01));
+ANS($e1->cmp());
+ANS($e2->cmp());
+ANS($e3->cmp());
 
 ENDDOCUMENT() ;
 

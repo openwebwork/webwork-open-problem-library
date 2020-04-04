@@ -1,0 +1,205 @@
+##DESCRIPTION
+##  Algebra problem: Solve factored quadratic equation by using the square root property
+##ENDDESCRIPTION
+
+
+## DBsubject(Algebra)
+## DBchapter(Quadratic equations and functions)
+## DBsection(Solving equations)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'quadratic equation')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "contextLimitedRadical.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("LimitedRadical");
+Context()->variables->are(x=>Real);
+Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0, formatStudentAnswer=>'parsed', setSqrt=>1, checkRoot=>0);
+Context()->strings->add("no solution"=>{},
+  "no solutions"=>{alias=>'no solution'}, 
+  "none"=>{alias=>'no solution'}, 
+);
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+Context()->operators->redefine('or',using=>',',from=>'Numeric');
+Context()->operators->set(
+ ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+ 'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+);
+Context()->lists->set(List => {separator => " or "});
+
+$D = random(2,5,1);
+$D2 = $D**2;
+do { $A = list_random(2,3,5,7); } until ( $A != $D );
+do { $B = random(1,$D-1,1); } until ( gcf(abs($B), $D) == 1 );
+
+$ans1 = Formula("($B + sqrt($A))/$D");
+$ans2 = Formula("($B - sqrt($A))/$D");
+
+$LHS = Formula("(x - ($B/$D))^2");
+$RHS = Formula("$A/$D2");
+
+$ans = List($ans1,$ans2);
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Solve by using the square root property.
+    [` \large{ [$LHS] = [$RHS] } `]
+
+    [`x =`][______________________]
+
+* Enter multiple answers separated by commas.
+* If you need to use the square root symbol as in [` \sqrt{5}`], type it using *sqrt(5)*.
+* If there are no solutions, enter *no solutions*.
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+Parser::Number::NoDecimals();
+ANS($ans->cmp(list_checker => sub {
+     my ($correct,$student,$ansHash,$value) = @_;
+     my $score = 0;              # number of correct student answers
+     my @errors = ();            # stores error messages
+     my $i, $j, $k;              # loop counters
+     return (0, @errors) if $ansHash->{isPreview};
+     my $fullStudent = $ansHash->{student_formula};
+     my $fullCorrect = Formula($ansHash->{correct_ans});
+     my ($setSqrt, $setRoot) = (Context()->flag("setSqrt"), Context()->flag("setRoot"));
+     my @fullStudentValue = $fullStudent->value;
+     my @fullCorrectValue = $fullCorrect->value;
+     my $n = scalar(@fullStudentValue);  # number of student answers
+     my $m = scalar(@fullCorrectValue);  # number of correct answers
+
+     #
+     #  Loop though the student answers
+     ##
+     for ($i = 0; $i < $n; $i++) {
+       my $ith = Value::List->NameForNumber($i+1);
+       my $p = $fullStudentValue[$i];   # i-th student answer
+
+       #
+       #  Check that the student's answer is an assignment (or whatever the right type)
+       #
+       my $assingmentMessageGiven = 0;
+       my $nosolutionMessageGiven = 0;
+       if (defined($p)) {
+           if($p eq "no solution")
+           {
+              push(@errors,"This equation does have some solutions- try using the square root method.");
+              $nosolutionMessageGiven = 1;
+           }
+       }
+
+       #
+       #  Check that the answer hasn't been given before
+       #
+       for ($j = 0, $used = 0; $j < $i; $j++) {
+         if ($p == $fullStudentValue[$j]) {
+           push(@errors,"Your $ith solution is the same as a previous one");
+           $used = 1; last;
+         }
+       }
+
+       #
+       #  If not already used, check that it is a correct and reduced answer
+       #
+       if (!$used) {
+          my $numericallyCorrect, $reduced;
+          for ($k = 0, $numericallyCorrect = 0; ($k < $m) ; $k++) {
+                    $q = $fullCorrectValue[$k];
+                    if ($q == $p) {
+                          $numericallyCorrect = 1;
+                          Context()->flags->set(checkSqrt => $setSqrt, checkRoot => $setRoot, bizarroAdd => 0, bizarroSub => 0, bizarroMul => 1, bizarroDiv => 0);
+                          delete $p->{test_values}, $q->{test_values};
+                             if ($p == $q) {$reduced = 1} else {$reduced = 0}; # check if form is correct
+
+                          Context()->flags->set(checkSqrt => 0, checkRoot => 0, bizarroAdd => 0, bizarroSub => 0, bizarroMul => 0, bizarroDiv => 0);
+                          $score++ if ($numericallyCorrect and $reduced);
+                          push(@errors,"Your $ith solution is not fully simplified") if ($numericallyCorrect and !$reduced and ($n>1));
+                          push(@errors,"Your solution is not fully simplified") if ($numericallyCorrect and !$reduced and ($n==1));
+                          last;
+                  }
+         }
+         push(@errors,"Your $ith solution is not correct") if (!$numericallyCorrect and ($n>1) and !$assingmentMessageGiven );
+         push(@errors,"Your solution is not correct") if (!$numericallyCorrect and ($n==1) and !$assingmentMessageGiven and !$nosolutionMessageGiven );
+       }
+     }
+
+     #
+     #  Check that there are the right number of answers
+     #
+     if (!$ansHash->{isPreview}) {
+       push(@errors,"Do you have all the solutions?") if (($n < $m) and ($score == $n));
+       push(@errors,"Should a quadratic equation have more than two solutions?") if ($n > $m);
+     }
+     return ($score,@errors);
+   }));
+
+BEGIN_PGML_HINT
+
+Be careful about taking square roots of "both sides" of an equation...  
+Think about how many different values for [`x`] might satisfy this equation?
+
+Do you know of more than one number who's square is [`[$A2]`]?
+
+Remember, in general, if [` x^2 = A `]  
+then [` x = \sqrt{A} `] is only one possible solution.  
+[` x = -\sqrt{A} `] would _also_ work!
+
+END_PGML_HINT
+BEGIN_PGML_SOLUTION
+
+Starting with the equation [` [$LHS] = [$RHS] `], we must consider how many solutions we should expect.  
+This is a quadratic equation, and as such, we should find two solutions.
+
+[` \displaystyle x-\frac{[$B]}{[$D]} = \pm \sqrt{\frac{[$A]}{[$D2]}} `]
+
+Note that [` \pm \sqrt{\frac{[$A]}{[$D2]}} `] can be simplified to [` \pm \frac{\sqrt{[$A]}}{\sqrt{[$D2]}} `].  
+And that further reduces to [` \pm \frac{\sqrt{[$A]}}{[$D]} `]. 
+
+So, either [` x-\frac{[$B]}{[$D]} = \frac{\sqrt{[$A]}}{[$D]} `] or [` x-\frac{[$B]}{[$D]} = -\frac{\sqrt{[$A]}}{[$D]} `]
+
+Solve each equation:
+
+[` \displaystyle x = \frac{\sqrt{[$A]}}{[$D]} + \frac{[$B]}{[$D]} = \frac{\sqrt{[$A]}+[$B]}{[$D]} `]  
+or  
+[` \displaystyle x = -\frac{\sqrt{[$A]}}{[$D]} + \frac{[$B]}{[$D]} = \frac{-\sqrt{[$A]}+[$B]}{[$D]} `]  
+
+
+END_PGML_SOLUTION
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

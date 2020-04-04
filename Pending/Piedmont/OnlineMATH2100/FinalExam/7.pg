@@ -1,0 +1,169 @@
+# DESCRIPTION
+# Piedmont College
+# MATH 2100 Online Final Exam
+# Hypothesis Test - Two Means (Multiple Choice)
+# ENDDESCRIPTION
+
+## DBsubject(Probability)
+## DBchapter(Hypothesis tests)
+## DBsection(Independent samples - t)
+## Institution(Piedmont)
+## Author(Doug Torrance)
+## Level(2)
+## MO(1)
+## KEYWORDS('hypothesis testing')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "PGnumericalmacros.pl",
+  "PGstatisticsmacros.pl",
+);
+
+# add randomly generated options to multiple choice problems
+sub add_options {
+    my ($n, $min, $max, $step, @options) = @_;
+    while (@options < $n) {
+        push(@options, Compute(random($min, $max, $step)));
+        @options = uniq(@options);
+    }
+    return num_sort(@options);
+}
+
+@possible_fruits = ('apples', 'pears', 'oranges', 'tangerines', 'plums',
+    'bananas', 'apricots', 'lemons', 'limes', 'mangos');
+($fruits1, $fruits2) = @possible_fruits[NchooseK(10, 2)];
+
+do {
+    $n1 = random(10, 60);
+    $n2 = random(10, 60);
+    $s1 = random(1, 2, 0.1);
+    $s2 = random(1, 2, 0.1);
+    $A = $s1**2 / $n1;
+    $B = $s2**2 / $n2;
+    $df = round(($A + $B)**2 / ($A**2 / ($n1 - 1) + $B**2 / ($n2 - 1)));
+} until ($df <= 60);
+$se = sqrt($A + $B);
+$x_bar2 = random(3, 7, 0.1);
+
+$LEFT = 0;
+$RIGHT = 1;
+$TWO = 2;
+$tailedness = random(0, 2);
+
+if ($tailedness == $LEFT) {
+    $x_bar1 = random(Round($x_bar2 - 3.5 * $se, 1), $x_bar2 - 0.1, 0.1);
+    $t = Round(($x_bar1 - $x_bar2) / $se, 3);
+    $claim_string = "less than";
+    $alternate_hypothesis = '\(\mu_1 - \mu_2 < 0\)';
+    $sig = list_random(0.005, 0.01, 0.025, 0.05, 0.10);
+    $crit = -Round(tdistr($df, $sig), 3);
+    $crit_string = $crit;
+    if ($t < $crit) {
+        $sufficient = 'Yes';
+    } else {
+        $sufficient = 'No';
+    }        
+} elsif ($tailedness == $RIGHT) {
+    $x_bar1 = random($x_bar2 + 0.1, Round($x_bar2 + 3.5 * $se, 1), 0.1);
+    $t = Round(($x_bar1 - $x_bar2) / $se, 3);
+    $alternate_hypothesis = '\(\mu_1 - \mu_2 > 0\)';
+    $claim_string = "more than";
+    $sig = list_random(0.005, 0.01, 0.025, 0.05, 0.10);
+    $crit = Round(tdistr($df, $sig), 3);
+    $crit_string = $crit;
+    if ($t > $crit) {
+        $sufficient = 'Yes';
+    } else {
+        $sufficient = 'No';
+    }        
+} elsif ($tailedness = $TWO) {
+    $x_bar1 = random(Round($x_bar2 - 3.5 * $se, 1),
+        Round($x_bar2 + 3.5 * $se, 1), 0.1);
+    $t = Round(($x_bar1 - $x_bar2) / $se, 3);
+    $alternate_hypothesis = '\(\mu_1 - \mu_2 \neq 0\)';
+    $claim_string = "different than";
+    $sig = list_random(0.01, 0.02, 0.05, 0.10, 0.20);
+    $crit = Round(tdistr($df, $sig / 2), 3);
+    $crit_string = "&plusmn;$crit";
+    if (abs($t) > $crit) {
+        $sufficient = 'Yes';
+    } else {
+        $sufficient = 'No';
+    }        
+}
+
+if ($sig >= 0.10) {
+    $sig_string = sprintf("%0.2f", $sig);
+} else {
+    $sig_string = $sig;
+}
+
+@hypothesis_string = ('\(\mu_1 - \mu_2 = 0\)', '\(\mu_1 - \mu_2 < 0\)',
+    '\(\mu_1 - \mu_2 > 0\)', '\(\mu_1 - \mu_2 \neq 0\)');
+
+$a = RadioButtons([@hypothesis_string], '\(\mu_1 - \mu_2 = 0\)');
+$b = RadioButtons([@hypothesis_string], $alternate_hypothesis);
+$c = RadioButtons([add_options(4, -3.5, 3.5, 0.001, $t)], $t, noindex=>1);
+
+@crits = add_options(3, 1, 3.5, 0.001, abs($crit));
+@crits = (@crits, map(-$_, @crits), map("&plusmn;$_", @crits));
+$d = RadioButtons([@crits], $crit_string);
+
+$e = RadioButtons(['Yes', 'No'], $sufficient);
+
+TEXT(beginproblem());
+
+BEGIN_TEXT
+
+Suppose that in a sample of $n1 $fruits1, the mean weight is $x_bar1 oz with
+a standard deviation of $s1 oz.  In a sample of $n2 $fruits2, the mean
+weight is $x_bar2 oz with a standard deviation of $s2 oz.
+$PAR
+
+Test the claim that the mean weight of all $fruits1 (\(\mu_1\)) is
+$claim_string the mean weight of all $fruits2 (\(\mu_2\)) at the
+\(\alpha = $sig_string\) significance level.  (4 points each)
+$PAR
+
+$BITALIC Note:$EITALIC Use d.f. = $df.
+$PAR
+
+(a) Identify the null hypothesis.
+$BR
+\{$a->buttons()\}
+$PAR
+
+(b) Identify the alternate hypothesis.
+$BR
+\{$b->buttons()\}
+$PAR
+
+(c) Find the test statistic.
+$BR
+\{$c->buttons()\}
+$PAR
+
+(d) Determine the critical value(s).
+$BR
+\{$d->buttons()\}
+$PAR
+
+(e) Is there sufficient data to reject the null hypothesis and support the
+    claim?
+$BR
+\{$e->buttons()\}
+
+END_TEXT
+
+ANS($a->cmp);
+ANS($b->cmp);
+ANS($c->cmp);
+ANS($d->cmp);
+ANS($e->cmp);
+
+ENDDOCUMENT();

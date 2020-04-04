@@ -1,0 +1,174 @@
+##DESCRIPTION
+##  Algebra problem: Simplify square root involving integers
+##ENDDESCRIPTION
+
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'radical', 'radicals', 'radical expression')
+
+
+########################################################################
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextLimitedPowers.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+    # code essentially from Davide Cervone 4/25/10
+    ###########################
+    #
+    # Subclass the numeric functions
+    #
+    package my::Function::numeric;
+    our @ISA = ('Parser::Function::numeric');
+
+    #
+    # Override sqrt() to return a special value (usually 1) when evaluated
+    # effectively eliminating it from the product.
+    #
+    sub sqrt {
+      my $self = shift;
+      my $value = $self->context->flag("setSqrt");
+ 
+ return $value+2 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+      return $value if $value;
+      return $self->SUPER::sqrt(@_);
+    }
+
+    #
+    # end of subclass
+    #
+package main;
+
+    Context("Numeric")->variables->are(
+      a => ["Real", limits => [0,2]],    # only needed if x is used in the square roots\
+      b => ["Real", limits => [0,2]],
+    );
+    #
+    # make sqrt() use our subclass
+    #
+    Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+    Context()->flags->set(reduceConstantFunctions=>0);
+    #
+   #
+    # Don't allow fractional powers (avoids 1/2 power)
+    # [Could subclass exponentiation to handle that as well]
+    #
+    LimitedPowers::OnlyPositiveIntegers();
+
+$reducedSqrt = sub  {
+      my ($correct,$student,$ans) = @_;
+      return 0 if $ans->{isPreview} || $correct != $student;
+      #
+      #  Get parsed formula for student and correct answers
+      #
+      $student = $ans->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      #
+      # check if equal when sqrt's are replaced by 1
+      #
+      Context()->flags->set(setSqrt => 1);
+      delete $correct->{test_values}, $student->{test_values};
+      my $OK = ($correct == $student);
+      Context()->flags->set(setSqrt => 0);
+      #
+      Value::Error("Check to see if your answer is simplified.") unless $OK;
+      return $OK;
+    };
+
+Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0, formatStudentAnswer=>'parsed');
+Parser::Number::NoDecimals;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+$out = random(3,7,1);
+$in = list_random(2,3,5,6);
+$coeff = random(2,5,1);
+
+$rad = $in*$out**2;
+$finalOut = $out*$coeff;
+
+$ans = Compute("$finalOut sqrt($in)");
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Simplify the radical without using rational exponents. 
+$BR
+Assume all variables are restricted to positive values (that way we don't have to worry about absolute values).
+$PAR
+\( \large{$coeff \sqrt{$rad}} \) = \{ ans_rule(10) \}
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($ans->cmp(checker=>$reducedSqrt)->withPostFilter(sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "Use 'sqrt(...)' for radicals instead of rational exponents."  
+    if $ans->{ans_message} eq "Powers must be positive integer constants";
+  return $ans; 
+}));
+
+Context()->texStrings;
+BEGIN_HINT
+
+See if you can find any perfect squares that are factors of $rad.
+$PAR
+Make sure you don't lose track of the coefficient, \($coeff\), when you're simplifying \( \sqrt{$rad} \)...
+
+END_HINT
+BEGIN_SOLUTION
+
+$BBOLD Find the largest perfect square factor of $rad: $EBOLD $BR
+\( \displaystyle $coeff \sqrt{$rad} = $coeff \sqrt{$out \cdot $out \cdot $in} \)
+$PAR
+$BBOLD Split up the radical: $EBOLD $BR
+\( \displaystyle $coeff \sqrt{$out \cdot $out \cdot $in} = $coeff \sqrt{$out} \sqrt{$out} \sqrt{$in} \)
+$PAR
+$BBOLD Group matching radicals into pairs: $EBOLD $BR
+\( \displaystyle $coeff \sqrt{$out} \sqrt{$out} \sqrt{$in} = $coeff \left( \sqrt{$out} \sqrt{$out} \right) \sqrt{$in} \)
+$PAR
+$BBOLD Simplify paired radicals: $EBOLD $BR
+\( \displaystyle $coeff \left( \sqrt{$out} \sqrt{$out} \right) \sqrt{$in} = $coeff ($out) \sqrt{$in} = $finalOut \sqrt{$in} \)
+
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        
