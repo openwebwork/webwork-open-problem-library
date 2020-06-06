@@ -8,3 +8,4 @@ Contributors (github):
 * gohsc
 * jverrett
 * tleonzio
+* xinglong-li
