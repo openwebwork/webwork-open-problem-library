@@ -1,0 +1,220 @@
+#################################################################
+## DESCRIPTION
+## Logistic regression, binomial data, estimating probability of success as a function of a covariate, 
+## estimating odds of success as a function of a covariate.
+## ENDDESCRIPTION 
+#################################################################
+
+#################################################################
+## DBsubject(Statistics)
+## DBchapter(Generalized linear methods)
+## DBsection(Logistic regression)
+## Date(2019/12/20)
+## Author(Bruce Dunham)
+## Institution(UBC)
+## Level(4)
+#################################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "PGgraphmacros.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+);
+
+#################################################################
+## Setup: this is where we use Perl and PG objects (Required)
+Context("Numeric");
+
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+
+## fix the name of the downloadable data files 
+rserve_eval("filename <- file.path(tempdir(), 'biomarker_${studentLogin}.txt')");
+
+my @remote_file = rserve_eval('
+  library(MASS);
+  sigma <- matrix(c(3.43**2, -2.14, -2.14, 4.5**2), ncol=2);
+  x <- mvrnorm(1113, mu = c(5.8, 6),Sigma = sigma);
+  x <- abs(round(x, 2));
+  FA <- x[, 1];
+  K6 <- x[, 2];
+  write.table(x, file = filename, append=FALSE, quote = TRUE, sep = " ", eol = "\n", na="NA", dec = ".",
+              row.names = F, col.names = c("FA", "K6"), qmethod = c("escape","double"), fileEncoding = "");
+  filename
+');
+
+my $local_file = rserve_get_file($remote_file[0]);
+
+$local_url = $local_file;
+$local_url =~ s|$tempDirectory|$tempURL|;
+
+@answers = rserve_eval('
+  lm1 <- lm(K6 ~ FA);
+  SPD <- as.logical(K6 >= 13);
+  SPD <- as.numeric(SPD);
+  glm1 <- glm(SPD ~ FA, family=binomial);
+
+  ansb <- round(100*summary(lm1)$r.squared,2);
+  ansc <- sum(SPD);
+  ansd <- round(exp(glm1$coef[1] + 5*glm1$coef[2]), 3);
+  anse <- round(1/(1+exp(-(glm1$coef[1]+3*glm1$coef[2]))), 3);
+  c(ansb, ansc, ansd, anse, round(glm1$coef[1], 3), round(glm1$coef[2], 3));
+');
+
+$b0 = $answers[4];
+$b1 = $answers[5];
+
+# Part (a)
+$mca = new_multiple_choice();
+$mcquesa = "The study described above is:";
+@ansa = ("an observational study.", "an experiment.");
+$mca->qa($mcquesa, $ansa[0]);
+$mca->extra($ansa[1]);
+
+# Scatter plot for part (b)
+$file = rserve_start_plot('png');
+rserve_eval('plot(FA, K6, xlab="FA", ylab="K6")');
+$imagefile = rserve_finish_plot($file);
+$fig = image($imagefile, width=>400, height=>400);
+
+#################################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+Can certain biomarkers, such as omega-3 fatty acid and vitamin D levels, influence whether a person suffers serious psychological distress (SPD)? 
+In a study of people in 36 Inuit communities in northern Canada, Skogli $BITALIC et al. $EITALIC (2017) measured various physiological biomarkers
+on volunteers, including via blood samples levels of n-3 long-chain fatty acids (FA, recorded as a percentage of fasting red blood cell membrane
+fatty acids). Previous studies had indicated an association between low levels of omega-3 fatty acids and certain negative health outcomes.
+In addition, volunteers were asked to complete a psychometric survey known as the Kessler 6-item psychological distress questionnaire.
+Scores on this survey (K6) range from 0 to 24, with a score of at least 13 indicating SPD. In total 1113 volunteers provided information, and
+suppose their data are as provided in the file below. (\{ htmlLink($local_url, "Download the data here") \})
+$BR
+Hans-Ragnar Skogli, Dominique Geoffroy, Hope A. Weiler, Grethe S.Tell, Laurence J. Kirmayer & Grace M. Egeland (2017): "Associations
+between omega-3 fatty acids and 25(OH)D and psychological distress among Inuit in Canada." $BITALIC International Journal of Circumpolar Health $EITALIC,$BBOLD 76 $EBOLD, 1-8.
+$BR
+$BR
+$BBOLD Part (a) $EBOLD
+$BR
+\{$mca->print_q()\}
+\{$mca->print_a()\}
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+Explore the relationship between K6 score and FA level graphically. Fit a linear model linking the response variable to the explanatory variable. What percentage of variation in K6 scores is explained by FA level? Give your answer to two significant figures. 
+$BR
+\{ans_rule(8)\}
+$BR
+Think about whether your model would be useful in predicting a K6 score from the FA level.
+$BR
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+In the data you have, how many of the volunteers were indicative of SPD? (Hint: If using R you may find the commands
+$BBOLD as.logical $EBOLD and $BBOLD as.numeric $EBOLD helpful.)
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR 
+Suppose we consider modelling the log-odds of SPD as a linear function of FA. Fit such a model using software. Using your model, find the estimated odds of an individual in the target population suffering from SPD given their FA level is 5%. Give your answer to two significant figures.
+$BR
+\{ans_rule(8)\}
+$BR
+
+$BR
+$BBOLD Part (e) $EBOLD
+$BR
+According to the model, what is the estimated probability of an individual having SPD if their FA level is 3%? Give your answer to two significant figures.
+$BR
+\{ans_rule(8)\}
+$BR
+
+END_TEXT
+
+#################################################################
+## Answers evaluation (Required)
+
+$showPartialCorrectAnswers = 1;
+
+ANS(radio_cmp($mca->correct_ans()) );
+ANS(num_cmp($answers[0], tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($answers[1], tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($answers[2], tol=>0.002, tolType=>"absolute") );
+ANS(num_cmp($answers[3], tol=>0.002, tolType=>"absolute") );
+
+#################################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+$BBOLD Part (a) $EBOLD
+$BR
+There is no treatment applied to the volunteers and responses were recorded without intervention. The study is purely observational.
+$BR
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+The scatterplot below indicates some negative correlation between K6 score and FA level, though there is much noise. 
+$BCENTER
+$fig
+$ECENTER
+The linear model can be fitted with the R code $BBOLD lm1 <- lm(K6 ~ FA)$EBOLD. The R\(^2\) value (in percentage) can be obtained with $BBOLD 100*summary(lm1)${DOLLAR}r.squared$EBOLD, which is $answers[0]%. Hence we see only a low proportion of variation in the response \(K6\) is explained by the variable FA.
+$BR
+
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+This is the number of volunteers whose K6 value is greater than or equal to 13, which equals $answers[1].
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR
+The model fitted is of the form
+\[
+\log\left(\frac{\pi_i}{1-\pi_i} \right) = \beta_0 + \beta_1 x_i,
+\]
+where \(\pi_i\) is the probability of individual \(i\) suffering SPD, and where \(x_i\) is the individual's FA level. The estimated odds requested is 
+\[
+\frac{\hat{\pi}}{1-\hat{\pi}} = e^{\hat{\beta}_0 + 5\hat{\beta}_1} = e^{$b0 + $b1\times 5} = $answers[2].
+\]
+$BR
+
+$BR
+$BBOLD Part (e) $EBOLD
+$BR
+Rearranging the model stated above, 
+\[
+\pi_i = \frac{e^{\beta_0 + \beta_1 x_i}}{1 + e^{\beta_0 + \beta_1 x_i}} = \frac{1}{1+e^{-(\beta_0 + \beta_1x_i)}}.
+\]
+Hence the estimated probability of having SPD if the FA level is 3% is 
+\[
+\hat{\pi} = \frac{1}{1 + e^{-($b0 + $b1\times 3)}} = $answers[3].
+\]
+
+END_SOLUTION
+
+ENDDOCUMENT();
