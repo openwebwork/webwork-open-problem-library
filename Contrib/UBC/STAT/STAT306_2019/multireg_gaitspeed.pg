@@ -1,0 +1,238 @@
+#################################################################
+## DESCRIPTION
+## Linear models, multiple regression; fit a multiple regression model with two covariates; 
+## find the standarndised residuals for a regression model; 
+## explore influential points in a regression model via the diagonal entries of the hat matrix; 
+## find the fitted value of the response variable corresponding to the observation with giving the leading diagonal term on the hat matrix.
+## ENDDESCRIPTION 
+#################################################################
+
+#################################################################
+## DBsubject(Statistics)
+## DBchapter(Multiple regression)
+## DBsection(Parameter estimates)
+## Date(2019/11/30)
+## Author(Bruce Dunham)
+## Institution(UBC)
+## Level(3)
+#################################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+);
+
+#################################################################
+## Setup: this is where we use Perl and PG objects (Required)
+Context("Numeric");
+
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+
+## fix the name of the downloadable data files 
+rserve_eval("filename <- file.path(tempdir(), 'GaitSpeed_${studentLogin}.txt')");
+
+my @remote_file = rserve_eval('
+  library(MASS);
+  sigma <- matrix(c(40, -3.36, -3.36, 16), ncol=2);
+  x <- mvrnorm(49, mu=c(72.5, 17.6), Sigma=sigma);
+  x <- round(x, 2);
+  ResVO2 <- x[, 2];
+  Age <- x[, 1];
+  e <- rnorm(49, mean=0, sd=0.14);
+  GaitSpeed <- 1.7 + 0.06*ResVO2 - 0.02*Age + e;
+  GaitSpeed <- round(GaitSpeed, 2);
+  x <- matrix(c(GaitSpeed, ResVO2, Age), ncol=3);
+  write.table(x, file = filename, append=FALSE, quote = TRUE, sep = " ", eol = "\n", na="NA", dec = ".",
+              row.names = F, col.names = c("GaitSpeed", "ResVO2", "Age"), qmethod = c("escape","double"), fileEncoding = "");
+  filename
+');
+
+my $local_file = rserve_get_file($remote_file[0]);
+
+$local_url = $local_file;
+$local_url =~ s|$tempDirectory|$tempURL|;
+
+@answers = rserve_eval('
+  lm1 <- lm(GaitSpeed~Age+ResVO2);
+  stres <- rstandard(lm1);
+  hat1 <- hatvalues(lm1);
+  ansc <- round(lm1$coef[2], 3);
+  ansd <- round(max(abs(stres)), 3);
+  anse <- round(max(hat1), 3);
+  ansf <- c(Age[hat1==max(hat1)], ResVO2[hat1==max(hat1)]);
+  ansg <- round(lm1$fit[hat1==max(hat1)],2);
+  c(ansc, ansd, anse, ansf, ansg);
+');
+
+# Part (a)
+
+$mca = new_multiple_choice();
+$mcquesa = "The study described above is:";
+@ansa = ("an observational study.", "an experiment.");
+$mca->qa($mcquesa, $ansa[0]);
+$mca->extra($ansa[1]);
+
+# Part (b)
+
+$mcb = new_multiple_choice();
+$mcquesb = "Which of the following is the response variable for the study?";
+@ansb = ("Gait speed", "Sex", "Reserve VO2", "Age", "Body mass index");
+$mcb->qa($mcquesb, $ansb[0]);
+$mcb->extra($ansb[1], $ansb[2], $ansb[3], $ansb[4]);
+
+#################################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+Studies have indicated that how fast an elderly person walks, their $BITALIC gait speed $EITALIC (in m/s), is a good indicator of various health outcomes such as life expectancy following a heart attack.
+Fiser $BITALIC et al.$EITALIC (2010) explored the relationship between gait speed and various other biometric variables in 49 elderly adults (25 men and 24 women). Variables measured included age (in years), body mass index (in kg/m\(^2\)), percentage of body fat, volume of oxygen inhaled while standing (VO\(_2\) while standing, in mL/kg/min), and peak volume of oxygen while exercising (maximal aerobic capacity, VO\(_{2peak}\), in mL/kg/min). The researchers defined "reserve VO2" as the difference between VO\(_{2peak}\) and VO\(_{2}\) during standing, the variable reflecting the capacity of increased oxygen consumption available for walking.
+$BR
+Suppose a subset of the data collected are available in the file linked (\{ htmlLink($local_url, "Download the data here") \}). It can be assumed that variables not included in the data were not
+relevant to the objectives in this question.
+$BR
+Fiser, W.M., Hays, N.P., Rogers, S.C., Kajikenova, O., Williams, A.E., Evans, C.M., and Evans, W.J. (2010): Energetics of Walking in Elderly People: Factors Related to Gait Speed. $BITALIC J. Gerontol. A Biol. Sci. Med. Sci.$EITALIC $BBOLD 65A $EBOLD (12), 1332--1337.
+$BR
+$BR
+$BBOLD Part (a) $EBOLD
+$BR
+\{$mca->print_q()\}
+\{$mca->print_a()\}
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+\{$mcb->print_q()\}
+\{$mcb->print_a()\}
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+Explore the relationship between the response variable and the two explanatory variables graphically. Fit a linear model linking the response
+variable to the two explanatory variables. What is the coefficient on the "Age" variable in your model? Give your answer to two significant figures.
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR 
+What is the largest absolute value of the standardized residuals for the model you fitted above? Give your answer to two decimal places. Think about whether this value would give you cause for concern.
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (e) $EBOLD
+$BR
+Points of influence in a regression analysis may be identified by their contribution to the trace of the so--called $BITALIC hat matrix $EITALIC, the matrix that maps the vector of responses onto the line or plane fitted by the model. What is the largest value on the diagonal of the hat matrix for the model fitted? Give your answer to two decimal places. Think about whether this value would suggest the corresponding data point carries undue influence in the model fitting.
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (f) $EBOLD
+$BR
+What observed pair of explanatory values gives the observation corresponding to the largest value on the diagonal of the hat matrix?
+$BR
+Age = \{ans_rule(8)\} years.
+$BR
+ResVO2 = \{ans_rule(8)\} ml/kg/min.
+$BR
+
+$BR
+$BBOLD Part (g) $EBOLD
+$BR
+Find the expected gait speed (in m/s) for the individual with the covariate values in the previous part, giving your answer to two decimal places.
+$BR
+\{ans_rule(8)\}
+$BR
+
+END_TEXT
+
+#################################################################
+## Answers evaluation (Required)
+
+$showPartialCorrectAnswers = 1;
+
+ANS(radio_cmp($mca->correct_ans()) );
+ANS(radio_cmp($mcb->correct_ans()) );
+ANS(num_cmp($answers[0], tol=>0.002, tolType=>"absolute") );
+ANS(num_cmp($answers[1], tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($answers[2], tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($answers[3], tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($answers[4], tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($answers[5], tol=>0.02, tolType=>"absolute") );
+
+#################################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+$BBOLD Part (a) $EBOLD
+$BR
+There is no treatment applied to the subjects and measurements were taken without intervention. The study is purely observational.
+$BR
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+The response variable for the study is gait speed.
+$BR
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+The model can be fitted in R using the $BBOLD lm $EBOLD function, with $BITALIC GaitSpeed$EITALIC as the response variable:
+$BR
+$BCENTER
+$BBOLD lm1 <- lm(GaitSpeed ~ Age + ResVO2)$EBOLD.
+$ECENTER
+The coefficient on the covariate $BITALIC Age$EITALIC in the fitted model can be obtained by $BBOLD lm1${'DOLLAR'}coef[2]$EBOLD, which is $answers[0].
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR
+The standardized residuals of a linear regression object in R can be obtained with the function $BBOLD stres <- rstandard(lm1) $EBOLD. The largest residual absolute value can be obtained with $BBOLD max(abs(stres)) $EBOLD, which is $answers[1]. Unless the largest absolute value of standardized residuals is greater than 3, the corresponding observation should not give great cause for concern.
+$BR
+
+$BR
+$BBOLD Part (e) $EBOLD
+$BR
+The diagonal values of the hat matrix (leverage values) can be obtained with the R function $BBOLD hat1 <- hatvalues(lm1) $EBOLD. The leading diagonal term on the hat matrix can be obtained with $BBOLD max(hat1)$EBOLD, which is 
+$answers[2]. The influence of a specific leverage value should be considered in the context of the contribution of this value to the trace of the hat matrix, $BBOLD sum(hat1) $EBOLD.
+$BR
+
+$BR
+$BBOLD Part (f) $EBOLD
+$BR
+The values of the covariates at the value with the largest entry on the diagonal of the hat matrix are $BBOLD Age[hat1==max(hat1)]$EBOLD, which is $answers[3] years and $BBOLD ResVO2[hat1==max(hat1)]$EBOLD, which is  $answers[4] mL/kg/min.
+$BR
+
+$BR
+$BBOLD Part (g) $EBOLD
+$BR
+The gait speed fitted by the model at the observation identified in (f) is $BBOLD lm1${DOLLAR}fit[hat1==max(hat1)]$EBOLD, which is
+$answers[5] m/s.
+
+END_SOLUTION
+
+ENDDOCUMENT();
