@@ -1,0 +1,402 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+
+## DBsubject(Calculus - single variable)
+## Date(6/15/2019)
+## Institution(CityTech)
+## Author(K. Andrew Parker)
+## MO(1)
+## KEYWORDS('calculus')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "AppletObjects.pl",
+   "niceTables.pl",
+   "parserMultiAnswer.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+#######################
+### ggbApplet MultiAns
+#######################
+#
+#  Make a subclass of MultiAnswer
+#
+package myMultiAnswer;
+our @ISA = ('MultiAnswer');
+
+sub new {
+  my $self = shift;
+  my $ma = $self->SUPER::new(@_);
+  $ma->{part} = 1;
+  $ma->{answerName} = 'answerBox';
+  $ma->{answerNames}{0} = $ma->{answerName};
+  $ma->{id} = $MultiAnswer::answerPrefix.$ma->{answerName};
+  $ma->{singleResult} = 1;
+  $ma->{namedRules}  = 1;
+  return $ma;
+}
+
+sub ANS_NAME {
+  my $self = shift;
+  my $i = shift;
+  $self->{answerNames}{$i} = ($i == 0 ? $self->{answerName} : $self->{id}.'_'.$i);
+  return $self->{answerNames}{$i};
+}
+
+package main;
+
+Context("Numeric");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0,
+  tolerance=>10**(-10),
+  tolType=>'absolute'
+);
+
+
+#### WARNING: This applet requires an f(x) with a SINGLE root ####
+
+# if you set $f to be a function with multiple roots, the 
+# geogebra applet will croak and this problem will not function
+
+# $f = Formula("x - cos(x)");
+
+$D = list_random(2,4,5,10);
+do { $R = random(2,10,1); } until ( $R != 8 );
+$f = Formula("1/$D (x^3 - $R)");
+
+$multiAns = myMultiAnswer->new(List(Real(0),Real(0)),Real(0))->with(
+  checkTypes=>0,
+  singleAnswer=>1,
+  checker => sub {
+    my ( $correct, $student, $self, $ans_hash ) = @_;
+    my ( $ggbStu, $rootStu ) = @{$student};
+    my ( $ggbWidth, $rootCor ) = split(/, /,$ggbStu,2);
+    my $rootAcc = abs($rootStu - $rootCor);
+    ## 10 iterations at least...
+    if ( $ggbWidth > 2**(-9) ) {
+      Value::Error("Keep going... you're not close enough yet.");
+    }
+    if ( $rootAcc > 0.25*$ggbWidth ) { 
+      Value::Error("You've zoomed in enough to give a better approximation of the root than $rootStu");
+    }
+    return 1;
+  }
+);
+
+######################################
+# Create  link to applet:
+###################################
+# You can name your applet (anything reasonable :-) )
+# Adjust the height and width as desired
+# Paste the geogebra parameters in at the bottom of the page just above the
+# command end command
+# so that they don't get in the way
+###################################
+
+
+$appletName = "ggbfoo";
+
+$applet =  GeogebraWebApplet(
+   code       => "geogebra.GeoGebraApplet",
+   archive    => "",
+   codebase                 => "",
+   appletName              => $appletName,
+   appletId                    => $appletName,
+   submitActionAlias     => 'getAppletValues',  # default actionAlias
+   initializeActionAlias   => 'configure',  # default actionAlias
+   setStateAlias             => 'setXML',
+   getStateAlias             => 'getXML',
+   setConfigAlias           => '',
+   getConfigAlias           => '',
+   returnFieldName       => '',
+   width                 => 500,              # may want to modify width
+   height                => 500,              # may want to modify height
+  # mayscript             => "true",
+   debugMode             => 0,   # set debugMode to 0 for no debug
+                                              # to 1 to make xml representation visible
+                                              # to 2 to add alerts detailing progression
+                                              # through the applet
+   onInit                => 'ggbOnInit',
+   type                  => 'geogebraweb',
+   submitActionScript    => qq{ getQE('answerBox').value = getAppletValues() },
+   #submitActionScript => '',
+   selfLoading           => 1,
+   params     => GEOGEBRA_PARAMS(),# paste parameters in
+
+);
+
+
+###############################################
+#
+#  PNG picture of GeoGebra applet for hardcopy
+
+# $im = image( "AF7-c".$c."-d".$d.".png", width=>486, height=>335, tex_size=>900 );
+
+
+##################################
+# Setup GeogebraWebApplet --
+###################################
+
+###############################################
+#
+#  For persistence of GeoGebra applet state 
+#  when answers are submitted or page is refreshed.
+#  Uses JavaScript interface to GeoGebra.
+
+HEADER_TEXT(
+qq! 
+<script language="javascript">
+   function ggbOnInit(param) {
+       if (param == "$appletName") {
+           applet_loaded(param,1);  // report that applet is ready. 
+           ww_applet_list[param].safe_applet_initialize(2);
+       }
+   } 
+</script>
+<noscript>For this question to work properly, 
+you must enable JavaScript, or use another browser 
+(or computer) on which JavaScript works.</noscript>
+!);
+
+
+#######################################################
+#
+#  For setting initial values in GeoGebra from WeBWorK
+#  Uses JavaScript interface to GeoGebra.
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+<script language="javascript">
+function setAppletCoefficients() {
+   var applet=getApplet("$appletName");   // alert("Updating coefficients");
+   if (typeof(applet)!="undefined") {
+     if (typeof(applet.setValue)!="undefined") {
+     
+     ////////////////////////////////////////////////////////////////
+     //  List the values of the parameters to be set in the applet here
+     
+          applet.setPerspective("G");
+          applet.setRounding("8d");
+          applet.setGridVisible('true');
+          // Set function f(x)
+          applet.evalCommand("f = $f"); 
+          // Create the root, establish initial interval
+          applet.evalCommand("Z = Intersect(f, y=0)");
+          var root = applet.getXcoord("Z");
+          var zfl = Math.floor(root);
+          var zce = Math.ceil(root);
+          // Create left and right bounds to start
+          applet.evalCommand("l = "+zfl);
+          applet.evalCommand("r = "+zce);
+          applet.evalCommand("L = (l, f(l))"); 
+          applet.evalCommand("R = (r, f(r))"); 
+          var yl = applet.getYcoord("L");
+          var yr = applet.getYcoord("R");
+          var dim = Math.max(1,Math.abs(yl-yr));
+          dim *= 1.2;
+          var midX = zfl + 0.5;
+          var midY = 0.5*(yl + yr);
+          var xMin = midX - 0.5*dim;
+          var xMax = midX + 0.5*dim;
+          var yMin = midY - 0.5*dim;
+          var yMax = midY + 0.5*dim;
+          // Set the window size
+          applet.setCoordSystem(xMin,xMax,yMin,yMax);
+          // hide the root, show the coords for left and right "bounds"
+          applet.setVisible("Z",false);
+          applet.setLabelVisible("L",true);
+          applet.setLabelVisible("R",true);
+          applet.setLabelStyle("L",2);
+          applet.setLabelStyle("R",2);
+          // create and hide a mid-point (for ease)
+          applet.evalCommand("m = "+midX);
+          applet.evalCommand("M = (m, f(m))");
+          applet.setLabelVisible("M",false);
+          applet.setLabelStyle("M",0);
+          applet.setFixed("M",true,true);
+     } else {
+          setTimeout("setAppletCoefficients()", 1000);
+     }
+   } else {
+      setTimeout("setAppletCoefficients()",1000);
+   }
+}
+ww_applet_list["$appletName"].setConfig = function() {setAppletCoefficients()};
+</script>
+END_SCRIPT
+
+HEADER_TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+
+<script language="javascript">
+function zoomIn(midXstu, midYstu, LorR) {
+	var applet = $appletName;
+    var regex = /[\+\*\/\^\(\)]/g;
+    if (regex.test(midYstu) || regex.test(midXstu)) {
+      alert("Please use a decimal approximation for your coordinates instead of an algebraic expression.");
+      return false;
+    }
+    midXstu = parseFloat(midXstu);
+    midYstu = parseFloat(midYstu);
+
+    var xl = applet.getXcoord("L");
+    var xm = applet.getXcoord("M");
+    var ym = applet.getYcoord("M");
+    var xz = applet.getXcoord("Z");
+    var xr = applet.getXcoord("R");
+
+    if (xz > xm) {
+      var l = xm; 
+      var r = xr;
+      var side = 'right';
+    } else {
+      var l = xl; 
+      var r = xm;
+      var side = 'left';
+    }
+    // alert(midYstu+" is what you said, but "+ym+" is what it is.");
+    if ( Math.abs(midXstu - xm) > 5*10**(-8) ) {
+      alert("Your x-coordinate is not close enough to the midpoint.");
+      return false;
+    } else if ( Math.abs(midYstu - ym) > 5*10**(-5) ) {
+      alert("Your y-coordinate is not accurate enough.");
+      return false;
+    } else if ( LorR != side ) {
+      alert("Are you sure you've chosen the appropriate half-interval?");
+      return false;
+    }
+    
+    zoom = Math.abs(Math.log(r-l)/Math.log(2));
+    // inform the student that our picture is zooming in
+    alert("Good job! Successful zoom #"+zoom+": Zooming in on the "+side+" half...");
+
+    // get the horizontal interval right first
+    var width = r - l;
+    var midX = 0.5*width + l;
+
+    // shift the points to their new half
+    applet.setValue("l",l);
+    applet.setValue("r",r);
+    applet.setValue("m",midX);
+
+    // get the y-coords for the new locations
+    var yl = applet.getYcoord("L");
+    var yr = applet.getYcoord("R");
+
+    // and compute the larger dimension
+    var dim = Math.max(width,Math.abs(yl-yr));
+    // boost each side by 10%
+    dim *= 1.2;
+    var midY = 0.5*(yl + yr);
+    var xMin = midX - 0.5*dim;
+    var xMax = midX + 0.5*dim;
+    var yMin = midY - 0.5*dim;
+    var yMax = midY + 0.5*dim;
+    // Set the window size
+    applet.setCoordSystem(xMin,xMax,yMin,yMax);
+    // Blank out the entry fields
+    jQuery("#midXstu").val("");
+    jQuery("#midYstu").val("");
+    jQuery("#LorR").val("");
+
+    return true;
+}
+ </script>
+
+<script language="javascript">
+function getAppletValues() {
+    console.log("getAppletValues() entered");
+	// get a handle for the applet object
+	var applet = $appletName;
+	var l = applet.getXcoord("L");
+    var r = applet.getXcoord("R");
+    var z = applet.getXcoord("Z");
+    return( r-l + ", " + z ); 
+}
+ </script>
+END_SCRIPT
+
+###################################
+#insert applet into body  -- this does not need to be changed
+# except to adjust the insertion of the reinitialize_button or
+# a hidden AnswerBox
+###################################
+$ggb_code = LayoutTable(
+  [
+    [ MODES(TeX=>'geogebraweb code', HTML=>$applet->insertAll(debug =>0, reinitialize_button => 0, includeAnswerBox=>1)),
+      [ MODES(
+        HTML => qq{<CENTER><B> Midpoint values: </B><BR> x = <INPUT TYPE="text" NAME="midXstu" ID="midXstu" Value="" Size="5"><BR> y = <INPUT TYPE="text" NAME="midYstu" ID="midYstu" Value="" Size="5"><BR><I> Which half contains the root? </I><BR> "left" or "right"? <INPUT TYPE="text" NAME="LorR" ID="LorR" SIZE="5"><BR><INPUT TYPE="button" VALUE="update graph with new values" OnClick='zoomIn(this.form.midXstu.value,this.form.midYstu.value,this.form.LorR.value)'></CENTER><BR>}."Once you have successfully zoomed in at least 10 times, type in your estimate for the root and hit submit. $BR $BCENTER root = ".$multiAns->ans_rule(10)."$ECENTER", 
+        TeX => '\fbox{Enter \(x\) and \(y\)}'),rowcss=>'padding-top:2pt; vertical-align:top;'
+      ]
+    ]
+  ],
+  align => 'c p{100px}',
+  center => 1
+);
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ## The Bisection Method ## <<
+
+[``` f(x) = [$f] ```]
+
+[$ggb_code]***
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+NAMED_ANS($multiAns->cmp);
+
+BEGIN_PGML_HINT
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+END_PGML_SOLUTION
+
+sub GEOGEBRA_PARAMS {
+    my $result = {
+        appName=>"classic", # instead of using ggbbase64
+        enableShiftDragZoom=>"false",
+        showResetIcon=>"false" ,
+        enableRightClick=>"false" ,
+        enableLabelDrags=>"false",
+        showMenuBar=>"false" ,
+        showToolBar=>"false",
+        showAlgebraInput=>"false",
+        useBrowserForJS=>"true",
+        #ggbbase64=>''
+    };
+    $result;
+}
+
+ENDDOCUMENT();        
