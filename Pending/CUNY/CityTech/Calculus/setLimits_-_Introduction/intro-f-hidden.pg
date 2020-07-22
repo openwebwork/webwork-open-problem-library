@@ -1,0 +1,231 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+
+## DBsubject(Calculus - single variable)
+## Date(6/15/2019)
+## Institution(CityTech)
+## Author(K. Andrew Parker)
+## MO(1)
+## KEYWORDS('calculus')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFormulas=>0,
+  tolerance=>10**(-10),
+  tolType=>'absolute',
+);
+
+$m = non_zero_random(-4,4,0.5)*atan(1);
+$b = exp(random(0.5,3.5,0.25));
+# the point is not to "find" f...
+$f = Formula("$m x + $b");
+
+$a = non_zero_random(-12,12,1);
+$yLimit = $f->eval(x=>$a);
+@x = ();
+
+# "n" determines the level of accuracy necessary for the estimate
+$n = 5;
+
+# define a js function to evaluate f(x) "invisibly" 
+# function should NOT allow evaluation at "x = a"
+HEADER_TEXT(<<EOF);
+<SCRIPT LANGUAGE="JavaScript"><!-- Begin
+function func(x) {
+  var y = 'undefined'
+  if ( x != $a ) {
+    y = $m*x + $b
+  }
+  return y
+}
+--></SCRIPT>
+EOF
+
+for $i ( 0..($n-1) ) {
+  $x[$i] = $a - 10**(-$i-1);
+  $x[$i+$n] = $a + 10**(-$i-1);
+}
+
+@y = ();
+for $i ( 0..(2*$n-1) ) {
+  $y[$i] = $f->eval(x=>$x[$i]);
+}
+
+$xyTable = LayoutTable(
+[
+  [['\(x\)', headerrow=>1], 'click to get:', '\(f(x)\)'],
+  [
+    MODES(
+      HTML => qq{<INPUT TYPE="text" ID='Input1' NAME="Input1" Value="$x[0]" Size="16">}, 
+      TeX => '\fbox{Enter \(x\)}' 
+    ), MODES(
+      HTML => qq{<INPUT TYPE="button" VALUE="---f-->" 
+        OnClick="this.form.Output1.value=func(this.form.Input1.value);">}, 
+      TeX => '\(\rightarrow\)'    
+    ), MODES(
+      HTML => qq{<INPUT TYPE="text" ID='Output1' NAME="Output1" Size="30">}, 
+      TeX => 'result: \(f(x)\)'
+    )  
+  ],
+  [
+    MODES(
+      HTML => qq{<INPUT TYPE="text" ID='Input2' NAME="Input2" Value="$x[$n]" Size="16">}, 
+      TeX => '\fbox{Enter \(x\)}' 
+    ), MODES(
+      HTML => qq{<INPUT TYPE="button" VALUE="---f-->" 
+        OnClick="this.form.Output2.value=func(this.form.Input2.value);">}, 
+      TeX => '\(\rightarrow\)'    
+    ), MODES(
+      HTML => qq{<INPUT TYPE="text" ID='Output2' NAME="Output2" Size="30">}, 
+      TeX => 'result: \(f(x)\)'
+    )
+  ],
+],
+allcellcss=>'padding: 1pt;',
+align=>'c c c');
+
+
+
+$ansTable = LayoutTable(
+[
+  [['x', headerrow=>1], 'f(x)', ' |', 'x', 'f(x)'],
+  ["$x[0]", "$y[0]",' |',"$x[5]", "$y[5]"],
+  ["$x[1]", "$y[1]",' |',"$x[6]", "$y[6]"],  
+  ["$x[2]", "$y[2]",'| ',"$x[7]", "$y[7]"],
+  ["$x[3]", "$y[3]",'| ',"$x[8]", "$y[8]"],
+  ["$x[4]", "$y[4]",'| ',"$x[9]", "$y[9]"],
+],
+allcellcss=>'padding: 1pt;',
+align=>'c c c c c',
+encase=>['\(','\)']);
+
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ### Analytic approach to taking limits ### <<
+
+Suppose that [``\lim_{x \to a} f(x)=L``]. This means that as [`x`] gets closer and closer (_but not equal_) to [`a`], the output [`f(x)`] gets closer and closer to [`L`]. To estimate [`L`], choose an [`x`] that is very close to  [`a`], say, smaller than [`a`]. Then calculate [`f(x)`]. Now choose another [`x`] that is even closer to [`a`] and smaller than [`a`], and calculate [`f(x)`].  Repeat this process.  Do you notice the outputs approaching a particular number?  Do the same with values of [`x`] that are very close to [`a`], but greater than [`a`].  Do the outputs approach that same particular number?  If so, you have estimated [`L`]. Otherwise, the limit does not exist.
+
+
+>> #### Practice #### <<
+
+
+
+Evaluating [``\lim_{x \to [$a]} f(x)``].
+
+[$xyTable]***
+
+Based on the above, what do you estimate as the value for [``\lim_{x \to [$a]} f(x)``]? [___________]
+
+* use decimals for all responses.
+* because our goal is to "get close," you should try [`x`]-values that are very close to [$a].
+* keep trying [`x`]-values until your final estimate is accurate to [$n] decimal places.
+* if the limit does not exist, enter "DNE".
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+# reset the context to force entry of decimal values
+Context("LimitedNumeric");
+Context()->flags->set(
+  tolerance=>5*10**(-$n-3),
+  tolType=>'absolute',
+);
+# and replace all the standard error messages about operations
+Context()->{error}{msg}{"Can't use '+' in this context"} 
+  = "Use decimals to represent your output value.";
+Context()->{error}{msg}{"Can't use '-' in this context"} 
+  = "Use decimals to represent your output value.";
+Context()->{error}{msg}{"Can't use '*' in this context"} 
+  = "Use decimals to represent your output value.";
+Context()->{error}{msg}{"Can't use '/' in this context"} 
+  = "Use decimals to represent your output value.";
+Context()->{error}{msg}{"Can't use '^' in this context"} 
+  = "Use decimals to represent your output value.";
+Context()->{error}{msg}{"Can't use '**' in this context"} 
+  = "Use decimals to represent your output value.";
+Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
+  = "Use decimals to represent your output value.";
+Context()->{error}{msg}{"Unexpected character '('"}
+  = "Your answer should not contain parenthesis. Compute the result as a number.";
+
+# students must push 
+ANS(Real($yLimit)->cmp(tolerance=>5*10**(-$n-1)));
+
+##############################################################
+#
+#  Hint
+#
+#
+
+BEGIN_PGML_HINT
+
+* Choose values of [`x`] that are getting closer and closer to [`[$a]`], say, from the left.
+
+* Observe what happens with the outputs [`f(x)`].  Can you estimate a left-limit?
+
+* Now do the same for the right side.
+
+END_PGML_HINT
+
+##############################################################
+#
+#  Solution
+#
+#
+
+BEGIN_PGML_SOLUTION
+
+* We have:
+
+[$ansTable]***
+
+* As the inputs [`[$x[0]]`], [`[$x[1]]`], [`[$x[2]]`], [`[$x[3]]`] and  [`[$x[4]]`] are approaching [`[$a]`] from the left, their corresponding outputs [`[$y[0]]`], [`[$y[1]]`], [`[$y[2]]`], [`[$y[3]]`] and [`[$y[4]]`] are approaching [`[$yLimit]`].
+
+* As the inputs [`[$x[5]]`], [`[$x[6]]`], [`[$x[7]]`], [`[$x[8]]`] and  [`[$x[9]]`] are approaching [`[$a]`] from the right, their corresponding outputs [`[$y[5]]`], [`[$y[6]]`], [`[$y[7]]`], [`[$y[8]]`] and [`[$y[9]]`] are approaching [`[$yLimit]`].
+
+* We estimate [`\displaystyle\lim_{x \to [$a]} f(x)`] to be [`[$yLimit]`].
+
+
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

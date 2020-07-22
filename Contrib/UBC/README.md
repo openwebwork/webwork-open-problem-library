@@ -6,4 +6,6 @@ Contributors (github):
 * changebo
 * adentremont
 * gohsc
-* gianni-co
+* jverrett
+* xinglong-li
+* jamescharbonneau

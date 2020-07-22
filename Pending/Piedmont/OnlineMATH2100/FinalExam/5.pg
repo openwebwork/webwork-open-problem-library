@@ -1,0 +1,167 @@
+# DESCRIPTION
+# Piedmont College
+# MATH 2100 Online Final Exam
+# Hypothesis Test - Single Proportion (Multiple Choice)
+# ENDDESCRIPTION
+
+## DBsubject(Probability)
+## DBchapter(Hypothesis tests)
+## DBsection(One sample proportion)
+## Institution(Piedmont)
+## Author(Doug Torrance)
+## Level(2)
+## MO(1)
+## KEYWORDS('hypothesis testing')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "PGnumericalmacros.pl",
+  "PGstatisticsmacros.pl",
+);
+
+# add randomly generated options to multiple choice problems
+sub add_options {
+    my ($n, $min, $max, $step, @options) = @_;
+    while (@options < $n) {
+        push(@options, Compute(random($min, $max, $step)));
+        @options = uniq(@options);
+    }
+    return num_sort(@options);
+}
+
+# spit out critical values which agree with table
+sub get_crit {
+    my $sig = shift;
+    my $crit = Round(udistr($sig), 3);
+    if ($crit == 2.576) {
+        return 2.575;
+    } elsif ($crit == 1.645) {
+        return 1.645;
+    } else {
+        return Round($crit, 2);
+    }
+}
+
+@possible_fruits = ('apples', 'pears', 'oranges', 'tangerines', 'plums',
+    'bananas', 'apricots', 'lemons', 'limes', 'mangos');
+$fruits = @possible_fruits[random(0, 9)];
+
+$n = random(30, 100);
+$p = random(Round(5/$n,2), Round(($n-5)/$n,2), 0.01);
+$q = 1 - $p;
+$se = sqrt($p * $q / $n);
+
+$LEFT = 0;
+$RIGHT = 1;
+$TWO = 2;
+$tailedness = random(0, 2);
+
+$sig = list_random(0.01, 0.05, 0.10);
+
+if ($tailedness == $LEFT) {
+    $p_hat = random(Round($p - 3.5 * $se, 2), $p - 0.01, 0.01);
+    $z = Round(($p_hat - $p) / $se, 2);
+    $claim_string = "less than";
+    $alternate_hypothesis = '\(p < $p\)';
+    $crit = -get_crit($sig);
+    $crit_string = $crit;
+    $p_value = Round(normal_prob(-infty, $z), 4);
+} elsif ($tailedness == $RIGHT) {
+    $p_hat = random($p + 0.01, Round($p + 3.5 * $se, 2), 0.01);
+    $z = Round(($p_hat - $p) / $se, 2);
+    $alternate_hypothesis = '\(p > $p\)';
+    $claim_string = "more than";
+    $crit = get_crit($sig);
+    $crit_string = $crit;
+    $p_value = Round(normal_prob($z, infty), 4);
+} elsif ($tailedness = $TWO) {
+    $p_hat = random(Round($p - 3.5 * $se, 2), Round($p + 3.5 * $se, 2),
+        0.01);
+    $z = Round(($p_hat - $p) / $se, 2);
+    $alternate_hypothesis = '\(p \neq $p\)';
+    $claim_string = "not";
+    $crit = get_crit($sig / 2);
+    $crit_string = "&plusmn;$crit";
+    $p_value = 2*Round(normal_prob(abs($z), infty), 4);
+}
+
+@hypothesis_string = ('\(p = $p\)', '\(p < $p\)', '\(p > $p\)',
+    '\(p \neq $p\)');
+
+$a = RadioButtons([@hypothesis_string], '\(p = $p\)');
+$b = RadioButtons([@hypothesis_string], $alternate_hypothesis);
+$c = RadioButtons([add_options(4, -3.5, 3.5, 0.01, $z)], $z, noindex=>1);
+
+@crits = (-1.28, -1.645, -2.33, 1.28, 1.645, 2.33, '&plusmn;1.645',
+    '&plusmn;1.96', '&plusmn;2.575');
+$d = RadioButtons([@crits], $crit_string);
+
+$e = RadioButtons([add_options(4, 0, 1, 0.0001, $p_value)], $p_value,
+    noindex=>1);
+    
+if ($p_value < $sig) {
+    $sufficient = 'Yes';
+} else {
+    $sufficient = 'No';
+}
+
+$f = RadioButtons(['Yes', 'No'], $sufficient);
+
+TEXT(beginproblem());
+
+BEGIN_TEXT
+
+Suppose that of $n customers at a fruit stand, \{$p_hat * 100\}$PERCENT
+purchase $fruits.
+$PAR
+
+Test the claim that the proportion of all customers who purchase $fruits is
+$claim_string \{$p * 100\}$PERCENT at the \(\alpha = \{sprintf("%0.2f",
+$sig)\}\) significance level.  (3.333 points each)
+$PAR
+
+(a) Identify the null hypothesis.
+$BR
+\{$a->buttons()\}
+$PAR
+
+(b) Identify the alternate hypothesis.
+$BR
+\{$b->buttons()\}
+$PAR
+
+(c) Find the test statistic.
+$BR
+\{$c->buttons()\}
+$PAR
+
+(d) Determine the critical value(s).
+$BR
+\{$d->buttons()\}
+$PAR
+
+(e) Determine the P-value.
+$BR
+\{$e->buttons()\}
+$PAR
+
+(f) Is there sufficient data to reject the null hypothesis and support the
+    claim?
+$BR
+\{$f->buttons()\}
+
+END_TEXT
+
+ANS($a->cmp);
+ANS($b->cmp);
+ANS($c->cmp);
+ANS($d->cmp);
+ANS($e->cmp);
+ANS($f->cmp);
+
+ENDDOCUMENT();

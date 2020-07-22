@@ -1,0 +1,143 @@
+##DESCRIPTION
+##  Algebra problem: true or false for inequality 
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra', 'exponents', 'logarithm', 'logarithms', 'domain', asymptote', 'graph')
+
+## DBsubject('Algebra')
+## DBchapter('Exponential and logarithmic expressions and functions')
+## DBsection('Graphs')
+## Date('7/9/2018')
+## Author('K. Andrew Parker')
+## Institution('City Tech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "parserAssignment.pl",
+   "contextFraction.pl",
+   "PGgraphmacros.pl"
+
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Fraction");
+Context()->noreduce('(-x)-y');
+
+package NewFunc;
+# this next line makes the function a 
+#   function from reals to reals
+our @ISA = qw(Parser::Function::numeric);
+
+sub log {
+  shift; my $x = shift;
+  return CORE::log($x)/CORE::log(10);
+}
+
+package main;
+
+# Make it work on formulas as well as numbers
+#sub log {Parser::Function->call('log',@_)}
+
+#  Add the new functions to the Context
+Context()->functions->set(
+  log => {class => 'NewFunc',
+           TeX => '\log'}, );
+$a = random(-1,1,2)*random(-9,-2,1);
+do { $b = non_zero_random(-9,9,1); } until ( gcf(abs($a),abs($b)) == 1 );
+
+$f = Formula("log($a x - $b)")->reduce;
+$va = Fraction($b,$a)->reduce;
+$int = Fraction($b+1,$a)->reduce;
+
+$asy = $b/$a;
+$asyLeft = $b/$a - 0.000001;
+$asyRight = $b/$a + 0.000001;
+
+parser::Assignment->Allow;
+$logVA = Compute("x = $va");
+
+$custom = sub {
+    my $ans = shift;
+    $ans->{ans_message} = "Asymptotes are lines, and must be expressed as equations - not just as numbers." if ($ans->{ans_message} =~ m/isn't a variable equal to a/);
+    $ans->{ans_message} = "Asymptotes are lines, and must be expressed as equations - not just as numbers." if ($ans->{ans_message} =~ m/should be more words/);
+    return $ans;
+    };
+
+Context()->parens->set("("=>{type=>"Point"});
+$logInt = Point("($int,0)");
+
+Context("Interval");
+
+$adjustError = sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "Are you sure you want to include this endpoint in the domain?" 
+    if $ans->{ans_message} eq "The type of interval is incorrect";
+  return $ans; 
+};
+
+$logDom = ($a > 0)? Compute("($va,inf)") : Compute("(-inf,$va)");
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+
+Consider the function [`f(x) = [$f]`]. 
+
+
+a. The domain of the function is [_______________]{$logDom->cmp()->withPostFilter($adjustError)}
+
+b. The asymptote of the function is [_______________]{$logVA->cmp()->withPostFilter($custom)}
+
+c. Our function has an [`x`]-intercept at [_______________]{$logInt}
+
+* Use "inf" and "-inf" to represent [`\infty`] and [`-\infty`].
+* Make sure to enter your asymptote as an equation.
+* Make sure to enter your intercept as a point.
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+$gr = init_graph(-10,-10,10,10,axes=>[0,0],grid=>[10,10],size=>[400,400]);
+add_functions($gr, "$f for x in <-10,$asyLeft> using color:blue and weight:2");
+add_functions($gr, "$f for x in <$asyRight,10> using color:blue and weight:2");
+($gr->fn)[0]->steps(200);
+($gr->fn)[1]->steps(200);
+$gr->moveTo($asy,-10);
+$gr->lineTo($asy,10,'orange',1,'dashed');
+
+BEGIN_PGML_SOLUTION
+
+>> [@ image(insertGraph($gr),height=>400,width=>400,tex_size=>800) @]* <<
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();        

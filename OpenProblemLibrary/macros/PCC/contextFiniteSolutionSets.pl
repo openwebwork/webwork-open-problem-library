@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader$
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -57,6 +57,7 @@ loadMacros(
   "bizarroArithmetic.pl",
   "parserAssignment.pl",
   "contextFraction.pl",
+  "parserRoot.pl",
   "PGinfo.pl",
 );
 
@@ -69,13 +70,14 @@ sub _contextFiniteSolutionSets_init {
     reduceConstants =>0,
     reduceConstantFunctions => 0,
     formatStudentAnswer => "parsed",
-    checkSqrt => 0, 
+    checkSqrt => 0,
     checkRoot => 0,
+    useBizarro => 1,    
     setSqrt => exp(1)/main::ln(2),
+    setRoot => exp(2)/main::ln(3),
     wrongFormMessage => 'Your answer is numerically correct, but not in the expected form',
     preferSetNotation => 1,
     #tolerance => 0.00001,
-    
   );
   $context->noreduce('(-x)+y','(-x)-y');
   $context->operators->set(
@@ -103,6 +105,11 @@ sub _contextFiniteSolutionSets_init {
     "none"=>{alias=>'no real solutions'},
     "no solution"=>{alias=>'no real solutions'},
     "no solutions"=>{alias=>'no real solutions'},
+    #Hack. Investigate making all of this be a constant.
+    "{}" =>{alias=>'no real solutions'},
+    "{ }" =>{alias=>'no real solutions'},
+    "{  }" =>{alias=>'no real solutions'},
+    "{   }" =>{alias=>'no real solutions'},
     "infinitely many solutions"=>{},
     "infinitely many"=>{alias=>'infinitely many solutions'},
     "infinite solutions"=>{alias=>'infinitely many solutions'},
@@ -110,6 +117,9 @@ sub _contextFiniteSolutionSets_init {
   );
   $context->functions->set(sqrt=>{class=>'finiteSolutionSets::Function::numeric'}); # override sqrt()
   $context->functions->add(identity => {class => 'finiteSolutionSets::Function::numeric'});
+  parser::Root->Enable($context);
+  $context->functions->set(root=>{class=>'finiteSolutionSets::Function::numeric2'}); # override root()
+  $context->lists->set(List => {open => "{", close => "}"});
   $context->{cmpDefaults}{Formula}{checker} = sub {
     my ($correct,$student,$ans) = @_;
     return 0 if $ans->{isPreview} || $correct != $student;
@@ -117,11 +127,15 @@ sub _contextFiniteSolutionSets_init {
     $student = $ans->{student_formula};
     $student = Formula("identity($student)");  #ensure student is parsed as Formula object
     my $setSqrt = Context()->flag("setSqrt");
-    Context()->flags->set(checkSqrt => $setSqrt, bizarroAdd => 1, bizarroSub => 1, bizarroMul => 1, bizarroDiv => 1); 
+    my $setRoot = Context()->flag("setRoot");
+    my $useBizarro = (Context()->flag("useBizarro")) ? 1 : 0;
+    Context()->flags->set(checkSqrt => $setSqrt, checkRoot => $setRoot, bizarroAdd => $useBizarro, bizarroSub => $useBizarro, bizarroMul => $useBizarro, bizarroDiv => $useBizarro); 
+    delete $correct->{test_points};
+    delete $student->{test_points};
     delete $correct->{test_values};
     delete $student->{test_values};
     my $OK = ($correct == $student); 
-    Context()->flags->set(checkSqrt => 0, bizarroAdd => 0, bizarroSub => 0, bizarroMul => 0, bizarroDiv => 0); 
+    Context()->flags->set(checkSqrt => 0, checkRoot => 0, bizarroAdd => 0, bizarroSub => 0, bizarroMul => 0, bizarroDiv => 0); 
     Value::Error(Context()->flag('wrongFormMessage')) unless $OK;
     return $OK;
   };
@@ -242,7 +256,8 @@ sub _contextFiniteSolutionSets_init {
      #
      #  Express a preference for formatting
      #
-     if ($studentFormula->type ne 'Set' and $m == $score and Context()->flags->get('preferSetNotation') == 1 ) {push(@errors,"The preferred notation for the solution set is${BR}{" . join(',',@correctanswers) . '}' )};
+     if ($studentFormula->type ne 'Set' and $m == $score and Context()->flags->get('preferSetNotation') == 1 )
+       {push(@errors,"The preferred notation for the solution set is${BR}\\(\\left\\{" . join(',',map{$_->TeX}(@correctanswers)) . "\\right\\}\\)" )};
      return ($score,@errors);
   };
 }
@@ -274,3 +289,21 @@ sub identity {
   my $x = shift;
   return $x;
 }
+
+package finiteSolutionSets::Function::numeric2;
+our @ISA = ('parser::Root::Function::numeric2');
+#
+#  Override root(n,) to return a special value times x when evaluated
+#
+sub root {
+  my $self = shift;
+  my ($n,$x) = @_;
+  my $value = $self->context->flag("checkRoot");
+  return $value if $value && $x == 1;  # force root(n,1) to be incorrect
+  return $value if $value && $n == 1;  # force root(1,x) to be incorrect
+  return $value if $value && $x == $value;  # force root(n,root(n,x)) to be incorrect
+  return $value if $value && $x == $self->context->flag("checkSqrt");  # force root(n,sqrt(x)) to be incorrect
+  return $value*$x if $value;
+  return $self->SUPER::root($n,$x);
+}
+

@@ -18,11 +18,13 @@
 ##  the definition of the derivative.
 ##ENDDESCRIPTION
 
-&DOCUMENT();
+DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
-  "PGnumericalmacros.pl",
+  "MathObjects.pl",
+#  "answerHints.pl",
+#  "PGnumericalmacros.pl",
   "PGcourse.pl"
 );
 
@@ -31,35 +33,12 @@ loadMacros(
 # This should be made more realistic to match the
 # the word problem
 ####################
+Context("Numeric");
+
 $a= random(-14,-18,1);
 $b= random(20,20,1);
 $c = random(20,40,.1);
 $x0=random(.1,1,0.1);
-$function = FEQ(" ${a}x^2+${b}x +$c ");
-$f = sub {
-        my $x = shift;
-        $a*$x*$x + $b*$x +$c;
-};
-
-
-
-#  Calculate the cubic spline approximation
-$llimit = -5; $rlimit = 5;
-my $num_of_intervals = 6;  # number of interpolation points (FIXME)
-my $delta =  ($rlimit-$llimit)/($num_of_intervals);
-my (@x_values, @y_values);
-foreach my $i (0..$num_of_intervals) {
-        my $x = $llimit + $delta*$i;
-        my $y = &$f($x);
-        push(@x_values, $x); push(@y_values,$y);
-}
-
-($t_ref, $a_ref, $b_ref, $c_ref, $d_ref) = create_cubic_spline (~~@x_values, ~~@y_values);
-
-$f_approx = cubic_spline(~~@x_values, ~~@y_values);
-
-
-HEADER_TEXT(javaScript_cubic_spline(~~@x_values,~~@y_values, name => 'func2', llimit => -3, rlimit => 3) );
 
 TEXT(beginproblem());
 
@@ -71,6 +50,7 @@ TEXT(M3("",
 "<NOSCRIPT> This problem requires that Java Script be enabled </NOSCRIPT>"
 ));
 
+Context()->texStrings;
 BEGIN_TEXT
 Below is an "oracle" function. An oracle function is a function presented interactively.
 When you type in an \(t\) value, and press the --f--\(>\) button and
@@ -87,7 +67,7 @@ The velocity at \( $x0 \) = \{ans_rule(20) \}  You can use a
 
 $PAR
 END_TEXT
-
+Context()->normalStrings;
 
 HEADER_TEXT(<<END_HEADER);
 <SCRIPT LANGUAGE="JavaScript">
@@ -124,43 +104,41 @@ $javaScript2 = begintable(3) .
 
 
 
-TEXT($javaScript2);     
+TEXT($javaScript2);    
+
+Context()->texStrings; 
 BEGIN_TEXT
 $PAR
 Remember this technique for finding velocities.  Later we will use the same method to find the
 derivative of functions such as \(f(t) \).
 
 END_TEXT
+Context()->normalStrings;
+
 # The answer
-$h = .000001;
-$ans = ( &$f_approx($x0+$h) - &$f_approx($x0) )/$h;
-my ($ans_eval) = num_cmp( $ans, reltol => 1, format => '%0.14g');
 
+$ans = Real(2*$a*$x0 + $b);
 
+#We are allowing 1 percent error for the answer.
 # we'll modify the answer messages a bit to give some encouragement.
-my $answer_evaluator = sub {
-                                                my $x = shift;
-                                                my $ans_hash = $ans_eval->evaluate($x);
-                                                return $ans_hash unless $x;
-                                                # otherwise fix the error message
-                                                $correct_answer = $ans_hash->{correct_ans};
-                                                my $error = $correct_answer - $ans_hash ->{student_ans};
-                                                #warn "correct answer $correct_answer and student answer", $ans_hash ->{student_ans}, "error $error";
-                                                my $relerror = 100* abs($error/$correct_answer) unless abs($correct_answer) <.000000001 ;
-                                                $relerror = 0 unless defined($relerror);
-                                                if ($relerror < 1 ) {
-                                                        $ans_hash->{ans_message} = "Good.  Your answer is off by only about $error";
-                                                } elsif ($relerror < 10 ) {
-                                                         $ans_hash->{ans_message} = 'Your answer is within 10%. ';
-                                                } elsif($relerror < 50) {
-                                                        $ans_hash->{ans_message} = 'Your answer is within 50%.  ';
-                                            } else {
-                                                $ans_hash->{ans_message} = 'Your answer is off by more than 50%.';
-                                                }       
-                                                $ans_hash;
-                                                };
-
-ANS($answer_evaluator );  #We are allowing 1 percent error for the answer.
+ANS($ans->cmp(
+  checker => sub {
+    my ( $correct, $student, $ansHash ) = @_;
+    my $error = $student - $correct; 
+    my $relerror = 100* abs($error/$correct) unless abs($correct) <.000000001 ;
+    $relerror = 0 unless defined($relerror);
+    if ($relerror < 1 ) {
+        $ansHash->{ans_message} = "Good.  Your answer is off by only about $error";
+        return 1;
+    } elsif ($relerror < 10 ) {
+      Value->Error('Your answer is within 10%. ');
+    } elsif($relerror < 50) {
+      Value->Error('Your answer is within 50%.  ');
+    } else {
+      Value->Error('Your answer is off by more than 50%.');
+    }       
+  }
+));
 
                        
-&ENDDOCUMENT;
+ENDDOCUMENT();

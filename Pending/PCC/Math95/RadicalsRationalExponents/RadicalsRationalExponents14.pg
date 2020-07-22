@@ -1,0 +1,136 @@
+## MO(1)
+# WeBWorK problem written by Alex Jordan 
+# Portland Community College
+#
+# Template:
+# Use rational exponents to write the expression. 
+#
+#       cuberoot(a^3x^2)
+#
+#
+# Last updated: Yao 1/5/2016
+# ENDDESCRIPTION
+
+
+##############################################
+
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "contextLimitedPowers.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+
+##############################################
+
+
+TEXT(beginproblem());
+
+Context("Numeric");
+
+$var = list_random('x','y','z','t','r','m','n','a','b','c');
+Context()->variables->are($var=>'Real');
+Context()->flags->set(reduceConstants=>0);
+
+do {
+   $num = random(1,5,1);
+   $den = random(2,5,1);
+} until (gcd($num,$den)==1);
+
+if ($den==2) {
+   $a = list_random(2,3,5,7);
+} elsif ($den==3) {
+   $a = list_random(2,3,5);
+} elsif ($den==4) {
+   $a = random(2,3,1);
+} else {
+   $a = 2;
+}
+$b = $a**$den;
+
+if ($den==2) {
+   $question = ($num==1) ? "\sqrt{$b $var}" : "\sqrt{$b $var^{$num}}";
+} else {
+   $question = ($num==1) ? "\sqrt[$den]{$b $var}" : "\sqrt[$den]{$b $var^{$num}}";
+}
+
+Context("Numeric");
+Context()->operators->set(
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+);
+Context()->variables->are($var=>'Real');
+Context()->flags->set(reduceConstants=>0);
+Context()->operators->undefine('+');
+Context()->functions->undefine('sqrt');
+Context()->flags->set(limits=>[2,5]);
+
+
+$ans = Formula("$a $var^($num/$den)");
+
+$evaluator = $ans->cmp(
+     checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1,bizarroPow=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      Value->Error("Your answer is not in the expected form") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0,bizarroPow=>0);
+      return 1;
+  }
+);
+
+##############################################
+
+
+BEGIN_PGML
+
+Simplify the expression, answering with rational exponents and not radicals. [@KeyboardInstructions('To enter [`x^{m/n}`], type [|x^(m/n)|]*.')@]**
+
+[``[$question]=``]  [_________________]{$evaluator}
+
+END_PGML
+                    
+
+
+##############################################
+
+$s1 = ($num==1) ? "$var" : "$var^{$num}";
+
+BEGIN_PGML_SOLUTION
+
+We first use radical properties to simplify. Then we rewrite the expression using rational exponents [` \sqrt[n]{x} = x^\frac{1}{n} `].
+
+    [``
+\begin{aligned}
+   [$question] 
+   &= ([$b][$s1])^{\frac{1}{[$den]}} \\
+   &= ([$a]^[$den][$s1])^{\frac{1}{[$den]}} \\
+   &= ([$a]^[$den])^{\frac{1}{[$den]}}([$s1])^{\frac{1}{[$den]}} \\
+   &= [$ans]
+\end{aligned}
+    ``]
+
+So the answer in calculator/WeBWorK notation is [`[$a][$var]`]^[`([$num]/[$den])`].
+
+END_PGML_SOLUTION
+
+
+##############################################
+
+
+ENDDOCUMENT();

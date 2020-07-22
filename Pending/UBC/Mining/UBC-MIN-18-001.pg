@@ -1,0 +1,241 @@
+##DESCRIPTION
+##
+## Created by the UBC Department of Mechanical Engineering. Project led by Agnes d'Entremont.
+##
+## Contact: agnes.dentremont@mech.ubc.ca
+##
+## This work is licensed under the Creative Commons
+## Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+## <https://creativecommons.org/licenses/by-sa/4.0/>
+##
+## We gratefully acknowledge the financial support for this 
+## project provided by UBC Vancouver students via the Teaching
+## and Learning Enhancement Fund. We also gratefully acknowledge
+## additional funding support from BCcampus, the UBC Department of
+## Mechanical Engineering, and the UBC Applied Science Dean’s Office.  
+##
+## This work was completed on the traditional, ancestral, and unceded
+## territory of the Musqueam people. 
+##
+##ENDDESCRIPTION
+
+
+## DBsubject(Mining Engineering)
+## DBchapter(Stripping Ratio and Pit Limits)
+## DBsection(Stripping Ratio)
+## Date()
+## Author()
+## Level()
+## KEYWORDS('')
+## RESOURCES('')
+## Institution('University of British Columbia')
+## TitleText('TBD')
+## EditionText('TBD')
+## AuthorText('TBD')
+## Section('TBD')
+## Problem('TBD')
+##############################################################
+
+DOCUMENT();
+
+#image scale
+$imgScale = .6;
+
+#image aspect ratio
+$width = $imgScale*1154;
+$height = $imgScale*517;
+
+loadMacros(   
+	"PGstandard.pl",     # Standard macros for PG language
+	"MathObjects.pl",
+	"PGML.pl",
+	"parserPopUp.pl",
+	"parserMultiAnswer.pl",
+	"parserRadioButtons.pl",
+	"parserFunction.pl",
+	"PGauxiliaryFunctions.pl",
+    "PGchoicemacros.pl",
+	#"source.pl",        # allows code to be displayed on certain sites.
+	#"PGcourse.pl", 	 # Customization file for the course
+   	);
+
+TEXT(beginproblem());
+
+sub two_decimal_place
+{
+    # body of method or subroutine
+    $count_increments = Real("0");
+    $value_to_process = $_[0];
+    while ($value_to_process > Real("0.01")){
+      $value_to_process = $value_to_process - Real("0.01");
+      $count_increments = $count_increments + Real("0.01");
+    }
+
+    if ($value_to_process < Real("0.005") ){
+      $value_to_process= $count_increments;
+    }
+    else{
+      $value_to_process = $count_increments + Real("0.01");
+    }
+    return $value_to_process
+}
+
+
+##############################################################
+#
+#  Setup
+#
+#
+
+#given
+$Ore_cost_underground = random(12, 17, .2); # range of 12 to 17 dollars, with a 20 cents increment
+$right_pit_wall_angle = random(38,48,1); 			# bottom right angle, from 38 to 48 degrees with full increments
+$Bench_height = random(10,15,5); 			# bench height either 10 or 15 metres
+# $Ore_cost_underground = 17;
+# $right_pit_wall_angle = 48;
+# $Bench_height = 10;
+
+
+$Ore_cost_open_pit = 1.90; 			# in $/t
+$Waste_cost_open_pit = 1.40; 		# in $/t
+$Density_coal = 1.4; 				# in t/m^3
+$Density_waste = 2.7; 				# in t/m^3
+$coal_seam_angle_rad = 60*(pi/180); 		# all angles in radians
+$left_pit_wall_angle_rad =  39*(pi/180);  
+$right_pit_wall_angle_rad = $right_pit_wall_angle*(pi/180);
+$true_thickness = 45; 				# in metres
+
+$assumption_depth_in_page = 1; # in metres
+
+
+# computation: 
+
+# part A: 
+$depth_mining = 0; #previous depth plus bench height at every iteration
+$old_area_ore = 0;
+$old_area_waste = 0;
+$sum_mass_waste_pushback = 0;
+$sum_mass_ore_pushback = 0;
+$overall_stripping_ratio = 0;
+
+$difference_cost = 1;
+$instantaneous_stripping_ratio = 0;
+
+
+
+while($difference_cost > 0){
+	$answer_depth_mining = $depth_mining;
+	$answer_instantaneous = $instantaneous_stripping_ratio;
+	$answer_instantaneous_answer = two_decimal_place($answer_instantaneous);
+	$answer_overall = $overall_stripping_ratio;
+	$answer_overall_answer = two_decimal_place($answer_overall);
+
+	$depth_mining = $depth_mining + $Bench_height; #checked
+
+	$area_ore = ($true_thickness/sin($coal_seam_angle_rad))*$depth_mining; #true width of ore divided by sin(coal seam angle) the whole thing multiplied by depth of mining
+	$area_waste = ((($depth_mining*$depth_mining)/(tan($right_pit_wall_angle_rad)))/2) + ((($depth_mining*$depth_mining)/(tan($left_pit_wall_angle_rad)))/2); # [(depth of mining ^2 ) / (tan of pit wall angle bottom right)]/2 + [(depth of mining ^2 ) / (tan of pit wall angle bottom left)]/2
+
+	$area_ore_pushback = $area_ore - $old_area_ore; #difference between two area of ore
+	$area_waste_pushback = $area_waste - $old_area_waste ; #difference between two area of waste
+
+	$volume_ore_pushback = $area_ore_pushback * $assumption_depth_in_page;
+	$volume_waste_pushback = $area_waste_pushback * $assumption_depth_in_page; # area_waste_pushback * assume distance into page = 1m 
+
+	$mass_ore_pushback = $Density_coal * $volume_ore_pushback;
+	$mass_waste_pushback = $Density_waste * $volume_waste_pushback ;
+
+	$cost_open_pit = ($mass_ore_pushback * $Ore_cost_open_pit) + ($mass_waste_pushback * $Waste_cost_open_pit); # masses multiplied by respective costs
+	$cost_underground = $mass_ore_pushback * $Ore_cost_underground; # no waste for the underground
+
+	$old_area_ore = $area_ore;
+	$old_area_waste = $area_waste;
+
+	$sum_mass_waste_pushback = $sum_mass_waste_pushback + $mass_waste_pushback;
+	$sum_mass_ore_pushback = $sum_mass_ore_pushback + $mass_ore_pushback;
+
+	$difference_cost = $cost_underground - $cost_open_pit;
+
+	$instantaneous_stripping_ratio = $mass_waste_pushback / $mass_ore_pushback;
+	$overall_stripping_ratio = $sum_mass_waste_pushback / $sum_mass_ore_pushback;
+
+	
+}
+$mc1 = new_multiple_choice();
+
+$mc1->qa(
+"Select the most correct statement: ",
+"A cheaper underground mining method would result in a more shallow maximum depth of the open pit"
+);
+$mc1->extra(
+"For a uniform orebody, the instantaneous stripping ratio is always less than or equal to the overall stripping ratio",
+"An increased pit wall angle will increase the overall stripping ratio",
+"Waste rock is always more dense than ore",
+);
+
+
+
+# $mc_last_part = RadioButtons(["A cheaper underground mining method would result in a more shallow maximum depth of the open pit", "Dummy", "Dummy2", "Dummy3"], "A cheape underground mining method would result in a more shallow maximum depth of the open pit",);
+$mc_last_part = RadioButtons(["A cheaper underground mining method would result in a more shallow maximum depth of the open pit", "An increased pit wall angle will increase the overall stripping ratio", "For a uniform orebody, the instantaneous stripping ratio is always less than or equal to the overall stripping ratio", "Waste rock is always more dense than ore"], "A cheaper underground mining method would result in a more shallow maximum depth of the open pit", );
+
+
+#set tolerance
+Context()->flags->set(
+tolerance=>.01);
+
+##############################################################
+#
+#  Text 
+#mining_depth
+#
+
+BEGIN_PGML
+*Stripping ratio*  
+
+Given the following parameters:  
+
+*-* Mining cost for ore using open pit mining = [` $ [$Ore_cost_open_pit]/t`]  
+*-* Mining cost for ore using underground mining = [` $ [$Ore_cost_underground]/t`]  
+*-* Mining cost for waste rock (open pit mining) = [` $ [$Waste_cost_open_pit]/t`]  
+*-* Density of Coal = [`  [$Density_coal]t/m^3`]  
+*-* Density of Waste = [`  [$Density_waste]t/m^3`]  
+*-* Overall pit slopes are as shown  
+*-* Deposit is a seam of coal with [`[$true_thickness]`] [`metres`] true thickness and [`60`] degree dip  
+*-* Pit wall angle [`\theta`] is given to be [`[$right_pit_wall_angle]`]  
+*-* Topography is completely flat  
+*-* Bench height of [`[$Bench_height]`] [`metres`]  
+*-* Each bench to follow the same slope configuration as the final pit  
+*-* Assume no waste is mined underground  
+
+>> [@ image("UBC-MIN-18-001.png", width=>[$width], height=>[$height]) @]* <<
+
+Answer each of the questions below: 
+
+*Part A.* At what mining depth would you recommend ending the open pit and switching the mining operation from an open pit to an underground method?  
+
+ 
+Mining depth = [_____]{"$answer_depth_mining"} [`m`]  
+
+
+*Part B.* What is the instantaneous breakeven stripping ratio at this point (in [`tonnage/tonnage`])?    
+
+Instantaneous breakeven stripping ratio = [_____]{"$answer_instantaneous_answer"} [`tonnage/tonnage`]  
+
+
+*Part C.* What is the overall stripping ratio at this point (in [`tonnage/tonnage`])?  
+
+Overall stripping ratio = [_____]{"$answer_overall_answer"} [`tonnage/tonnage`]
+
+
+*Part D.*  
+
+[@ $mc1 -> print_q() @]***  
+[@ $mc1 -> print_a() @]***  
+
+
+END_PGML
+#[@ $mc_last_part->buttons() @]***  
+# ANS( $mc_last_part->cmp());
+ANS( radio_cmp( $mc1->correct_ans() ) );
+##############################################################
+
+ENDDOCUMENT();

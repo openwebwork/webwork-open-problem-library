@@ -151,12 +151,12 @@ sub factoringMethods {
                         $b[1].
                         '\) is \('.
                         $co[1].
-                        '\), the factorization is \['.
+                        '\), the factorization is \[\begin{aligned}[t]'.
                         $expanded->TeX.
-                        '='.
+                        '&='.
                         $factored->TeX.
                         $factoredSquareOutput.
-                        '\]'.
+                        '\end{aligned}\]'.
                         $PAR;
 
       };

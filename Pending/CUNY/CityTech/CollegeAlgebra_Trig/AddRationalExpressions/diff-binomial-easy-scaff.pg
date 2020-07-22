@@ -1,0 +1,188 @@
+##DESCRIPTION
+##  Algebra problem: Add rational expressions
+##ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Operations on polynomial and rational expressions)
+## DBsection(Rational expressions: add, subtract)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'algebra, operations with rational expressions', 'algebra, simplifying rational expression', 'rational expressions', 'rational expression')
+
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "scaffold.pl",
+   "PGunion.pl",
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+$rationalChecker = sub {
+     my ($correct,$student,$ansHash) = @_; 
+     $studentRaw = $student;
+     Value->Error("Your answer doesn't contain any variables. <BR> Perhaps you oversimplified?") unless $student->class eq "Formula";
+     if ($student->{tree}->class eq "UOP" && $student->{tree}{uop} eq 'u-') {
+          $student = Formula($student->{tree}->{op});
+     }
+     Value->Error("Check the answer preview box. Maybe you forgot parenthesis around your numerator or denominator?") unless $student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!/!;
+     return 0 unless $correct == $studentRaw;
+     my $cnum = Formula($correct->{tree}{lop});
+     my $snum = Formula($student->{tree}{lop});
+     my $cden = Formula($correct->{tree}{rop});
+     my $sden = Formula($student->{tree}{rop});
+     Value->Error("Your answer can be reduced further") unless (abs($cnum) == abs($snum) && abs($cden) == abs($sden));
+     return 1;
+};
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric")->variables->are("a"=>Real);
+Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0);
+
+$r = random(2,7,1)*random(-1,1,2);
+$check = -1*$r;
+$coeff = random(3,6,1);
+$nB2 = random(2,5,1)*random(-1,1,2);
+$nB1 = $nB2*$coeff + $r;
+$nA1 = $coeff + 1;
+
+$dB1 = $coeff*$r;
+$frac1n = Formula("$nA1*a+$nB1")->reduce;
+$frac1d = Formula("$coeff*a+$dB1")->reduce;
+$frac1 = Formula("$frac1n/$frac1d");
+$frac1tex = $frac1->TeX;
+
+$frac2n = Formula("a+$nB2")->reduce;
+$frac2d = Formula("a+$r")->reduce;
+$frac2 = Formula("$frac2n/$frac2d");
+$frac2tex = $frac2->TeX;
+
+$n1ans = Formula("$frac1n")->reduce;
+$n2ans = Formula("$coeff*a + $coeff*$nB2")->reduce;
+$nAns = Formula("a + $r")->reduce;
+$dAns = Formula("$frac1d")->reduce;
+$dAnstex = $dAns->TeX;
+$ans = Formula("1/$coeff")->with(test_at=>[[$check]]);
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Subtract and reduce if possible.
+$PAR
+\[ $frac1 - $frac2 \]
+$PAR
+END_TEXT
+Context()->normalStrings;
+
+Scaffold::Begin();
+Section::Begin("Part 1: Find the Least Common Denominator");
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+Our two denominators are \( $frac1d \) and \( $frac2d \). 
+$PAR
+The least common multiple of these two denominators is: \{ $dAns->ans_rule(10) \}
+END_TEXT
+Context()->normalStrings;
+Section::End();
+
+if ($displayMode eq 'TeX') {
+  $showfrac1 =
+  "\[ $frac1tex = ".ans_rule(10)."$dAns"." \]";
+} else {
+  $showfrac1 =
+  ColumnTable(
+  "\( \displaystyle $frac1tex = \)",
+  ans_rule(10).$BR.$HR."$BCENTER\($dAnstex\)$ECENTER",
+  indent => 0, separation => 10, valign => "MIDDLE"
+  );
+}
+
+if ($displayMode eq 'TeX') {
+  $showfrac2 =
+  "\[ $frac2tex = ".ans_rule(10)."$dAns"." \]";
+} else {
+  $showfrac2 =
+  ColumnTable(
+  "\( \displaystyle $frac2tex = \)",
+  ans_rule(10).$BR.$HR."$BCENTER\($dAnstex\)$ECENTER",
+  indent => 0, separation => 10, valign => "MIDDLE"
+  );
+}
+
+Section::Begin("Part 2: Convert fractions to the new denominator");
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+Rewrite each fraction so that it matches the least common denominator:
+$PAR
+$showfrac1 
+$PAR
+$showfrac2
+END_TEXT
+Context()->normalStrings;
+Section::End();
+
+Section::Begin("Part 3: Perform the subtraction");
+Context()->texStrings;
+BEGIN_TEXT
+You converted the fractions in the original problem: \[ $frac1 - $frac2 \]
+into equivalent fractions with matching denominators: \[ \frac{$n1ans}{$dAns} - \frac{$n2ans}{$dAns} \]
+Now that the denominators match, do the subtraction and enter your answer below.
+$BR
+Make sure to reduce your answer, if possible!
+END_TEXT
+Context()->normalStrings;
+Section::End();
+Scaffold::End();
+
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+Final answer: \( $frac1 - $frac2 =\) \{ans_rule(20)\}
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS( $dAns->cmp );
+ANS( $n1ans->cmp);
+ANS( $n2ans->cmp);
+ANS( $ans->cmp->withPostFilter(sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "Your answer isn't completely simplified." 
+    if $ans->{ans_message} eq "The domain of your function doesn't match that of the correct answer";
+  return $ans; 
+}));
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

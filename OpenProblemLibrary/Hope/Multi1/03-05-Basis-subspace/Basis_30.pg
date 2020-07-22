@@ -20,6 +20,7 @@ loadMacros(
   "VectorListCheckers.pl",
   "PGchoicemacros.pl",
   "parserPopUp.pl",
+  "parserMultiAnswer.pl",  # for basis coefficients
   "parserWordCompletion.pl",
   "PGcourse.pl"
 );
@@ -28,6 +29,7 @@ TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
 Context('Matrix');
+
 Context()->variables->are(
 'a1'=>['Real','TeX'=>'\mathbf{a_1}'],
 'a2'=>['Real','TeX'=>'\mathbf{a_2}'],
@@ -61,15 +63,26 @@ $mc -> extra(
 );
 #$mc -> makeLast("None of the above");
 
+$ans3 = Compute("$a a1 + $c a2");
 
-$a3 = Compute("$a a1 + $c a2");
-$a4 = Compute("$b a1 + $d a2");
 
-$x1 = Vector(-1*$a, -1*$c, 1, 0);
-$x2 = Vector(-1*$b, -1*$d, 0, 1);
+#$ans4 = Compute("$b a1 + $d a2");
+
+$ans4 = Compute("$b a1 + $d a2")->cmp(
+  checker => sub{
+    my($correct,$student,$ansHash)=@_;
+    my $s1 = $student->eval(a1=>1,a2=>0,a3=>0);
+    my $s2 = $student->eval(a1=>0,a2=>1,a3=>0);
+    my $s3 = $student->eval(a1=>0,a2=>0,a3=>1);
+    return Vector($b,$d) == Vector($s1+$s3*$a,$s2+$s3*$c);
+  }
+);
 
 $w1 = WordCompletion(['1','2','3','4','R','R^2','R^3','R^4'],'R^3');
 $w2 = WordCompletion(['1','2','3','4','R','R^2','R^3','R^4'],'R^4');
+
+$x1 = Vector(-1*$a, -1*$c, 1, 0);
+$x2 = Vector(-1*$b, -1*$d, 0, 1);
 
 BEGIN_PGML
 Suppose [` \mathbf{a_1} `], [` \mathbf{a_2} `], [` \mathbf{a_3} `], and [` \mathbf{a_4} `] are vectors in [` \mathbb{R}^3 `], 
@@ -81,21 +94,21 @@ a. Select all of the true statements (there may be more than one correct answer)
 
 b. If possible, write [` \mathbf{a_3} `] as a linear combination of [` \mathbf{a_1} `] and [` \mathbf{a_2} `]; otherwise, enter [| DNE |].  Enter [| a1 |] for [` \mathbf{a_1} `], etc.
 
-    [` \mathbf{a_3} = `] [_________________]{$a3}
+    [` \mathbf{a_3} = `] [_________________]{$ans3}
 
 c. If possible, write [` \mathbf{a_4} `] as a linear combination of [` \mathbf{a_1} `], [` \mathbf{a_2} `], and  [` \mathbf{a_3} `]; otherwise, enter [| DNE |].
 
-    [` \mathbf{a_4} = `] [_________________]{$a4}
+    [` \mathbf{a_4} = `] [_________________]{$ans4}
 
 d. The dimension of the column space of [` A `] is [_____]{"2"}, and the column space of [` A `] is a subspace of [@ ANS($w1->cmp); $w1->ans_rule(5); @]*.
 
-e. Find a basis for the column space of of [` A `].  If necessary, enter [| a1 |] for [` \mathbf{a_1} `], etc., or enter coordinate vectors of the form [| <1,2,3> |] or [| <1,2,3,4> |].  Enter your answer as a comma separated list of vectors.
-
-    A basis for the column space of [`A`] is [`\big\lbrace`] [_________________________]{List(a1,a2)} [`\big\rbrace`]
+e. Find a basis for the column space of of [` A `].  Enter your answer as a comma separated list of vectors.  Each vector should have the form [| <a,b,c> |] or [| <a,b,c,d> |] where a,b,... are numbers.  Do not use the symbols [` \mathbf{a_1, a_2, \ldots} `] in your answers. 
+ 
+    A basis for the column space of [`A`] is [`\big\lbrace`] [_________________________]{List(Vector(1,0,0),Vector(0,1,0))->cmp(list_checker=>~~&basis_checker_list_of_vectors)} [`\big\rbrace`]
 
 f. The dimension of the null space of [` A `] is [_____]{"2"}, and the null space of [` A `] is a subspace of [@ ANS($w2->cmp); $w2->ans_rule(5); @]*.
 
-g. Find a basis for the null space of of [` A `].  If necessary, enter [| a1 |] for [` \mathbf{a_1} `], etc., or enter coordinate vectors of the form [| <1,2,3> |] or [| <1,2,3,4> |].  Enter your answer as a comma separated list of vectors.
+g. Find a basis for the null space of of [` A `].  Enter your answer as a comma separated list of vectors of the form [| <a,b,c> |] or [| <a,b,c,d> |] where a,b,... are numbers.
 
     A basis for the null space of [`A`] is [`\big\lbrace`] [_________________________]{List($x1,$x2)->cmp(list_checker=>~~&basis_checker_list_of_vectors)} [`\big\rbrace`]
 END_PGML
