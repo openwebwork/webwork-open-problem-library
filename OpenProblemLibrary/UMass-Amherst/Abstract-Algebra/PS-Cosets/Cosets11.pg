@@ -3,6 +3,7 @@
 ## DBsection(Cosets, Lagrange's theorem, and normality)
 ## KEYWORDS('cosets')
 ## Level(3)
+## MO(1)
 ## TitleText1('')
 ## EditionText1('')
 ## AuthorText1('')
@@ -17,24 +18,19 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "PGchoicemacros.pl",
-  "parserRadioButtons.pl",
-  "algebraMacros.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 0;
 
+Context("Numeric");
+
 Context()->strings->add(Y=>{});
 Context()->strings->add(N=>{});
-Context()->strings->add(i=>{});
-Context()->strings->add(j=>{});
-Context()->strings->add(k=>{});
-Context()->strings->add("-i"=>{});
-Context()->strings->add("-j"=>{});
-Context()->strings->add("-k"=>{});
-
+Context()->variables->add(i=>{});
+Context()->variables->add(j=>{});
+Context()->variables->add(k=>{});
 
 #
 # In this problem we determine if two elements of a given group
@@ -54,38 +50,59 @@ $n = $nset[$r];
   # multiplicative.    Specifically, 
   #    2<k<n-2   is a perfect square (mod n) with gcd(k,n)=1
   #    t         is a square-root of k (mod n)
-
-$done=0;
-while($done<1){
-    $t = random(2, $n-2, 1);
-    $k = ($t)^2 % $n;
-    if ( gcd($k,$n)==1 ){
-        $done=1;
-    }
-}         
-
-$p = random(3,4,1);
-$q = random(7,9,1);
-
-  # here are the two elements for the first two groups
+  
+  # a, b are the two elements for the first two groups
   # for Z_n:   always in the same H-coset since H=Z_n !!
-  # for U(n):  same H-coset <==>  p=q (mod 2)
 
-$a = $t^{$p} % $n;
-$b = $t^{$q} % $n;
+$a1 = Compute("Y");
+ 
+# for U(n) the original method didn't work.  Use brute force instead
+# k,a,b are nontrivial members of U(n).  Compute a^(-1)b and see if it
+# is a power of k.  
 
-$a1 = Y;
-if( ($p-$q)==0 % 2) {
-    $a2 = Y;
+#Construct U(n).  Leave out 1.
+@U=();
+for ($i=2; $i<$n; $i++) {
+   push(@U,$i) if (gcd($i,$n)==1);
 }
-else {
-  $a2 = N;
+
+# k, a, b are three distinct elements of U(n)
+$lenU = @U;
+do {
+   $k = @U[random(0,$lenU-1,1)];
+   $a = @U[random(0,$lenU-1,1)];
+   $b = @U[random(0,$lenU-1,1)];
+} until ( $k != $a && $k != $b && $a != $b && $a*$b % $n != 1 );
+
+# find the inverse ainv of $a
+$nextup = $a;
+while ($nextup != 1){
+  $ainv = $nextup;
+  $nextup = $ainv * $a % $n
+}
+
+# find H
+@H = ($k);
+while ($H[-1] != 1){
+  push(@H, $H[-1]*$k % $n);
+}
+
+#test whether a^(-1)b is in H
+
+$a2 = Compute("N");
+
+$testval = $ainv*$b % $n;
+foreach ( @H ){
+  if ($testval == $_){
+     $a2 = Compute("Y");
+  }
 }
 
   # the next two groups are both quaternion
   #
+$ii=Compute("i"); $jj=Compute("j"); $kk=Compute("k");
 
-@dummy1 = (i, j, k);
+@dummy1 = ($ii, $jj, $kk);
 $rd1 = random(0,2,1);
 $rd2 = random(0,2,1);
 while($rd1 == $rd2){
@@ -105,13 +122,13 @@ $c = $dummy1[$rd1];
 $d = $dummy1[$rd2];
 $e = $dummy1[$rd3];
 
-$a3 = Y;
+$a3 = Compute("Y");
 
   # for the fourth part:
   #   H:     <-1>
   #   f,g:   chosen randomly from the six order 4 elements
 
-@dummy2 = ("-i", "-j", "-k", i, j, k);
+@dummy2 = (-$ii, -$jj, -$kk, $ii, $jj, $kk);
 $rrd1 = random(0,5,1);
 $rrd2 = random(0,5,1);
 while($rrd1 == $rrd2){
@@ -121,39 +138,42 @@ while($rrd1 == $rrd2){
 $f = $dummy2[$rrd1];
 $g = $dummy2[$rrd2];
 
-$a4 = N;
+$a4 = Compute("N");
 
 $diff = $rrd2 - $rrd1;
 
 
 if($diff==3 || $diff==-3){
-    $a4 = Y;
+    $a4 = Compute("Y");
 }
 
+Context()->texStrings;
 BEGIN_TEXT
 
 $BEGIN_ONE_COLUMN
-
-For each of the following subgroups \(H\) of the respective groups \(G\), determine if the following elements represent the same left \(H\)-coset: $BR $BR
+For each group \(G\) and subgroup \(H\) determine if elements \(\#1\) and  \(\#2\) represent the same left \(H\)-coset in \(G\). $PAR
+(\(U(n)\) is the multiplicative group of units in \(\mathbb{Z}_n\) and 
+\(Q_8\) is the quaternion group.)$PAR
 
 \{ begintable(5) \}
 \{ row( "\(G\)", "\(H\)", "Element \(\#1\)", "Element \(\#2\)" , "Answer (Y/N)" )\}
 \{ row( "\( ". cyclic( $n ) . " \)", "\(\langle $k \pmod{$n} \rangle\)", "\($a\)", "\($b\)", ans_rule(10) )\}
 \{ row( "\(U($n)\)", "\(\langle $k \pmod{$n} \rangle\)", "\($a\)", "\($b\)", ans_rule(10)  )\}
-\{ row( "\(" . quaternions() . "\)", "\(\langle $c \rangle\)", "\($d\)", "\($e\)", ans_rule(10) )\}
-\{ row( "\(" . quaternions() . "\)", "\(\langle -1 \rangle\)", "\($f\)", "\($g\)", ans_rule(10) )\}
+\{ row( " \(Q_8\)", "\(\langle $c \rangle\)", "\($d\)", "\($e\)", ans_rule(10) )\}
+\{ row( "\(Q_8\)", "\(\langle -1 \rangle\)", "\($f\)", "\($g\)", ans_rule(10) )\}
 
-\{ endtable() \} $BR $BR
+\{ endtable() \} 
 
 
 
 $END_ONE_COLUMN
 
 END_TEXT
+Context()->normalStrings;
 
-ANS(str_cmp($a1) );
-ANS(str_cmp($a2) );
-ANS(str_cmp($a3) );
-ANS(str_cmp($a4) );
+ANS($a1->cmp());
+ANS($a2->cmp());
+ANS($a3->cmp());
+ANS($a4->cmp());
 
 ENDDOCUMENT();   

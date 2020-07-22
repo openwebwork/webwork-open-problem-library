@@ -1,0 +1,260 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+
+## DBsubject(Calculus - single variable)
+## Date(6/15/2019)
+## Institution(CityTech)
+## Author(K. Andrew Parker)
+## MO(1)
+## KEYWORDS('calculus')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "niceTables.pl",
+   "PGchoicemacros.pl",
+   "parserMultiAnswer.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0,
+  tolerance=>10**(-25), 
+  tolType=>'absolute');
+
+Context()->strings->add(undefined=>{alias=>"DNE"},undef=>{alias=>"DNE"});
+
+Context()->noreduce('(-x)-y','(-x)+y');
+
+# this is where our piecewise function "splits"
+$a = non_zero_random(-3,3,1);
+do { $b = non_zero_random(-3,3,1); } until ($a != $b);
+
+# enable choice of left- or right- continuity
+# usage: $ineq{l/r/n}{lo/hi}
+%ineq = (
+  l=>{lo=>'\leq',hi=>'>'},
+  r=>{lo=>'<',hi=>'\geq'},
+  n=>{lo=>'<',hi=>'>'}
+);
+
+# randomly include f(a) on the left or right
+$LR = random(0,1,1) ? "l" : "r";
+$LR2 = ($LR eq 'l') ? "r" : "l";
+# randomly decide whether the limit @ x=a exists
+$limExists = random(0,1,1) ? 1 : 0;
+$limExists2 = ($limExists) ? 0 : 1;
+
+$multiChecker = sub {
+  my ($correct, $student, $ansHash) = @_;
+  my ($yStu, $leftStu, $rightStu, $limStu) = @{$student};
+  my ($yCor, $leftCor, $rightCor, $limCor) = @{$correct};
+  
+  if (Value::isReal($limStu)) { 
+    $consistent = ($leftStu == $rightStu) ? 1 : 0;
+  } else {
+    $consistent = ($leftStu == $rightStu) ? 0 : 1;
+  }
+  $ansHash->setMessage(1,"\(f($a)\) is the y-coordinate of \(f\) when \(x = $a\).") unless ($yStu == $yCor);
+  $ansHash->setMessage(2,"\(\displaystyle \lim_{x \to $a^-} f(x)\) indicates that we should only consider \(x < $a\). <BR> In other words, look only on the *left* side of \(x = $a\).") if ($leftStu != $leftCor && $leftStu == $rightCor);
+  $ansHash->setMessage(3,"\(\displaystyle \lim_{x \to $a^+} f(x)\) indicates that we should only consider \(x > $a\). <BR> In other words, look only on the *right* side of \(x = $a\).") if ($rightStu != $rightCor && $rightStu == $leftCor);
+  $ansHash->setMessage(4,"The two-sided limit only exists when the left-sided and right-sided limits are equal.") if ($limStu != $limCor && $consistent == 0);
+  return [ $yStu==$yCor, $leftStu==$leftCor, $rightStu==$rightCor, $limStu==$limCor ];
+};
+
+# slopes for left and right sides of x = a
+$mLeft = non_zero_random(-2,2,0.2);
+$mRight = non_zero_random(-2,2,0.2);
+# limit from the left
+$left = Real(non_zero_random(-3,3,1));
+# limit exists  
+if ($limExists == 1) {
+  $right = $left;
+  $limit = $left;
+} else {
+# unless it doesn't
+  do { $right = Real(non_zero_random(-3,3,1)); } until ( $right != $left );
+  $limit = String('DNE')->with(typeMatch=>$left);
+}
+# choose an f(a) to match left or right - randomized earlier: $LR
+$y = ($LR eq "l") ? $left : $right;
+
+# construct our function around the randomization:
+$bLeft = $left - $mLeft*$a;
+$fLeft = Formula("$mLeft x + $bLeft")->reduce;
+$fLeftTeX = $fLeft->TeX;
+$bRight = $right - $mRight*$a;
+$fRight = Formula("$mRight x + $bRight")->reduce;
+$fRightTeX = $fRight->TeX;
+$fTex = "\left\{
+        \begin{array}{ll}
+            $fLeftTeX,  & \quad x $ineq{$LR}{lo} $a \\
+            $fRightTeX, & \quad x $ineq{$LR}{hi} $a
+        \end{array}
+    \right.";
+
+$multiAnsF = MultiAnswer($y, $left, $right, $limit)->with(
+    singleResult=>1, 
+    checkTypes=>0, 
+    checker=>$multiChecker, 
+    tex_format=>"{\displaystyle \begin{align}
+      f($a) & = %s \\ 
+      \lim_{x \to $a^-} f(x) & = %s \\
+      \lim_{x \to $a^+} f(x) & = %s \\
+      \lim_{x \to $a} f(x) & = %s
+    \end{align}}"); 
+# use tex_format because manually settting correct_ans_latex_string 
+# does not work for MultiAns singleResult.
+
+# slopes for left and right sides of x = a
+$mLeft2 = non_zero_random(-2,2,0.2);
+$mRight2 = non_zero_random(-2,2,0.2);
+# limit from the left
+$left2 = Real(non_zero_random(-3,3,1));
+# limit exists  
+if ($limExists2 == 1) {
+  $right2 = $left2;
+  $limit2 = $left2;
+} else {
+# unless it doesn't
+  do { $right2 = Real(non_zero_random(-3,3,1)); } until ( $right2 != $left2 );
+  $limit2 = String('DNE')->with(typeMatch=>$left2);
+}
+# choose an f(a) to match left or right - randomized earlier: $LR
+$y2 = ($LR2 eq "l") ? $left2 : $right2;
+
+# construct our function around the randomization:
+$bLeft2 = $left2 - $mLeft2*$b;
+$gLeft = Formula("$mLeft2 x + $bLeft2")->reduce;
+$gLeftTeX = $gLeft->TeX;
+$bRight2 = $right2 - $mRight2*$b;
+$gRight = Formula("$mRight2 x + $bRight2")->reduce;
+$gRightTeX = $gRight->TeX;
+$gTex = "\left\{
+        \begin{array}{ll}
+            $gLeftTeX,  & \quad x $ineq{$LR2}{lo} $b \\
+            $gRightTeX, & \quad x $ineq{$LR2}{hi} $b
+        \end{array}
+    \right.";
+
+$multiAnsG = MultiAnswer($y2, $left2, $right2, $limit2)->with(
+    singleResult=>1, 
+    checkTypes=>0, 
+    checker=>$multiChecker, 
+    tex_format=>"{\displaystyle \begin{align}
+      g($b) & = %s \\ 
+      \lim_{x \to $b^-} g(x) & = %s \\
+      \lim_{x \to $b^+} g(x) & = %s \\
+      \lim_{x \to $b} g(x) & = %s
+    \end{align}}"); 
+
+$table = DataTable(
+  [
+    [["\(f(x) = $fTex\)",colspan=>2,halign=>'c'],
+      ["\(g(x) = $gTex\)",colspan=>2,halign=>'c']],
+    ["\(\displaystyle f($a) =\)", $multiAnsF->ans_rule(5),
+      "\(\displaystyle g($b) =\)", $multiAnsG->ans_rule(5)],
+    ["\(\displaystyle \lim_{x \to $a^-} f(x) =\)", $multiAnsF->ans_rule(5),
+      "\(\displaystyle \lim_{x \to $b^-} g(x) =\)", $multiAnsG->ans_rule(5)],
+    ["\(\displaystyle \lim_{x \to $a^+} f(x) =\)", $multiAnsF->ans_rule(5),
+      "\(\displaystyle \lim_{x \to $b^+} g(x) =\)", $multiAnsG->ans_rule(5)],
+    ["\(\displaystyle \lim_{x \to $a} f(x) =\)", $multiAnsF->ans_rule(5),
+      "\(\displaystyle \lim_{x \to $b} g(x) =\)", $multiAnsG->ans_rule(5)]
+  ],
+  align=>'r l',
+  allcellcss=>'padding-top:2pt;padding-bottom:2pt;padding-left:12pt;padding-right:12pt;'
+);
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ### One-sided Limits ### <<
+
+
+When we evaluate [`\color{blue}{\displaystyle \lim_{x \to a} f(x)}`], we consider values of [`x`] approaching [`a`] from *both* sides.
+
+This time we are focusing on the fact that the limit can exist from each side separately. 
+
+* The limit as [`x`] approaches [`a`] from the *left* _only_ is denoted by  [`\color{red}{\displaystyle \lim_{x \to a^-} f(x)}`].  
+
+* Similarly, the limit as [`x`] approaches [`a`] from the *right* _only_ is denoted by [`\color{green}{\displaystyle \lim_{x \to a^+} f(x)}`]. 
+
+It turns out that if both [`\color{red}{\displaystyle \lim_{x \to a^-} f(x)}`] and 
+[`\color{green}{\displaystyle \lim_{x \to a^+} f(x)}`] exist and are equal, then [`\color{blue}{\displaystyle \lim_{x \to a} f(x)}`] exists and takes the same value. Conversely, if [`\color{blue}{\displaystyle \lim_{x \to a} f(x)}`] exists, then the one-sided limits also exist and the three limits are the same:
+>> [`\color{red}{\displaystyle \lim_{x \to a^-} f(x)} = \color{green}{\displaystyle \lim_{x \to a^+} f(x)}= \color{blue}{\displaystyle \lim_{x \to a} f(x)}.`] <<
+
+The behavior of the function _around_ [`a`] can be analyzed through these three limits. Recall that in the definition of a limit the value [`x=a`] is *not* included. So a fourth value that will be key for us to analyze the function around [`a`] is [`\color{purple}{f(a)}`]. What happens if we compare all four values? 
+
+
+
+>> ### Practice ### <<
+
+
+
+Use the given equations to determine the value of each expression below:
+
+[@ $table @]***
+
+* all answers should be given as numbers
+* if a result does not exist, respond with "DNE" or "undefined"
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($multiAnsF->cmp);
+ANS($multiAnsG->cmp);
+
+BEGIN_PGML_HINT
+
+For the function on the left: 
+
+* The function [`f(x)`] is piecewise.  There are two formulas that define 
+[`f(x)`] depending on whether [`x [$ineq{$LR}{lo}] [$a]`] or [`x [$ineq{$LR}{hi}] [$a]`]. If [`x [$ineq{$LR}{lo}] [$a]`], then [`f(x) = [$fLeftTeX]`].
+If [`x [$ineq{$LR}{hi}] [$a]`], then [`f(x) = [$fRightTeX]`]. 
+* Does [`x=[$a]`] satisfy  [`x [$ineq{$LR}{lo}] [$a]`] or [`x [$ineq{$LR}{hi}] [$a]`]? Use the corresponding formula for [`f(x)`] to find  [`\color{red}{f([$a])}`].
+* For the left-hand limit, [`\color{red}{\displaystyle\lim_{x\to [$a]^-} f(x)}`], [`x`] approaches [`[$a]`] from the left and so [`x<[$a]`]. In this case, what is [`f(x)`]? 
+* For the right-hand limit, [`\color{green}{\displaystyle\lim_{x\to [$a]^+} f(x)}`],  [`x`] approaches [`[$a]`] from the right and so [`x>[$a]`]. In this case, what is [`f(x)`]? 
+* If the one-sided limits are the same, say, equal to [`\color{magenta}{L}`],  then [`\color{blue}{\displaystyle\lim_{x\to [$a]} f(x)}=\color{magenta}{L}`]. 
+
+
+
+END_PGML_HINT
+
+# note: the graphs have been shuffled, so the parameters won't match the problems (unless you apply shuffle to them also)
+# example (there is not really an array called @parameter):
+# @parameter = @parameter[@shuffle];
+BEGIN_PGML_SOLUTION
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

@@ -9,6 +9,12 @@ sub _draggableProof_init {
 
   $courseHtmlUrl = $envir{htmlURL};
 
+#  if (-e "${wwHtmlDir}js/vendor/jquery/modules/jquery.nestable.js") {
+#    $scriptPath = $wwHtmlUrl.'js/vendor/jquery/modules/';
+#  } else {
+#    $scriptPath = $courseHtmlUrl.'js/';
+#  }
+
   # post global javascript
   main::POST_HEADER_TEXT(main::MODES(TeX=>"", HTML=><<"  END_SCRIPTS"));
 <!--  The next to scripts may need to be included on older versions of WeBWoRK (before 2.9 or so.  

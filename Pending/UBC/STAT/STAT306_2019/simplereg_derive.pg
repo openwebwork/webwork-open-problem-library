@@ -1,0 +1,217 @@
+#################################################################
+## DESCRIPTION
+## Linear models, simple regression; 
+## derive the coefficient from summary statistics; 
+## derive the estimate the sample variance from summary statistics; 
+## derive the confidence interval of subpopulation from summary statistics.
+##
+## This question is based on qeustion 1 in the midterm of Stat 306, 2016 term 2.
+## Original Author: Harry Joe
+##
+## ENDDESCRIPTION 
+#################################################################
+
+#################################################################
+## DBsubject(Statistics)
+## DBchapter(Simple regression)
+## DBsection(Parameter estimates)
+## Date(2020/01/19)
+## Author(Bruce Dunham)
+## Institution(UBC)
+## Level(2)
+#################################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+);
+
+#################################################################
+## Setup: this is where we use Perl and PG objects (Required)
+Context("Numeric");
+
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+
+@results = rserve_eval('
+	bar_x <- round(600 + rnorm(1, mean=0, sd=2), 0);
+	s_x <- round(100 + rnorm(1, mean=0, sd=1), 0);
+	bar_y <- round(615 + rnorm(1, mean=0, sd=2), 0);
+	s_y <- round(95 + rnorm(1, mean=0, sd=2), 0);
+	r_xy <- round(0.7 + runif(1, min=-0.15, max=0.15), 1);
+	n = 1000;
+	x_new <- round(runif(1, min=480, max=520), 0);
+
+	b1 <- r_xy*s_y/s_x;
+	b0 <- bar_y - b1*bar_x;
+    sig2 <- (n-1)/(n-2)*(s_y^2 + (b1*s_x)^2 - 2*b1*r_xy*s_x*s_y);
+	sig <- sqrt(sig2);
+	mu_y <- b0 + b1*x_new;
+	se_y <- sig*sqrt(1/n + (x_new-bar_x)^2/((n-1)*s_x^2));
+	l <- mu_y - qt(p=0.975, df=n-2)*se_y;
+	u <- mu_y + qt(p=0.975, df=n-2)*se_y;
+
+	c(bar_x, s_x, bar_y, s_y, r_xy, x_new, round(b1, 2), round(b0, 1), round(sig, 1), round(mu_y, 1), round(l, 1), round(u, 1), round(se_y, 3), round(sig2, 1))
+');
+
+$barx = $results[0];
+$sx = $results[1];
+$bary = $results[2];
+$sy = $results[3];
+$rxy = $results[4];
+$xnew = $results[5];
+$b1 = $results[6];
+$b0 = $results[7];
+$sig = $results[8];
+$muy = $results[9];
+$l = $results[10];
+$u = $results[11];
+$sey = $results[12];
+$sig2 = $results[13];
+
+#################################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+$BR
+The SAT is a scholastic aptitude test in the US for high school students applying to universities; there are Math and Verbal components. 
+$BR
+Let \(y\) = Math SAT, \(x\) = Verbal SAT. For a sample of size \(n = 1000\) in the year 2005, suppose summary statistics are \(\bar{x} = $barx\), \(s_x = $sx\), \(\bar{y} = $bary\), \(s_y = $sy\), and \(r_{xy} = $rxy\). Suppose the scatterplot is oval-shaped suggesting homoscedaticity. Provide answers to the following to one decimal place.
+$BR
+$BR
+$BBOLD Part (a) $EBOLD
+$BR
+What is the slope of the least squares line?
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+What is the intercept of the least squares line? 
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+By writing the residual sum of squares in terms of sample statistics provided, find the residual mean square for the model fitted, this being the estimator of the variance about the line.
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR 
+Consider the subpopulation in 2005 with certain value of \(x\), \(x^*\) say, can be $xnew. What is a point estimate of the mean math SAT score for this subpopulation?
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (e) $EBOLD
+$BR
+What is an approximate 95% confidence interval of the math SAT score in the last question? 
+$BR
+(\{ans_rule(8) \}, \{ans_rule(8) \} )
+$BR
+
+END_TEXT
+
+#################################################################
+## Answers evaluation (Required)
+
+$showPartialCorrectAnswers = 1;
+
+ANS(num_cmp($b1, tol=>0.002, tolType=>"absolute") );
+ANS(num_cmp($b0, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($sig2, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($muy, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($l, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($u, tol=>0.02, tolType=>"absolute") );
+
+#################################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+$BBOLD Part (a) $EBOLD
+$BR
+The scope of the simple regression model can be obtained with the summary statistics 
+\[
+\hat{\beta}_1 = \frac{(n-1)s_{xy}}{(n-1)s_x^2} = \frac{r_{xy}s_xs_y}{s_x^2} = \frac{r_{xy}s_y}{s_x} = \frac{$rxy \times $sy}{$sx} = $b1.
+\]
+$BR
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+The intercept of the regression model can be obtained from the formula
+\[
+\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x} = $bary - $b1\times$barx = $b0.
+\]
+$BR
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+By definition, the the residual mean square is 
+\[
+\begin{align*}
+\hat{\sigma}^2 &= \frac{1}{n-2}\sum_{i=1}^{n}e_i^2 \\
+&= \frac{1}{n-2}\sum_{i=1}^{n}(y_i - \hat{\beta}_0 - \hat{\beta}_1x_i)^2 \\
+&= \frac{1}{n-2}\sum_{i=1}^{n}(y_i - \bar{y} - \hat{\beta}_1(x_i - \bar{x}))^2 \\
+&= \frac{1}{n-2}\big[\sum_{i=1}^{n}(y_i - \bar{y})^2 + \hat{\beta}_1^2\sum_{i=1}^n(x_i - \bar{x})^2 - 2\hat{\beta}_1\sum_{i=1}^n(y_i - \bar{y})(x_i - \bar{x})\big] \\
+&= \frac{n-1}{n-2}(s_y^2 + \hat{\beta}_1^2s_x^2 - 2\hat{\beta}_1r_{xy}s_xs_y)
+\end{align*}
+\]
+The value in this case, and an estimate of the variance about the line, is 
+\[
+\hat{\sigma}^2 = \frac{999}{998}($sy^2 + ($b1 \times $sx)^2 - 2\times $b1\times $sx\times $sy \times $rxy) = $sig2.
+\]
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR
+The subpopulation mean at a certain value of \(x^{\star}\) can be obtained with the fitted regression model
+\[
+\hat{\mu}_Y(x) = \hat{\beta}_0 + \hat{\beta}_1 x^{\star} = $b0 + $b1\times $xnew = $muy.
+\]
+$BR
+
+$BR
+$BBOLD Part (e) $EBOLD
+$BR
+To compute the confidence interval, we need first compute the standard error of the estimate of the population mean, which is 
+\[
+se(\hat{\mu}_y) = \hat{\sigma}\sqrt{\frac{1}{n} + \frac{(x^{\star} - \bar{x})^2}{(n-1)s_x^2}} = $sig\times\sqrt{\frac{1}{1000} + \frac{($xnew-$barx)^2}{999\times $sx^2}} = $sey.
+\]
+Using the point estimate and the estimated standard error, the 95% confidence interval can be obtained through
+\[
+(\hat{\mu}_Y - t_{n-2, 0.975}\times se(\hat{\mu}_Y), \quad \hat{\mu}_Y + t_{n-2, 0.975}\times se(\hat{\mu}_Y)) = ($l, \quad $u).
+\]
+$BR
+
+END_SOLUTION
+
+ENDDOCUMENT();

@@ -1,0 +1,221 @@
+##DESCRIPTION
+##  Algebra problem: true or false for inequality 
+##ENDDESCRIPTION
+
+
+## DBsubject(Algebra)
+## DBchapter(Fundamentals)
+## DBsection(Real Numbers)
+## Date(6/3/2002)
+## MO(1)
+## TitleText1('Precalculus')
+## AuthorText1('Stewart, Redlin, Watson')
+## EditionText1('3')
+## Section1('1.1')
+## Problem1('22')
+## KEYWORDS('algebra', 'inequality', 'fraction')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+Context()->flags->set(reduceConstants=>0,reduceConstantFunctions=>0);
+
+# $trig[$function]
+@trig = ("sin","cos","tan");
+
+# $select[$function][$quadrant]
+@select = ( [ '0', 'y', 'y', 'ny', 'ny' ],
+  [ 'x', 'x', 'nx', 'nx', 'x' ],
+  [ '0', 't', 'nt', 't', 'nt' ] 
+);
+
+# $hashKey = $select[$function][$quadrant];
+# $unit{$denom}{$hashKey}
+%unit = (
+  6 => {
+    x => Formula("sqrt(3)/2"),
+    nx => Formula("-(sqrt(3)/2)"),
+    y => Formula("1/2"),
+    ny => Formula("-(1/2)"),
+    t => Formula("1/sqrt(3)"),
+    nt => Formula("-(1/sqrt(3))"),
+  },
+  3 => {
+    x => Formula("1/2"),
+    nx => Formula("-(1/2)"),
+    y => Formula("sqrt(3)/2"),
+    ny => Formula("-(sqrt(3)/2)"),
+    t => Formula("sqrt(3)"),
+    nt => Formula("-sqrt(3)")
+  },
+  4 => {
+    x => Formula("sqrt(2)/2"),
+    nx => Formula("-(sqrt(2)/2)"),
+    y => Formula("sqrt(2)/2"),
+    ny => Formula("-(sqrt(2)/2)"),
+    t => Formula("1"),
+    nt => Formula("-1")
+  }
+);
+
+# choose reference angle and generate necessary secondary numerators
+$denom = list_random(3,4,6);
+$dminus1 = $denom-1;
+
+# requires definition of $denom and $dminus1
+# principal{denom}{trig}{isNeg}
+%principal = (
+6 => {
+  sin => {
+    1 => Formula("pi/6"),
+    0 => Formula("-pi/6"),
+  },
+  cos => {
+    1 => Formula("pi/6"),
+    0 => Formula("5 pi/6"),
+  },
+  tan => {
+    1 => Formula("pi/6"),
+    0 => Formula("-pi/6"),
+  }
+},
+4 => {
+  sin => {
+    1 => Formula("pi/4"),
+    0 => Formula("-pi/4"),
+  },
+  cos => {
+    1 => Formula("pi/4"),
+    0 => Formula("3 pi/4"),
+  },
+  tan => {
+    1 => Formula("pi/4"),
+    0 => Formula("-pi/4"),
+  }
+},
+3 => {
+  sin => {
+    1 => Formula("pi/3"),
+    0 => Formula("-pi/3"),
+  },
+  cos => {
+    1 => Formula("pi/3"),
+    0 => Formula("2 pi/3"),
+  },
+  tan => {
+    1 => Formula("pi/3"),
+    0 => Formula("-pi/3"),
+  }
+});
+
+# offset randomizes where we start cycling through trig functions
+$off = random(0,2,1);
+
+@ratio = (); @angleRad = (); @angleDeg = (); @invTrigTeX = ();
+for my $i (0..3) {
+    ### Randomly select denom and quadrant to use
+    my $denom = list_random(3,4,6);
+    my $quad = random(1,4,1);
+    ## function follows cyclical pattern
+    my $function = ($i + $off) % 3;
+
+    ### Generate a hash key for retrieving result from unit circle hash
+    my $hashKey = $select[$function][$quad];
+
+    ### Pull the ratio from the unit circle hash
+    $ratio[$i] = Formula("$unit{$denom}{$hashKey}");
+    # we only overlap trig functions at indices: 0 and 3
+    # if they ratios co-incide, angles will also
+    if ($i==3 && $ratio[$i]==$ratio[0]) {
+      # cycle through the quadrants until ratio has opposite sign
+      # the stupid sh!t we do to avoid webwork flattening reals...
+      do {
+        # cant use modular arithmetic because quad 0 is nonsense
+        $quad = ($quad == 4) ? 1 : $quad + 1;        
+        $hashKey = $select[$function][$quad];
+        $ratio[$i] = Formula("$unit{$denom}{$hashKey}");
+      } until ($ratio[$i] != $ratio[0]);
+    }
+    my $isPos = ($ratio[$i] > 0) ? 1 : 0;
+
+    $angleRad[$i] = $principal{$denom}{$trig[$function]}{$isPos};
+    $angleDeg[$i] = Real("$angleRad[$i]/pi*180")->reduce;
+
+    $invTrigTeX[$i] = '\arc'.$trig[$function];
+}
+
+# Turn off the inverse trig functions so that students cannot
+# use them in their responses and be marked correct...
+Context()->functions->disable("All");
+$errorMsg = sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "You must compute the angle for this problem. <BR> All inverse trig functions have been disabled for this problem." 
+    if ($ans->{ans_message} =~ m/is not allowed in this context/);
+  return $ans; 
+};
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+1. Evaluate [``[$invTrigTeX[0]]\left([$ratio[0]]\right)``]:
+    a. in radians [__________]{$angleRad[0]->cmp->withPostFilter($errorMsg)}
+    a. in degrees [__________]{$angleDeg[0]->cmp->withPostFilter($errorMsg)}
+1. Evaluate [``[$invTrigTeX[1]]\left([$ratio[1]]\right)``]:
+    a. in radians [__________]{$angleRad[1]->cmp->withPostFilter($errorMsg)}
+    a. in degrees [__________]{$angleDeg[1]->cmp->withPostFilter($errorMsg)}
+1. Evaluate [``[$invTrigTeX[2]]\left([$ratio[2]]\right)``]:
+    a. in radians [__________]{$angleRad[2]->cmp->withPostFilter($errorMsg)}
+    a. in degrees [__________]{$angleDeg[2]->cmp->withPostFilter($errorMsg)}
+1. Evaluate [``[$invTrigTeX[3]]\left([$ratio[3]]\right)``]:
+    a. in radians [__________]{$angleRad[3]->cmp->withPostFilter($errorMsg)}
+    a. in degrees [__________]{$angleDeg[3]->cmp->withPostFilter($errorMsg)}
+
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+BEGIN_PGML_HINT
+
+##Remember the range for each inverse trig function:##
+
+*In radians:*  
+* Range of [`\arcsin(x)`] is [``\left[-\frac{\pi}{2},\frac{\pi}{2}\right]``]
+* Range of [`\arccos(x)`] is [``\left[0,\pi\right]``]
+* Range of [`\arctan(x)`] is [``\left(-\frac{\pi}{2},\frac{\pi}{2}\right)``]
+
+*In degrees:*  
+* Range of [`\arcsin(x)`] is [``\left[-90^{\circ},90^{\circ}\right]``]
+* Range of [`\arccos(x)`] is [``\left[0^{\circ},180^{\circ}\right]``]
+* Range of [`\arctan(x)`] is [``\left(-90^{\circ},90^{\circ}\right)``]
+
+END_PGML_HINT
+
+ENDDOCUMENT();        

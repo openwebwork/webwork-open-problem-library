@@ -21,36 +21,34 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
+  "MathObjects.pl",
   "PGmatrixmacros.pl",
-  "PGnumericalmacros.pl",
-  "PGmorematrixmacros.pl",
-  "PGdiffeqmacros.pl",
   "parserMultiAnswer.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
 
-$a= new Matrix(2,2);
+Context("Matrix");
+
+
 $a11 = random(-1,1,2);
 $a12 = non_zero_random(-3,3,1);
 $mult = non_zero_random(-2,2,1);
 $a21 = $mult * $a11;
 $b1 = random(-1,1,2);
 $a22 = $mult * $a12 + $b1;
-$a->assign(1,1, $a11 );
-$a->assign(1,2, $a12 );
-$a->assign(2,1, $a21 );
-$a->assign(2,2, $a22 );
-$a_lr = $a->decompose_LR();
-$a_det = $a11 * $b1;
-$b = $a_lr->invert_LR();
-$e = new Matrix(2,2);
-$e->one();
-$eig1 = non_zero_random(-8,8,1);
-$eig2 = non_zero_random(-8,8,1);
+
+$a = Matrix([[$a11, $a12],[$a21, $a22]]);
+$M = Matrix([[0,1],[1,0]]);
+$aa = $a*$M;
+
+$b = $a->inverse;
+
+# two distinct eigenvalues
+
+$eig1 = Real(non_zero_random(-8,8,1));
+$eig2 = Real(non_zero_random(-8,8,1));
 
 if ( $eig1 >= $eig2 ) {
     if ( $eig1 == 8 ) {
@@ -59,138 +57,70 @@ if ( $eig1 >= $eig2 ) {
     } else {
         $eig2 = $eig1 + 1;
     }
-} 
-$e->assign(1,1, $eig1);
-$e->assign(2,2, $eig2);
-	$v1 = new Matrix(2,1);
-	$v1->assign(1,1, $a11);
-        $v1->assign(2,1, $a21);
-      	$v2 = new Matrix(2,1);
-      	$v2->assign(1,1, $a12);
-       	$v2->assign(2,1, $a22);
+}
+
+$e = Matrix([[$eig1,0],[0,$eig2]]);
+ 
 $matrix = $a * $e *$b;
-
-$m11 = $matrix->element(1,1);
-$m12 = $matrix->element(1,2);
-$m21 = $matrix->element(2,1);
-$m22 = $matrix->element(2,2);
-
-
-$matrix_lr = $matrix->decompose_LR();
-$matrix_det = $matrix_lr->det_LR();
-
-$a2= new Matrix(2,2);
-$a2->assign(1,1, $a12 );
-$a2->assign(1,2, $a11 );
-$a2->assign(2,1, $a22 );
-$a2->assign(2,2, $a21 );
-$e2 = new Matrix(2,2);
-$e2->one();
-$e2->assign(1,1, $eig2);
-$e2->assign(2,2, $eig1);
-
 
 ## to check that we have a correct answer, just verify that
 ##    the appropriate matrix multiplication works
 
-$ev = MultiAnswer($eig1, $eig2, @{ra_flatten_matrix($a)}, $eig1, $eig2, @{ra_flatten_matrix($a)}, )->with(
-    singleResult => 1,
-    checkTypes => 0,
-    allowBlankAnswers =>1,
-    format => "D1=(%s, 0; 0, %s), S1=(%s, %s; %s, %s),$BR D2=(%s, 0; 0, %s), S2=(%s, %s; %s, %s).",
-    tex_format => "D1=(%s, 0; 0, %s), S1=(%s, %s; %s, %s), D2=(%s, 0; 0, %s), S2=(%s, %s; %s, %s).",
-    checker => sub {
-	my ( $correct, $student, $self ) = @_;
-	my @corD1  = @{$correct}[0..1];
-        my @corS1  = @{$correct}[2..5];
-	my @stuD1  = @{$student}[0..1];
-	my @stuS1  = @{$student}[2..5];
-        my @stuD2  = @{$student}[6..7];
-	my @stuS2  = @{$student}[8..11];
-        my $flagD1 = 0;
-        my $flagD2 = 0;
-        my $flag=0; 
-
-        if (ref($stuD1[0]) eq ref($corD1[0]) && ref($stuD1[1]) eq ref($corD1[1])){
-            if(($stuD1[0] == $eig1 && $stuD1[1] == $eig2 ) ||  ($stuD1[0] == $eig2 && $stuD1[1] == $eig1 )){
-              $flagD1 =1;
-            }
-        }
-
-        if ((ref($stuD2[0]) eq ref($corD1[0]) && ref($stuD2[1]) eq ref($corD1[1])) && (($stuD2[0] == $eig1 && $stuD2[1] == $eig2 ) ||  ($stuD2[0] == $eig2 && $stuD2[1] == $eig1 ))){
-            $flagD2 =1;
-        }
-
-## Now need to check eigenvectors
-        if($flagD1 ==1 && ref($stuS1[0]) eq ref ($corS1[0]) && ref($stuS1[1]) eq ref ($corS1[1]) && ref($stuS1[2]) eq ref($corS1[2]) && ref($stuS1[3]) eq ref($corS1[3]) && ($stuS1[0]!=0 || $stuS1[1]!=0  || $stuS1[2]!=0  || $stuS1[3]!=0)){
-
-## The eigenvalue is ok and the eigenvector matrix has been filled out
-
-            if(($m11 * $stuS1[0] + $m12* $stuS1[2] == $stuD1[0] * $stuS1[0] )&& ($m21* $stuS1[0] + $m22* $stuS1[2] == $stuD1[0] * $stuS1[2] )){
-               $flagD1 ++;
-            }
-            if(($m11 * $stuS1[1] + $m12* $stuS1[3] == $stuD1[1] * $stuS1[1] )&& ($m21* $stuS1[1] + $m22* $stuS1[3] == $stuD1[1] * $stuS1[3] )){
-               $flagD1 ++;
-            }
-        }
-## Now for the second matrix  D2
-        if($flagD2 ==1 && ref($stuS2[0]) eq ref ($corS1[0]) && ref($stuS2[1]) eq ref ($corS1[1]) && ref($stuS2[2]) eq ref ($corS1[2]) && ref($stuS2[3]) eq ref($corS1[3])  && ($stuS2[0]!=0 || $stuS2[1]!=0  || $stuS2[2]!=0  || $stuS2[3]!=0)){
-
-## The eigenvalue is ok and the eigenvector matrix has been filled out
-
-            if(($m11 * $stuS2[0] + $m12* $stuS2[2] == $stuD2[0] * $stuS2[0] )&& ($m21* $stuS2[0] + $m22* $stuS2[2] == $stuD2[0] * $stuS2[2] )){
-               $flagD2 ++;
-            }
-            if(($m11 * $stuS2[1] + $m12* $stuS2[3] == $stuD2[1] * $stuS2[1] )&& ($m21* $stuS2[1] + $m22* $stuS2[3] == $stuD2[1] * $stuS2[3] )){
-               $flagD2 ++;
-            }
-        }
-        if($flagD2==3 || $flagD1==3){
-## Then at least one matrix is correct
-           if($flagD2==3 && $flagD1==3){
-## Both matrices are correct.  Need to make sure not duplicates.
-               if($stuD1[0]==$stuD2[0] && $stuD1[1]==$stuD2[1]){
-                     Value::Error("You need to have two different D's.");
-               }else{
-                     $flag=1;
-               }
-           }else{
-               Value::Error("One of the (D, S) pairs is correct.");
+$ev = MultiAnswer($eig1, $eig2, $a, $eig2, $eig1, $aa )->with(
+   singleResult => 0,
+   checkTypes => 0,
+   checker => sub{
+     my ( $correct, $student, $self ) = @_;
+     my ( $se00, $se01, $sa0, $se10, $se11, $sa1 ) = @{$student};
+     my ( $ce00, $ce01, $ca0, $ce10, $ce11, $ca1 ) = @{$correct};
+     @score = (0,0,0,0,0,0);
+     #check first three answers
+     if ( $se00->typeMatch($ce00) and $se01->typeMatch($ce01) and $sa0->typeMatch($ca0) ){
+       if ( ($se00 == $ce00 and $se01 == $ce01) or ($se01 == $ce00 and $se00 == $ce01)){
+         $score[0]=1; $score[1]=1;
+         if ( not $sa0->det->isZero) {  
+           $d0 = Matrix([[$se00,0],[0,$se01]]);
+           $sa0inv = $sa0->inverse;
+           if ($matrix == $sa0*$d0*$sa0inv) {
+             $score[2] = 1;
            }
-        }else{
-           if($flagD1>=1 || $flagD2>=1){
-               if($flagD1>=1 && $flagD2>=1){
-                     if($stuD1[0] == $stuD2[0] && $stuD1[1]== $stuD2[1]){
-                          Value::Error("The D matrices are supposed to be different.");
-                     }else{
-                         Value::Error("The two D matrices are correct, but not the S matrices.");
-                     } 
-               }else{
-                     Value::Error("One of the D matrices is correct, but not the S matrices.");  
-               } 
-           }else{
-                Value::Error("None of the D matrices is correct.");
+         }
+       }
+     }
+     #check second three answers
+     if ( $se00 == $se10 and $se01 == $se11 ){
+       $self->setMessage(4,"Your diagonal matrices must be different");
+       return @score;
+     }
+     if ( $se00->typeMatch($ce00) and $se01->typeMatch($ce01) and $sa0->typeMatch($ca0) ){
+       if ( ($se10 == $ce10 and $se11 == $ce11) or ($se11 == $ce10 and $se10 == $ce11)){
+         $score[3]=1; $score[4] = 1;
+         if ( not $sa1->det->isZero) {  
+           $d1 = Matrix([[$se10,0],[0,$se11]]);
+           $sa1inv = $sa1->inverse;
+           if ($matrix == $sa1*$d1*$sa1inv) {
+             $score[5] = 1;
            }
-        }	
-
-
-  	return $flag;
-    }
+         }
+       }
+     }
+     return @score;
+   }
 );
 
+Context()->texStrings;
 BEGIN_TEXT
-Let \(A = \{display_matrix_mm($matrix)\}\).
+Let \(A = $matrix \).
 $BR
 Find two different diagonal matrices \(D\) and the corresponding matrix \(S\) such that \(A=SDS^{-1}\). 
 $PAR
 
 \{
-mbox( ' \( D_1 = \)', 
+mbox( '\(D_1 = \)', 
 display_matrix( [[ $ev-> ans_rule(5), 0],
 [0, $ev-> ans_rule(5)]]),
 '\(\quad  S_1 = \)', 
-display_matrix( [[ $ev-> ans_rule(5), $ev-> ans_rule(5)],
-[$ev-> ans_rule(5), $ev-> ans_rule(5)]]), '.' )
+$ev->ans_array(),'.')
 \}
 $PAR 
 \{
@@ -198,14 +128,13 @@ mbox( '\( D_2 = \)',
 display_matrix( [[ $ev-> ans_rule(5), 0],
 [0, $ev-> ans_rule(5)]]),
 '\(\quad  S_2 = \)', 
-display_matrix( [[ $ev-> ans_rule(5), $ev-> ans_rule(5)],
-[$ev-> ans_rule(5), $ev-> ans_rule(5)]]), '.' )
+$ev->ans_array, '.' )
 \}
 
 $BR
 $BR
 END_TEXT
-
+Context()->normalStrings;
 ANS($ev->cmp() );
 
 ENDDOCUMENT();
