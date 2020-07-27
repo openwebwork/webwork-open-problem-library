@@ -1,0 +1,209 @@
+## This problem is a modification of the following problem
+## Library/PCC/BasicAlgebra/FunctionBasics/FunctionOrNotByGraph10.pg
+## Modifications were made by M. Osman
+
+## ORIGINAL PROBLEM DESCRIPTION:
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Decide whether a graph represents a function.
+# There are two graphs. Both graphs consists of 3 points.
+#
+# Last update: Jordan 9/15/13; Carl Yao 09/13/13
+#
+# ENDDESCRIPTION
+
+## DBCCSS('8.F','F-IF')
+## DBsubject(Algebra)
+## DBchapter(Functions)
+## DBsection(Definition, concept)
+## Institution(PCC)
+## Author(Alex Jordan, Carl Yao, Chris Hughes)
+## Level(1)
+## MO(1)
+## KEYWORDS('function','domain','range','graph')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "PGcourse.pl",
+  "PGchoicemacros.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+$refreshCachedImages=1;
+
+#Decide the number of points in the graph.
+$numPoints = 3;
+
+#Create two sets of 3 points with no duplicate values in each set.
+@px=([],[]);
+@py=([],[]);
+for my $i (0..1) {
+   @xArray = (-8..8);
+   @yArray = (-8..8);
+   for my $j (0..$numPoints-1) {
+      $px[$i][$j] = splice @xArray,random(0,$#xArray,1),1;
+      $py[$i][$j] = splice @yArray,random(0,$#yArray,1),1;
+   }
+}
+
+#Decide whether each graphs shows a function or non-function.
+@isFunction=();
+@radio=();
+for my $i (0..1) {
+  $isFunction[$i]=random(0,1,1);
+  if ($isFunction[$i]) {
+      #Intentionally create a duplicate y value in two points.
+      $dup0 = random(0,$numPoints-1);
+      do {$dup1=random(0,$numPoints-1);} until ($dup0!=$dup1);
+      $py[$i][$dup0]=$py[$i][$dup1];
+   } else {
+      #Create a duplicate x value in two points.
+      $dup0 = random(0,$numPoints-1);
+      do {$dup1=random(0,$numPoints-1);} until ($dup0!=$dup1);
+      $px[$i][$dup0]=$px[$i][$dup1];
+   }
+
+   $isFunctionText = $isFunction[$i] ? "Yes" : "No";
+   $radio[$i] = new_multiple_choice();
+   $graphNum = $i+1;
+   $radio[$i]->qa("Does the relationship in Graph $graphNum show [`y`] as a function of [`x`]?", "$isFunctionText");
+   $radio[$i]->makeLast("Yes","No");
+}
+
+#Make a copy of those two sets of points for display in solution.
+for my $i (2..3) {
+   for my $j (0..$numPoints-1) {
+      $px[$i][$j]=$px[$i-2][$j];
+      $py[$i][$j]=$py[$i-2][$j];
+   }
+}
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$px[0][0],$px[0][1],$px[0][2],$px[1][0],$px[1][1],$px[1][2]],[$py[0][0],$py[0][1],$py[0][2],$py[1][0],$py[1][1],$py[1][2]]);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+@ALT=();
+@ALTPoints=();
+for my $i (0..3) {
+  $ALTPoints[$i]="";
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+
+  for my $j (0..$numPoints-1) {
+    $gr[$i]->stamps( closed_circle($px[$i][$j],$py[$i][$j],'blue') );
+    $gr[$i]->lb( new Label($px[$i][$j],$py[$i][$j]-$sign*$marksep[1]/8, "($px[$i][$j],$py[$i][$j])", 'blue','center','top'));
+    $ALTPoints[$i] .= "($px[$i][$j],$py[$i][$j]), ";
+  }
+
+  $ALTPoints[$i] =~ s/, $//;
+  $ALTPoints[$i] =~ s|(.+), |$1 and |;
+  $ip = $i % 2 +1;
+  $ALT[$i] = "Graph $ip: a graph consisting of the following points: $ALTPoints[$i].";
+  $ALTPoints[$i] =~ s/ and /, /;
+
+}
+
+$ALT0 = $ALT[0];
+$ALT1 = $ALT[1];
+
+##############################################
+Context("LimitedNumeric");
+BEGIN_PGML
+
+The following graphs show two relationships.
+
+[@EnlargeImageStatementPGML()@]**
+
+Decide whether each graph shows a relationship where [`y`] is a function of [`x`].
+
+[@$radio[0]->print_q()@]**
+[@$radio[0]->print_a()@]*
+
+>>### Graph 1 ###  <<
+
+>>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT0' title = '$ALT0'") @]*<<
+
+
+[@$radio[1]->print_q()@]**
+[@$radio[1]->print_a()@]*
+
+>>### Graph 2 ###  <<
+
+>>[@image(insertGraph($gr[1]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT1' title = '$ALT1'") @]*<<
+
+
+END_PGML
+
+##############################################
+
+$showPartialCorrectAnswers = 0;
+
+ANS( radio_cmp( $radio[0]->correct_ans() ) );
+ANS( radio_cmp( $radio[1]->correct_ans() ) );
+
+for my $i (2..3) {
+   for my $j (0..$numPoints-1) {
+      $gr[$i]->moveTo($px[$i][$j],$min[1]);
+      $gr[$i]->lineTo($px[$i][$j],$max[1],'red',2,'dashed');
+   }
+}
+
+#######################################################
+
+$graph1Output1 = $isFunction[0] ? "passed" : "did not pass";
+$graph2Output1 = $isFunction[1] ? "passed" : "did not pass";
+$graph1Output2 = $isFunction[0] ? "represents" : "does not represent";
+$graph2Output2 = $isFunction[1] ? "represents" : "does not represent";
+
+#####################################################
+
+$ALT2 = $ALT[2];
+$ALT3 = $ALT[3];
+
+BEGIN_PGML_SOLUTION
+
+If a graph of a relationship doesn't pass the vertical line test, that means for some input there is more than one output.
+
+Graph 1 [$graph1Output1] the vertical line test, and thus the graph [$graph1Output2] a function.
+
+>>### Graph 1 ### <<
+
+>>[@image(insertGraph($gr[2]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT2' title = '$ALT2'") @]*<<
+
+
+Graph 2 [$graph2Output1] the vertical line test, and thus the graph [$graph2Output2] a function.
+
+>>### Graph 2 ### <<
+
+>>[@image(insertGraph($gr[3]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT3' title = '$ALT3'") @]*<<
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();
