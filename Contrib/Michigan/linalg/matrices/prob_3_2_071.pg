@@ -1,0 +1,189 @@
+# DESCRIPTION
+# Problem from Holt Linear Algebra, 1st ed.
+# WeBWorK problem written by Gavin LaRose,
+# <glarose(at)umich(dot)edu>
+# ENDDESCRIPTION
+
+## DBsubject('Linear Algebra')
+## DBchapter('Matrices')
+## DBsection('Matrix Operations')
+## KEYWORDS('matrix multiplication, transpose')
+## TitleText1('Linear Algebra')
+## EditionText1('1')
+## AuthorText1('Holt')
+## Section1('3.2')
+## Problem1('71')
+## Author('Gavin LaRose')
+## Institution('UMich')
+
+DOCUMENT();
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+# "compoundProblem.pl",
+"parserPopUp.pl",
+);
+
+# make sure we're in the context we want
+Context("Matrix");
+
+# generate the same matrices for problems 69--74
+SRAND( $psvn );
+
+# four matrices, two 4x4, one 4x5, one 5x4
+@a = ();  @b = ();  @c = ();  @d = ();
+for ( my $i=0; $i<4; $i++ ) {
+    $a[$i] = [ ];  $b[$i] = [ ];  $c[$i] = [ ];  $d[$i] = [ ];
+    for ( my $j=0; $j<4; $j++ ) {
+	$a[$i]->[$j] = random(-6,6,1);
+	$b[$i]->[$j] = random(-6,6,1);
+	$c[$i]->[$j] = random(0,9,1);
+	$d[$i]->[$j] = random(0,9,1);
+    }
+}
+$d[4] = [ ];
+for ( my $i=0; $i<4; $i++ ) {
+    $c[$i]->[4] = random(0,9,1);
+    $d[4]->[$i] = random(0,9,1);
+}
+
+$amat = Matrix( [ @a ] );
+$bmat = Matrix( [ @b ] );
+$cmat = Matrix( [ @c ] );
+$dmat = Matrix( [ @d ] );
+
+# things we can ask for that work
+@askFor = ( 'AB', 'BA', 'CD', '(A - B)C', '(A - B)D^T', 'C^T(A - B)' );
+# and that don't
+@notWrk = ( 'DC', '(A - B)C^T', '(A - B)D' );
+
+# pick two that work, and one that doesn't
+@work = NchooseK( scalar(@askFor), 2 );
+# don't pick both of the first two in @askFor
+$work[1] = random(2,$#askFor,1) if ( $work[0] + $work[1] == 1 );
+$dont = random( 0, $#notWrk, 1 );
+
+# then our questions and true/false pop-ups are
+@quest = ( $askFor[$work[0]], $askFor[$work[1]], $notWrk[$dont] );
+@tfpop = ( PopUp( [ '?', 'can be calculated', 'cannot be calculated' ],
+		  'can be calculated' ),
+	   PopUp( [ '?', 'can be calculated', 'cannot be calculated' ],
+		  'can be calculated' ),
+	   PopUp( [ '?', 'can be calculated', 'cannot be calculated' ],
+		  'cannot be calculated' ) );
+
+# the calculations are
+$ct = $cmat->transpose();
+$dt = $dmat->transpose();
+Context()->texStrings;
+@steps = ( "$amat $bmat", "$bmat $amat", "$cmat $dmat",
+	   "\left($amat - $bmat\right)\\ $cmat", "($amat - $bmat)\\ $dt",
+	   "$ct\\ \left($amat - $bmat\right)" );
+@step2 = ( $steps[$work[0]], $steps[$work[1]], '' );
+Context()->normalStrings;
+
+@calcs = ( $amat*$bmat, $bmat*$amat, $cmat*$dmat, ($amat - $bmat)*$cmat,
+	   ($amat - $bmat)*$dt, $ct*($amat - $bmat) );
+@answs = ( $calcs[$work[0]], $calcs[$work[1]], '' );
+
+# randomly order what we ask
+@order = shuffle(3);
+@cando = ();
+$i = 0;
+foreach ( @order ) {
+    push( @cando, $i ) if ( $_ < 2 );
+    $i++;
+}
+
+@que = @quest[ @order ];
+@pop = @tfpop[ @order ];
+@stp = @step2[ @order ];
+@ans = @answs[ @order ];
+
+# $cp = new compoundProblem( parts=>2, weights=>[1,4], nextStyle=>'Forced' );
+
+$showPartialCorrectAnswers = 0;
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+${BITALIC}(Note that this is a compound problem, for which the
+second part of the problem is shown after the true/false questions
+in the first part are answered correctly.)$EITALIC
+$PAR
+
+Let
+\[ A = $amat, B = $bmat \]
+\[ C = $cmat, \quad\mbox{and}\quad D = $dmat \]
+Which of the following computations are possible?
+
+$PAR
+${BBOLD}(a)$EBOLD
+\( $que[0] \) \{ $pop[0]->menu() \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+\( $que[1] \) \{ $pop[1]->menu() \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+\( $que[2] \) \{ $pop[2]->menu() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $pop[0]->cmp() );
+ANS( $pop[1]->cmp() );
+ANS( $pop[2]->cmp() );
+
+$ans_hash1 = $pop[0]->cmp()->evaluate( $inputs_ref->{ANS_NUM_TO_NAME(1)} );
+$ans_hash2 = $pop[1]->cmp()->evaluate( $inputs_ref->{ANS_NUM_TO_NAME(2)} );
+$ans_hash3 = $pop[2]->cmp()->evaluate( $inputs_ref->{ANS_NUM_TO_NAME(3)} );
+
+if ( $ans_hash1->{score} == 1 && $ans_hash2->{score} == 1 &&
+     $ans_hash3->{score} == 1 ) {
+
+$showPartialCorrectAnswers = 1;
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Next, calculate each of the following:
+
+$PAR
+${BBOLD}(d)$EBOLD
+\( $que[$cando[0]] = \) \{ $ans[$cando[0]]->ans_array() \}
+
+$PAR
+${BBOLD}(e)$EBOLD
+\( $que[$cando[1]] = \) \{ $ans[$cando[1]]->ans_array() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $ans[$cando[0]]->cmp() );
+ANS( $ans[$cando[1]]->cmp() );
+
+} # end if ( $cp->part > 1 )
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+${BBOLD}(a)$EBOLD \( $que[0] \) \{ $pop[0]->correct_ans() \}.
+$PAR
+${BBOLD}(b)$EBOLD \( $que[1] \) \{ $pop[1]->correct_ans() \}.
+$PAR
+${BBOLD}(c)$EBOLD \( $que[2] \) \{ $pop[2]->correct_ans() \}.
+$PAR
+${BBOLD}(d)$EBOLD
+\( $que[$cando[0]] = $stp[$cando[0]] = $ans[$cando[0]] \).
+$PAR
+${BBOLD}(e)$EBOLD
+\( $que[$cando[1]] = $stp[$cando[1]] = $ans[$cando[1]] \).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

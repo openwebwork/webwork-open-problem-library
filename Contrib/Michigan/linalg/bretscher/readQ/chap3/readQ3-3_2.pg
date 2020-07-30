@@ -1,0 +1,173 @@
+# DESCRIPTION
+# Reading homework problem from Linear Algebra with Applications
+# Bretscher, 5e
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('reading homework')
+## Tagged by glr 14/9/1
+
+  ## DBsubject('Linear Algebra')
+  ## DBchapter('')
+  ## DBsection('')
+  ## Date('09/01/14')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Linear Algebra with Applications')
+## EditionText1('5')
+## AuthorText1('Bretscher')
+## Section1('3.3')
+## Problem1('2')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+);
+
+Context("Matrix");
+
+@arr = ();
+@ref = ();
+foreach my $i ( 0..2 ) {
+    my @row = ();
+    foreach my $j ( 0..4 ) {
+	push( @row, random(-2,2,1) );
+    }
+    push( @arr, [ @row ] );
+    push( @ref, [ @row ] );
+}
+## make finding rref form easier
+$arr[0]->[0] = 1;
+$ref[0]->[0] = 1;
+
+## find rref form, very literally
+##   zero out first column of rows 1, 2
+$li1 = 0;
+$li2 = 0;
+$v1 = $ref[1]->[0];
+$v2 = $ref[2]->[0];
+foreach my $i ( 0..4 ) {
+    $ref[1]->[$i] = $ref[1]->[$i] - $v1*$ref[0]->[$i];
+    $li1 = $i if ( ! $li1 && $ref[1]->[$i] );
+    $ref[2]->[$i] = $ref[2]->[$i] - $v2*$ref[0]->[$i];
+    $li2 = $i if ( ! $li2 && $ref[2]->[$i] );
+}
+
+##  if neither of $li1 or $li2 are > 0, both rows are zero
+if ( $li1 && $li2 && $li1 > $li2 ) {
+    ## reverse the rows
+    @tmp = @{$ref[2]};
+    $ref[2] = [ @{$ref[1]} ];
+    $ref[1] = [ @tmp ];
+}
+
+if ( $li1 || $li2 ) {
+    ##   then make the leading coefficient of row 1, one
+    $li1 = 0;
+    foreach my $i ( 1..4 ) {
+	if ( $li1 ) {
+	    $ref[1]->[$i] = $ref[1]->[$i]/$v1;
+	} elsif ( $ref[1]->[$i] != 0 ) {
+	    $li1 = $i;
+	    $v1 = $ref[1]->[$i];
+	    $ref[1]->[$i] = 1;
+	}
+    }
+
+    ##   then zero below and above that
+    if ( $li1 ) {
+	$v0 = $ref[0]->[$li1];
+	$v2 = $ref[2]->[$li1];
+	foreach my $i ( ${li1}..4 ) {
+	    $ref[0]->[$i] = $ref[0]->[$i] - $v0*$ref[1]->[$i];
+	    $ref[2]->[$i] = $ref[2]->[$i] - $v2*$ref[1]->[$i];
+	}
+
+	##   make the leading coefficient of the last row 1
+	$li2 = 0;
+	foreach my $i ( ($li1+1)..4 ) {
+	    if ( $li2 ) {
+		$ref[2]->[$i] = $ref[2]->[$i]/$v2;
+	    } elsif ( $ref[2]->[$i] ) {
+		$li2 = $i;
+		$v2 = $ref[2]->[$i];
+		$ref[2]->[$i] = 1;
+	    }
+	}
+
+	##   and zero above that
+	if ( $li2 ) {
+	    $v0 = $ref[0]->[$li2];
+	    $v1 = $ref[1]->[$li2];
+	    foreach my $i ( ${li2}..4 ) {
+		$ref[0]->[$i] = $ref[0]->[$i] - $v0*$ref[2]->[$i];
+		$ref[1]->[$i] = $ref[1]->[$i] - $v1*$ref[2]->[$i];
+	    }
+	}
+    }
+}
+
+$rmat = Matrix( [ @ref ] );
+
+if ( $li1 && $li2 ) {
+    $dim = Compute(3);
+    $basis = List( 1, $li1+1, $li2+1 );
+} elsif ( $li1 || $li2 ) {
+    $dim = Compute(2);
+    $basis = List( 1, $li1 ? $li1+1 : $li2+1 );
+} else {
+    $dim = Compute(1);
+    $basis = List( 1 );
+}
+
+$amat = Matrix( [ @arr ] );
+
+Context( "Vector" );
+@bvecs = ();
+foreach my $i ( $basis->value ) {
+    push( @bvecs,
+	  ColumnVector( $arr[0]->[$i-1], $arr[1]->[$i-1], $arr[2]->[$i-1] ) );
+}
+$bvec = $bvecs[0];
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the matrix \(A = $amat\).  Note that
+\(\mbox{rref}(A) = $rmat\).
+$PAR
+What is \(\dim(\mbox{im}(A))\)?
+$BR
+\(\dim(\mbox{im}(A)) = \) \{ $dim->ans_rule(5) \}
+$PAR
+Which columns of \(A\) give a basis for the image of \(A\)
+(pick the smallest numbered columns you can)?
+$BR
+Columns \{ $basis->ans_rule(5) \}
+$BR
+${BITALIC}(Give your answer as a comma-separated list; thus if the
+basis consists of columns 1 and 2, enter ${BBOLD}1, 2$EBOLD.)$EITALIC
+$PAR
+Give one of the corresponding basis vectors.
+$BR
+vector = \{ $bvec->ans_array() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $dim->cmp() );
+ANS( $basis->cmp() );
+ANS( $bvec->cmp( checker=>sub{
+		     my ( $c, $s, $a ) = @_;
+		     foreach $v ( @bvecs ) {
+			 return 1 if $v == $s;
+		     }
+		     return 0;
+		 } ) );
+
+ENDDOCUMENT();

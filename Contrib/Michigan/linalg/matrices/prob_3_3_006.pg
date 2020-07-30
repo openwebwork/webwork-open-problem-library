@@ -1,0 +1,176 @@
+# DESCRIPTION
+# Problem from Holt Linear Algebra, 1st ed.
+# WeBWorK problem written by Gavin LaRose,
+# <glarose(at)umich(dot)edu>
+# ENDDESCRIPTION
+
+## DBsubject('Linear Algebra')
+## DBchapter('Matrices')
+## DBsection('The Inverse of a Matrix')
+## KEYWORDS('inverse matrix')
+## TitleText1('Linear Algebra')
+## EditionText1('1')
+## AuthorText1('Holt')
+## Section1('3.3')
+## Problem1('6')
+## Author('Gavin LaRose')
+## Institution('UMich')
+
+DOCUMENT();
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PGunion.pl",
+);
+
+# make sure we're in the context we want
+Context("Matrix");
+
+# ensure this and 3.3.17 have the same matrix
+SRAND( $psvn );
+
+# do we pick an invertible matrix?  we do in this case.
+$isInvert = 1;
+$a1 = 1;
+$a2 = random(2,5,1);
+$a3 = random(2,4,1);
+@a = ( [ 1, $a2 ], [ $a3, $a3*$a2-1 ] );
+$amat = Matrix( [ @a ] );
+
+@aug1 = ( [ 1, $a2, 1, 0 ], [ $a3, $a3*$a2-1, 0, 1 ] );
+$augmat1 = Matrix( [ @aug1 ] );
+
+$ainv = $amat->inverse();
+
+# do some row reduction.  we've picked the leading coefficient of
+#    the first row to be one, so the first step is easy
+my @ind = ( 0..3 );
+@aug2 = ( $aug1[0], [ map { $aug1[1]->[$_] - $a3*$aug1[0]->[$_] } @ind ] );
+$augmat2 = Matrix( [ @aug2 ] );
+# then we get rid of the (1,2) element; our set-up guarantees that
+#    $aug2[1]->[1] is -1
+@aug3 = ( [ map { $aug2[0]->[$_] + ($aug2[0]->[1])*($aug2[1]->[$_]) } @ind ],
+	  $aug2[1] );
+$augmat3 = Matrix( [ @aug3 ] );
+# the normalization after that we assume is obvious
+
+# answer checkers for the row reductions, where we specify
+#    the first elements of each row
+$achk2 = MultiAnswer( Compute($aug2[0]->[1]), Compute($aug2[0]->[2]),
+		      Compute($aug2[0]->[3]),
+		      Compute($aug2[1]->[2]), Compute($aug2[1]->[3]) )->with(
+    singleResult=>1,
+    checker=>sub {
+	my ( $cor, $stu, $self ) = @_;
+	return ( $cor->[0] == $stu->[0] && $cor->[1] == $stu->[1] &&
+		 $cor->[2] == $stu->[2] && $cor->[3] == $stu->[3] &&
+		 $cor->[4] == $stu->[4] );
+    }
+);
+$achk3 = MultiAnswer( Compute($aug3[0]->[2]), Compute($aug3[0]->[3]),
+		      Compute($aug3[1]->[2]), Compute($aug3[1]->[3]) )->with(
+    singleResult=>1,
+    checker=>sub {
+	my ( $cor, $stu, $self ) = @_;
+	return ( $cor->[0] == $stu->[0] && $cor->[1] == $stu->[1] &&
+		 $cor->[2] == $stu->[2] && $cor->[3] == $stu->[3] );
+    }
+);
+
+# we redefine unionTables BeginTable and EndTable to avoid hardcopy
+#    errors with embedded \par and \medskip macros in horizontal mode
+sub myBeginTable {
+  my %options = (
+    border => 0, padding => 0, spacing => 0, center => 1,
+    tex_spacing => "1em", tex_border => "0pt", @_
+  );
+  my ($bd,$pd,$sp) = ($options{border},$options{padding},$options{spacing});
+  my ($tsp,$tbd) = ($options{tex_spacing},$options{tex_border});
+  my ($center,$tcenter) = (' ALIGN="CENTER"','\centerline');
+     ($center,$tcenter) = ('','') if (!$options{center});
+  my $table =
+    qq{<TABLE BORDER="$bd" CELLPADDING="$pd" CELLSPACING="$sp"$center>};
+
+  MODES(
+    TeX => '{\kern '.$tbd.
+           '\vbox{\hsize=.5\hsize\halign{#\hfil&&\kern '.$tsp.' #\hfil',
+    HTML => $table."~~n",
+  );
+}
+
+sub myEndTable {
+  my %options = (tex_border => "0pt", @_);
+  my $tbd = $options{tex_border};
+  MODES(
+    TeX => '\cr}}\kern '.$tbd.'}'."~~n",
+    HTML => '</TABLE>'."~~n",
+  );
+}
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Let
+\[ A = $amat. \]
+Fill in the blanks for the augmented matrix and row reduction in
+the calculation below to find the inverse of \(A\), if it exists.
+If the inverse does not exist, enter zeros for all blanks below.
+$PAR
+\{ $augmat1->ans_array() \} $BR
+\{ myBeginTable(border=>0, tex_border=>"0pt", spacing=>0, padding=>4) .
+   AlignedRow( [ "\(\qquad\sim \Bigg[\)",
+		 myBeginTable( border=>0, tex_border=>"0pt", spacing=>0,
+			     padding=>4 ) .
+		 AlignedRow( [ 1, $achk2->ans_rule(5), $achk2->ans_rule(5),
+			       $achk2->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, $aug2[1]->[1], $achk2->ans_rule(5),
+			       $achk2->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 myEndTable(), "\(\Bigg]\)" ],
+	       align=>'CENTER', valign=>'MIDDLE', separation=>0 ) .
+   myEndTable() \}
+$BR
+\{ myBeginTable(border=>0, tex_border=>"0pt", spacing=>0, padding=>4) .
+   AlignedRow( [ "\(\qquad\sim \Bigg[\)",
+		 myBeginTable( border=>0, tex_border=>"0pt", spacing=>0,
+			     padding=>4) .
+		 AlignedRow( [ 1, 0, $achk3->ans_rule(5), $achk3->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, $aug3[1]->[1], $achk3->ans_rule(5),
+			       $achk3->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 myEndTable(),
+		 "\(\Bigg]\)" ],
+	       align=>'CENTER', valign=>'MIDDLE', separation=>0 ) .
+   myEndTable() \}
+$BR
+so that
+\(A^{-1} = \) \{ $ainv->ans_array() \}
+$BR
+${BITALIC}(If it does not have an inverse, be sure you can indicate
+why and enter zeros for all blanks above.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $augmat1->cmp() );
+ANS( $achk2->cmp() );
+ANS( $achk3->cmp() );
+ANS( $ainv->cmp() );
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+This is invertible.  We have the augmented matrix
+\[ \begin{aligned} $augmat1 &\sim $augmat2 \\
+   &\sim $augmat3, \end{aligned} \]
+so that
+\[ A^{-1} = $ainv. \]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
