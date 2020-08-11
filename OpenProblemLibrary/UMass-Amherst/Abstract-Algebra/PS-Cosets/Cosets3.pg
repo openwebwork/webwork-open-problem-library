@@ -17,13 +17,13 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "PGchoicemacros.pl",
-  "algebraMacros.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 0;
+
+Context("Numeric"); 
 
 Context()->strings->add(Y=>{});
 Context()->strings->add(N=>{});
@@ -34,10 +34,6 @@ Context()->strings->add(N=>{});
 # lie in the same left H-cosets
 #
 
-$r1 = random(0,1,1);
-$r2 = random(0,1,1);
-
-
 #
 # For part (i),  
 #    G = Z
@@ -46,72 +42,31 @@ $r2 = random(0,1,1);
 $n1 = random(9,15,1);
 
 # The three pairs of elements to be tested are (x_i, y_i), i=1,2,3
-# For x:  random values 2 < x < n1
-# For y1: n1 + (randomi negative number > -n1)
-#     y2 & y3:  random non-zero integers in the range (-n1/2, n)
+# For x: three distinct random values 2 < x < n1
+# For y: one or two in the subgroup, the others not
 
-$x1 = random(3,$n1-1,1);
-$x2 = random(3,$n1-1,1);
-$x3 = random(3,$n1-1,1);
-$negn1 = random(-$n1,-1,1);
-$y1 = $n1 + $negn;
-$y2 = random(-$n1/2,$n1,1);
-if($r1 == 0){
-    $y2 = ceil($y2);
+@xrange = (2 .. $n1-1);
+for ($ii = 0; $ii < 3; $ii++){
+   $jj = random($ii,$n1-3,1);
+   ($xrange[$ii],$xrange[$jj])=($xrange[$jj],$xrange[$ii]);
 }
-else{
-    $y2 = floor($y2);
-}
-while($y2 == 0){
-    $y2 = random(-$n1/2,$n1,1);
-    if($r1 == 0){
-        $y2 = ceil($y2);
-    }
-    else{
-        $y2 = floor($y2);
-    }
-}
-$y3 = random(-$n1/2,$n1,1);
-if($r2 == 0){
-    $y3 = ceil($y3);
-}
-else{
-    $y3 = floor($y3);
-}
-while($y3 == 0){
-    $y3 = random(-$n1/2,$n1,1);
-    if($r1 == 0){
-        $y3 = ceil($y3);
-    }
-    else{
-        $y3 = floor($y3);
-    }
-}
+($x1,$x2,$x3)=@xrange[0..2];
 
+$yesno = ([1,0,0],[0,1,0],[0,0,1],[0,1,1],[1,0,1],[1,1,0])[random(0,5,1)];
+for ($ii=0; $ii<3; $ii++){
+    if ( $yesno->[$ii] ){ $y[$ii] = $xrange[$ii]+$n1; }
+    else { $y[$ii] = $xrange[$ii] + random(1,$n1-1) % $n1; }
+}
+($y1,$y2,$y3)=@y;
+         
 #
 # For part (i):   (x_i, y_i) belong to the same left H-cosets 
 #                 <==>  n1 divides y1-x1
 #
 
-if(($x1-$y1) % $n1 == 0){
-    $a1 = Y;
-}
-else{
-    $a1 = N;
-}
-if(($x2-$y2) % $n1 == 0){
-    $a2 = Y;
-}
-else{
-    $a2 = N;
-}
-if(($x3-$y3) % $n1 == 0){
-    $a3 = Y;
-}
-else{
-    $a3 = N;
-}
-
+$a1 = ($x1-$y1) % $n1 == 0 ? Compute("Y") : Compute("N");
+$a2 = ($x2-$y2) % $n1 == 0 ? Compute("Y") : Compute("N");
+$a3 = ($x3-$y3) % $n1 == 0 ? Compute("Y") : Compute("N");
 
 #
 # For part (ii):
@@ -135,71 +90,66 @@ $d = 2*$n2;
 #
 
 $i = random(1,$n2-1,1);
-$i2 = 2*$i;
-$ni2 = $n2 - $i2;
-$j = random(0,2,1);
+$ni2 = $n2 - 2*$i;
+$j = random(1,2,1);
 
 $k1 = random(0,1,1);
 $k2 = random(0,$n2-1,1);
 
 #
-# Answer:
-#  first pair:   Y <==> k1=0 and n2 divides (2i+1)
-#  second:       Y <==> k2=0
-#  third:        always Y
+# Answer is yes when:
+# first pair: a^(-1)b^k1 = (a^ib^j)^m for some m so
+#    j=k1=0 (mod 2) and gcd(i,n2)=1  or
+#    j=k1=1 (mod 2) and -1=i (mod n2)
+# second pair:  b^(-1) a^k2 b = a^(-k2) =  (a^ib^j)^m for some m so
+#    k2 = 0 (mod n2) or 
+#    j=0 (mod 2) and gcd(i,n2) | k2
+# third pair: a^(-i) b^(-j) a^(n2-2i) = (a^ib^j)^m for some m so
+#    j=0 (mod 2) and a^(n2-3i) = a^im so gcd(i,n2) | n2-3i (true)
+#    j=1 (mod 2) and a^(-i)b a^(n2-2i) = a^(i-n2) b = (a^ib)^m so m=1 (true)
+# so third pair is always true
 #
 
+$a4 = ( ($j % 2 == 0 and $k1 % 2 == 0 and gcd($i,$n2) == 1) 
+        or ($j % 2 == 1 and $k1 % 2 == 1 and $i+1 % $n2 == 0) 
+      ) ? Compute("Y") : Compute("N") ; 
+$a5 = ( ($k2 % $n2 == 0) or ($j % 2 == 0 and $k2 % gcd($i,$n2) == 0 ) 
+      )? Compute("Y") : Compute("N") ;
+$a6 = Compute("Y");
 
-if($k1 == 0 || (2*$i+1) % $n2 == 0){
-    $a4 = Y;
-}
-else{
-    $a4 = N;
-}
-if($k2 == 0){
-    $a5 = Y;
-}
-else{
-    $a5 = N;
-}
-$a6 = Y;
-
+Context()->texStrings;
 BEGIN_TEXT
+In each of the following problems you are given a subgroup \(H\) of a group \(G\), and pairs of elements \(x,y \in G\). Determine if \(x\) and \(y\) belong to the same left \(H\)-cosets.$BR 
+Answer Y (for "yes") or N (for "no"). 
 
-For each of the following problems you have a subgroup \(H\) of a group \(G\), and pairs of elements \((x,y)\) of \(G\). Determine if they belong to the same left \(H\)-cosets (answer Y/N). 
+ $PAR
 
- $BR $BR
-
-(i) \(G = \mathbb{Z}\) $BR
-\(H = $n1 \mathbb{Z}\) $BR $BR
-
-\{ begintable(4) \}
-\{ row( "\((x,y)\)", "\(($x1,$y1)\)", "\(($x2,$y2)\)", "\(($x3,$y3)\)" )\}
-\{ row( "\(xH = yH\)", ans_rule(10), ans_rule(10), ans_rule(10) ) \}
-\{ endtable() \} $BR $BR
-
-(ii) \(G = \{ dihedral( $n2 ) \} \) (dihedral of order $d, with generator \(a\), \(b\) where \(a^{$n2} = b^{2} = e\) and \(ba = a^{$n2-1}b\)$BR
-\(H = \langle a^{$i} b^{$j} \rangle\) $BR $BR
-
+(i) \(G = \mathbb{Z}\); 
+\(H = $n1 \mathbb{Z}\) $PAR
 
 \{ begintable(4) \}
-\{ row( "\((x,y)\)", "\((a, b^{$k1})\)", "\((b, a^{$k2} b)\)", "\((b^{$j} a^{$i}, a^{$ni2})\)" )\}
-\{ row( "\(xH = yH\)", ans_rule(10), ans_rule(10), ans_rule(10) ) \}
-\{ endtable() \} $BR $BR
+\{ row( "", "\(x=$x1, y=$y1\)", "\(x=$x2,y=$y2\)", "\(x=$x3,y=$y3\)" )\}
+\{ row( "\(x+H = y+H\) ?", ans_rule(10), ans_rule(10), ans_rule(10) ) \}
+\{ endtable() \} $PAR
+
+(ii) \(G = \{ dihedral( $n2 ) \} \), dihedral group of order $d with generators \(a\), \(b\) where \(a^{$n2} = b^{2} = e\) and \(ba = a^{-1}b\);$BR
+\(H = \langle a^{$i} b^{$j} \rangle\). $PAR
 
 
+\{ begintable(4) \}
+\{ row( "", "\(x=a, y=b^{$k1}\)", "\(x=b, y=a^{$k2} b\)", "\(x=b^{$j} a^{$i}, y=a^{$ni2}\)" )\}
+\{ row( "\(xH = yH\) ?", ans_rule(10), ans_rule(10), ans_rule(10) ) \}
+\{ endtable() \} $PAR
 
 END_TEXT
+Context()->normalStrings;
 
-ANS(str_cmp($a1) );
-ANS(str_cmp($a2) );
-ANS(str_cmp($a3) );
+ANS($a1->cmp());
+ANS($a2->cmp());
+ANS($a3->cmp());
 
-ANS(str_cmp($a4) );
-ANS(str_cmp($a5) );
-ANS(str_cmp($a6) );
-
-
-
+ANS($a4->cmp());
+ANS($a5->cmp());
+ANS($a6->cmp());
 
 ENDDOCUMENT();    

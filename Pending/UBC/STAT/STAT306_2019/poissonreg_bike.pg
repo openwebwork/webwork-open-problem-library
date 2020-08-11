@@ -1,0 +1,215 @@
+#################################################################
+## DESCRIPTION
+## Generalized linear model, Poisson regression; fit a Poisson regression model with categorical data; 
+## predict the mean value of Y at a given value of x; 
+## estimate the probability of a specific value of Y at a given value of x; 
+## interpretation of the coefficient in Poisson regression
+##
+## This question is based on qeustion 5 in the final exam of Stat 306, 2019 term 1.
+## Original Author: Benjamin Sobkowiak
+##
+## ENDDESCRIPTION 
+## ENDDESCRIPTION 
+## ENDDESCRIPTION 
+#################################################################
+
+#################################################################
+## DBsubject(Statistics)
+## DBchapter(Generalized linear model)
+## DBsection(Poisson regression)
+## Date(2020/01/20)
+## Author(Bruce Dunham)
+## Institution(UBC)
+## Level(3)
+#################################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+);
+
+#################################################################
+## Setup: this is where we use Perl and PG objects (Required)
+Context("Numeric");
+
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+
+## fix the name of the downloadable data files 
+rserve_eval("filename <- file.path(tempdir(), 'bikeshare_${studentLogin}.txt')");
+
+my @remote_file = rserve_eval('
+  tmp <- round(runif(700, min=2, max=27), 1);
+  wkd <- sample(c(rep(0, 500), rep(1, 200)));
+  b0 <- 1.6 + rnorm(1, mean=0, sd=0.02);
+  b1 <- 0.06 + rnorm(1, mean=0, sd=0.001);
+  b2 <- -0.2 + rnorm(1, mean=0, sd=0.005);
+  lmd <- exp(b0 + b1*tmp + b2*wkd);
+  wkd <- as.factor(wkd);
+  y <- rep(0, 700);
+  for (i in 1:700){ y[i] <- rpois(1, lambda=lmd[i])};
+  X <- data.frame("num"=y, "tmp"=tmp, "wkd"=wkd);
+  write.table(X, file = filename, sep = " ", row.names=FALSE, col.names=TRUE);
+  filename
+');
+
+my $local_file = rserve_get_file($remote_file[0]);
+
+$local_url = $local_file;
+$local_url =~ s|$tempDirectory|$tempURL|;
+
+@results = rserve_eval('
+  reg1 <- glm(y~tmp, family="poisson");
+  B1 <- summary(reg1)$coefficients;
+  new_tmp1 <- round(runif(1, min=15, max=25), 0);
+  new_lmd1 <- exp(B1[1] + B1[2]*new_tmp1);
+  inc1 <- round(runif(1, min=10, max=15), 0);
+  fac1 <- exp(B1[2]*inc1);
+
+  reg2 <- glm(y~tmp+wkd, family="poisson");
+  B2 <- summary(reg2)$coefficients;
+  new_tmp2 <- round(runif(1, min=15, max=25), 0);
+  new_lmd2 <- exp(B2[1] + B2[2]*new_tmp2 + B2[3]);
+  new_y <- rpois(1, new_lmd2);
+  p <- dpois(new_y, new_lmd2);
+  inc2 <- round(runif(1, min=10, max=15), 0);
+  fac2 <- exp(B2[2]*inc2);
+
+  c(new_tmp1, round(new_lmd1, 2), inc1, round(fac1, 2), new_tmp2, new_y, round(p, 2), inc2, round(fac2, 2), round(B1[1], 5), round(B1[2], 5), round(B2[1], 5), round(B2[2], 5), round(B2[3], 5), round(new_lmd2, 3))
+');
+
+$newtmp1 = $results[0];
+$newlmd1 = $results[1];
+$inc1 = $results[2];
+$fac1 = $results[3];
+$newtmp2 = $results[4];
+$newy = $results[5];
+$p = $results[6];
+$inc2 = $results[7];
+$fac2 = $results[8];
+$b0 = $results[9];
+$b1 = $results[10];
+$bb0 = $results[11];
+$bb1 = $results[12];
+$bb2 = $results[13];
+$newlmd2 = $results[14];
+
+#################################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+Transport for London (TFL) has collected data on the number of new bike shares and the air temperature (\(^{\circ}\text{C} \)) per hour for every day between 2015-2017 (\(n=700\)).The dataset can be downloaded from this link (\{ htmlLink($local_url, "Download the data here") \}). They choose to model these data using a Poisson regression model, with the number of new bike shares as the outcome variable, \(Y_i\), in the \(i\)th hour (for \(i = 1, ... , n\)) and the temperature in \(^{\circ}\text{C}\) as the predictor \(x_1\). Provide answers to the following to two decimal places.
+$BR
+$BR
+$BBOLD Part (a) $EBOLD
+$BR
+Estimate the number of new bike shares on a day where the temperature was \($newtmp1 ^{\circ}\text{C}\), giving your answer to two decimal places. 
+$BR
+\{ans_rule(8)\}
+$BR
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR 
+According to the model, how would the rate of new bike hires per hour change where there is a \($inc1 ^{\circ}\text{C}\) increase in temperature?
+$BR
+\{ans_rule(8)\}
+$BR
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+TFL now wants to investigate whether if the day falls on a weekend or not will impact the number of new bike hires per hour. We now include this new predictor variable, \(x_2\), (where \(x_2 = 1\) is weekend; \(x_2 = 0\) is weekday). Deciding first whether it is worthwhile including the interaction between type of day and temperature, fit a new model to the data and use it to estimate the probability of $newy new bike hires in an hour on a weekend day with an air temperature of \($newtmp2 ^{\circ}\text{C}\).
+$BR
+\{ans_rule(8)\}
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR
+How would a temperature increase of \($inc2 ^{\circ}\text{C}\) change the rate of new bike hires per hour on a weekday?
+$BR
+\{ans_rule(8)\}
+$BR
+
+END_TEXT
+
+#################################################################
+## Answers evaluation (Required)
+
+$showPartialCorrectAnswers = 1;
+
+ANS(num_cmp($newlmd1, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($fac1, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($p, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($fac2, tol=>0.02, tolType=>"absolute") );
+
+#################################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+$BBOLD Part (a) $EBOLD
+$BR
+From the fitted Poisson regression model with log link function we can obtain the estimated number of new bike shares at the given temperature level is:
+$BR
+\[
+\mu_Y(x) = \exp(\beta_0 + \beta_1 x) = \exp($b0 + $b1 \times $newtmp1) = $newlmd1.
+\]
+$BR
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+Use the formula of Poisson regression, it can be seen that a $inc2\(^{\circ}\text{C}\) increase in temperature will change the rate of new bike share by a multiplicative factor 
+\[
+\mu_Y(x_0 + $inc1)/\mu_Y(x_0) = \exp(\beta_1 \times $inc1) = \exp($b1 \times $inc1) = $fac1.
+\]
+$BR
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+The number of new bike shares \(Y\) follows a Poisson distribution.
+Fitting the model to the (log) mean depending on both day type (weekend or week day) and temperature, it is evident that the interaction between the two predictor variables is not close to being significant and can reasonably be ignored.
+Therefore, to compute the probability of a certain number of new bike share, the first step is to estimate the mean value of the Poisson distribution at the given temperature level on weekend with the fitted Poisson regression model via
+$BR
+\[
+\mu_Y(x) = \exp(\beta_0 + \beta_1 x_1 + \beta_2 x_2) = \exp($bb0 + $bb1\times $newtmp2 + $bb2) = $newlmd2.
+\]
+Using the probability mass function of Poisson distribution, we find that
+\[
+p(Y = $newy) = \frac{e^{-$newlmd2} \times $newlmd2^{$newy}}{$newy !} = $p.
+\]
+$BR
+
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR
+Using the Poisson regression model, it can be seen that a $inc2\(^{\circ}\text{C}\) increase in temperature will change the rate of new bike shares by a multiplicative factor 
+\[
+\mu_Y(x_0 + $inc2)/\mu_Y(x_0) = \exp(\beta_1 \times $inc2) = \exp($bb1 \times $inc2) = $fac2.
+\]
+$BR
+
+END_SOLUTION
+
+ENDDOCUMENT();

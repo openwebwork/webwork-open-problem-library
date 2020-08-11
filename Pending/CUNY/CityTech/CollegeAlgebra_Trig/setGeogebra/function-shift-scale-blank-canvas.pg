@@ -1,0 +1,232 @@
+## MO(1)
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGgraphmacros.pl",
+   "AppletObjects.pl",
+   "parserImplicitEquation.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("ImplicitEquation");
+Context()->variables->are(x=>["Real", limits=>[-3,7]], y=>["Real", limits=>[-3,3]]);
+Context()->noreduce('(-x)-y');
+
+$a = non_zero_random(-3,7,1);
+do{ $b = non_zero_random(-5,5,1); } until ( $a != 1 || $b != 1 );
+$c = $a*$b;
+
+$f = Formula("$b x+$a y")->reduce;
+
+$answer = ImplicitEquation("$f = $c");
+
+######################################
+# Create  link to applet:
+###################################
+# You can name your applet (anything reasonable :-) )
+# Adjust the height and width as desired
+# Paste the geogebra parameters in at the bottom of the page just above the
+# command end command
+# so that they don't get in the way
+###################################
+
+
+$appletName = "ggbfoo";
+
+$applet =  GeogebraWebApplet(
+   code       => "geogebra.GeoGebraApplet",
+   archive    => "geogebra.jar",
+   codebase                 => findAppletCodebase("geogebra.jar"),
+   appletName              => $appletName,
+   appletId                    => $appletName,
+   submitActionAlias     => 'getAppletValues',  # default actionAlias
+   initializeActionAlias   => 'configure',  # default actionAlias
+   setStateAlias             => 'setXML',
+   getStateAlias             => 'getXML',
+   setConfigAlias           => '',
+   getConfigAlias           => '',
+   returnFieldName       => '',
+   width                 => 600,              # may want to modify width
+   height                => 600,              # may want to modify height
+  # mayscript             => "true",
+   debugMode             => 0,   # set debugMode to 0 for no debug
+                                 # to 1 to make xml representation visible
+                                 # to 2 to add alerts detailing progression
+                                 # through the applet
+   onInit                => 'ggbOnInit',
+   type                  => 'geogebraweb',
+   submitActionScript    => qq{ getQE('answerBox').value = getAppletValues() },
+   #submitActionScript => '',
+   selfLoading           => 1,
+   params     => GEOGEBRA_PARAMS(),# paste parameters in
+
+);
+
+
+###############################################
+#
+#  PNG picture of GeoGebra applet for hardcopy
+
+$im = init_graph(-8,-8,8,8, 
+    size=>[400,400],
+    grid=>[16,16],
+    axes=>[0,0]
+);
+
+##################################
+# Setup GeogebraWebApplet --
+###################################
+
+###############################################
+#
+#  For persistence of GeoGebra applet state 
+#  when answers are submitted or page is refreshed.
+#  Uses JavaScript interface to GeoGebra.
+
+HEADER_TEXT(
+qq! 
+<script language="javascript">
+   function ggbOnInit(param) {
+       if (param == "$appletName") {
+           applet_loaded(param,1);  // report that applet is ready. 
+           ww_applet_list[param].safe_applet_initialize(2);
+       }
+   } 
+</script>
+<noscript>For this question to work properly, 
+you must enable JavaScript, or use another browser 
+(or computer) on which JavaScript works.</noscript>
+!);
+
+
+#######################################################
+#
+#  For setting initial values in GeoGebra from WeBWorK
+#  Uses JavaScript interface to GeoGebra.
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+<script language="javascript">
+function setAppletCoefficients() {
+   var applet=getApplet("$appletName");   // alert("Updating coefficients");
+   if (typeof(applet)!="undefined") {
+     if (typeof(applet.setValue)!="undefined") {
+     
+     ////////////////////////////////////////////////////////////////
+     //  List the values of the parameters to be set in the applet here
+     //  Setup the grid, then establish values, points, then the line
+
+          applet.setPerspective("G");
+          applet.setPointCapture(1,2);
+          applet.setCoordSystem(-8,8,-8,8);
+          applet.setAxisSteps(1,1,1);
+          applet.setGridVisible('true');
+
+          applet.evalCommand("f = sqrt(x)");
+          applet.evalCommand("h = 0");
+          applet.evalCommand("k = 0");
+          applet.evalCommand("A = (h,k)");
+          applet.evalCommand("m = 1");
+          applet.evalCommand("n = 1");
+          applet.evalCommand("B = (m+h,n+k)");
+          applet.evalCommand("g = n*f((x-h)/m)+k");
+
+          //applet.setColor('A',228,27,23);
+          //applet.setColor('B',228,27,23);
+          //applet.setColor('l',228,27,23);
+
+
+     } else {
+          setTimeout("setAppletCoefficients()", 1000);
+     }
+   } else {
+      setTimeout("setAppletCoefficients()",1000);
+   }
+}
+ww_applet_list["$appletName"].setConfig = function() {setAppletCoefficients()};
+</script>
+END_SCRIPT
+
+HEADER_TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+
+<script language="javascript">
+function getAppletValues() {
+    console.log("getAppletValues() entered");
+	// get a handle for the applet object
+    	var applet = $appletName;
+    	var l = applet.getLaTeXString("l");
+        return( l ); 
+}
+ </script>
+END_SCRIPT
+
+###################################
+#insert applet into body  -- this does not need to be changed
+# except to adjust the insertion of the reinitialize_button or
+# a hidden AnswerBox
+###################################
+ TEXT($PAR,  MODES(TeX=>'geogebraweb code',
+                      HTML=>$applet->insertAll(
+                                debug =>0,
+                                reinitialize_button => 1,
+                                includeAnswerBox=>1,
+ )));
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Graph the line, and submit your answer.
+\[$f = $c\]
+
+
+END_TEXT
+Context()->normalStrings;
+
+TEXT( "run SetConfig", q!<script language="javascript">setConfig()</script> !) if $inputs_ref->{ "${appletName}_state"} =~ "restart_applet";
+
+##############################################################
+#
+#  Answers
+#
+#
+
+NAMED_ANS( 'answerBox' => $answer->cmp() );
+
+sub GEOGEBRA_PARAMS {
+    my $result = {
+        appName=>"classic", # instead of using ggbbase64
+        enableShiftDragZoom=>"false",
+        showResetIcon=>"false" ,
+        enableRightClick=>"false" ,
+        enableLabelDrags=>"false",
+        showMenuBar=>"false" ,
+        showToolBar=>"false",
+        showAlgebraInput=>"false",
+        useBrowserForJS=>"true",
+        #ggbbase64=>''
+};
+
+$result;
+}
+
+
+ENDDOCUMENT();        

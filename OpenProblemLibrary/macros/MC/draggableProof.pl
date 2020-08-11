@@ -1,7 +1,6 @@
 # Done: show possible choices in TeX mode
-# To do: fix css clash for <ul> between draggableProof.pl and the webwork instructor tools menu.
 # To do: display student answers and correct answers in TeX mode properly.
-# To do: get the drag and drop features in draggableProof.pl to work on iPad using jquery.ui.touch-punch.min.js and also put this js library in a universal spot on every webwork server.
+# To do: put jquery.nestable.js in a universal spot on every webwork server.
 
 loadMacros("PGchoicemacros.pl");
 
@@ -10,26 +9,38 @@ sub _draggableProof_init {
 
   $courseHtmlUrl = $envir{htmlURL};
 
-  main::POST_HEADER_TEXT(main::MODES(TeX=>"", HTML=><<'  END_SCRIPTS'));
+#  if (-e "${wwHtmlDir}js/vendor/jquery/modules/jquery.nestable.js") {
+#    $scriptPath = $wwHtmlUrl.'js/vendor/jquery/modules/';
+#  } else {
+#    $scriptPath = $courseHtmlUrl.'js/';
+#  }
+
+  # post global javascript
+  main::POST_HEADER_TEXT(main::MODES(TeX=>"", HTML=><<"  END_SCRIPTS"));
 <!--  The next to scripts may need to be included on older versions of WeBWoRK (before 2.9 or so.  
-    <script type="text/javascript" src=" https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
 -->
-    <script type="text/javascript" src="$courseHtmlUrl/js/jquery.ui.touch-punch.min.js"></script>
+    <script src="$courseHtmlUrl/js/jquery.nestable.js"></script>
+
     <script>
-    function _sortableUpdate () {
-      var id = this.getAttribute("data-id"), ans = this.getAttribute("data-ans");
-      var list = [], li = this.getElementsByTagName("li");
-      for (var i = 0, n = li.length; i < n; i++) {list.push(li[i].id)}
-      $("#"+ans).val(list.join(","));  
-    }
+      function _nestableUpdate (e) {
+          var dd = e.length ? e : \$(e.target);
+          var ans = dd["0"].getAttribute("data-ans");
+          var li_tags = dd["0"].getElementsByTagName("li");
+          var list = [];
+          for (var i = 0, n = li_tags.length; i < n; i++) {
+              list.push(li_tags[i].id);
+          }
+          \$("#"+ans).val(list.join(","));
+      }
     </script>
   END_SCRIPTS
 }
 
 package draggableProof;
 
-my $n = 0;  # number of sortable lists so far
+my $n = 0;  # number of nestable lists so far
 
 sub new {
   $n++;
@@ -65,45 +76,92 @@ sub numProvided {(shift)->{numProvided}}
 sub order {my $self = shift; return @{$self->{order}}}
 sub unorder {my $self = shift; return @{$self->{unorder}}}
 
+# In principle, the styles (for example, color and size of the tiles)
+# could be customized for each draggableProof instance. This is why
+# each instance receives its own CSS container class.
+
 sub ScriptAndStyles {
   my $self = shift; my $id = $self->{id};
+  
   main::POST_HEADER_TEXT(main::MODES(TeX=>"", HTML=><<"  SCRIPT_AND_STYLE"));
     <script type="text/javascript">
       \$(document).ready(function() {
-        \$(".sortable-$id").sortable({
-          connectWith: ".sortable-$id",
-          update: _sortableUpdate
-        });
+          \$("#nestable-$id-source").nestable({
+              group: "$id",
+              maxDepth: 1,
+              scroll: true,
+              callback: _nestableUpdate
+          });
+          \$("#nestable-$id-source").on('lostItem', _nestableUpdate);
+          \$("#nestable-$id-target").nestable({
+              group: "$id",
+              maxDepth: 1,
+              scroll: true,
+              callback: _nestableUpdate
+          });
+          \$("#nestable-$id-target").on('lostItem', _nestableUpdate);
       });
     </script>
+
     <style type="text/css">
-      .sortable-$id-container {
-        color: #000000; /*#388E8E;*/
-        width: 300px;
+    .nestable-$id-container {
+        width: 350px;
         float: left;
-        border:1 px solid #388E8E;
         margin: 10px;
         padding: 0;
+        color: #000000;
+        border:1 px solid #388E8E;
         text-align: center;
-      }
-      .sortable-$id {
-         margin: 0; padding: 0;
-         min-height: 1em;
-      }
-      .sortable-label {
+    }
+    .nestable-label {
         margin: 10px 0 10px 0;
-      }
-      .sortable-$id li {
-        text-align: center;
+    }
+    .dd, .dd-list, .dd-item {
         display: block;
-        background: #F5DEB3;
+        position: relative;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        min-height: 30px;
+    }
+    .dd-empty, .dd-handle, .dd-placeholder {
+        display: block;
+        position: relative;
         margin: 0 10px 10px 10px;
         padding: 4px;
+        min-height: 30px;
+        -moz-box-sizing: border-box;
+        box-sizing: border-box;
+    }   
+    .dd-handle {
+        background: #F5DEB3;
         border: 1px solid #388E8E;
-      }
-      .sortable-$id li:hover {
+        -webkit-border-radius: 5px;
+        border-radius: 5px;
+        text-align: center;
+    }
+    .dd-handle:hover {
         cursor: pointer;
-      }
+    }
+    .dd-placeholder {
+        background: #f2fbff;
+        border: 1px dashed #b6bcbf;
+        -webkit-border-radius: 5px;
+        border-radius: 5px;
+    }
+    .dd-dragel {
+        position: absolute;
+        pointer-events: none;
+        z-index: 9999;
+    }
+    .dd-dragel > .dd-item .dd-handle {
+        margin-top: 0;
+    }
+    .dd-dragel .dd-handle {
+        -webkit-box-shadow: 2px 4px 6px 0 rgba(0,0,0,.1);
+        box-shadow: 2px 4px 6px 0 rgba(0,0,0,.1);
+        opacity: 0.8;
+    }
     </style>
   SCRIPT_AND_STYLE
 }
@@ -121,10 +179,20 @@ sub AnswerRule {
 
 sub GetAnswer {
   my $self = shift; my $previous;
-  $previous = $main::inputs_ref->{$self->{srcAns}} || "$self->{id}-".join(",$self->{id}-",0..$self->{numProvided}-1);
-  $previous =~ s/$self->{id}-//g; $self->{previousSource} = [split(/,/,$previous)];
+
+  # Retrieve the previous state of the right column.
   $previous = $main::inputs_ref->{$self->{tgtAns}} || "";
   $previous =~ s/$self->{id}-//g; $self->{previousTarget} = [split(/,/,$previous)];
+
+  # Calculate the complement of the right column.
+  my %prevTarget = map {$_ => 1} @{$self->{previousTarget}};
+  my @diff = grep {not $prevTarget{$_}} (0..$self->{numProvided}-1);
+
+  # If the previous state of the left column has been saved, use it. (This ensures that the tiles 
+  # in the left column are kept in the same order that the user had arranged them). If it has not
+  # been saved, use the complement of the right column.
+  $previous = $main::inputs_ref->{$self->{srcAns}} || "$self->{id}-".join(",$self->{id}-",@diff);
+  $previous =~ s/$self->{id}-//g; $self->{previousSource} = [split(/,/,$previous)];
 }
 
 sub Print {
@@ -133,11 +201,11 @@ sub Print {
   if ($main::displayMode ne "TeX") { # HTML mode
 
     return join("\n",
-       '<div style="min-width:650px;">',
+       '<div style="min-width:750px;">',
           $self->Source,
           $self->Target,
        '<br clear="all" />',
-      '</div>'
+      '</div>',
     );
 
   } else { # TeX mode
@@ -167,16 +235,20 @@ sub Bucket {
 
   if ($main::displayMode ne "TeX") { # HTML mode
 
-    my @lines = (
-      '<div class="sortable-'.$id.'-container">',
-      '<div class="sortable-label">'.$label.'</div>',
-      '<ul class="sortable-'.$id.'" id="'.$id.'-'.$name.'" data-id="'.$id.'" data-ans="'.$ans.'">'
+    my @lines = ();
+    push(@lines, '<div class="nestable-'.$id.'-container">',
+      '<div class="nestable-label">'.$label.'</div>',
+      '<div class="dd" id="nestable-'.$id.'-'.$name.'" data-ans="'.$ans.'">'
     );
-    foreach my $i (@{$previous}) {
-      push(@lines,'<li id="'.$id.'-'.$i.'">'.$self->{lines}[$self->{order}[$i]].'</li>')
+    if (scalar @{$previous} > 0) {
+      push(@lines, '<ol class="dd-list">');
+      foreach my $i (@{$previous}) {
+        push(@lines, '<li class="dd-item" id="'.$id.'-'.$i.'"><div class="dd-handle">'.$self->{lines}[$self->{order}[$i]].'</div></li>');
+      }
+      push(@lines, '</ol>');
     }
-    push(@lines,
-      '</ul>',
+    push(@lines, 
+      '</div>',
       '</div>'
     );
     return join("\n",@lines);

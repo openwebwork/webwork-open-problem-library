@@ -1,0 +1,162 @@
+##DESCRIPTION
+## 
+##ENDDESCRIPTION
+
+## DBsubject()
+## DBchapter()
+## DBsection()
+## Date()
+## Author()
+## Level()
+## KEYWORDS('')
+## RESOURCES('UBC-EM-18-035.png')
+## Institution('University of British Columbia')
+## TitleText('TBD')
+## EditionText('TBD')
+## AuthorText('TBD')
+## Section('TBD')
+## Problem('TBD')
+##############################################################
+
+DOCUMENT();
+
+#image scale
+$imgScale = .35;
+
+#image aspect ratio
+$width = $imgScale*586;
+$height = $imgScale*879;
+
+loadMacros(   
+	"PGstandard.pl",     # Standard macros for PG language
+	"MathObjects.pl",
+	"PGML.pl",
+	"parserPopUp.pl",
+	"parserMultiAnswer.pl",
+	"parserRadioButtons.pl",
+	"PGauxiliaryFunctions.pl",
+	"niceTables.pl",
+	#"source.pl",        # allows code to be displayed on certain sites.
+	#"PGcourse.pl", 	 # Customization file for the course
+   	);
+
+TEXT(beginproblem());
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Vector");
+Context()->constants->add(eps0 => 8.854187817E-12);
+Context()->constants->set(eps0 => {TeX=>'\epsilon_0'});
+Context()->constants->add(mu0 => 4*pi*1.E-7);
+Context()->constants->set(mu0 => {TeX=>'\mu_0'});
+
+# Randomized problem data
+$J0 = random(2,6,.1);
+$R = random(2,8,.4);
+$a = $R/4;
+
+# Position the hole. Put centre at most (5/8)R from z-axis,
+# so the hole of radius (2/8)R fits completely inside the cylinder.
+$rtmp = random(0.2,5*$R/8,0.2);
+$phi  = random(0,2*pi,pi/6);
+$x0t  = $rtmp * cos($phi);
+$x0   = sgn($x0t) * floor( 10*abs($x0t)) / 10;
+$y0t  = $rtmp * sin($phi);
+$y0   = sgn($y0t) * floor( 10*abs($y0t)) / 10;
+$rho0 = sqrt( $x0**2 + $y0**2 );
+
+# Version 1:
+# Pick an evaluation point P. It could be anywhere.
+$rtmp = random(0.2,1.2*$R,0.2);
+$phi  = random(pi/12,23*pi/12,pi/12);
+$xPt  = $rtmp * cos($phi);
+$xP   = sgn($xPt) * floor( 10*abs($xPt)) / 10;
+$yPt  = $rtmp * sin($phi);
+$yP   = sgn($yPt) * floor( 10*abs($yPt)) / 10;
+$zP = random(-10,10,1);
+
+# Version 2 (overrides Version 1):
+# Pick an evaluation point P. Land it in the hole.
+$rho2  = random(10,50,1)*$a/50;
+$phi2  = random(pi/12,23*pi/12,pi/12);
+$dx    = $rho2 * cos($phi2);
+$xP    = $x0 + sgn($dx) * floor( 10*abs($dx) ) / 10;
+$dy    = $rho2 * sin($phi2);
+$yP    = $y0 + sgn($dy) * floor( 10*abs($dy)) / 10;
+$zP = random(-10,10,0.1);
+
+# Solution calculation below is correct for both versions above.
+
+# Field due to large cylinder centred on x=0, y=0
+# Default values from inside the cylinder:
+$B0x = Compute("mu0 * $J0 * (-$yP) * 0.5E6");
+$B0y = Compute("mu0 * $J0 * ( $xP) * 0.5E6");
+$B0z = Compute("0");
+$R0  = sqrt($xP**2 + $yP**2);
+if ($R0>$R ) {
+    # Replacement values used if outside the cylinder:
+    $B0x = Compute("mu0 * $J0 * (-$yP) * 0.5E6 * $R**2 / $R0**2");
+    $B0y = Compute("mu0 * $J0 * ( $xP) * 0.5E6 * $R**2 / $R0**2");
+  }
+$B0 = Vector($B0x,$B0y,$B0z);
+
+# Field due to cutout cylinder centred on x=x0, y=y0
+# Default values from inside the cylinder:
+$B1x = Compute("-mu0 * $J0 * (-($yP-$y0)) * 0.5E6");
+$B1y = Compute("-mu0 * $J0 * (  $xP-$x0 ) * 0.5E6");
+$B1z = Compute("0");
+$R1 = sqrt(($xP-$x0)**2 + ($yP-$y0)**2);
+if ( $R1 > $a ) {
+    # Replacement values used if outside the cylinder:
+    $B1x = Compute("-mu0 * $J0 * (-($yP-$y0)) * 0.5E6 * $a**2 / $R1**2");
+    $B1y = Compute("-mu0 * $J0 * (  $xP-$x0 ) * 0.5E6 * $a**2 / $R1**2");
+  }
+$B1 = Vector($B1x,$B1y,$B1z);
+
+$BatP = $B0 + $B1;
+
+#set tolerance
+Context()->flags->set(
+tolerance=>.02,
+);
+
+##############################################################
+#
+#  Text 
+#
+## DEBUG: Off-axis hole has [`\rho_0 = [$rho0]`].
+## Debug:  [`{\bf B}_0 = [$B0]`], [`{\bf B}_1 = [$B1]`], [`{\bf B}(P) = [$BatP]`]     
+## In components, [`{\bf B}_0 = \langle [$B0x], [$B0y], [$B0z] \rangle`]    
+## 
+#
+# _NOTE_: The figure is only a rough illustration of the setup.
+# Every student gets different values for the radius and location of
+# the hole, and for the test point [`P`]. 
+# Solvers are urged to sketch an accurate individualized version
+# of the cross-section of the given structure in the plane [`z=0`].
+#
+## _DEBUG_: [`\phi = [$phi];\ \phi_2 = [$phi2]`]
+BEGIN_PGML
+
+[@ image("UBC-EM-18-035.png", width=>[$width], height=>[$height]) @]*
+
+As shown in the figure, an infinitely long solid cylindrical conductor of radius [`R=[$R]\,`]m is centered on the z-axis. 
+In the conductor, a cylindrical hole of radius [`a = [$a]\,`]m is centered on the line defined by [`x = [$x0]`] and [`y = [$y0]`]. 
+Given that the current density in the conductor is the constant
+[`{\bf J}=[$J0]\,{\bf a}_z\,`]A/m[`^2`], 
+find [`{\bf B}`] at the point [`P([$xP],[$yP],[$zP])`].
+Enter your answer as a Cartesian vector, in the form [`\langle B_x,B_y,B_z\rangle`], noting the units provided below.
+
+ANSWER: [`{\bf B}(P) = `][________________________________________________]{"$BatP"}[`\,\mu`]T  
+
+
+
+END_PGML
+
+##############################################################
+
+ENDDOCUMENT();

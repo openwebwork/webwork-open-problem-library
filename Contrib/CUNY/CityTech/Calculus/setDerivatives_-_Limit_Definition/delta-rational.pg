@@ -1,0 +1,197 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS('calculus', '', '')
+
+## DBsubject('Calculus - single variable')
+## DBchapter('')
+## DBsection('')
+## Date('6/15/2019')
+## Author('K. Andrew Parker')
+## Institution('CityTech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "niceTables.pl",
+   "contextFraction.pl",
+   "scaffold.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Fraction");
+Context()->noreduce('(-x)-y','(-x)+y');
+# Context()->variables->add(y=>'Real');
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0,
+  tolerance=>5*10**(-10),
+  tolType=>'absolute'
+);
+
+$va = non_zero_random(-5,5,1);
+$a = $va + random(-1,1,2)*random(1,4,1);
+$n = non_zero_random(-3,3,1);
+
+$factor = Formula("x-$va")->reduce;
+$f = Formula("$n/$factor");
+$faDen = $a - $va;
+# compute and reduce f(a)
+$fa = Fraction($n,$faDen)->reduce;
+$faTeX = $fa->TeX;
+$nRed = ($fa->value)[0];
+$faDenRed = ($fa->value)[1];
+
+$dx = Formula("x - $a")->reduce;
+# calculate dy: (n/x-va) - (n/a-va)
+# (n*faden - n x + n va ) / (faden x - faden va)
+# (n*a ~~- n*va~~ - n x ~~+ n va~~ ) / ((a-va) x - (a-va) va)
+# (n*a - n x) / (faden x - faden*va)
+$na = $nRed*$a;
+$faDenVa = $faDenRed*$va;
+$dyMid = Formula("($n($faDenRed) - $nRed($factor))/($faDenRed($factor))")->reduce;
+$dy = Formula("(-$nRed x + $na)/($faDenRed x - $faDenVa)")->reduce;
+
+$dydx = Formula("$dy/$dx")->with(test_at=>[[$a]],checkUndefinedPoints=>1);
+$dydxRed = Formula("-$nRed/($faDenRed x - $faDenVa)")->reduce->with(test_at=>[[$a]],checkUndefinedPoints=>1);
+
+$slope = Fraction($dydxRed->eval(x=>$a));
+
+# graph f(x) and label (a,f(a)) & vertex
+$xMin = -10;
+$xMax = 10;
+$yMin = -10;
+$yMax = 10;
+$gr = init_graph($xMin,$yMin,$xMax,$yMax,
+  size=>[500,500],
+  grid=>[20,20],
+  axes=>[0,0]);
+add_functions($gr, "$f for x in <$xMin,$xMax> using color:blue and weight:2");
+($gr->fn)[0]->steps(300);
+$gr->stamps(closed_circle($a,$fa,'black'));
+$gr->stamps(closed_circle($h,$k,'black'));
+$hAlign = ($a>0)?'left':'right';
+$gr->lb(new Label($a,$fa,"($a,$fa)",'black',$hAlign,'bottom'));
+$vAlign = ($A>0)?'top':'bottom';
+$gr->lb(new Label($h,$k,"($h,$k)",'black','center',$vAlign));
+
+
+$approxTable = DataTable(
+[
+  [[image(insertGraph($gr), width=>300, height=>300, tex_size=>300), noencase=>1]],
+  [['f(x) = '.$f->TeX,cellcss=>'padding-bottom:10pt;']],
+  [["compute the instantaneous slope at: \(($a,$faTeX)\)",noencase=>1]],
+],
+allcellcss=>'padding: 1pt;',
+align=>'c',
+encase=>['\(','\)']);
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ### The instantaneous slope of [`f(x)`] ### <<
+>> #### when [`f(x)`] is rational #### <<
+
+[$approxTable]***
+
+END_PGML
+Scaffold::Begin();
+Section::Begin("Compute \(\Delta x\) and \(\Delta y\)");
+BEGIN_PGML
+
+[`` A: ([$a], [$fa]) ``] and [`` B: \left(x, [$f]\right) ``]
+
+so [`` \Delta x = ``] [__________]{$dx}
+
+and [`` \Delta y = ``][__________]{$dy}
+
+END_PGML
+Section::End();
+Section::Begin("Compute \(\Delta x/\Delta y\)");
+BEGIN_PGML
+
+So then, if [``\Delta x = [$dx]``] and [``\Delta y = [$f] - [$fa] = [$dyMid] = [$dy] ``]:
+
+then [``\frac{\Delta y }{\Delta x} = ``][______________________]{$dydx}
+
+_Note:_ do *NOT* reduce anything yet, that will happen in the next step.
+
+END_PGML
+Section::End();
+Section::Begin("Reduce \(\Delta x/\Delta y\)");
+BEGIN_PGML
+
+Now that we have [``\frac{\Delta y }{\Delta x} = \frac{\left([$dy]\right)}{[$dx]}``]:
+
+Rewrite [``\frac{\left([$dy]\right)}{[$dx]}``] as a multiple of [``\frac{[$dx]}{[$dx]}``]:
+
+    [``\frac{\Delta y }{\Delta x} = \Large(``][__________]{$dydxRed}[``\Large)``][``\left(\frac{[$dx]}{[$dx]}\right)``]
+
+END_PGML
+Section::End();
+Section::Begin("Finding the limit");
+BEGIN_PGML
+
+Now that we have [``\frac{\Delta y }{\Delta x} = \left([$dydxRed]\right)\left(\frac{[$dx]}{[$dx]}\right)``].
+
+And we know that [``\lim_{x \to [$a]} \left( \frac{[$dx]}{[$dx]}\right) = 1``].
+
+So compute [``\lim_{x \to [$a]}\left([$dydxRed]\right)``] to find [``\lim_{x \to [$a]} \left( \frac{\Delta y}{\Delta x} \right) = ``][__________]{$slope}
+
+END_PGML
+Section::End();
+Scaffold::End();
+##############################################################
+#
+#  Answers
+#
+#
+
+
+
+
+BEGIN_PGML_HINT
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+[`` \frac{\Delta y}{\Delta x} = \dfrac{\left([$f]\right) - ([$fa])}{[$dx]} = \dfrac{[$dy]}{[$dx]} ``]
+
+[`` \dfrac{[$dy]}{[$dx]} = \dfrac{\left([$remFactor]\right)\left([$dx]\right)}{[$dx]}``]
+
+[`` \dfrac{\left([$remFactor]\right)\left([$dx]\right)}{[$dx]} = \left([$remFactor]\right)\left(\dfrac{[$dx]}{[$dx]}\right) ``]
+
+*separately:*  
+    [`` \lim_{x \to [$a]} \left([$remFactor]\right) = [$slope] ``]  
+    [`` \lim_{x \to [$a]} \left(\dfrac{[$dx]}{[$dx]}\right) = 1``]
+
+so [`` \lim_{x \to [$a]} \left(\left([$remFactor]\right)\left(\dfrac{[$dx]}{[$dx]}\right)\right) = ([$slope])(1) = [$slope] ``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        
+

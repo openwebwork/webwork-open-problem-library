@@ -39,7 +39,7 @@ sub UNORDERED_ANS {
   #  $main::ans_rule_count, but we don't have access to that
   #
   foreach $i (1..$n)
-    {push(@params,ANS_NUM_TO_NAME($i+$main::ans_rule_count-$n),$cmp[$i-1])}
+    {push(@params,ANS_NUM_TO_NAME($i+main::ans_rule_count()-$n),$cmp[$i-1])}
   my @results = unordered_answer_list(@params);
   while (scalar(@results) > 0) {shift(@results), ANS(shift(@results))}
 }

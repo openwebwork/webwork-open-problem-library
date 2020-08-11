@@ -1,0 +1,156 @@
+# DESCRIPTION
+# Reading homework problem from Linear Algebra with Applications
+# Bretscher, 5e
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('reading homework')
+## Tagged by glr 14/9/1
+
+  ## DBsubject('Linear Algebra')
+  ## DBchapter('')
+  ## DBsection('')
+  ## Date('09/01/14')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Linear Algebra with Applications')
+## EditionText1('5')
+## AuthorText1('Bretscher')
+## Section1('7.3')
+## Problem1('1')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+"parserMultiAnswer.pl",
+);
+
+Context("Vector");
+
+## pick a matrix with two eigenvalues and a complete eigenbasis
+## this is [ a  b  0  ]
+##         [ c  a  0  ]
+##         [ 0  e  d ]
+## then eigenvalues are l1 (repeated) and l2, with eigenvectors
+## [ -l1 a-l1 0 ], [ 0 0 1 ] and [ l1(l1-l2) (a-l2)(l2-l1) e(a-l2) ]
+$a = random(1,4,1);
+$k = random(1,4,1);
+$a++ if ( $a == $k );
+$d = $k + $a;
+
+## bc = k^2
+if ( $k == 2 || $k == 4 ) {
+    $b = 2;
+    $c = $k*$k/2;
+} else {
+    if ( $k == 1 ) {
+	$b = 1;
+	$c = 1;
+    } else {  # k = 3
+	$b = 9;
+	$c = 1;
+    }
+}
+
+$l1 = $d;
+$l2 = $a - $k;
+
+@v1 = ( ColumnVector( $b, $k, 0 ), ColumnVector( 0, 0, 1 ) );
+$v2 = ColumnVector( -$b, $k, 0 );
+
+$ma = MultiAnswer( $v1[0], $v1[1] )->with(
+    singleResult => 0,
+    checker => sub {
+	my ( $c, $s, $a ) = @_;
+	($c1, $c2) = @$c;
+	($s1, $s2) = @$s;
+
+	if ( ( $c1->isParallel($s1) && $c2->isParallel($s2) ) ||
+	     ( $c1->isParallel($s2) && $c2->isParallel($s1) ) ) {
+	    return [ 1, 1 ];
+	} else {
+	    ## check that $s1 and $s2 are linearly independent
+	    ##    and both can be written as linear combinations
+	    ##    of $c1 and $c2
+	    if ( ColumnVector(0,0,0) != $s1 &&
+		 ColumnVector(0,0,0) != $s2 ) {
+		($s11, $s12, $s13) = $s1->value;
+		($s21, $s22, $s23) = $s2->value;
+		$k = 0;
+		if ( $s11 != 0 && $s21 != 0 ) {
+		    $k = $s11/$s21;
+		} elsif ( $s12 != 0 && $s22 != 0 ) {
+		    $k = $s12/$s22;
+		} elsif ( $s13 != 0 && $s23 != 0 ) {
+		    $k = $s13/$s23;
+		}
+		if ( $k && ( $s1 == $k*$s2 ) ) {
+		    ## only check one vector; the other is wrong
+		    if ( $c1->isParallel($s1) || $c2->isParallel($s1) ) {
+			return [ 1, 0 ];
+		    } else {
+			return [ 0, 0 ];
+		    }
+		} else {
+		    ## check that $s1 is a linear combination of
+		    ##    $c1 and $c2
+		    $k11 = ( $s11 != 0 ) ? $s11/$b : 0;
+		    $k12 = ( $s13 != 0 ) ? $s13 : 0;
+		    $k21 = ( $s21 != 0 ) ? $s21/$b : 0;
+		    $k22 = ( $s23 != 0 ) ? $s23 : 0;
+		    if ( $k11*$c1 + $k12*$c2 == $s1 &&
+			 $k21*$c1 + $k22*$c2 == $s2 ) {
+			return [ 1, 1 ];
+		    } else {
+			return [ 0, 0 ];
+		    }
+		}
+	    } else {
+		if ( ColumnVector(0,0,0) != $s1 &&
+		     ( $c1->isParallel( $s1 ) || $c2->isParallel( $s1 ) ) ) {
+		    return [ 1, 0 ];
+		} elsif ( ColumnVector(0,0,0) != $s2 &&
+		     ( $c1->isParallel( $s2 ) || $c2->isParallel( $s2 ) ) ) {
+		    return [ 0, 1 ];
+		} else {
+		    return [ 0, 0 ];
+		}
+	    }
+	}
+    } );
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Consider the matrix
+\( A = \begin{bmatrix} $a & $b & 0\\
+   $c & $a & 0\\
+   0 & 0 & $d \end{bmatrix} \).
+Find bases for each of the eigenspaces indicated below:$BR
+A basis for \( E_{$l1} \) is ( \{ $ma->ans_array() \},
+\{ $ma->ans_array() \}
+$BR
+A basis for \( E_{$l2} \) is ( \{ $v2->ans_array() \} ).
+
+END_TEXT
+Context()->normalStrings;
+
+sub parallel_vector_cmp {
+  my ($correct, $student, $ansHash) = @_;
+  return $correct->isParallel( $student );
+}
+
+ANS( $ma->cmp() );
+# UNORDERED_ANS( $v1[0]->cmp( checker=>~~&parallel_vector_cmp,
+# 			    showCoordinateHints => 0 ),
+# 	       $v1[1]->cmp( checker=>~~&parallel_vector_cmp,
+# 			    showCoordinateHints => 0 ) );
+ANS( $v2->cmp( checker=>~~&parallel_vector_cmp,
+	       showCoordinateHints => 0 ) );
+
+ENDDOCUMENT();

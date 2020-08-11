@@ -1,0 +1,283 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS('calculus', '', '')
+
+## DBsubject('Calculus - single variable')
+## DBchapter('')
+## DBsection('')
+## Date('6/15/2019')
+## Author('K. Andrew Parker')
+## Institution('CityTech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "niceTables.pl",
+   "PGchoicemacros.pl",
+   "parserMultiAnswer.pl",
+   "contextFraction.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Fraction");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0,
+  tolerance=>10**(-25), 
+  tolType=>'absolute');
+
+Context()->strings->add(undefined=>{alias=>"DNE"},undef=>{alias=>"DNE"});
+
+Context()->noreduce('(-x)-y','(-x)+y');
+
+# this is where our piecewise function "splits"
+$a = non_zero_random(-6,1,1);
+$b = non_zero_random($a+2,max($a+8,6),1);
+
+# enable choice of left- or right- continuity
+# usage: $ineq{l/r/n}{lo/hi}
+%ineq = (
+  l=>{lo=>'\leq',mlo=>'\geq',hi=>'>',mhi=>'<'},
+  r=>{lo=>'<',mlo=>'>',hi=>'\geq',mhi=>'\leq'},
+  n=>{lo=>'<',hi=>'>'}
+);
+
+# any combination could happen - analyze ;)
+# randomly include f(a) on the left or right
+$LRa = random(0,1,1) ? "l" : "r";
+$LRb = random(0,1,1) ? "r" : "l";
+# randomly decide whether the limit @ x=a exists
+$limExistsa = random(0,1,1) ? 1 : 0;
+$limExistsb = random(0,1,1) ? 0 : 1;
+
+$multiChecker = sub {
+  my ($correct, $student, $ansHash) = @_;
+  my ($yStu, $leftStu, $rightStu, $limStu) = @{$student};
+  my ($yCor, $leftCor, $rightCor, $limCor) = @{$correct};
+  
+  if (Value::isReal($limStu)) { 
+    $consistent = ($leftStu == $rightStu) ? 1 : 0;
+  } else {
+    $consistent = ($leftStu == $rightStu) ? 0 : 1;
+  }
+  $ansHash->setMessage(1,"\(f($a)\) is the y-coordinate of \(f\) when \(x = $a\).") unless ($yStu == $yCor);
+  $ansHash->setMessage(2,"\(\displaystyle \lim_{x \to $a^-} f(x)\) indicates that we should only consider \(x < $a\). <BR> In other words, look only on the *left* side of \(x = $a\).") if ($leftStu != $leftCor && $leftStu == $rightCor);
+  $ansHash->setMessage(3,"\(\displaystyle \lim_{x \to $a^+} f(x)\) indicates that we should only consider \(x > $a\). <BR> In other words, look only on the *right* side of \(x = $a\).") if ($rightStu != $rightCor && $rightStu == $leftCor);
+  $ansHash->setMessage(4,"The two-sided limit only exists when the left-sided and right-sided limits are equal.") if ($limStu != $limCor && $consistent == 0);
+  return [ $yStu==$yCor, $leftStu==$leftCor, $rightStu==$rightCor, $limStu==$limCor ];
+};
+
+# start with the middle segment $a < x < $b
+# keep the intercept nice
+$bMid = non_zero_random(-3,3,1);
+$bMidAbs = abs($bMid); # because fractions always cause this nonsense
+# keep the values at x=$a and x=$b nice also
+if (gcf(abs($a),abs($b))==1) {
+  $mMid = non_zero_random(-2,2,1);
+} else {
+  $mMidDen = gcf(abs($a),abs($b));
+  $mMidNum = random(-1,1,2)*random(1,$mMidDen-1,1); #at worst +/- 1/2
+  $mMid = Fraction($mMidNum,$mMidDen)->reduce;
+}
+
+# can't use ->reduce because of fractions
+$fMid = ($bMid > 0) ? 
+  Formula("$mMid x + $bMid") : Formula("$mMid x - $bMidAbs");
+$fMidTeX = $fMid->TeX;
+
+$aLimRight = $fMid->eval(x=>$a);
+$bLimLeft = $fMid->eval(x=>$b);
+
+# move on to the outer rays
+# start with the endpoint and build around that
+if ($limExistsa) {
+  $aLimLeft = $aLim = $aLimRight;
+} else {
+  do { $aLimLeft = non_zero_random(-5,5,1); } until ($aLimLeft != $aLimRight);
+  $aLim = String("DNE")->with(matchType=>$aLimLeft);
+}
+$mLeftDen = abs($a);
+if ($mLeftDen == 1) {
+  $mLeft = $mLeftNum = non_zero_random(-3,3,1);
+} else {
+  $mLeftNum = random(-1,1,2)*random(1,$mLeftDen-1,1);
+  $mLeft = Fraction($mLeftNum,$mLeftDen);
+}
+# now we have m and (a, aLim) so aLim - m*a : but fractions croak
+# but if we did it right, this is integer
+$bLeft = $aLimLeft - $mLeftNum*$a/$mLeftDen;
+$bLeftAbs = abs($bLeft);
+$fLeft = ($bLeft>0) ? Formula("$mLeft x + $bLeft") : Formula("$mLeft x - $bLeftAbs");
+$fLeftTeX = $fLeft->TeX;
+
+# now the right ray
+if ($limExistsb) {
+  $bLimRight = $bLim = $bLimLeft;
+} else {
+  do { $bLimRight = non_zero_random(-5,5,1); } until ($bLimLeft != $bLimRight);
+  $bLim = String("DNE")->with(matchType=>$bLimLeft);
+}
+$mRightDen = abs($b);
+if ($mRightDen == 1) {
+  $mRight = $mRightNum = non_zero_random(-3,3,1);
+} else {
+  $mRightNum = random(-1,1,2)*random(1,$mRightDen-1,1);
+  $mRight = Fraction($mRightNum,$mRightDen);
+}
+# now we have m and (a, aLim) so aLim - m*a : but fractions croak
+# but if we did it right, this is integer
+$bRight = $bLimRight - $mRightNum*$b/$mRightDen;
+$bRightAbs = abs($bRight);
+$fRight = ($bRight>0) ? Formula("$mRight x + $bRight") : Formula("$mRight x - $bRightAbs");
+$fRightTeX = $fRight->TeX;
+
+# choose an f(a||b) to match left or right - randomized earlier: $LRa||b
+$ya = ($LRa eq "l") ? $aLimLeft : $aLimRight;
+$yb = ($LRb eq "l") ? $bLimLeft : $bLimRight;
+
+$fTex = "\left\{
+        \begin{array}{ll}
+            $fLeftTeX,  & \quad x $ineq{$LRa}{lo} $a \\
+            $fMidTeX,   & \quad $a $ineq{$LRa}{mhi} x $ineq{$LRb}{lo} $b \\
+            $fRightTeX, & \quad x $ineq{$LRb}{hi} $b
+        \end{array}
+    \right.";
+
+$multiAnsa = MultiAnswer($ya, $aLimLeft, $aLimRight, $aLim)->with(
+    singleResult=>1, 
+    checkTypes=>0, 
+    checker=>$multiChecker, 
+    tex_format=>"{\displaystyle \begin{align}
+      f($a) & = %s \\ 
+      \lim_{x \to $a^-} f(x) & = %s \\
+      \lim_{x \to $a^+} f(x) & = %s \\
+      \lim_{x \to $a} f(x) & = %s
+    \end{align}}"); 
+# use tex_format because manually settting correct_ans_latex_string 
+# does not work for MultiAns singleResult.
+
+$multiAnsb = MultiAnswer($yb, $bLimLeft, $bLimRight, $bLim)->with(
+    singleResult=>1, 
+    checkTypes=>0, 
+    checker=>$multiChecker, 
+    tex_format=>"{\displaystyle \begin{align}
+      f($b) & = %s \\ 
+      \lim_{x \to $b^-} f(x) & = %s \\
+      \lim_{x \to $b^+} f(x) & = %s \\
+      \lim_{x \to $b} f(x) & = %s
+    \end{align}}"); 
+
+$table = DataTable(
+  [
+    [["\(f(x) = $fTex\)",colspan=>4,halign=>'c',cellcss=>'padding-bottom:15pt;border-bottom:3px double black;']],
+    [["\(\displaystyle f($a) =\)",cellcss=>'padding-right:2pt;'], [$multiAnsa->ans_rule(5),cellcss=>'padding-left:2pt;padding-right:20pt;'],
+      ["\(\displaystyle f($b) =\)",cellcss=>'padding-right:2pt;'], [$multiAnsb->ans_rule(5),cellcss=>'padding-left:2pt;']],
+    [["\(\displaystyle \lim_{x \to $a^-} f(x) =\)",cellcss=>'padding-right:2pt;'], [$multiAnsa->ans_rule(5),cellcss=>'padding-left:2pt;'],
+      ["\(\displaystyle \lim_{x \to $b^-} f(x) =\)",cellcss=>'padding-right:2pt;padding-left:20pt;'], [$multiAnsb->ans_rule(5),cellcss=>'padding-left:2pt;']],
+    [["\(\displaystyle \lim_{x \to $a^+} f(x) =\)",cellcss=>'padding-right:2pt;'], [$multiAnsa->ans_rule(5),cellcss=>'padding-left:2pt;'],
+      ["\(\displaystyle \lim_{x \to $b^+} f(x) =\)",cellcss=>'padding-right:2pt;'], [$multiAnsb->ans_rule(5),cellcss=>'padding-left:2pt;']],
+    [["\(\displaystyle \lim_{x \to $a} f(x) =\)",cellcss=>'padding-right:2pt;'], [$multiAnsa->ans_rule(5),cellcss=>'padding-left:2pt;'],
+      ["\(\displaystyle \lim_{x \to $b} f(x) =\)",cellcss=>'padding-right:2pt;'], [$multiAnsb->ans_rule(5),cellcss=>'padding-left:2pt;']]
+  ],
+  align=>'r l | r l',
+  allcellcss=>'padding-top:2pt;padding-bottom:2pt;',
+  midrules=>0
+);
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ### One-sided Limits ### <<
+
+
+When we evaluate [`\color{blue}{\displaystyle \lim_{x \to a} f(x)}`], we consider values of [`x`] approaching [`a`] from *both* sides.
+
+This time we are focusing on the fact that the limit can exist from each side separately. 
+
+* The limit as [`x`] approaches [`a`] from the *left* _only_ is denoted by  [`\color{red}{\displaystyle \lim_{x \to a^-} f(x)}`].  
+
+* Similarly, the limit as [`x`] approaches [`a`] from the *right* _only_ is denoted by [`\color{green}{\displaystyle \lim_{x \to a^+} f(x)}`]. 
+
+It turns out that if both [`\color{red}{\displaystyle \lim_{x \to a^-} f(x)}`] and 
+[`\color{green}{\displaystyle \lim_{x \to a^+} f(x)}`] exist and are equal, then [`\color{blue}{\displaystyle \lim_{x \to a} f(x)}`] exists and takes the same value. Conversely, if [`\color{blue}{\displaystyle \lim_{x \to a} f(x)}`] exists, then the one-sided limits also exist and the three limits are the same:
+>> [`\color{red}{\displaystyle \lim_{x \to a^-} f(x)} = \color{green}{\displaystyle \lim_{x \to a^+} f(x)}= \color{blue}{\displaystyle \lim_{x \to a} f(x)}.`] <<
+
+The behavior of the function _around_ [`a`] can be analyzed through these three limits. Recall that in the definition of a limit the value [`x=a`] is *not* included. So a fourth value that will be key for us to analyze the function around [`a`] is [`\color{purple}{f(a)}`]. What happens if we compare all four values? 
+
+
+
+>> ### Practice ### <<
+
+
+Use the given equation to determine the value of each expression below:
+
+[@ $table @]***
+
+* all answers should be given as numbers
+* if a result does not exist, respond with "DNE" or "undefined"
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($multiAnsa->cmp);
+ANS($multiAnsb->cmp);
+
+BEGIN_PGML_HINT
+
+* The function [`f(x)`] is piecewise.  There are three formulas that define 
+[`f(x)`] depending on whether [`\color{brown}{x [$ineq{$LRa}{lo}] [$a]}`] or [`\color{orange}{[$a] [$ineq{$LRa}{mhi}] x [$ineq{$LRb}{lo}] [$b]}`] or [`\color{purple}{x [$ineq{$LRb}{hi}] [$b]}`]. 
+
+ [`\qquad\qquad \star`] If [`\color{brown}{x [$ineq{$LRa}{lo}] [$a]}`], then [`\color{brown}{f(x) = \displaystyle[$fLeftTeX]}`].
+ 
+ [`\qquad\qquad \star`] If [`\color{orange}{[$a] [$ineq{$LRa}{mhi}] x [$ineq{$LRb}{lo}] [$b]}`], then [`\color{orange}{f(x) =\displaystyle [$fMidTeX]}`]. 
+ 
+  [`\qquad\qquad\star`] If [`\color{purple}{x [$ineq{$LRb}{hi}] [$b]}`], then [`\color{purple}{f(x) = [$fRightTeX]}`].
+  
+* Which inequality does [`x=[$a]`] satisfy:
+
+>>[`\color{brown}{x [$ineq{$LRa}{lo}] [$a]}\quad`] or [`\quad \color{orange}{[$a] [$ineq{$LRa}{mhi}] x [$ineq{$LRb}{lo}] [$b]}\quad `] or [`\quad \color{purple}{x [$ineq{$LRb}{hi}] [$b]}`]? <<
+Use the corresponding formula for [`f(x)`] to find  [`\color{magenta}{f([$a])}`].
+* For the left-hand limit, [`\color{red}{\displaystyle\lim_{x\to [$a]^-} f(x)}`], [`x`] approaches [`[$a]`] from the left and so [`x<[$a]`]. In this case, what is [`f(x)`]? 
+* For the right-hand limit, [`\color{green}{\displaystyle\lim_{x\to [$a]^+} f(x)}`],  [`x`] approaches [`[$a]`] from the right and so [`x>[$a]`]. In this case, what is [`f(x)`]? 
+* If the one-sided limits are the same,   then 
+
+>>[`\color{blue}{\displaystyle\lim_{x\to [$a]} f(x)}= \color{red}{\displaystyle\lim_{x\to [$a]^-} f(x)} = \color{green}{\displaystyle\lim_{x\to [$a]^+} f(x)} `]. <<
+
+END_PGML_HINT
+
+# note: the graphs have been shuffled, so the parameters won't match the problems (unless you apply shuffle to them also)
+# example (there is not really an array called @parameter):
+# @parameter = @parameter[@shuffle];
+BEGIN_PGML_SOLUTION
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

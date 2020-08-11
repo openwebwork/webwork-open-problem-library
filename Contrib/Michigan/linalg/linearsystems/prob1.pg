@@ -1,0 +1,147 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Systems of linear equations)
+## DBsection(Solving systems with free variables)
+## Date(August 2015)
+## Institution(University of Michigan)
+## Author(David Sher)
+## TitleText1('Linear Algebra with Applications')
+## AuthorText1('Otto Bretscher')
+## EditionText1('5')
+## Section1('1.2')
+
+## New problem for section 1.2
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"parserVectorUtils.pl",
+);
+
+Context('Matrix');
+
+$variablenames=Matrix->new_from_array_ref( [['w'],['x'],['y'],['z']] );
+
+$c=non_zero_random(-7,7,1);
+$b=non_zero_random(-7,7,1);
+$d=non_zero_random(2,3,1);
+$e=non_zero_random(-5,5,1);
+$f=non_zero_random(-5,5,1);
+$g=non_zero_random(-3,3,1);
+$h=non_zero_random(-3,3,1);
+$k=non_zero_random(2,3,1);
+$a11=1;
+$a12=$e;
+$a13=$c;
+$a14=$b+$d*$e;
+$a22=$f+$e*$g;
+$a23=$c*$g;
+$a24=$d*$f+$g*$b+$g*$d*$e;
+$b1=$h+$e*$k;
+$b2=$f*$k+$h*$g+$e*$g*$k;
+
+$A1=Matrix->new_from_array_ref([[$a11, $a12, $a13, $a14],[$g, $a22, $a23, $a24]]);
+$B1=Matrix->new_from_array_ref([[$b1], [$b2]]);
+$C1=Mat2System($A1,$B1,$variablenames);
+
+$v1=ColumnVector($h,$k,0,0);
+$v2=ColumnVector(-$c,0,1,0);
+$v3=ColumnVector(-$b,-$d,0,1);
+
+$c1=ColumnVector(1,0,$c,$b);
+$c2=ColumnVector(0,1,0,$d);
+
+$vecChecker = MultiAnswer( $v1, $v2, $v3 )->with(
+    singleResult => 1,
+    checker => sub {
+	my ( $cor, $stu, $ans ) = @_;
+	@c = @{$cor};
+	@s = @{$stu};
+
+        if ((($s[0] . $c1)!=$h)||(($s[0] . $c2)!=$k)) {
+        return 0;
+        }
+        if ((($s[1] . $c1)!=0)||(($s[1] . $c2)!=0)||(($s[1] . $s[1])==0)) {
+        return 0;
+        }
+        if ((($s[2] . $c1)!=0)||(($s[2] . $c2)!=0)||(($s[2] . $s[2])==0)|| ($s[2]->isParallel($s[1]))) {
+        return 0;
+        }
+        return 1;
+} );
+
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+BEGIN_TEXT
+
+The solution set of the linear system
+$BR
+$BR
+\( $C1 \) 
+$BR
+$BR
+may be written as {\(\vec v_1+s\vec v_2+t\vec v_3: s,t\in\mathbb R\)} for some vectors \(\vec v_1\), \(\vec v_2\), and \(\vec v_3\in\mathbb R^4\). Find \(\vec v_1\), \(\vec v_2\), and \(\vec v_3\).
+$BR
+\(\vec v_1=\) \{ $vecChecker->ans_array() \}; 
+\(\vec v_2=\) \{ $vecChecker->ans_array() \}; 
+\(\vec v_3=\) \{ $vecChecker->ans_array() \};
+
+END_TEXT
+
+sub Mat2System{
+    my $coeffs=shift();
+    my $vec = shift();
+    my $vname=shift();
+    my ($srow,$scol) = $coeffs->dim();
+    my ($vrow,$vcol) = $vec->dim();
+    my ($vnamerow,$vnamecol) = $vname->dim();
+    my $outstr="\left\lbrace\begin{array}";
+    my $s;
+
+$outstr = $outstr . '{r';
+for(my $j=0; $j<$scol; $j++){
+   $outstr = $outstr . 'rr';
+}
+$outstr = $outstr . 'r}';
+
+for(my $j=0;$j<$srow;$j++){ 
+     $s=0; 
+for(my $i=0,my $vn=1;$i<$scol;$i++,$vn++){ 
+my $varname=$vname->element($vn,1);
+my $a=$coeffs->element($j+1,$i+1); 
+if($a==0){ 
+## if coefficient is 0 then goto the next column by putting 2 &&'s
+$outstr = $outstr . '&&'; 
+}elsif($a>0){ 
+if($a==1){$a="";} 
+if($s==0){$outstr = $outstr . "& $a \,$varname";$s=1;
+} else{$outstr=$outstr . "&+& $a \, $varname";} 
+}else{ 
+if($s == 1){ 
+$a=-$a; 
+if($a==1){$a="";} 
+$outstr= $outstr . "&- &$a \,$varname"; 
+}else{
+if($a==-1){$a="-";}
+$outstr = $outstr . "& $a \, $varname";$s=1;}
+ } 
+} 
+$outstr = $outstr . "&=&" . $vec->element($j+1,1). "\\"; 
+} 
+$outstr= $outstr . ' \end{array}\right.'; 
+return $outstr; }
+
+ANS( $vecChecker->cmp() );
+
+ENDDOCUMENT();       # This should be the last executable line in the problem.

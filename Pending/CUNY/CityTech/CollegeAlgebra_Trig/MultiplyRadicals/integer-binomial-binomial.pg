@@ -1,0 +1,199 @@
+##DESCRIPTION
+##  Algebra problem: Multiply radical expressions
+##ENDDESCRIPTION
+
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'radical', 'radicals', 'radical expression')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextLimitedPowers.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+   # code essentially from Davide Cervone 4/25/10
+    ###########################
+    #
+    # Subclass the numeric functions
+    #
+    package my::Function::numeric;
+    our @ISA = ('Parser::Function::numeric');
+
+    #
+    # Override sqrt() to return a special value (usually 1) when evaluated
+    # effectively eliminating it from the product.
+    #
+    sub sqrt {
+      my $self = shift;
+      my $value = $self->context->flag("setSqrt");
+ 
+ return $value+2 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+      return $value if $value;
+      return $self->SUPER::sqrt(@_);
+    }
+
+    #
+    # end of subclass
+    #
+package main;
+
+Context("Numeric")->flags->set(
+  reduceConstants=>0, 
+  reduceConstantFunctions=>0
+);
+    #
+    # make sqrt() use our subclass
+    #
+    Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+    Context()->flags->set(reduceConstantFunctions=>0);
+    #
+   #
+    # Don't allow fractional powers (avoids 1/2 power)
+    # [Could subclass exponentiation to handle that as well]
+    #
+    LimitedPowers::OnlyPositiveIntegers();
+
+$reducedSqrt = sub  {
+      my ($correct,$student,$ans) = @_;
+      return 0 if $ans->{isPreview} || $correct != $student;
+      #
+      #  Get parsed formula for student and correct answers
+      #
+      $student = $ans->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      #
+      # check if equal when sqrt's are replaced by 1
+      #
+      Context()->flags->set(setSqrt => 1);
+      delete $correct->{test_values}, $student->{test_values};
+      my $OK = ($correct == $student);
+      Context()->flags->set(setSqrt => 0);
+      #
+      Value::Error("Your answer is not completely simplified.") unless $OK;
+      return $OK;
+    };
+
+$p1 = list_random(2,3,5,7);
+ do { $p2 = list_random(2,3,5,7); } until ( $p1 != $p2 );
+
+$p12 = $p1*$p2;
+
+$c1 = random(2,6,1);
+$c2 = random(2,6,1);
+$c = $c1*$c2; # for solutions
+$cp2 = $c*$p2; # for solutions
+$c1p2 = $c1*$p2; # for solutions
+$c2p12 = $c2*$p12; # for solutions
+
+$fac1 = Formula("sqrt($p12) + $c1 sqrt($p2)");
+$fac2 = Formula("$c2 sqrt($p12) - sqrt($p2)");
+
+$a = $c2 * $p12 - $c1 * $p2; # integral component
+$b = ($c1 * $c2 - 1) * $p2;     # irrational component
+
+$ans = ($a != 0) ? Formula("$a + $b sqrt($p1)") : Formula("$b sqrt($p1)");
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Multiply the radical expression and reduce your answer.
+$BR
+Do not use rational exponents. Use "sqrt(...)" instead.
+$PAR
+\[ \large{ \left($fac1\right) \left($fac2\right) } \]
+$PAR
+\{ ans_rule(10) \}
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS( $ans->cmp );
+
+Context()->texStrings;
+BEGIN_HINT
+
+Use the distributive property.
+$PAR
+Simplify your radicals.
+$PAR
+Make sure you're not trying to combine terms that don't have a common radical.
+
+END_HINT
+BEGIN_SOLUTION
+
+$BBOLD Distribute: $EBOLD $BR
+\( \displaystyle \left($fac1\right) \left( $fac2 \right) = \sqrt{$p12} \cdot $c2 \sqrt{$p12} - \sqrt{$p12} \cdot \sqrt{$p2} + $c1 \sqrt{$p2} \cdot $c2 \sqrt{$p12} - $c1 \sqrt{$p2} \cdot \sqrt{$p2} \)
+$PAR
+$BBOLD Simplify each product: $EBOLD $PAR
+$BITALIC First: $EITALIC $BR
+\( \displaystyle \sqrt{$p12} \cdot $c2 \sqrt{$p12} = $c2 \cdot $p12 = $c2p12 \)
+$PAR
+$BITALIC Outer: $EITALIC $BR
+\( \displaystyle \sqrt{$p12} \cdot -\sqrt{$p2} = \sqrt{$p1} \sqrt{$p2} \cdot -\sqrt{$p2} \)
+$BR
+\( \displaystyle \sqrt{$p1} \sqrt{$p2} \cdot -\sqrt{$p2} = \sqrt{$p1}(-$p2) = -$p2 \sqrt{$p1} \)
+$PAR
+$BITALIC Inner: $EITALIC $BR
+\( \displaystyle $c1 \sqrt{$p2} \cdot $c2 \sqrt{$p12} = $c1 \sqrt{$p2} \cdot $c2 \sqrt{$p1} \sqrt{$p2} \)
+$BR
+\( \displaystyle $c1 \sqrt{$p2} \cdot $c2 \sqrt{$p1} \sqrt{$p2} = $c \sqrt{$p2} \sqrt{$p2} \sqrt{$p1} \)
+$BR
+\( \displaystyle $c \sqrt{$p2} \sqrt{$p2} \sqrt{$p1} = $c \cdot $p2 \sqrt{$p1} \)
+$BR
+\( \displaystyle $c \cdot $p2 \sqrt{$p1} = $cp2 \sqrt{$p1} \)
+$PAR
+$BITALIC Last: $EITALIC $BR
+\( \displaystyle $c1 \sqrt{$p2} \cdot -\sqrt{$p2} = $c1 \cdot -$p2 = -$c1p2 \)
+$PAR
+$BBOLD Bring our simplified terms back together: $EBOLD $BR
+\( \displaystyle \left($fac1\right) \left( $fac2 \right) = $c2p12 - $p2 \sqrt{$p1} + $cp2 \sqrt{$p1} - $c1p2 \)
+$PAR
+$BBOLD Combine like terms: $EBOLD $BR
+\( \displaystyle $c2p12 - $p2 \sqrt{$p1} + $cp2 \sqrt{$p1} - $c1p2  = $c2p12 - $c1p2 + $cp2 \sqrt{$p1} - $p2 \sqrt{$p1} \)
+$BR
+\( \displaystyle \left($c2p12 - $c1p2\right) + \left($cp2 \sqrt{$p1} - $p2 \sqrt{$p1}\right) = $a + ($cp2 - $p2)\sqrt{$p1} \)
+$BR
+\( \displaystyle $a + ($cp2 - $p2)\sqrt{$p1} = $ans \)
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

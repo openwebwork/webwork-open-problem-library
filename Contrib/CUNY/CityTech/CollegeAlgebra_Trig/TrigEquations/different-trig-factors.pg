@@ -1,0 +1,185 @@
+##DESCRIPTION
+##  Trigonometry problem: Solve a trig equation
+##ENDDESCRIPTION
+
+##KEYWORDS('trigonometry', 'trig functions', 'trigonometric functions', 'analytic trigonometry', 'trigonometric equation')
+
+## DBsubject(Trigonometry)
+## DBchapter(Analytic trigonometry)
+## DBsection(Solving trigonometric equations exactly)
+## Level(2)
+## Author(K. Andrew Parker)
+## Institution(CUNY City Tech)
+## Language(en)
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0
+);
+
+Parser::Number::NoDecimals();
+Context()->{error}{msg}{"You are not allowed to type decimal numbers in this problem"} 
+  = "Please state your answer in radians, using fractions of 'pi' rather than decimal approximations.";
+
+
+%unit = (
+  6 => {
+    x => Formula("sqrt(3)/2"),
+    nx => Formula("-sqrt(3)/2"),
+    y => Formula("1/2"),
+    ny => Formula("-1/2"),
+    t => Formula("1/sqrt(3)"),
+    nt => Formula("-1/sqrt(3)"),
+  },
+  3 => {
+    x => Formula("1/2"),
+    nx => Formula("-1/2"),
+    y => Formula("sqrt(3)/2"),
+    ny => Formula("-sqrt(3)/2"),
+    t => Formula("sqrt(3)/1"),
+    nt => Formula("-sqrt(3)/1")
+  },
+  4 => {
+    x => Formula("sqrt(2)/2"),
+    nx => Formula("-sqrt(2)/2"),
+    y => Formula("sqrt(2)/2"),
+    ny => Formula("-sqrt(2)/2"),
+    t => Formula("1/1"),
+    nt => Formula("-1/1")
+  }
+);
+
+# choose reference angle and generate necessary secondary numerators
+$denom = list_random(3,4,6);
+$dminus1 = $denom-1;
+$dplus1 = $denom+1;
+$twodminus1 = 2*$denom-1;
+
+# requires definition of $denom and $dminus1
+%principal = (
+  sin => {
+    1 => Formula("pi/$denom"),
+    0 => Formula("$twodminus1 pi/$denom"),
+  },
+  cos => {
+    1 => Formula("pi/$denom"),
+    0 => Formula("$dminus1 pi/$denom"),
+  },
+  tan => {
+    1 => Formula("pi/$denom"),
+    0 => Formula("$dminus1 pi/$denom"),
+  }
+);
+
+%secondary = (
+  sin => {
+    1 => Formula("$dminus1 pi/$denom"),
+    0 => Formula("$dplus1 pi/$denom"),
+  },
+  cos => {
+    1 => Formula("$twodminus1 pi/$denom"),
+    0 => Formula("$dplus1 pi/$denom"),
+  },
+  tan => {
+    1 => Formula("$dplus1 pi/$denom"),
+    0 => Formula("$twodminus1 pi/$denom"),
+  }
+);
+
+@select = ( [ '0', 'y', 'y', 'ny', 'ny' ],
+  [ 'x', 'x', 'nx', 'nx', 'x' ],
+  [ '0', 't', 'nt', 't', 'nt' ] 
+);
+
+### Randomly select quadrant and trig function to use
+$quad = random(1,4,1);
+@trig = ("sin","cos","tan");
+$function = random(0,2,1);
+### Select a second trig function as common factor = 0
+# to avoid reduction-confusion, we don't pair cosine and tangent
+$function2 = ( $function == 0 ) ? random(1,2,1) : 0;
+
+### Generate a hash key for retrieving result from unit circle hash
+$hashKey = $select[$function][$quad];
+
+### Pull the proper ratio from the unit circle hash and generate coefficients
+$ratio = Formula("$unit{$denom}{$hashKey}");
+$hashKey =~ tr/n//d;
+$absRatio = Formula("$unit{$denom}{$hashKey}");
+$A = Formula($absRatio->{tree}{rop});
+$B = Formula($absRatio->{tree}{lop});
+
+$LHS = ($A == 1) ? Formula("$trig[$function](x)") : Formula("$A $trig[$function](x)");
+$LHS = Formula("$LHS $trig[$function2](x)");
+if ($ratio < 0) { 
+  $LHS = ($B == 1) ? Formula("$LHS + $trig[$function2](x)") : Formula("$LHS + $B $trig[$function2](x)");
+  } else {
+  $LHS = ($B == 1) ? Formula("$LHS - $trig[$function2](x)") : Formula("$LHS - $B $trig[$function2](x)");
+};
+$RHS = Formula("0");
+
+$isPos = ($ratio > 0) ? 1 : 0;
+$ans1 = Formula("$principal{$trig[$function]}{$isPos}");
+$ans2 = Formula("$secondary{$trig[$function]}{$isPos}");
+$ans3 = ($function2 == 1) ? Formula("pi/2") : Formula("0");
+$ans4 = ($function2 == 1) ? Formula("3 pi / 2") : Formula("pi");
+$ans = List( $ans1, $ans2, $ans3, $ans4 );
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Find the all solutions of this equation in the interval [` [0, 2\pi) `]:
+
+>> [` [$LHS] = [$RHS] `] <<
+
+x = [__________]{$ans}
+
+* Give your answers in radians.
+
+* Do not use decimal approximations. Use 'pi' to represent [` \pi `].
+
+* Use commas to separate your answers.
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+Remember that because trigonometric functions are periodic, they can have an infinite number of solutions to a given equation. 
+
+In this problem, you are being asked to provide only those solutions that occur between [`0`] and [`2\pi`]. You can think of it like this:
+
+[` [0,2\pi) `] defines our unit circle, and selecting a value for sine or cosine defines either a horizontal or vertical line to pass through our unit circle. As long as that line is not tangent to our unit circle, then it will intersect the circle twice. Each intersection gives us a point, and those two points each correspond to an angle between [` 0 `] and [` 2\pi `].
+
+
+END_PGML_HINT
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

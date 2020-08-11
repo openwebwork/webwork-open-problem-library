@@ -1,0 +1,139 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a function's graph, find where the function 
+# is concave-up/down.
+#
+# Last update: Carl Yao 03/31/2018
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Function')
+## DBsection('Domain and Range')
+## KEYWORDS('function','domain','range','graph')
+## DBCCSS('8.F','F-IF')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+$refreshCachedImages=1;
+
+do {
+   $a = random(0.01,0.05,0.01)*random(-1,1,2);
+   $x1 = random(-4,-2,1);
+   do {$x2 = random(2,4,1);} until (abs($x1)!=abs($x2));
+   $func = Compute("$a/12*x**4-$a*($x1+$x2)/6*x**3+$a/2*$x1*$x2*x**2")->reduce;
+   $y1 = $func->eval(x=>$x1);
+   $y2 = $func->eval(x=>$x2);
+   $o = $a/3;
+   $p = -$a*($x1+$x2)/2;
+   $q = $a*$x1*$x2;
+   $d = ($p)**2-4*$o*$q;
+   $x3 = (-$p+sqrt($d))/(2*$o);
+   $x4 = (-$p-sqrt($d))/(2*$o);
+   $y3 = $func->eval(x=>$x3);
+   $y4 = $func->eval(x=>$x4);
+} until ( (abs($y1)<10) && (abs($y2)<10) && (abs($y3)<10) && (abs($y4)<10) );
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([2*$x1,2*$x2],[$y1,$y2,0,$y3,$y4],centerOrigin=>0);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+for my $i (0..0) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+
+   $leftBound = $min[0]-1;
+   $rightBound = $max[0]+1;
+
+   add_functions($gr[$i], "$func for x in ($leftBound,$rightBound) using color:blue and weight:1");
+   
+   $gr[$i]->stamps( closed_circle($x1,$y1,'blue') );
+   $gr[$i]->stamps( closed_circle($x2,$y2,'blue') );
+   $gr[$i]->stamps( closed_circle($x3,$y3,'blue') );
+   $gr[$i]->stamps( closed_circle($x4,$y4,'blue') );
+   $gr[$i]->stamps( closed_circle(0,0,'blue') );
+}
+
+Context("Interval");
+
+if ($a>0) {
+   $ALT = "This is a graph of a function starting at the top left, going down till the point ($x4,$y4), turning up to the inflection point ($x1,$y1), continuing up till the point (0,0), turning down to the inflection point ($x2,$y2), continuing down till the point ($x3,$y3), and finally turning up to the top right.";
+   $ansDown = Compute("($x1,$x2)");
+   $ansUp = Compute("(-inf,$x1)U($x2,inf)");
+} else {
+   $ALT = "This is a graph of a function starting at the bottom left, going up till the point ($x4,$y4), turning down to the inflection point ($x1,$y1), continuing down till the point (0,0), turning up to the inflection point ($x2,$y2), continuing up till the point ($x3,$y3), and finally turning down to the bottom right.";
+   $ansUp = Compute("($x1,$x2)");
+   $ansDown = Compute("(-inf,$x1)U($x2,inf)");
+}
+
+
+##############################################
+Context("LimitedNumeric");
+BEGIN_PGML
+
+A function's graph is shown below. A few points are highlighted for your reference.
+
+[@EnlargeImageStatementPGML()@]**
+
+>>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
+
+[@KeyboardInstructions('If the answer includes more than one interval write the intervals separated by the union symbol, which you can type as [|U|]*. If the answer uses [`\infty`], you may type it as [|inf|]*.')@]**
+
+The function is concave-up in the interval [_____________________]{$ansUp}.
+
+The function is concave-down in the interval [_____________________]{$ansDown}.
+
+END_PGML
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+The function is concave-up in the interval [`[$ansUp]`].
+
+The function is concave-down in the interval [`[$ansDown]`].
+
+We always use open intervals when we identify where a function is concave-up or concave-down.
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();

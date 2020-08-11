@@ -1,0 +1,134 @@
+# WeBWorK problem written by Alex Jordan
+# Portland Community College
+#
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('function','table','graph')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextRationalFunction.pl",
+  "PCCmacros.pl",
+  "contextFraction.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+
+);
+
+##############################################
+
+TEXT(&beginproblem);
+
+$showPartialCorrectAnswers = 1;
+
+
+
+
+$d = list_random(11, 13, 17, 19, 23);
+do {$a = random(6,22);} until $d - $a > 0 && $d - $a < 6; 
+# make sure the answers a + b and c + b are relatively prime
+$b=$d - $a;
+$c = random(2,4);
+
+$f = RandomVariableName(type=>'function');
+
+Context("Fraction");
+$s = Fraction($c-$a,$c+$b);
+($sa, $sb) = $s->value;
+$sign = ($sa/abs($sa) == 1) ? '-' : '+';
+$sa = abs($sa);
+
+Context("RationalFunction");
+Parser::Number::NoDecimals();
+Context()->operators->set(
+'+' => {class => 'bizarro::BOP::add', isCommand => 1},
+'-' => {class => 'bizarro::BOP::subtract', isCommand => 1},
+'*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'**' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+'^' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+);
+
+$t = Compute("-$a*$sb$sign$sa*$b");
+$apb = $a+$b;
+$cpb = $c+$b;
+
+$ans = Formula("$apb/($cpb(x+$b))")->reduce;
+
+##############################################
+
+BEGIN_PGML
+
+Consider the function [`[$f]`] defined by [`\displaystyle [$f](x) = \frac{x-[$a]}{x+[$b]}`].
+Evaluate and simplify the expression [`\displaystyle\frac{[$f](x)-[$f]([$c])}{x-[$c]}`].
+
+
+    [`\displaystyle \frac{[$f](x)-[$f]([$c])}{x-[$c]} ={}`][___________________________________________]
+
+END_PGML
+
+##############################################
+
+ANS($ans -> cmp(
+checker=>sub{
+my ( $correct, $student, $ansHash ) = @_;
+return 0 if $ansHash->{isPreview} || $correct != $student;
+$student = $ansHash->{student_formula};
+$correct = $correct->{original_formula} if defined $correct->{original_formula};
+$student = Formula("$student"); $correct = Formula("$correct");
+return 0 unless ($correct == $student);
+Context()->flags->set(bizarroDiv =>1 );
+delete $correct->{test_values}, $student->{test_values};
+my $OK = (($correct == $student) or ($student == $correct));
+Context()->flags->set(bizarroDiv =>0);
+Value::Error("Your answer is correct so far, but please simplify it further") unless $OK;
+return $OK;
+})); 
+
+
+Context("Fraction");
+$s = Fraction($c-$a,$c+$b);
+($sa, $sb) = $s->value;
+$sign = ($sa/abs($sa) == 1) ? '-' : '+';
+$sa = abs($sa);
+
+
+BEGIN_PGML_SOLUTION
+
+    [``\begin{aligned}
+\frac{[$f](x)-[$f]([$c])}{x-[$c]}
+&= \frac{\frac{x-[$a]}{x+[$b]}-\frac{[$c]-[$a]}{[$c]+[$b]}}{x-[$c]}\\
+&= \frac{\frac{x-[$a]}{x+[$b]}[$sign]\frac{[$sa]}{[$sb]}}{x-[$c]}\\
+&= \frac{\frac{x-[$a]}{x+[$b]}[$sign]\frac{[$sa]}{[$sb]}}{x-[$c]}\frac{[$sb](x+[$b])}{[$sb](x+[$b])}\\
+&= \frac{[$sb](x-[$a])[$sign][$sa](x+[$b])}{[$sb](x+[$b])(x-[$c])}\\
+&= \frac{[$apb](x-[$c])}{[$sb](x+[$b])(x-[$c])}\\
+&= [$ans]\\
+\end{aligned}``]
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();        

@@ -1,0 +1,135 @@
+##DESCRIPTION
+##  Algebra problem: Reduce a given rational expression
+##ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Operations on polynomial and rational expressions)
+## DBsection(Simplify rational expressions)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'algebra, operations with rational expressions', 'algebra, simplifying rational expression', 'rational expressions', 'rational expression', 'factoring')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextRationalFunction.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+$rationalChecker = sub {
+     my ($correct,$student,$ansHash) = @_; 
+     my $negated = 1; #-1 for negated=TRUE
+     Value->Error("Your answer doesn't contain any variables. <BR> Perhaps you oversimplified?") unless $student->class eq "Formula";
+     if ($student->{tree}->class eq "UOP" && $student->{tree}{uop} eq 'u-') {
+          $student = Formula($student->{tree}->{op});
+          $negated = -1;
+     }
+     Value->Error("Check the answer preview box. Maybe you forgot parenthesis around your numerator or denominator?") unless $student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!/!;
+     return 0 unless $correct == $student*$negated;
+     my $cnum = Formula($correct->{tree}{lop});
+     my $snum = Formula($student->{tree}{lop});
+     my $cden = Formula($correct->{tree}{rop});
+     my $sden = Formula($student->{tree}{rop});
+     Value->Error("Your answer can be reduced further") unless ($cnum == $snum*$negated || $cden == $sden*$negated);
+     return 1;
+};
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+
+$nCoeff = random(2,6,1);
+do { $dCoeff = random(2,6,1); } until ( gcf($nCoeff,$dCoeff) == 1 );
+
+$common =1;
+
+$nRoot = non_zero_random(-9,9,1);
+$dRoot = non_zero_random(-9,9,1);
+$nRoot2 = $dRoot;
+$nSum = $nRoot + $nRoot2; #for solution
+$nProd = $nRoot * $nRoot2;   #for solution
+
+$nA = $common*$nCoeff;
+$nB = $common*$nCoeff*($nRoot+$nRoot2);
+$nC = $common*$nCoeff*$nRoot*$nRoot2;
+$dA = $common*$dCoeff;
+$dB = $common*$dCoeff*$dRoot;
+
+$numer = Formula("$nA*x^2 - $nB*x+$nC")->reduce;
+$denom = Formula("$dA*x^2-$dB*x")->reduce;
+
+$rationalExp = Formula("$numer/$denom")->reduce;
+$answer = Formula("$nCoeff*(x-$nRoot)/($dCoeff*x)")->with(test_at=>[[$dRoot]]);
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Reduce the following rational expression:
+\[ $rationalExp \]
+$PAR
+\{ans_rule(20)\}
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($answer->cmp(showDomainErrors=>0, checker=>$rationalChecker));
+
+Context()->texStrings;
+BEGIN_HINT
+
+Separately, factor both the numerator and denominator. Be sure to factor them completely.
+$PAR
+Then reduce any common factors.
+
+END_HINT
+BEGIN_SOLUTION
+
+Factor the numerator completely: $BR
+\( $numer = $nA ( x^2 - $nSum x + $nProd ) \) $BR
+\( $nA ( x^2 - $nSum x + $nProd ) = $nA (x - $nRoot) (x - $nRoot2) \)
+$PAR
+Factor the denominator completely: $BR
+\( $denom = $dA x ( x - $dRoot ) \)
+$PAR
+Now we can rewrite our original fraction: $BR
+\( \displaystyle \frac{$numer}{$denom} = \frac{$nA (x - $nRoot) (x - $nRoot2)}{$dA x ( x - $dRoot )} = \left(\frac{$nA}{$dA x}\right) \left(\frac{x - $nRoot}{1}\right) \left(\frac{x - $nRoot2}{x - $dRoot}\right) = \left(\frac{$nA}{$dA x}\right) \left(\frac{x - $nRoot}{1}\right) \left( 1 \right) \)
+$PAR
+We cannot reduce the monomials any more: \( $nA \) and \( $dA x \) 
+$BR
+There are no more binomials to reduce, \(x - $nRoot\) only appears in the numerator.
+$PAR
+So all that is left is to combine our results into a final answer: $BR
+\( \displaystyle \left(\frac{$nA}{$dA x}\right) \left(\frac{x - $nRoot}{1}\right) = \frac{$nA (x - $nRoot)}{$dA x} \)
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

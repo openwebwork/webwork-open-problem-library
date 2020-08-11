@@ -1,0 +1,198 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+
+## DBsubject(Calculus - single variable)
+## Date(6/15/2019)
+## Institution(CityTech)
+## Author(K. Andrew Parker)
+## MO(1)
+## KEYWORDS('calculus')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGbasicmacros.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->flags->set(reduceConstants=>0,reduceConstantFunctions=>0);
+$p = list_random(2,3,5,7,11,13,17);
+do {
+$n = list_random(
+  Formula("$p pi"), 
+  Formula("$p e"), 
+  Formula("e^($p)"), 
+  Formula("sqrt($p)"), 
+  Formula("pi/$p"));
+} until ($n < 250);
+
+$nTeX = $n->TeX;
+
+@messages = (
+  [-1, "Oh no! You can get much closer than that - try decimals, maybe?", 0],
+  [-2, "You could do better with another attempt, yes?", 0.25],
+  [-3, "Try again. You can manage better than this.",0.25],
+  [-4, "This is okay, But you could do better, yeah?",0.5],
+  [-5, "You are getting better, Try another?",0.5],
+  [-6, "Nice Work! There's still room to get closer...",0.75],
+  [-7, "Very Good! Can you get closer?",0.75],
+  [-10, "Excellent!",1], # full credit for 91+
+  [-24, "Perfect!",1],
+);
+
+$custom = sub {
+    my ($correct, $student, $ansHash) = @_;
+    $student = Real($student)->value;
+    $correct_perl = Real("$correct")->value;
+    $correct_tex = $correct->TeX;
+#    my $epsilon = $student-$correct;
+    my $epsilon = Real(abs($student - $correct))->value;
+    my $score = 0;
+    # my ($acc,$eligible) = @$student; # student answer is passed as a list
+    #
+    # set the preview string to display the accuracy score
+    # set the "correct answer" to display the requirements
+    # 
+    $ansHash->{preview_latex_string} = "\text{epsilon: }$epsilon";
+    $ansHash->{correct_ans_latex_string} = "\text{ epsilon } < 10^{-8}";
+    #
+    # invalidate the student answer if they gave the exact value
+    #
+    Value::Error("Please give a value that is close but not equal to \($correct_tex\)") if ($epsilon == 0);
+    # loop through messages to assign partial credit
+    for my $data (@messages) {
+      my ($exp, $msg, $nscore) = @$data;
+      if ($epsilon >= 10**($exp)) {
+        $ansHash->{ans_message} = $msg;
+        $score = $nscore if defined $nscore;
+        last;
+      }
+    }
+    return $score; # ansHash already contains the feedback
+};
+
+$real_n = Real("$n")->value;
+
+# Reset the context to require decimal approximation
+Context("LimitedNumeric");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0,
+  tolerance=>10**(-25), 
+  tolType=>'absolute');
+
+$real_n = Real("$real_n");
+
+
+Context()->{error}{msg}{"Can't use '+' in this context"} 
+  = "You don't need addition to get close to the given value.<BR>Use a decimal approximation instead.";
+Context()->{error}{msg}{"Can't use '-' in this context"} 
+  = "You don't need subtraction to get close to the given value.<BR>Use a decimal approximation instead.";
+Context()->{error}{msg}{"Can't use '*' in this context"} 
+  = "You don't need multiplication to get close to the given value.<BR>Use a decimal approximation instead.";
+Context()->{error}{msg}{"Can't use '/' in this context"} 
+  = "You don't need division to get close to the given value.<BR>Use a decimal approximation instead.";
+Context()->{error}{msg}{"Can't use '^' in this context"} 
+  = "You don't need exponents to get close to the given value.<BR>Use a decimal approximation instead.";
+Context()->{error}{msg}{"Can't use '**' in this context"} 
+  = "You don't need exponents to get close to the given value.<BR>Use a decimal approximation instead.";
+Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
+  = "You don't need radicals to get close to the given value.<BR>Use a decimal approximation instead.";
+Context()->{error}{msg}{"Unexpected character '('"} 
+  = "You don't need parenthesis to get close to the given value.<BR>Use a decimal approximation instead.";
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ### Approximating a number ### <<
+
+A *rational* number  is a number that can be written as a fraction 
+of integers. An *irrational* number is a real number that is not rational.  Numbers such as [`e`], [`\pi`] and [`\sqrt 2`] are irrationals.  These numbers can be represented by non-terminating and non-repeating decimals.
+
+A [`9`]-digit calculator gives that the value of [`\sqrt 2`] is  [`1.41421356`]. If you square this number using the same calculator, you will get [`2`].  However, if you use a calculator that allows for more digits, you will get a different number:
+
+>>[`(1.41421356)^2 = 1.9999999932878736.`]<<
+
+So [`2`] is just an approximation.  In other words, [`\sqrt 2`] is *not equal* to [`1.41421356`], but we can say that [`\sqrt 2`] is *approximately* [`1.41421356`].  In fact, the latter calculator will give a  value for [`\sqrt 2`] that has the same decimals from before plus a few more:
+
+>>[`1.414213562373095.`]<<
+
+This number is closer to [`\sqrt 2`] than [`1.41421356`]. The more decimals, the better the approximation. 
+
+We use the symbol [`\approx`] to indicate that the numbers are very close to each other, but not equal:
+
+>>[`\sqrt 2\approx 1.414213562373095.`]<<
+
+>> #### Practice #### <<
+
+Give a value that is _close_ to [`[@$n->TeX@]`] but *not equal* to [`[@$n->TeX@]`].
+
+[_______________________________]{$real_n->cmp(checker=>$custom)}
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+##############################################################
+#
+#  Hint
+#
+#
+
+BEGIN_PGML_HINT
+
+* To get full credit, the absolute value of the difference between your number and [`[$n]`] should be less than [`10^{-8}`].
+
+END_PGML_HINT
+
+##############################################################
+#
+#  Solution
+#
+#
+
+
+
+Context("Numeric");
+Context()->flags->set(tolerance=>10**(-25));
+
+$ansminus = Real("$n")->reduce->value - 5*10**(-9);
+$ansminus = sprintf("%.9f",$ansminus);
+$ansplus = Real("$n")->reduce->value + 5*10**(-9);
+$ansplus = sprintf("%.9f",$ansplus);
+
+BEGIN_PGML_SOLUTION
+
+* Any number different from [$n] in the interval [@ ($n >= 0)? "($ansminus, $ansplus)":"($ansminus, $ansplus)" @]. 
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

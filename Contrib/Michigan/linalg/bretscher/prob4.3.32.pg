@@ -1,0 +1,240 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+## DBsubject('Linear algebra')
+## DBchapter('Abstract vector spaces')
+## DBsection('Coordinate vectors and change of basis')
+## Institution('University of Michigan')
+## TitleText1('Linear Algebra with Applications')
+## AuthorText1('Otto Bretscher')
+## EditionText1('5')
+## Section1('4.3')
+## Problem1('32')
+## Author('Gavin LaRose')
+## Date('2/14/2014')
+
+DOCUMENT();
+
+loadMacros(
+# "PGstandard.pg",
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGmatrixmacros.pl",
+"PGnumericalmacros.pl",
+"PGauxiliaryFunctions.pl",
+"MathObjects.pl",
+);
+
+Context("Matrix");
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+$a = non_zero_random(-5,5,1);
+$asq = $a*$a;
+$twoa = 2*$a;
+$s = ( $a > 0 ) ? '+' : '-';
+$ns = ( $a < 0 ) ? '+' : '-';
+$absa = abs($a);
+$abstwoa = abs($twoa);
+# f(t^2) = f(a) + f'(a)(t - a) = a^2 + 2a(t - a) = a^2 + 2at - 2a^2 = 2at - a^2
+
+$bmat = Matrix( [ [ 1, 0, -$asq ], [ 0, 1, $twoa ],
+		  [ 0, 0, 0 ] ] );
+# [ [  1  0  -a^2 ]   [ x1 ]   [ x1 - a^2 x3 ]
+#   [  0  1   2a  ]   [ x2 ] = [ x2 + 2a x3  ]
+#   [  0  0    0  ] ] [ x3 ]   [ 0 ]
+#
+#     [  1   ]       [  0 ]
+#  c1 [  0   ]  + c2 [  1 ] = c1 + c2 t + (-a^2 c1 + 2a c2) t^2
+#     [ -a^2 ]       [ 2a ]
+#
+# im: f
+# so ker: f s.t. f(a) = f'(a) = 0, so f(t) = k (t - a)^2
+
+$isoker = new_checkbox_multiple_choice();
+@correct = ( '\(\mbox{dim}(\mbox{im}(T)) = 2\) and ' .
+	         '\(\mbox{dim}(\mbox{ker}(T)) = 1\)',
+	     '\(\mbox{rank}(B) = 2\).',
+	     '\(T\) is not an isomorphism.' );
+@incorrect = ( '\(\mbox{dim}(\mbox{im}(T)) = 3\) and ' .
+		    '\(\mbox{dim}(\mbox{ker}(T)) = 0\)',
+	       '\(\mbox{dim}(\mbox{im}(T)) = 1\) and ' .
+		    '\(\mbox{dim}(\mbox{ker}(T)) = 2\)',
+	       '\(\mbox{dim}(\mbox{im}(T)) = 0\) and ' .
+		    '\(\mbox{dim}(\mbox{ker}(T)) = 3\)',
+	       '\(\mbox{rank}(B) = 0\)',
+	       '\(\mbox{rank}(B) = 1\)',
+	       '\(\mbox{rank}(B) = 3\)',
+	       '\(T\) is an isomorphism.' );
+@corSlice = ( random(0,1,1), 2 );
+@incSlice = NchooseK(6,2);
+push( @incSlice, 6 );
+$isoker->qa( 'Select all of the following that are correct ' .
+	     'statements about \(T\).', @correct[@corSlice] );
+$isoker->extra( @incorrect[@incSlice] );
+
+Context('Numeric');
+Context()->variables->are( t => 'Real' );
+$image  = List( Formula("1"), Formula("t") );
+$kernel = List( Compute("(t - $a)^2") );
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Let \(\mathcal P_2\) be the space of polynomials of degree at most
+2 in the variable \(t\), and consider the transformation
+\(T:{\mathcal P}_2\to {\mathcal P}_2\)
+given by
+\(T(f) = f($a) + f'($a)\,(t - $a)\).
+$PAR
+Find the matrix for this transformation relative to the
+standard basis
+\({\mathfrak U} = ( 1, t, t^2 )\).
+$BR
+\(B = \) \{ $bmat->ans_array() \}
+$PAR
+Determine whether \(T\) is an isomorphism or not, and determine
+bases for \(\mbox{ker}(T)\) and \(\mbox{im}(T)\) select the correct
+answers below.
+$BR
+\{ $isoker->print_q \}
+\{ $isoker->print_a \}
+$PAR
+The basis for \(\mbox{im}(T)\) suggested by the matrix \(B\)
+is \(\lbrace\) \{ $image->ans_rule() \} \(\rbrace\)
+$BR
+${BITALIC}(Enter the elements of the basis as a comma-separated list, and
+note that your basis should consist of vectors in
+\({\mathcal P}_2\).)$EITALIC
+$BR
+A basis for \(\mbox{ker}(T)\)
+is \{ $kernel->ans_rule() \}
+$BR
+${BITALIC}(Note that your basis should consist of vectors in
+\({\mathcal P}_2\).)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $bmat->cmp() );
+ANS( checkbox_cmp( $isoker->correct_ans() ) );
+# ANS( $image->cmp(
+#     typeMatch => "Value::Formula",
+#     requireParenMatch => 0,
+#     checker=>sub {
+#         my ( $c, $s, $ans ) = @_;
+#         my @sfuncs = $s->value;
+#         warn( join(", ", @sfuncs) );
+#         if ( @sfuncs != 2 ) {
+# 	    Value->Error("Your basis has the wrong dimension.");
+#         } else {
+#             # we need two functions that span linear functions, so
+#             #    the constant terms can't be equal, and the slopes
+#             #    can't be equal
+#             ($s1, $s2) = (Formula($sfuncs[0]), Formula($sfuncs[1]));
+#             return $s1->D('t','t') == 0 && $s2->D('t','t') == 0 &&
+# 	        $s1->eval(t=>0) != $s2->eval(t=>0) &&
+#   	        $s2->D('t')->eval(t=>0) != $s2->eval(t=>0);
+#         }
+#     }
+# ) );
+# ANS( $image->cmp(
+#     requireParenMatch => 0,
+#     checker=>sub {
+#         my ( $c, $s, $ans ) = @_;
+#         return 1 if ( $c == $s );
+# 	my @sv = $s->value;
+# 	if ( @sv != 2 ) {
+# 	    Value->Error("Your basis has the wrong dimension.");
+# 	} else {
+# 	    ($s1, $s2) = (Formula($sv[0]), Formula($sv[1]));
+# 	    my $mult;
+# 	    if ( $s1->D('t') == 0 && $s2->D('t') == 0 ) {
+# 		$mult = 1;
+# 	    } elsif ( $s1->D('t') != 0 ) {
+# 		$mult = $s2->D('t')/$s1->D('t');
+# 		$mult = ( $mult*$s1 == $s2 ) ? 1 : 0;
+# 	    } else {
+# 		$mult = $s1->D('t')/$s2->D('t');
+# 		$mult = ( $mult*$s2 == $s1 ) ? 1 : 0;
+# 	    }
+#             return ( ( $s1->D('t','t') == 0 && $s2->D('t','t') == 0 ) &&
+# 		     ( $s1->D('t') != 0 || $s2->D('t') != 0 ) && ( ! $mult ) );
+# 	}
+#     }
+# ) );
+ANS( $image->cmp( requireParenMatch=>0 ) );
+# ANS( $kernel->cmp( checker=>sub {
+#     my ( $c, $s, $ans ) = @_;
+#     my @sfuncs = $s->value;
+#     if ( @sfuncs != 1 ) {
+#         Value->Error("Your basis has the wrong dimension.");
+#     } else {
+#         my $sf = Formula($sfuncs[0]);
+# 	# the function needs to be a polynomial of degree 2
+#         return $sf->D('t','t','t') == 0 &&
+# 	    $sf->eval(t=>$a) == 0 && $sf->D()->eval(t=>$a) == 0;
+#     }
+# } ) );
+# ANS( $kernel->cmp( requireParenMatch => 0,
+#     checker => sub {
+# 	my ( $c, $s, $ansHash, $nth, $value ) = @_;
+# 	# this special case needs to be dealt with first, or we throw
+# 	#    an error
+# 	return 0 if $s == 0;
+# 	my $context = Context()->copy;
+# 	$context->flags->set(no_parameters=>0);
+# 	$context->variables->add('C0'=>'Parameter');
+# 	my $c0 = Formula($context,'C0');
+# 	$student = Formula($context, $s);
+# 	$correct = Formula($context, "$c0 ($c)");
+# 	return $correct == $student;
+# } ) );
+## take 3.  for some reason the preceding throws an unidentified
+##    error when going through a sequence of (incorrect) answers
+ANS( $kernel->cmp( requireParenMatch => 0,
+    checker => sub {
+	my ( $c, $s, $ansHash, $nth, $value ) = @_;
+	# this special case needs to be dealt with first, or we throw
+	#    an error
+	return 0 if $s == 0;
+	$c0 = $c->eval(t=>$a-0.25);
+	$c1 = $c->eval(t=>$a+0.25);
+	$s0 = $s->eval(t=>$a-0.25);
+	$s1 = $s->eval(t=>$a+0.25);
+	$k0 = $s0/$c0;
+	$k1 = $s1/$c1;
+	return $k0 == $k1 && $k0*$c == $s;
+} ) );
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+We find the columns of the matrix for this transformation by finding
+\(T(\vec v_j)\) for each of the given basis vectors.  We have
+\(T(1) = 1\),
+\(T(t) = $a + (t - $a) = t\), and
+\(T(t^2) = $asq $s $abstwoa(t $ns $absa) = $twoa t - $asq\).
+Thus
+the matrix for the transformation is
+\[ B = $bmat. \]
+$PAR
+Then we note that
+\(\mbox{rref}(B) = B = $bmat\),
+so \(T\) is not an
+isomorphism and \(\mbox{rank}(B) = \mbox{dim}(\mbox{im}(T)) = 2\)
+with \(\mbox{dim}(\mbox{ker}(T)) = 1\).
+$PAR
+The image of \(T\) is spanned by the first two columns of the matrix,
+which gives all functions of the form
+( k_1 + k_2 t ), that is, all linear functions.  The kernel of \(T\) is
+functions such that \(f($a) = f'($a) = 0\),
+that is, \(f(t) = k(t $s $absa)^2 = k( t^2 $s $abstwoa t + $asq )\).
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

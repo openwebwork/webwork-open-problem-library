@@ -19,7 +19,7 @@
 ## MLT(vp_multistep)
 ## MLTleader(1)
 ## Level(3)
-## TitleText1('Differential Equations with Boundary-Value Peoblems')
+## TitleText1('Differential Equations with Boundary-Value Problems')
 ## AuthorText1('Zill and Cullen')
 ## EditionText1('7')
 ## Section1('4.6')
@@ -31,11 +31,8 @@ DOCUMENT();
 # Load whatever macros you need for the problem
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
   "MathObjects.pl",
   "parserMultiAnswer.pl",
-  "parserImplicitEquation.pl",
   "PGcourse.pl"
 );
  
@@ -47,7 +44,7 @@ TEXT(beginproblem());
 ## Declare variables
 Context()->variables->are(x=>'Real',y=>'Real');
 
-$a   = random(2,11);
+$a   = Real(random(2,11));
 $a2 = $a * $a;
 $g = Formula("sec^2($a x)")->reduce;
 $Yh1 = Formula("sin($a x)")->reduce;
@@ -64,84 +61,157 @@ $W2 = Formula("$g * $Yh1")->reduce;
 
 $Du1 = Formula("$W1/$W")->reduce;
 $Du2 = Formula("$W2/$W")->reduce;
-$u1 = Formula("ln(abs(cos($a x))/abs(sin($a x)-1))/$a2")->reduce;
+$u1 = Formula("ln(cos($a x)/(1-sin($a x)))/$a2")->reduce;
 $u2 = Formula("-1/($a2 *cos($a x))")->reduce;
 
+$Yp = Formula("$Yh1 *$u1 +$Yh2 * $u2")->reduce;
 
+# compute the Wronskiian
 
+sub wron {
+  my ($f1,$f2) = @_;
+  my $df1 = $f1->D('x');
+  my $df2 = $f2->D('x');
+  return $f1*$df2-$f2*$df1 ;  
+}
 
-  $Yp = Formula("$Yh1 *$u1 +$Yh2 * $u2")->reduce;
+# check first seven answers
 
-  $multipart4 = MultiAnswer($Yh1, $Yh2)->with(
-    singleResult => 0,
-    checker => sub {
-        my ( $correct4, $student4, $self4 ) = @_;
-        my ( $f1stu4, $f2stu4 ) = @{$student4};
-        my ( $f14, $f24 ) = @{$correct4};
-        if ( ($f14 == $f1stu4 && $f24 == $f2stu4) ||
-             ($f14 == $f2stu4 && $f24 == $f1stu4) ) {
-            return [1,1];
-        } else {
-            if ($f14 == $f1stu4 || $f24 == $f1stu4) {
-                return [1,0];
-            } elsif ($f14 == $f1stu4 || $f24 == $f2stu4) {
-                return [0,1];
-            } else {
-                return [0,0];
-            }
-        }
+$ansParts123 = MultiAnswer($Yh1, $Yh2, $Du1, $Du2, $u1, $u2, $Yp ) -> with(
+  singleResult => 0,
+  allowBlankAnswers => 1,  # because there are so many, so we need to check refs below
+  checker => sub {
+    my ( $correct, $student, $self ) = @_;
+    my ( $Yh1stu, $Yh2stu, $Du1stu, $Du2stu, $u1stu, $u2stu, $Ypstu) = @{$student};
+    my ( $Yh1cor, $Yh2cor, $Du1cor, $Du2cor, $u1cor, $u2cor, $Ypcor) = @{$correct};
+    my $du1; my $du2;
+    my @ret = (0,0,0,0,0,0,0);
+    # check the homogeneous solutions
+    if ( ($Yh1stu->class) eq ($Yh1cor->class) ){
+      if ( ($Yh1stu->D('x','x'))+$a2*$Yh1stu == Formula("0") ){ $ret[0]=1; }
+      else { $self->setMessage(1,"Your \(y_1\) doesn't satisfy the homogeneous DE."); }
     }
-  );
+    if ( ($Yh2stu->class) eq ($Yh2cor->class) ){
+      if ( ($Yh2stu->D('x','x'))+$a2*$Yh2stu == Formula("0") ){ $ret[1]=1; }
+      else { $self->setMessage(2,"Your \(y_2\) doesn't satisfy the homogeneous DE."); }
+    }
+    if ( $ret[0] && $ret[1] ){
+      my $W = wron($Yh1stu, $Yh2stu);  # wronskiian
+      if ( $W == Formula("0") ){
+	$ret[1] = 0;
+	$self -> setMessage(2, "Your \(y_1\) and \(y_2\) are not independent.");
+      }
+      else {
+	# check derivatives of u1 and u2
+        if ( ($Du1stu->class) eq ($Du1cor->class) ){
+	  $du1 = -$g*$Yh2stu/$W;
+	  if ( $Du1stu == $du1 ){ 
+            $ret[2] = 1;
+            if ( ($u1stu->class) eq ($u1cor->class) ){
+	      if ( ($u1stu->D('x')) == $du1 ){ $ret[4] = 1; }
+            }
+          }
+        }
+        if ( ($Du2stu->class) eq ($Du2cor->class) ){
+	  $du2 = $g*$Yh1stu/$W;
+	  if ( $Du2stu == $du2 ){ 
+            $ret[3] = 1;
+            if ( ($u2stu->class) eq ($u2cor->class) ){
+	      if ( ($u2stu->D('x')) == $du2 ){ $ret[5] = 1; }
+            }
+          }
+        }
+        # check the particular solution
+        if ( $ret[4] && $ret[5] ){
+	  if ( $Ypstu == $Yh1stu*$u1stu + $Yh2stu*$u2stu ){ $ret[6] = 1;}
+        }
+      }
+    }
+    return [ @ret ] ;
+  }
+);
 
+# check answers 8 and 9
+
+$multipart4 = MultiAnswer($Yh1, $Yh2)->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,  
+  checker => sub {
+      my ( $correct4, $student4, $self4 ) = @_;
+      my ( $f1stu4, $f2stu4 ) = @{$student4};
+      my ( $f14, $f24 ) = @{$correct4};
+      my @ret = (0,0);
+    if ( ($f1stu4->class) eq ($f14->class) ){
+      if ( ($f1stu4->D('x','x'))+$a2*$f1stu4 == Formula("0") ){ $ret[0]=1; }
+      else { $self4->setMessage(1,"The first function doesn't satisfy the homogeneous DE."); }
+    }
+    if ( ($f2stu4->class) eq ($f24->class) ){
+      if ( ($f2stu4->D('x','x'))+$a2*$f2stu4 == Formula("0") ){ $ret[1]=1; }
+      else { $self4->setMessage(2,"The second function doesn't satisfy the homogeneous DE."); }
+    }
+    if ( $ret[0] && $ret[1] ){
+      my $W = wron($f1stu4, $f2stu4);  # wronskiian
+      if ( $W == Formula("0") ){
+	$ret[1] = 0;
+	$self4 -> setMessage(2, "The first two functions are not independent.");
+      }
+    }
+    return [@ret];
+  }
+);
+
+# check the last answer
+
+sub lastAnsCheck {
+  my ($correct, $student, $ansHash) = @_;
+  if ( ($student->D('x','x')) + $a2*$student == $g ){
+    return 1;
+  }
+  else {
+    Value->Error("The third function doesn't satisfy the DE.");
+  }
+}
+
+
+$xBound = 2*$a ; # used in bound on size of $x
 
 Context()->texStrings;
 BEGIN_TEXT
 In this problem you will solve the non-homogeneous differential equation
 \[y''+$a2 y =$g \] 
+on the interval \(-\pi/$xBound \lt x \lt \pi/$xBound\). 
 $PAR
-(1) Let \(C_1\) and \(C_2\) be arbitrary constants.  The general solution to the related homogeneous differential equation  
+(1) Let \(C_1\) and \(C_2\) be arbitrary constants.  The general solution of the related homogeneous differential equation  
 \(y''+$a2 y =0\) is the function 
-\(y_h(x)=C_1\ y_1(x)+C_2\ y_2(x)=C_1\) \{ans_rule(15)\} \(+C_2\)\{ans_rule(15)\}.
-$BR $BR
-$BBOLD
-NOTE: The order in which you enter the answers is important; that is,
-\(C_1 f(x) + C_2 g(x) \neq C_1 g(x) + C_2 f(x)\).
-$EBOLD
+\(y_h(x)=C_1\ y_1(x)+C_2\ y_2(x)=C_1\) \{$ansParts123->ans_rule(15)\} \(+C_2\)\{$ansParts123->ans_rule(15)\}.
 $PAR
 (2) The particular solution \(y_p(x)\) to the differential equation \(y''+$a2 y =\sec^2($a x)\) is of the form 
-\( y_p(x)=y_1(x)\ u_1(x)+y_2(x)\ u_2(x)\) where 
+\( y_p(x)=y_1(x)\ u_1(x)+y_2(x)\ u_2(x)\) 
+$BR where 
 \(u_1'(x)=\) 
-\{ans_rule(15)\}
+\{$ansParts123->ans_rule(15)\}
 and \(u_2'(x)=\)
-\{ans_rule(15)\}.
+\{$ansParts123->ans_rule(15)\}.
 $PAR
 (3) It follows that 
-\(u_1(x)=\)
-\{ans_rule(20)\}
+$BR \(u_1(x)=\)
+\{$ansParts123->ans_rule(25)\}
 and \(u_2(x)=\)
-\{ans_rule(20)\}; thus 
-\(y_p(x)=\) \{ans_rule(30)\}.
+\{$ansParts123->ans_rule(25)\};  
+$BR thus 
+\(y_p(x)=\) \{$ansParts123->ans_rule(35)\}.
 $PAR
-(4) The most general solution to the non-homogeneous differential equation
-\(y''+$a2 y =\sec^2($a x)\) is $BR
-\(y=C_1\)
+(4) Therefore, on the interval \((-\pi/$xBound,\pi/$xBound)\),  the most general solution of the non-homogeneous differential equation
+\(y''+$a2 y =\sec^2($a x)\) 
+$BR is \(y=C_1\)
 \{$multipart4->ans_rule(10)\}
 \(+C_2\)\{$multipart4->ans_rule(10)\}\(+\)\{ans_rule(30)\}.
-
-
-
-
 END_TEXT
 
 Context()->normalStrings;
 
-ANS($Yh1->cmp);
-ANS($Yh2->cmp);
-ANS($Du1->cmp);
-ANS($Du2->cmp);
-ANS($u1->cmp);
-ANS($u2->cmp);
-ANS($Yp->cmp);
+ANS($ansParts123->cmp(limits=>[-0.4*pi/$a,0.4*pi/$a]));
 ANS( $multipart4->cmp() );
-ANS($Yp->cmp);
+ANS($Yp->cmp(checker => ~~&lastAnsCheck));
+
 ENDDOCUMENT();

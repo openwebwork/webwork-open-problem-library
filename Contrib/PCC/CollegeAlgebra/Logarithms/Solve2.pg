@@ -1,0 +1,168 @@
+# WeBWorK problem written by Alex Jordan 
+# Portland Community College
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Functions')
+## DBsection('')
+## KEYWORDS()
+## TitleText1()
+## EditionText1()
+## AuthorText1()
+## Section1()
+## Problem1()
+## Author('Alex Jordan')
+## Institution('PCC')
+
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserAssignment.pl",
+  "PGML.pl",
+  "PGcourse.pl",
+);
+
+
+TEXT(beginproblem());
+
+##############################################
+
+
+Context("Numeric");
+
+
+$a = random(2,5,1);
+
+$b = random(6,10,1);
+
+$shift = $b-$a;
+
+$c = $a*$b;
+
+
+
+Context("LimitedNumeric");
+parser::Assignment->Allow;
+Context()->operators->redefine(',',using=>',',from=>'Numeric');
+Context()->operators->redefine('or',using=>',',from=>'Numeric');
+Context()->operators->set(
+  ','=>{string=>' or ',TeX=>'\hbox{ or }'},
+  'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
+);
+Context()->lists->set(List => {separator => " or "});
+Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
+  = "Please simplify your answer further";
+Context()->{error}{msg}{"Can't use '*' in this context"} 
+  = "Please simplify your answer further";
+Context()->{error}{msg}{"Can't use '+' in this context"} 
+  = "Please simplify your answer further";
+Context()->{error}{msg}{"Can't use '-' in this context"} 
+  = "Please simplify your answer further";
+
+# add solution strings to context- this means that if
+# students enter these (and they are not correct), then 
+# WW will not give a Context warning
+Context()->strings->add("no real solutions"=>{},
+  "no real solution"=>{alias=>'no real solutions'}, 
+  "none"=>{alias=>'no real solutions'}, 
+  );
+
+$ans = Compute("x = $a");
+
+
+##############################################
+
+BEGIN_PGML
+
+Solve the equation below. Enter solutions in the form *x=...*. If there are multiple solutions, enter a comma-separated list.
+
+    [`\log(x)+\log(x+[$shift])=\log([$c])`]
+
+    [____________________________]
+
+
+END_PGML
+
+
+##############################################
+
+ANS($ans->cmp(
+  checker => sub {
+    my ($correct,$student,$ans) = @_;
+    # count the number of student answers
+    my $fullStudent = $ans->{student_formula};
+    my @fullStudentValue = $fullStudent->value;
+    my $n = scalar(@fullStudentValue);  # number of student answers
+    if($n>1)
+    {
+      $student->context->setError("Have you checked that each of your possible solutions are actually solutions?","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    # if the student has said no real solutions, ask them about it
+    if($student eq "no real solutions")
+    {
+      $student->context->setError("This equation does have some solutions- try factoring or using the quadratic formula","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    # check that the student has written x=
+    if ($student->type ne "Assignment" && $ans->{student_formula}->type ne "Assignment") {
+      $student->context->setError("Your entry should be written $var = $US$US$US","",undef,undef,$Value::CMP_WARNING)
+         unless $ans->{isPreview};
+      return;
+    }
+    return $correct == $student;
+  }
+)->withPostFilter(sub {
+  my $ansHash = shift;
+  if ($ansHash->{score}) {
+    my ($cvar,$cfrac) = $ansHash->{correct_value}->value; # get
+    my ($svar,$sfrac) = $ansHash->{student_value}->value; # get
+    my $check = $cfrac->cmp->evaluate($sfrac->string); # do a
+     $ansHash->{score} = $check->{score};
+     $ansHash->{ans_message} = $check->{ans_message}; # and any
+   }
+     return $ansHash;
+     },
+     ),
+);
+
+
+##############################################
+
+Context("Numeric");
+$s = Formula("x^2+$shift x- $c")->reduce;
+
+BEGIN_PGML_SOLUTION
+
+To start, we can combine the logarithms on the left:
+
+    [`\begin{aligned}
+\log(x)+\log(x+[$shift])&=\log([$c])\\
+\log(x(x+[$shift]))&=\log([$c])
+\end{aligned}`]
+
+Now we can raise [`10`] to both sides, effectively removing the [`\log`]s.
+
+    [`\begin{aligned}
+x(x+[$shift])&=[$c]\\
+[$s]&=0\\
+(x-[$a])(x+[$b]) &=0\\
+x&=[$a]&&\text{or}&x&=-[$b]
+\end{aligned}`]
+
+We check each of these possibilities in the original equation and see that [`x=[$a]`] is a solution, but [`x=-[$b]`] is not, since we cannot use a negative input into [`\log(x)`].
+
+
+END_PGML_SOLUTION
+
+
+
+ENDDOCUMENT();
