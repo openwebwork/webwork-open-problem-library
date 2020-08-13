@@ -1,0 +1,196 @@
+## DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(Independent samples - t)
+## Date(2015-01-18)
+## Institution(The College of Idaho)
+## Author(R Cruz)
+## Level(2)
+## KEYWORDS('statistics', 'two sample', 'inference', 't score')
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+   "niceTables.pl",
+  "PGchoicemacros.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl"
+);
+
+COMMENT("This problem uses R to calculate the test statistic. Put the 2 parts back together when multipart problems can have different number of attempts per part.");
+
+TEXT(beginproblem());
+
+######################################
+#  Setup
+SRAND($psvn); #This keeps the same seed between problems
+
+@L1 =( "A", "A", "A", "A", "A", "A", "B", "B", "B", "C" );
+@slice_1 = NchooseK(10,7);
+@Grade = @L1[@slice_1];
+
+@L2 =( "A", "A", "B", "B", "B", "B", "B", "C", "C", "C" );
+@slice_2 = NchooseK(10,7);
+for($i=0; $i<7; $i++){
+   $Grade[$i+7] = $L2[$slice_2[$i]];
+}
+
+@diff = (0, 0, 0, random(1,3,1), random(1,3,1), random(1,5,1), random(1,5,1), random(2,5,1), random(2,5,1), random(3,8,1), random(3,8,1), random(4,8,1), random(4,8,1), random(5,10,1), random(5,10,1) );
+@slice_3 = NchooseK(15,13);
+@Book[ 0..13 ] = map { 0 } ( 0..13 );
+$Book[13] = random(12,18,1);
+for($i=12; $i>=0; $i--){
+   $Book[$i] = $Book[$i+1] + $diff[$slice_3[$i]];
+}
+
+rserve_start();  ##START R SESSION
+
+rserve_eval("A <- c()");
+rserve_eval("BC <- c()");
+
+$nA = 0;   $nBC = 0;
+for($i=0; $i<14; $i++){
+  if ($Grade[$i] eq "A") {
+    rserve_eval("A <- c(A, $Book[$i])");
+    $nA++;
+  } else {
+    rserve_eval("BC <- c(BC, $Book[$i])");
+    $nBC++;
+  }
+}
+#$A_data = join ", ", rserve_eval("paste(A, collapse=' & ')");
+#Note: To show the data for checking
+
+rserve_eval("aveA <- mean(A)");
+rserve_eval("sA <- sd(A)");
+rserve_eval("aveBC <- mean(BC)");
+rserve_eval("sBC <- sd(BC)");
+rserve_eval("result <- t.test(A,BC)");
+$CI1 = join ", ", rserve_eval('round(result$conf.int[1],6)'); 
+$CI2 = join ", ", rserve_eval('round(result$conf.int[2],6)'); 
+
+## For the Solution:
+$aveA= join ", ", rserve_eval('round(aveA,2)');
+$sA= join ", ", rserve_eval('round(sA,2)');
+$aveBC= join ", ", rserve_eval('round(aveBC,2)');
+$sBC= join ", ", rserve_eval('round(sBC,2)');
+$t= join ", ", rserve_eval('round(result$statistic,3)');
+$df= join ", ", rserve_eval('round(result$parameter,3)');
+$ME = ($CI2-$CI1)/2;
+### Need single quotes here for the dollar sign to function in R 
+### or perl thinks it is a variable
+
+rserve_finish();  # END R SESSION
+
+$lowerCI = Real("$CI1");
+$upperCI = Real("$CI2");
+#NOTE: SET THE ABSOLUTE TOLERANCE HERE
+$tolerance = 0.001;
+
+$CIcheck = MultiAnswer($lowerCI, $upperCI)->with(
+  singleResult => 0,
+  checker => sub {
+    my ( $correct, $student, $self ) = @_;
+    my ( $Lstu, $Ustu ) = @{$student};
+    my ( $L, $U ) = @{$correct};
+    my @ret = (0,0);  
+#    if ($Lstu eq "" || $Ustu eq "") {
+#       $self->setMessage(1,"Enter an answer in both answer boxes.");
+#       $self->setMessage(2,"Enter an answer in both answer boxes.");
+#       return [ @ret ];
+#    }
+   if ($Lstu>$Ustu) {
+       $self->setMessage(2,"Intervals are described with starting and ending values. The second value should be larger than the first.");
+       return [ @ret ];
+   }
+   if ( (abs($Lstu-$L)<$tolerance && abs($Ustu-$U)<$tolerance) ||
+        (abs($Lstu+$U)<$tolerance && abs($Ustu+$L)<$tolerance) ) {
+       @ret = (1,1);
+   } else { 
+       if (abs($Ustu-$U)<$tolerance || abs($Ustu+$L)<$tolerance) {
+          @ret = (0,1);
+          if ((abs($Ustu-$U)<$tolerance && abs($Lstu-$L)<.09) ||
+              (abs($Ustu+$L)<$tolerance && abs($Lstu+$U)<.09)) {
+            $self->setMessage(1,"Your answer is close to the correct response.");
+          }
+       }
+       if (abs($Lstu-$L)<$tolerance || abs($Lstu+$U)<$tolerance) {
+          @ret = (1,0);
+          if ((abs($Lstu-$L)<$tolerance && abs($Ustu-$U)<.09) ||
+              (abs($Lstu+$U)<$tolerance && abs($Ustu+$L)<.09)) {
+            $self->setMessage(2,"Your answer is close to the correct response.");
+          }
+        }
+   }
+      return [ @ret ];
+  }
+);
+
+######################################
+#  Main text
+
+BEGIN_TEXT
+$BBOLD This question has two parts. Part 2 follows this problem.$EBOLD 
+$BR $BR
+${BBOLD}PART 1:$EBOLD
+$BR 
+A local third grade teacher asked her students to participate in the summer reading program at the library.  She kept track of the students who participated in the summer program during the next school year.  The table  below shows the number of books read during the summer and the grade they earned in fourth grade Language Arts. 
+$BR $BR
+\{
+DataTable(
+  [
+    [['# Books', headerrow => 1],'Grade', ' ', '# Books', 'Grade' ],
+    [ '$Book[0]', '$Grade[0]', ' ', '$Book[7]', '$Grade[7]' ],
+    [ '$Book[1]', '$Grade[1]', ' ', '$Book[8]', '$Grade[8]' ],
+    [ '$Book[2]', '$Grade[2]', ' ', '$Book[9]', '$Grade[9]' ],
+    [ '$Book[3]', '$Grade[3]', ' ', '$Book[10]', '$Grade[10]' ],
+    [ '$Book[4]', '$Grade[4]', ' ', '$Book[11]', '$Grade[11]' ],
+    [ '$Book[5]', '$Grade[5]', ' ', '$Book[12]', '$Grade[12]' ],
+    [ '$Book[6]', '$Grade[6]', ' ', '$Book[13]', '$Grade[13]' ]
+  ], 
+  align => '|c | c | p{1pt} | c | c |',
+  midrules => 1
+);
+\}
+$BR
+Consider two populations of students who participated in the summer reading program between third and fourth grade:  those who earned an \(A\) in fourth grade Language Arts and those who earned a \(B\) or \(C.\)  The teacher is interested to know if there is a difference in the mean number of books read by the two populations of students.
+$BR $BR
+Use ${BBOLD}R$EBOLD to form a \(95\)$PERCENT confidence interval for \(\mu_1 - \mu_2\), where \( \mu_1\) is the mean number of books for all students who earned an \(A\) and \(\mu_2\) is the mean number of books for all students who earned a \(B\) or \(C.\)
+$BR $BR $SPACE $SPACE
+Answer: \{$CIcheck->ans_rule(15)\} to \{$CIcheck->ans_rule(15)\}
+$BR $SPACE $SPACE
+$BITALIC
+NOTE: You must have values entered in both answer boxes for WeBWorK to accept your answer.
+$EITALIC
+END_TEXT
+
+######################################
+#  Answers
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $CIcheck->cmp() );
+
+######################################
+#  Solution
+
+BEGIN_SOLUTION
+$PAR SOLUTION $PAR
+There are \($nA\) \(A\)'s in the course and \($nBC\) \(B\)'s or \(C\)'s.
+$BR $BR
+Mean number of books read by \(A\) students: \($aveA\)
+$BR
+Standard deviation for \(A\) students: \($sA\)
+$BR $BR
+Mean number of books read by \(B/C\) students: \($aveBC\)
+$BR
+Standard deviation for \(B/C\) students: \($sBC\)
+$BR $BR
+\(t^* = $t\) for \(df = $df\) and the margin of error is \($ME\)
+$BR $BR
+\(95\)$PERCENT CI: \($lowerCI\) to \($upperCI\)
+END_SOLUTION
+
+ENDDOCUMENT(); # This should be the last executable line in the problem.
