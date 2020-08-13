@@ -1,0 +1,170 @@
+## DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(Independent samples - t)
+## Date(2015-01-18)
+## Institution(The College of Idaho)
+## Author(R Cruz)
+## Level(2)
+## KEYWORDS('statistics', 'two sample', 'inference', 't score')
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "niceTables.pl",
+  "PGchoicemacros.pl",
+  "parserPopUp.pl",
+  "RserveClient.pl"
+);
+
+COMMENT("This problem requires an connection to an R server.  Put the two problems together when scaffolding/multipart can limit attempts on parts.");
+
+TEXT(beginproblem());
+
+######################################
+#  Setup
+SRAND($psvn); #This keeps the same seed between problems
+
+@L1 =( "A", "A", "A", "A", "A", "A", "B", "B", "B", "C" );
+@slice_1 = NchooseK(10,7);
+@Grade = @L1[@slice_1];
+
+@L2 =( "A", "A", "B", "B", "B", "B", "B", "C", "C", "C" );
+@slice_2 = NchooseK(10,7);
+for($i=0; $i<7; $i++){
+   $Grade[$i+7] = $L2[$slice_2[$i]];
+}
+
+@diff = (0, 0, 0, random(1,3,1), random(1,3,1), random(1,5,1), random(1,5,1), random(2,5,1), random(2,5,1), random(3,8,1), random(3,8,1), random(4,8,1), random(4,8,1), random(5,10,1), random(5,10,1) );
+@slice_3 = NchooseK(15,13);
+@Book[ 0..13 ] = map { 0 } ( 0..13 );
+$Book[13] = random(12,18,1);
+for($i=12; $i>=0; $i--){
+   $Book[$i] = $Book[$i+1] + $diff[$slice_3[$i]];
+}
+
+rserve_start();  ##START R SESSION
+
+rserve_eval("A <- c()");
+rserve_eval("BC <- c()");
+
+for($i=0; $i<14; $i++){
+  if ($Grade[$i] eq "A") {
+    rserve_eval("A <- c(A, $Book[$i])");
+  } else {
+    rserve_eval("BC <- c(BC, $Book[$i])");
+  }
+}
+#$A_data = join ", ", rserve_eval("paste(A, collapse=' & ')");
+#Note: To show the data for checking
+
+rserve_eval("result <- t.test(A,BC)");
+$CI1 = join ", ", rserve_eval('round(result$conf.int[1],6)'); 
+$CI2 = join ", ", rserve_eval('round(result$conf.int[2],6)'); 
+### Need single quotes here for the dollar sign to function in R 
+### or perl thinks it is a variable
+
+rserve_finish();  # END R SESSION
+
+$lowerCI = Real("$CI1")->with(tolType=>'absolute',tolerance=>.001);
+$upperCI = Real("$CI2")->with(tolType=>'absolute',tolerance=>.001);
+
+if ( $lowerCI<0 && $upperCI>0 ) { $tag = 0; } else { $tag = 1; }
+
+@Explain = ("The confidence interval contains zero.",
+            "The confidence interval does not contain zero.");
+
+@ans = ("There is not sufficient evidence to indicate that there is a difference in the mean number of books read by the two populations of students.",
+"There is sufficient evidence to indicate that there is a difference in the mean number of books read.");
+
+$mc = new_multiple_choice();
+$mc -> qa ('From this confidence interval, we conclude:', $ans[$tag]);
+$mc -> extra ($ans[1-$tag]); 
+
+@ans_d = ("contains zero.","does not contain zero.");
+
+$popup = PopUp(["?", $ans_d[0],$ans_d[1], "is significantly wider than the standard interval." , "is significantly narrower than the standard interval."], $ans_d[$tag]);
+
+$mc2 = new_multiple_choice();
+$mc2 -> qa ('What conditions are required for the inference to be valid? ', 'Check to see if the sample data appear close to Normal since the sum of the sample sizes is less than \(16.\)');
+$mc2 -> extra ('Not take the results too seriously since neither sample is big enough to be meaningful.',
+        'Remove the largest and smallest values from the larger data set and only test equal size samples.');
+$mc2 -> makeLast('All of the above.'); 
+
+######################################
+#  Main text
+
+BEGIN_TEXT
+${BBOLD}This problem has two parts. Please refer to Part 1. 
+$BR $BR
+PART 2:$EBOLD
+$BR
+A local third grade teacher asked her students to participate in the summer reading program at the library.  She kept track of the students who participated in the summer program during the next school year.  The table  below shows the number of books read during the summer and the grade they earned in fourth grade Language Arts. 
+$BR $BR
+\{
+DataTable(
+  [
+    [['# Books', headerrow => 1,noencase=>1], ['Grade',noencase=>1], ' ', ['# Books',noencase=>1], ['Grade',noencase=>1] ],
+    [ '$Book[0]', '$Grade[0]', ' ', '$Book[7]', '$Grade[7]' ],
+    [ '$Book[1]', '$Grade[1]', ' ', '$Book[8]', '$Grade[8]' ],
+    [ '$Book[2]', '$Grade[2]', ' ', '$Book[9]', '$Grade[9]' ],
+    [ '$Book[3]', '$Grade[3]', ' ', '$Book[10]', '$Grade[10]' ],
+    [ '$Book[4]', '$Grade[4]', ' ', '$Book[11]', '$Grade[11]' ],
+    [ '$Book[5]', '$Grade[5]', ' ', '$Book[12]', '$Grade[12]' ],
+    [ '$Book[6]', '$Grade[6]', ' ', '$Book[13]', '$Grade[13]' ]
+  ], 
+  align => '|c | c | p{1pt} | c | c |',
+  midrules => 1,
+  encase => ['\(','\)'],
+);
+\}
+$BR
+In the previous problem, you used ${BBOLD}R$EBOLD to calculate a \(95\)$PERCENT 
+confidence interval for the difference between the mean number of books read 
+by students who earned an \(A\) in fourth grade Language Arts and those who 
+earned a \(B\) or \(C.\)  Use this information to answer the following:
+$BR
+$BR
+${BITALIC}${BBOLD}Note: You only have THREE attempts for this question and ALL answers must be correct to receive credit -- it is not possible to earn partial credit.$EITALIC$EBOLD
+$BR
+$PAR
+(a) \{$mc->print_q()\}
+$BR
+\{$mc->print_a()\}
+$PAR
+(b) We base the conclusion on the fact that the confidence interval \{ $popup->menu() \}.
+$PAR
+(c) \{$mc2->print_q()\}
+$BR
+\{$mc2->print_a()\}
+END_TEXT
+
+######################################
+#  Answers
+
+# no credit until all answers are correct
+install_problem_grader(~~&std_problem_grader);
+$showPartialCorrectAnswers = 0;
+
+ANS(radio_cmp($mc->correct_ans));
+ANS( $popup->cmp() );
+ANS(radio_cmp($mc2->correct_ans));
+
+######################################
+#  Solution
+
+BEGIN_SOLUTION
+$PAR SOLUTION $PAR
+Note: The \(95\)$PERCENT CI is: \($lowerCI\) to \($upperCI\)
+$BR $BR
+(a) ${BBOLD}\{$mc->correct_ans\}${EBOLD}. $ans[$tag]
+$BR
+(b) $Explain[$tag] 
+$BR
+(c) ${BBOLD}\{$mc2->correct_ans\}${EBOLD}. Since the sample sizes are small, it's best to check that the sample data
+are close to being Normal.
+END_SOLUTION
+
+ENDDOCUMENT(); # This should be the last executable line in the problem.
