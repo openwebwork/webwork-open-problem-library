@@ -1,0 +1,104 @@
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl", 
+"MathObjects.pl", 
+"PGunion.pl",
+"parserMultiAnswer.pl",
+"PGcourse.pl",
+);
+
+TEXT(beginproblem());
+Context("Numeric")->variables->are(x=>"Real");
+Context()->{error}{msg}{"Operands of '*' can't be words"} = " ";
+
+$m = random(1,1,1);
+$seedn = random(3,8,2);
+$seedi = random(1,5,1);
+$n = Real(" $seedn * $m ");
+$i = Real(" $seedi * $m ");
+$a = Real("(($i)^2 - $n)/($m)"); # To ensure that f(a) is an integer
+
+
+$f = Formula("sqrt($m * x + $n)")->reduce;
+$fa = $f->eval(x=>$a);
+
+$multnum = Formula("($f-$fa)*($f+$fa)")->reduce;
+
+#$fraction = "\frac{$f - $fa}{x-$a} \cdot \frac{$f + $fa}{$f + $fa} ";
+
+
+$num = Formula(" $m ");
+$den = Formula(" ($f + $fa) ");
+
+
+$multians = MultiAnswer($num, $den)->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $f1stu, $f2stu ) = @{$student};
+      my ( $f1, $f2 ) = @{$correct};
+ 
+      if ( $f1==$f1stu &&  $f2==$f2stu ) {
+          return [1,1];
+      } elsif ( $f1==$f1stu  ) {
+          return [1,0];
+      } elsif ( $f2==$f2stu  ) {
+          return [0,1];
+      } else {
+          return [0,0];
+      }
+  }
+);
+
+
+# 
+#  Display the fraction and answer blanks nicely
+#
+Context()->texStrings;
+if ($displayMode eq 'TeX') {
+  $showfraction =
+  "\[  = ".$multians->ans_rule(10).$multians->ans_rule(10)." \]";
+} else {
+  $showfraction =
+  ColumnTable(
+  "\(   = \)",
+  $multians->ans_rule(20).$BR.$HR.$multians->ans_rule(20),
+  indent => 0, separation => 10, valign => "MIDDLE"
+  );
+}
+Context()->normalStrings;
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+In this problem, we would like to rationalize the numerator of the expression 
+\(\displaystyle \frac{$f - $fa}{x-$a} \).
+
+$PAR
+To do this, we must multiply the top and bottom of the fraction by the conjugate \(\big(\displaystyle $f \ \mathbf{+}\ $fa \big)\), and then simplify.  
+
+$PAR
+In other words, simplify the expression below.
+Express your answer in reduced form.
+$BR
+$BR
+\[\displaystyle \left(\frac{$f - $fa}{x-$a}\right) \cdot \left(\frac{$f + $fa}{$f + $fa}\right) \] 
+$BR
+$BCENTER
+$showfraction
+$ECENTER
+
+END_TEXT
+Context()->normalStrings;
+
+$showPartialCorrectAnswers = 1;
+
+install_problem_grader(~~&std_problem_grader);
+
+
+ANS( $multians->cmp() );
+
+ENDDOCUMENT();
