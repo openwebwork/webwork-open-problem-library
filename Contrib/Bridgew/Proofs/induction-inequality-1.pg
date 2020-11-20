@@ -1,0 +1,236 @@
+##DESCRIPTION
+##  Problem Description
+##ENDDESCRIPTION
+
+##KEYWORDS('sample')
+
+## DBsubject('Course')
+## DBchapter('Section')
+## DBsection('Subsection')
+## Date('6/25/2018')
+## Author('Stephen Flood')
+## Institution('Bridgewater State University')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+
+
+
+########################################################################
+
+
+
+DOCUMENT();
+
+# Load whatever macros you need for the problem
+loadMacros(
+        "PGstandard.pl",     # Standard macros for PG language
+        "PGcourse.pl",       
+	"PGML.pl",
+	"MathObjects.pl",
+    "bizarroArithmetic.pl",
+    "unionLists.pl",
+    "parserPopUp.pl",
+    "PGauxiliaryFunctions.pl", 
+        # "PGgraphmacros.pl",
+    	# "parserMultiAnswer.pl",
+    	# "contextInequalities.pl",
+);
+
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+
+##############################################################
+#  Setup
+
+Context("Numeric");
+# Context()->flags->set(tolerance => 0.01);
+Context()->variables->add(k => 'Real', n => 'Real');
+# See http://webwork.maa.org/wiki/Introduction_to_contexts for more options
+
+
+
+#################################################
+# Write Problem 
+
+## See 
+
+## Use bizarroArithmetic.pl to check the form of certain answers.
+##      Redefines operations so, for example, 1+1 does not equal 2;
+##      Useful for checking the form of an answer.
+## See pg/macros/bizarroArithmetic.pl for usage 
+##
+## SHOULD THIS BE DISABLED?!  It might be *TOO* pedantic for this problem
+Context()->operators->set(
+'+' => {class => 'bizarro::BOP::add', isCommand => 1},
+'-' => {class => 'bizarro::BOP::subtract', isCommand => 1},
+'*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'**' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+'^' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+);
+## Uncomment the following lines to restric specific operations in answers
+#Context()->flags->set(bizarroAdd=>1);
+#Context()->flags->set(bizarroSub=>1);
+#Context()->flags->set(bizarroMul=>1);
+#Context()->flags->set(bizarroDiv=>1);
+#Context()->flags->set(bizarroPow=>1);
+
+
+$a = random(4,10,2);
+$b = random(3,7,2);
+$c = random(3,7,2);
+# IMPORTANT: In this problem, you must ensure that d > b 
+# This should ensure that  nstart is greater than one. 
+$d = Compute("$b*2*$a");
+$e = random(3,$d-1,2);
+
+$LHS = Compute(" $a * (n)^2 + $b * n + $c")->reduce();
+$RHS = Compute(" $d * n + ($c + $e)")->reduce();
+# Because $a>0 and $c-($c+$e)<0, the two polynomials will intersect, making this problem interesting.   
+
+# Compute the right endpoint where the curves intersect.  (assuming $a>0)
+$intersectN = Compute(" (-($b-$d) + sqrt( ($b-$d)^2 + 4*$a*$e ) )/(2*$a)");
+$inductionN = Compute("$d/(2*$a)"); 
+    
+$nstart = max( ceil($intersectN), $inductionN);
+
+$LHSone = $LHS->substitute(n=> "$nstart")->reduce();
+$LHSk = $LHS->substitute(n=> "k")->reduce();
+$LHSkplusone = $LHS->substitute(n=> "k+1")->reduce();
+$LHSchange = Compute("2*$a*n + 2*$a")->reduce();
+
+$RHSone = $RHS->substitute(n=> "$nstart")->reduce();
+$RHSk = $RHS->substitute(n=> "k")->reduce();
+$RHSkplusone = $RHS->substitute(n=> "k+1")->reduce();
+$RHSkplusoneReduce = $RHS->substitute(n=> "k+1")->reduce();
+$RHSchange = Compute("$d")->reduce();
+
+
+####
+#  Be *CAREFUL* when using "drop down" lists in PGML problems.  
+#  
+#  the PopUp parser needs to be called by the Answer environment 
+#  AND 
+#  Answer environments need to be parsed in order 
+#  so you'd need an END_PGML  ANS ( $popup->cmp() ) BEGIN_PGML
+#  immediately after the popup list will be typeset
+
+$completeBaseCase = PopUp(["?", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone > $RHSone"],  "$LHSone > $RHSone");
+$completeInductiveStep = PopUp(["?", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone > $RHSone"],  "$LHSkplusone > $RHSkplusone");
+
+
+$supposeIHk = PopUp(["?","Suppose that ","Prove that "],"Suppose that "); 
+$proveIHkplus1 =  PopUp(["?","Suppose that ","Prove that "],"Prove that ");
+
+$stateIH = PopUp(["Select the Induction Hypotheis", "$LHS > $RHS", "two", "three"], "$LHS > $RHS");
+
+## Distractors from "Proof of Equality" problems
+## Idea: Add "recursive definitions" to the distractors.   
+##
+$applyIH = PopUp(["?", "$LHSkplusone = $LHSk + $LHSchange", "$RHSkplusone = $RHSk + $RHSchange", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone>$RHSone"], "$LHSk > $RHSk");
+
+$nextIH = PopUp(["?", "$LHSkplusone = $LHSk + $LHSchange", "$RHSkplusone = $RHSk + $RHSchange", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone>$RHSone"], "$LHSkplusone > $RHSkplusone");
+
+
+BEGIN_PGML
+
+
+----  
+
+
+We wish to prove by induction that [``[$LHS] > [$RHS] ``] for each natural number [``n\geq [$nstart]``].
+
+
+----  
+
+
+We proceed by induction on [`n`] 
+
+END_PGML
+#with induction hypothesis [@ $stateIH->menu @]*
+#ANS($stateIH->cmp());# Answer checker for the popup list object.
+BEGIN_PGML
+
+(a) *Base Case*
+
+We first show that the induction hypothesis holds when [`n=[$nstart]`].
+
+[`` [$LHS] = ``] [___________]{$LHSone}
+
+[`` [$RHS] = ``][__________]{$RHSone}. 
+
+We have proved that in the case where [`n=[$nstart]`], [@ $completeBaseCase->menu @]*
+This completes the proof of the base case.
+
+END_PGML
+ANS($completeBaseCase->cmp());# Answer checker for the popup list object.
+BEGIN_PGML
+
+(b) *Inductive Step*
+
+>>[@ $supposeIHk->menu @]* [@ $applyIH->menu @]*<<
+END_PGML
+ANS($supposeIHk->cmp());# Answer checker for the popup list object.
+ANS($applyIH->cmp());# Answer checker for the popup list object.
+BEGIN_PGML
+
+>>[@ $proveIHkplus1->menu @]* [@ $nextIH->menu @]*<<
+END_PGML
+ANS($proveIHkplus1->cmp());# Answer checker for the popup list object.
+ANS($nextIH->cmp());# Answer checker for the popup list object.
+BEGIN_PGML
+
+  
+.  
+  
+The trick in this problem is to realize that you can rewrite the left hand side when [`n = k+1`] in terms of the left hand side when [`n=k`], and similarly with the right hand side.  
+
+The left hand side for [`n=k+1`]:
+>> [________________________]{$LHSkplusone} [` = [$LHSk] +`] [____________]{$LHSchange} <<
+
+The right hand side for [`n=k+1`]:
+>> [________________________]{$RHSkplusone} [` = [$RHSk] +`] [____________]{$RHSchange} <<
+
+Recall that we have already assumed, by the induction hypothesis that
+[@ $applyIH->menu @]*
+END_PGML
+ANS($applyIH->cmp());# Answer checker for the popup list object.
+BEGIN_PGML
+
+In addition, recall that we have assumed that [`n > [$nstart]`].  Therefore it follows that [`[$LHSchange] > [$RHSchange]`].  
+
+It follows that [`[$LHSk] + [$LHSchange] > [$RHSk] + [$RHSchange]`]
+
+In other words, having assumed the inductive hypothesis, we have now proved that [@ $completeInductiveStep->menu @]*.
+
+Therefore, it follows by induction that[@ $stateIH->menu @]* for *every* [`n\in\mathbb{N}`].
+
+END_PGML
+ANS($completeInductiveStep->cmp());# Answer checker for the popup list object.
+ANS($stateIH->cmp());# Answer checker for the popup list object.
+
+
+#BEGIN_PGML_HINT
+#The goal of this problem is to help you learn the details of a *proof* by induction.  *Hint:* read the directions carefully.  
+#
+#If you have answers that are being marked wrong, make sure that you are not skipping any steps.  
+#
+#Talk to your instructor if you are unsure of which steps are required!
+#END_PGML_HINT
+
+
+
+ENDDOCUMENT();
