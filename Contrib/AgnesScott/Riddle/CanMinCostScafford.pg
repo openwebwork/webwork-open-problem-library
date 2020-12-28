@@ -1,0 +1,296 @@
+##DESCRIPTION
+##  Optimization - Minimize cost of a cylinder with fixed volume given
+##  the cost of the top/bottom and the side.
+##  A GeoGebra applet also shows an animation of the cylinder
+##  as the radius of the base is changed.
+##  GeoGebra applet code used from https://github.com/Edfinity/ww_ggb_applet.
+##  Uses scaffolding to first set up the problem in terms of radius and height,
+##  then give a function for the cost in terms of the radius, and find its derivative,
+##  then finally to use the derivative to find the optimal radius and height, and the minimum cost.
+##ENDDESCRIPTION
+
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Applications of differentiation)
+## DBsection(Optimization - general)
+## Date(12/2020)
+## Institution(Agnes Scott College)
+## Author(Larry Riddle)
+## MO(1)
+## KEYWORDS('optimization', 'applications', 'derivative', 'Geogebra')
+
+############################################################## 
+#  Initialization
+##############################################################
+
+DOCUMENT();      
+
+loadMacros(
+    "PGstandard.pl",
+    "MathObjects.pl",
+    "scaffold.pl",
+    "PGML.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+$showHint = 0;
+
+##############################################################
+#  Problem Setup
+##############################################################
+
+Context("Numeric");
+Context()->variables->are(r=>"Real", h=>"Real");
+Context()->flags->set(
+   tolerance => 0.0005, tolType => "absolute",
+   Context()->{format}{number} = "%.6f#",
+#   formatStudentAnswer => "parsed"
+);
+
+$V = random(600,1600,2);
+# C1 = side cost, C2 = top/bottom cost
+$C1 = random(1,4,0.25);
+do {$C2 = random(1,4,0.25);} until ($C2 != $C1);
+$costForm = Formula("2*$C2*pi*r**2 + 2*$C1*pi*r*h");
+$volForm = Formula("pi*r**2*h");
+$costFunc = Formula("2*$C2*pi*r**2 + 2*$C1*$V/r");
+$costDeriv = Formula("4*$C2*pi*r - 2*$C1*$V/r**2");
+$optimalRadius = Real("($V/(2*pi)*$C1/$C2)**(1/3)");
+$optimalHeight = Real("2*($V/(2*pi)*$C1/$C2)**(1/3)*$C2/$C1");
+$minCost = Real("(2*$V*$C1/($V/(2*pi)*$C1/$C2)**(1/3) + 2*$C2*pi*($V/(2*pi)*$C1/$C2)**(2/3))/100");
+$minCostDollars = sprintf('%0.2f',$minCost);
+
+# Possible errors in setting up the area and volume formulas
+# open top
+$openTopCostForm = Formula("$C2*pi*r**2 + 2*$C1*pi*r*h");
+# uses pi*r for the circumference
+$circumferenceError = Formula("2*$C2*pi*r**2 + pi*$C1*r*h");
+# does not multiply the circumference by the height
+$sideAreaError1 = Formula("2*$C2*pi*r**2 + 2*$C1*pi*r");
+# takes side area to be product of diameter and height
+$sideAreaError2 = Formula("2*$C2*pi*r**2 + 2*$C1*r*h");
+# does not include the costs
+$noCostinForm = Formula("2*pi*r**2 + 2*pi*r*h");
+
+$AreaChecker = sub {
+     my ($correct,$student,$ansHash) = @_;
+     if ($student == $openTopAreaForm) {
+         Value->Error("Your answer is close, but it appears that you may have used a cylinder with an open top, not a closed top. See the Hint.");
+     } elsif ($student == $circumferenceError) {
+         Value->Error("Your answer is close, but it appears that you may not have the correct area for the side of the cylinder. See the Hint.");
+     } elsif ($student == $sideAreaError1) {
+         Value->Error("Your answer is close, but it appears that you may not have the correct area for the side of the cylinder. See the Hint.");
+     } elsif ($student == $sideAreaError2) {
+         Value->Error("Your answer is close, but it appears that you may not have the correct area for the side of the cylinder. See the Hint.");
+     } elsif ($student == $noCostinForm) {
+         Value->Error("This appears to be the total area of the cylinder, not the total cost. See the Hint.");
+     } elsif ($student != $correct) {
+         Value->Error("See the Hint.");
+     }
+     return 1; 
+};
+
+$VolumeChecker = sub {
+     my ($correct,$student,$ansHash) = @_;    
+     if ($student != $correct) {
+         Value->Error("See the Hint.");
+     }
+     return 1; 
+};
+
+$CostChecker = sub {
+     my ($correct,$student,$ansHash) = @_;
+     if ($student == 100*$correct) {
+         Value->Error("This appears to be the answer in cents, not dollars.");
+     }
+     return 1;
+};
+
+HEADER_TEXT('<script type="text/javascript" src="https://cdn.geogebra.org/apps/deployggb.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/ww_ggb_applet/lib/ww_ggb_applet.js"></script>');
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+
+<div id="applet2" class="ww-ggb"></div>
+
+<script>
+  var onUpdate = function(obj) {  
+  }
+
+  var onLoad = function(applet) {
+     applet.evalCommand("V = $V");
+     applet.evalCommand("C1 = $C1");
+     applet.evalCommand("C2 = $C2");
+  }
+  
+  encodedApp = "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"
+  new WwGgbApplet('applet2', {
+    width: 712,
+    height: 387,
+    ggbBase64: encodedApp,
+    appletOnLoad: onLoad,
+    appletOnUpdate: onUpdate,
+    hideAnswers: false,
+    enableShiftDragZoom: false,
+    showResetIcon: true
+    }); 
+</script>
+
+END_SCRIPT
+
+
+##############################################################
+#  Text
+##############################################################
+BEGIN_TEXT
+$PAR
+$BBOLD Note: $EBOLD This problem uses an interactive GeoGebra applet. It may take a few seconds for the figures to appear.
+\{ knowlLink(" Instructions ", value=>'Click and hold the mouse on the point to move it, or use your finger on a touchscreen. You can also click the point and use the left/right arrow keys on a keyboard to move the point. Click or touch the small icon in the upper right corner to reset the app.') \}
+$PAR
+END_TEXT
+
+BEGIN_PGML
+## ##
+
+A closed cylindrical can must have a fixed volume of [$V] [`\text{cm}^3`].  
+The cost of materials for the top and bottom of the can is [$C2] cents per [`\text{cm}^2`].  
+The cost of materials for the side of the can is [$C1] cents per [`\text{cm}^2`].
+
+In this problem you will find the radius of the can that will minimize the total cost. The graph above shows a plot of the total cost as a function of the radius of the base. Use the slider to move the point on the graph to visualize how the cost changes for different values of the radius, and use this to estimate the optimal radius. 
+
+Click on Part 1 to open the section. Enter your answers for the two questions in Part 1, then click on Submit Answers. Once your answers are both correct, you will be able to open Part 2. When your answers to Part 2 are both correct, continue to Part 3 to find the optimal radius and height for the can with minimum cost.  
+
+END_PGML
+
+#  The scaffold
+Scaffold::Begin(open_first_section => 0);
+
+Section::Begin("Part 1: The Setup",
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Let [`r`] be the radius of the base and let [`h`] be the height of the cylindrical can.
+
+What is the cost of the can in cents in terms of [`r`] and [`h`]?
+
+[`C`] = [_________________________]{$costForm->cmp(checker=>$AreaChecker)}
+
+What is the volume of the can in terms of [`r`] and [`h`]?
+
+[`V`] = [_________________________]{$volForm->cmp(checker=>$VolumeChecker)}  
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+The total cost of the closed cylinder is the sum of the cost of the top and bottom circles and the cost of the side of the cylinder. The cost of each section is the cost per [`\text{cm}^2`] multiplied by the area of the section. If you could cut and unwrap the side of the cylinder, it would become a rectangle whose width is the circumference of the base circle and whose height is the height of the cylinder. The volume of the cylinder is the area of the base times the height.
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+The total cost of the closed cylinder is the sum of the cost of the top and bottom circles and the cost of the side of the cylinder. The top and bottom circles have combined area [`2\pi r^2`], so the cost for the top an bottom is [`(2\pi r^2)([$C2])`].  If you could cut and unwrap the side of the cylinder, it would become a rectangle whose width is the circumference of the base circle, [`2\pi r`], and whose height is the height [`h`] of the cylinder. The cost of the side is therefore [`(2\pi r h)([$C1])`]. The total cost of the closed cylinder is therefore [`C = (2\pi r^2)([$C2]) + (2\pi r h)([$C1]) = [$C2*2]\pi r^2 + [$C1*2]\pi r h`]. The volume of the can is [`V = \pi r^2 h`].  
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 2: The Calculus Part: Function and Derivative",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Use the fact that [`V = [$V]`] to determine a function [`C(r)`] that gives the total cost of the cylindrical can in terms of the radius [`r`] of the base (this is the function plotted above).
+
+[`C(r)`] = [________________________]{$costFunc}
+
+What is the derivative of [`C(r)`]?
+
+[`C'(r)`] = [________________________]{$costDeriv}  
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+Solve the volume equation for [`h`] and substitute into the cost formula to get a function for the total cost only in terms of [`r`], then simplify as much as possible before taking the derivative.
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+The volume of the can is [`\pi r^2 h = [$V]`]. Solving this equation for [`h`] and substituting into [`C`] gives
+
+>>[``C(r) = [$C2*2]\pi r^2 + [$C1*2]\pi r \left( \frac{[$V]}{\pi r^2} \right) = [$C2*2]\pi r^2 + \frac{[$V*$C1*2]}{r}``]<<
+
+The domain of this function is [`r \gt 0`].
+
+>>[``C'(r) = [$C2*4]\pi r - \frac{[$V*$C1*2]}{r^2} ``]<<  
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 3: The Calculus Part: Minimizing the Total Cost",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+Note: For [`r`] and [`h`], round your answers to three decimal places. You may need to use more decimal places in the calculation so that the final answer is correct to three places. For [`C`], round your answer in *dollars* to two decimal places.
+
+Use the derivative to find the radius [`r`] that minimizes the total cost of the can. 
+
+[`r`] = [________]{$optimalRadius} cm 
+
+What is the height of the can of minimum cost? 
+
+[`h`] = [________]{$optimalHeight} cm 
+
+What is the minimum cost in dollars? 
+
+[`C = $`][________]{$minCost->cmp(checker=>$CostChecker,tolerance => 0.005, tolType => "absolute")}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+To minimize [`C`], take the derivative and set it equal to 0.
+
+>>[``
+\begin{aligned}
+C'(r) = [$C2*4]\pi r - \frac{[$V*$C1*2]}{r^2} = 0 \\ \\
+[$C2*4]\pi r^3 = [$V*$C1*2] \\ \\ 
+r^3 = \frac{[$V*$C1*2]}{[$C2*4]\pi} \\ \\
+r = \left( \frac{[$V*$C1*2]}{[$C2*4]\pi} \right)^{1/3} \approx [$optimalRadius]
+\end{aligned}
+``]<<
+
+To three decimal places rounded, [`r \approx [@sprintf("%.3f", $optimalRadius)@]`].
+
+The graph suggests that this is the global minimum. Calculus can verify this. Note that 
+
+>>[``C''(r) = [$C2*4]\pi + \frac{2([$V*$C1*2])}{r^3} \gt 0``]<<
+
+and therefore the critical point is a local minimum by the second derivative test. But since [`C`] is a continuous function for [`r \gt 0`] and there is only one critical point, this must actually be the global minimum for [`r \gt 0.`]
+
+The optimal height is [``h = \frac{V}{\pi r^2} \approx [$optimalHeight] ``] using the value of [`r`] found above. To three decimal places rounded, [`h \approx [@sprintf("%.3f", $optimalHeight)@]`].
+
+The minimum cost can be found using your function [`C(r) = [$C2*2]\pi r^2 + \frac{[$V*$C1*2]}{r} \approx [$minCost*100]`], then converting to dollars to get $[$minCostDollars]. 
+
+See if you can show that if [`C_1`] is the side cost and [`C_2`] is the top and bottom cost, then
+
+>>[``h = 2r\left(\frac{C_2}{C_1}\right)``] or [``\frac{h}{2r} = \frac{C_2}{C_1}``]<<
+
+no matter what the value of the fixed volume [`V`] is equal to. This means that the optimal height is in the same ratio to the optimal diameter as the top/bottom cost is to the side cost.
+
+
+
+END_PGML_SOLUTION
+
+Section::End();
+Scaffold::End();
+
+COMMENT(' Note: Uses GeoGebra which might not be executed in the Library Browser. Uses scaffolding.');
+
+ENDDOCUMENT();

@@ -1,0 +1,277 @@
+##DESCRIPTION
+##  Optimization - minimize perimeter of Norman window with fixed area.
+##  Modification of OPL problem NormanWindow.pg from CSUOhio to use GeoGebra
+##  HTML5 applet rather than Flash. Made the area be randomly chosen and 
+##  added hint and solution.
+##  Uses GeoGebra HTML5 applet to display graph of area function
+##  and an animation of the pen as the radius of semicircle is changed.
+##  Embedding of Geogebra applet uses https://github.com/Edfinity/ww_ggb_applet.
+##  Uses scaffolding to first set up the problem in terms of radius and height,
+##  then to give a function for perimeter in terms of the radius, and find its derivative,
+##  then finally to use the derivative to find the optimal dimensions.
+##ENDDESCRIPTION
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Applications of differentiation)
+## DBsection(Optimization - general)
+## Date(October 2020)
+## Institution(Agnes Scott College)
+## Author(Larry Riddle)
+## MO(1)
+## KEYWORDS('optimization', 'applications', 'derivative', 'Geogebra')
+
+############################################################## 
+#  Initialization
+##############################################################
+
+DOCUMENT();      
+
+loadMacros(
+    "PGstandard.pl",
+    "MathObjects.pl",
+    "scaffold.pl",
+    "PGML.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+$showHint = 0;
+
+##############################################################
+#  Problem Setup
+##############################################################
+
+Context("Numeric");
+#Parser::Number::NoDecimals;
+Context()->variables->are(r=>"Real",h=>"Real");
+Context()->flags->set(
+   tolerance => 0.0005, tolType => "absolute",
+   Context()->{format}{number} = "%.6f#",
+#   formatStudentAnswer => "parsed"
+);
+
+$A = random(100,400);
+$areaform = Formula("2*r*h+pi*r**2/2");
+$perimeterform = Formula("2*h+2*r+pi*r");
+$perimFunc = Formula("$A/r + pi*r/2+2*r");
+$perimDeriv = Formula("-$A/r**2 + pi/2+2");
+$optimalRadius = Compute("sqrt(2*$A/(4+pi))");
+$optimalHeight = Compute("sqrt(2*$A/(4+pi))");
+
+# common errors with setting up area and/or perimeter expressions
+# includes top of rectangle in perimeter
+$d1 = Formula("2*h+4*r+pi*r");
+# uses area of circle, not semicircle 
+$d2 = Formula("2*r*h+pi*r**2");
+# uses circumference of circle, not semicircle
+$d3 = Formula("2*h+2*r+2*pi*r");
+# uses r as the width of the rectangle in the area;
+$d4 = Formula("r*h + 1/2*pi*r^2");
+# uses r as the width of the rectangle in the perimeter;
+$d5 = Formula("2h + r + pi*r");
+
+
+$ValueChecker = sub {
+     my ($correct,$student,$ansHash) = @_;
+     if ($student == $d1) {
+         Value->Error("Your answer is close, but it appears that you may have used all four sides of the rectangle for the perimeter.");
+     } elsif ($student == $d2) {
+         Value->Error("Your answer is close, but it appears that you may have used the area of a circle rather than the area of a semicircle.");
+     } elsif ($student == $d3) {
+         Value->Error("Your answer is close, but it appears that you may have used the circumference of a circle rather the length of a semicircle.");
+     } elsif (($student == $d4) or ($student == $d5)) {
+         Value->Error("Your answer is close, but it appears that you may have used r as the width of the rectangle rather than as the radius of the semicircle.");
+     } elsif ($student != $correct) {
+         Value->Error("See the Hint");
+     }
+     return 1; 
+};
+
+
+HEADER_TEXT('<script type="text/javascript" src="https://cdn.geogebra.org/apps/deployggb.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/ww_ggb_applet/lib/ww_ggb_applet.js"></script>');
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+
+<div id="applet2" class="ww-ggb"></div>
+
+<script>
+  var onUpdate = function(obj) {   
+  }
+
+  var onLoad = function(applet) {
+     applet.evalCommand("A = $A");
+  }
+  
+  encodedApp = "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"
+  new WwGgbApplet('applet2', {
+    width: 712,
+    height: 387,
+    ggbBase64: encodedApp,
+    appletOnLoad: onLoad,
+    appletOnUpdate: onUpdate,
+    hideAnswers: false,
+    enableShiftDragZoom: false,
+    showResetIcon: true}); 
+</script>
+
+END_SCRIPT
+
+##############################################################
+#  Text
+##############################################################
+BEGIN_TEXT
+$PAR
+$BBOLD Note: $EBOLD This problem uses an interactive GeoGebra applet. It may take a few seconds for the figures to appear.
+\{ knowlLink(" Instructions ", value=>'Click and hold the mouse on the point to move it, or use your finger on a touchscreen. You can also click the point and use the left/right arrow keys on a keyboard to move the point. Click or touch the small icon in the upper right corner to reset the app.') \}
+$PAR
+END_TEXT
+
+BEGIN_PGML
+## ##
+
+A window is in the shape of a rectangle with a semicircle at the top. The window must have a fixed area of [$A]. In this problem you will find the dimensions of the window that minimizes the total length of its perimeter. The graph above shows a plot of the perimeter as a function of the radius of the semicircle. Move the indicated point along the graph to visualize how the length of the perimeter changes for different values of the radius of the semicircle, and use this to estimate the optimal radius.
+
+Click on Part 1 to open the section. Enter your answers for the two questions in Part 1, then click on Submit Answers. Once your answers are both correct, you will be able to open Part 2. When your answers to Part 2 are both correct, continue to Part 3 to find the optimal radius and height for the window with minimal perimeter.  
+
+END_PGML
+
+#  The scaffold
+Scaffold::Begin(open_first_section => 0);
+
+Section::Begin("Part 1: The Setup",
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Let [`r`] be the radius of the semicircle and let [`h`] be the height of the rectangle. Express the area [`A`] of the window and the perimeter [`P`] of the window in terms of [`r`] and [`h`].
+
+[`A`] = [_______________________________]{$areaform->cmp(checker=>$ValueChecker)}
+
+[`P`] = [_______________________________]{$perimeterform->cmp(checker=>$ValueChecker)}
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+The perimeter consists of three sides of the rectangle and the semicircle. If [`r`] is the radius of the semicircle, what is the width of the rectangle in terms of [`r`]?
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+The perimeter consists of three sides of the rectangle and the semicircle.
+Each side of the rectangle has height [`h`]. The base of the rectangle has width [`2r`] since it is the same as the diameter of the semicircle. 
+
+The area of the rectangle is [`2rh`] and the area of the semicircle is [`\frac{1}{2}\pi r^2.`] The area of the window is therefore [`A = 2 r h + \frac{1}{2}\pi r^2.`] 
+
+The perimeter of the three sides of the rectangle is [`2h + 2r`] and the perimeter of the semicircle is [`\pi r`], half the circumference of the circle. The perimeter of the window is therefore [`P = 2h + 2r + \pi r.`]  
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 2: The Calculus Part: Function and Derivative",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Use the fact that the area is required to be [`A = [$A]`] to find a function [`P(r)`] that gives the perimeter of the window in terms of the semicircle radius  [`r`] (this is the function plotted above).
+
+[`P(r)`] = [________________________]{$perimFunc}
+
+What is the derivative of [`P(r)`]?
+
+[`P'(r)`] = [________________________]{$perimDeriv}
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+Solve the area equation for [`h`] and substitute into the perimeter formula to get a function for the perimeter only in terms of [`r`], then simplify as much as possible before taking the derivative.
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+Solving the equation [`2 r h + \frac{1}{2}\pi r^2 = [$A]`] for [`h`] gives
+
+>>[``\begin{aligned}
+2 r h + \frac{1}{2}\pi r^2 = [$A] \\
+2rh = [$A] - \frac{1}{2}\pi r^2 \\
+h = \frac{[$A] - \frac{1}{2}\pi r^2}{2r}
+\end{aligned}
+``]<<
+
+Now substituting into [`P`] and simplify.
+
+>>[``\begin{aligned}
+P(r) = 2\left ( \frac{[$A] - \frac{1}{2}\pi r^2}{2r}\right ) +2r + \pi r \\
+= \frac{[$A]}{r} - \frac{1}{2}\pi r + 2r + \pi r \\
+= \frac{[$A]}{r} + 2r + \frac{1}{2}\pi r
+\end{aligned}``]<<
+
+The domain of this function is [`r \gt 0`].
+
+>>[``P'(r) = -\frac{[$A]}{r^2} + 2 + \frac{1}{2}\pi``]<<  
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 3: The Calculus Part: Minimizing the Perimeter",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+Give your answers rounded to 3 decimal places.
+
+Use the derivative to find the radius [`r`] that minimizes the perimeter.
+
+[`r`] = [________________________]{$optimalRadius}
+
+What is the height of the window with minimum perimeter?
+
+[`h`] = [________________________]{$optimalHeight}  
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+To minimize [`P(r)`], take the derivative and set it equal to 0.
+
+>>[``
+\begin{aligned}
+P'(r) = -\frac{[$A]}{r^2} + 2 + \frac{1}{2}\pi  = 0 \\ \\
+\frac{[$A]}{r^2} = 2 + \frac{1}{2}\pi \\ \\
+r^2 = \frac{[$A]}{2+\frac{1}{2}\pi } = \frac{[$A*2]}{4+\pi} \\ \\
+r = \sqrt{\frac{[$A*2]}{4+\pi}} \approx [$optimalRadius]
+\end{aligned}
+``]<<
+
+To three decimal places rounded, [`r \approx [@sprintf("%.3f", $optimalRadius)@]`].
+
+The graph suggests that this is the global minimum. Calculus can verify this. Note that [``P'' =  \frac{[$A*2]}{r^3} \gt 0``]
+and therefore the critical point is a local minimum by the second derivative test. But since [`P`] is a continuous function for [`r \gt 0`] and there is only one critical point, this must actually be the global minimum for [`r \gt 0.`]
+
+The optimal height is [``h = \frac{A - \frac{1}{2}\pi r^2}{2r} \approx [$optimalHeight]``] using the optimal radius found above. To three decimal places rounded, [`h \approx [@sprintf("%.3f", $optimalHeight)@]`]. It looks like the optimal radius and optimal height are the same! This is because
+
+>>[``\begin{aligned}
+h = \frac{A - \frac{1}{2}\pi r^2}{2r}
+= \frac{[$A] - \frac{1}{2}\pi \left(\frac{[$A*2]}{4+\pi} \right)}{2\sqrt{\frac{[$A*2]}{4+\pi}}} 
+= \frac{\frac{580(4+\pi)-580\pi}{2(4+\pi)}}{2\sqrt{\frac{[$A*2]}{4+\pi}}} \\ \\
+= \frac{\frac{580(4)}{2(4+\pi)}}{2\sqrt{\frac{[$A*2]}{4+\pi}}}
+= \frac{\frac{[$A*2]}{4+\pi}}{\sqrt{\frac{[$A*2]}{4+\pi}}}
+= \sqrt{\frac{[$A*2]}{4+\pi}} 
+\end{aligned}``]<<
+
+Therefore the optimal height is equal to the optimal radius which means that the height of the optimal rectangle is half the width of the rectangle. Can you show that this is always the case for any value of the fixed area [`A`]?
+
+END_PGML_SOLUTION
+
+Section::End();
+Scaffold::End();
+
+COMMENT(' Note: Uses GeoGebra which might not be executed in the Library Browser. Uses scaffolding.');
+
+ENDDOCUMENT();
