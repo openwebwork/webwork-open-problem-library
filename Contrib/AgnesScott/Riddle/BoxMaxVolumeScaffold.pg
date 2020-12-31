@@ -1,0 +1,274 @@
+##DESCRIPTION
+##  Optimization - maximize volume of a box with open top and fixed 
+##  surface area. Uses GeoGebra HTML5 applet to display graph of volume
+##  function and an animation of the box as the base length is changed.
+##  Embedding of Geogebra applet uses https://github.com/Edfinity/ww_ggb_applet.
+##  Uses scaffolding to first set up the problem in terms of length and height,
+##  then to give a function for volume in terms of the base length, and find its derivative,
+##  then finally to use the derivative to find the optimal dimensions.
+##ENDDESCRIPTION
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Applications of differentiation)
+## DBsection(Optimization - general)
+## Date(9/27/2020)
+## Institution(Agnes Scott College)
+## Author(Larry Riddle)
+## MO(1)
+## KEYWORDS('optimization', 'applications', 'derivative', 'Geogebra')
+
+############################################################## 
+#  Initialization
+##############################################################
+
+DOCUMENT();      
+
+loadMacros(
+    "PGstandard.pl",
+    "MathObjects.pl",
+    "scaffold.pl",
+    "PGML.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+$showHint = 0;
+
+##############################################################
+#  Problem Setup
+##############################################################
+
+Context("Numeric");
+Parser::Number::NoDecimals;
+Context()->variables->add(h=>"Real");
+Context()->flags->set(
+   tolerance => 0.000005, tolType => "absolute",
+   formatStudentAnswer => "parsed"
+);
+
+# Choose fixed area so that the optimal length is not an integer
+# so correct numerical value cannot be guessed from the graph
+do {$b = random(300,500);} while (int(sqrt($b)) == sqrt($b));
+$A = 3*$b;
+$areaForm = Formula("x**2 + 4*x*h");
+$volForm = Formula("x^2*h");
+$volFunc = Formula("($A*x-x**3)/4");
+$volDeriv = Formula("($A - 3*x**2)/4");
+$optimalLength = Compute("sqrt($b)");
+$optimalHeight = Compute("sqrt($b)/2");
+
+
+# Possible errors in setting up the area and volume formulas
+# closed top
+$closedTopAreaForm = Formula("2x**2 + 4*x*h");
+# doesn't take into account 4 sides
+$sideAreaError1 = Formula("x**2 + x*h");
+# uses only 2 sides rather than 4
+$sideAreaError2 = Formula("x**2 + 2*x*h");
+# only does 4 sides
+$noBottomArea = Formula("4*x*h");
+# only does bottom area
+$noSideArea = Formula("x**2");
+
+$AreaChecker = sub {
+     my ($correct,$student,$ansHash) = @_;
+     if ($student == $closedTopAreaForm) {
+         Value->Error("Your answer is close, but it appears that you may have used a closed box, not one with an open top. See the Hint.");
+     } elsif ($student == $sideAreaError1) {
+         Value->Error("Your answer is close, but it appears that you may not have used the correct number of sides of the box. See the Hint.");
+     } elsif ($student == $sideAreaError2) {
+         Value->Error("Your answer is close, but it appears that you may not have used the correct number of sides of the box. See the Hint.");
+     } elsif ($student == $noBottomArea) {
+         Value->Error("It appears that you may have only considered the area of the four sides of the box. See the Hint.");
+     } elsif ($student == $noSideArea) {
+         Value->Error("It appears that you may have only considered the area of the bottom of the box. See the Hint.");
+     } elsif ($student != $correct) {
+         Value->Error("See the Hint.");
+     }
+     return 1; 
+};
+
+$VolumeChecker = sub {
+     my ($correct,$student,$ansHash) = @_;    
+     if ($student != $correct) {
+         Value->Error("See the Hint.");
+     }
+     return 1; 
+};
+
+
+HEADER_TEXT('<script type="text/javascript" src="https://cdn.geogebra.org/apps/deployggb.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/ww_ggb_applet/lib/ww_ggb_applet.js"></script>');
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+
+<div id="applet2" class="ww-ggb"></div>
+
+<script>
+  var onUpdate = function(obj) {
+  }
+
+  var onLoad = function(applet) {
+     applet.evalCommand("A = $A");
+  }
+  
+  encodedApp = "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"
+  new WwGgbApplet('applet2', {
+    width: 716,
+    height: 362,
+    ggbBase64: encodedApp,
+    appletOnLoad: onLoad,
+    appletOnUpdate: onUpdate,
+    hideAnswers: false, 
+    enableShiftDragZoom: false,
+    showResetIcon: true
+    }); 
+</script>
+
+END_SCRIPT
+
+
+##############################################################
+#  Text
+##############################################################
+BEGIN_TEXT
+$PAR
+$BBOLD Note: $EBOLD This problem uses an interactive GeoGebra applet. It may take a few seconds for the figures to appear.
+\{ knowlLink(" Instructions ", value=>'Click and hold the mouse on the point to move it, or use your finger on a touchscreen. You can also click the point and use the left/right arrow keys on a keyboard to move the point. Click or touch the small icon in the upper right corner to reset the app.') \}
+$PAR
+END_TEXT
+
+BEGIN_PGML
+## ##
+
+A square-bottomed box with no top must have a fixed surface area of [$A] [`\text{cm}^2`]. In this problem you will find the size of the box that will maximize its volume. The graph above shows a plot of the volume as a function of the base length. Move the indicated point along the graph to visualize how the volume changes for different lengths of the square base, and use this to estimate the optimal size of the bottom square.
+
+Click on Part 1 to open the section. Enter your answers for the two questions in Part 1, then click on Submit Answers. Once your answers are both correct, you will be able to open Part 2. When your answers to Part 2 are both correct, continue to Part 3 to find the optimal width and height for the box with maximum volume.  
+
+END_PGML
+
+#  The scaffold
+Scaffold::Begin(open_first_section => 0);
+
+Section::Begin("Part 1: The Setup",
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Let [`x`] be the width of the square base and let [`h`] be the height of the box.
+
+What is the surface area of the box in terms of [`x`] and [`h`]?
+
+[`A`] = [_________________________]{$areaForm->cmp(checker=>$AreaChecker)}
+
+What is the volume of the box in terms of [`x`] and [`h`]?
+
+[`V`] = [_________________________]{$volForm->cmp(checker=>$VolumeChecker)}  
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+The surface area of an open box is the sum of the area of the square base and the area of the four sides of the box. The volume of the box is the area of the base times the height.
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+The surface area of an open box is the sum of the area of the square base and the area of the four sides of the box. The base has area [`x^2`]. Each side of the box has area [`xh`]. The surface area of an open box is therefore [`A = x^2 + 4xh`]. The volume of the box is [`V = x^2 h`].  
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 2: The Calculus Part: Function and Derivative",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Use the fact that [`A = [$A]`] to determine a function [`V(x)`] that gives the volume of the box in terms of the width [`x`] of the base (this is the function plotted above).
+
+[`V(x)`] = [________________________]{$volFunc}
+
+What is the derivative of [`V(x)`]?
+
+[`V'(x)`] = [________________________]{$volDeriv}
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+Solve the area equation for [`h`] and substitute into the volume formula to get a function for the surface area only in terms of [`x`], then simplify as much as possible before taking the derivative.
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+The area of the box is [`x^2 + 4xh = [$A]`]. Solving this equation for [`h`] gives
+>>[``\begin{aligned}
+  x^2 + 4xh = [$A] \\
+  4xh = [$A] - x^2 \\
+  h = \frac{[$A] - x^2}{4x}
+\end{aligned}``]<<
+
+Now substitut into [`V = x^2h`] and simplify.
+>>[``V(x) = x^2 \left( \frac{[$A] - x^2}{4x} \right) = \frac{1}{4}\left( [$A]x - x^3 \right)``]<<
+
+The domain of this function is [`0 \le x \le \sqrt{[$A]}`] since the you want [`V(x) \ge 0`] with [`x \ge 0.`]
+
+>>[``V'(x) = \frac{1}{4}\left( [$A] - 3x^2\right)``]<<  
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 3: The Calculus Part: Maximizing the Volume",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+Use the derivative to find the *exact* width [`x`] that maximizes the volume.
+
+[`x`] = [________________________]{$optimalLength}
+
+What is the *exact* height of the box of maximum volume?
+
+[`h`] = [________________________]{$optimalHeight}  
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+To maximize [`V`], take the derivative and set it equal to 0.
+
+>>[``
+\begin{aligned}
+V'(x) = \frac{1}{4}\left( [$A] - 3x^2\right) = 0 \\ \\
+[$A] - 3x^2 = 0 \\ \\
+x^2 = \frac{[$A]}{3} = [$b] \\ \\
+x = \sqrt{[$b]}
+\end{aligned}
+``]<<
+
+The graph shows that this is the global maximum on the domain [`0 \le x \le \sqrt{A}`] of [`V`]. Calculus can verify this. Note that [``V'' = -\frac{6}{4}x \lt 0``]
+and therefore the critical point is a local maximum by the second derivative test. But since [`V`] is a continuous function and there is only one critical point in the interval [`0 \le x \le \sqrt{A}`], this must actually be the global maximum on this interval.
+
+The optimal height is
+
+>>[``\begin{aligned}
+h = \frac{A-x^2}{ 4x} = \frac{[$A] - [$b]}{ 4\sqrt{[$b]}} \\ \\
+= \frac{[$A-$b]}{4\sqrt{[$b]}} = \frac{2([$b])}{4\sqrt{[$b]}} \\ \\
+=  \frac{\sqrt{[$b]}}{2}
+\end{aligned}
+``]<<
+
+Therefore the optimal height is half the optimal base length. Can you show that this is always the case for any value of the fixed surface area  [`A`]?
+
+END_PGML_SOLUTION
+
+Section::End();
+Scaffold::End();
+
+COMMENT(' Note: Uses GeoGebra which might not be executed in the Library Browser. Uses scaffolding.');
+
+ENDDOCUMENT();

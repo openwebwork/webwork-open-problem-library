@@ -1,0 +1,158 @@
+##DESCRIPTION
+##  Algebra problem: Simplify a given rational expression by reducing
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra', 'algebra, operations with rational expressions', 'algebra, simplifying rational expression', 'rational expressions', 'rational expression')
+## DBsubject(Algebra)
+## DBchapter(Operations on polynomial and rational expressions)
+## DBsection(Simplify rational expressions)
+## Level(2)
+## Author(K. Andrew Parker original, revisions by Larry Riddle)
+## Institution(CUNY City Tech)
+## Language(en)
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "source.pl",
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+
+$nCoeff = random(2,9,1);
+do { $dCoeff = random(2,9,1); } until ( gcf($nCoeff,$dCoeff) == 1 );
+
+$common = random(2,6,1);
+
+$nRoot = non_zero_random(-9,9,1);
+
+$nA = $common*$nCoeff;
+$nB = $common*$nCoeff*$nRoot;
+$numer = Formula("$nA*x^2 - $nB*x")->reduce;
+
+$dB = $common*$dCoeff;
+$denom = Formula("$dB*x")->reduce;
+
+$rationalExp = Formula("$numer/$denom")->reduce;
+$answer = Formula("$nCoeff*(x-$nRoot)/$dCoeff")->with(test_at=>[[0]])->reduce;
+
+# define custom answer checker
+$rationalChecker = sub {
+     my ($correct,$student,$ansHash) = @_; 
+
+    # there's a PG warning when students submit "Real" answers...
+     Value->Error("Your answer doesn't contain any variables. <BR> Perhaps you oversimplified?") unless $student->class eq "Formula";
+
+    # sometimes students will factor out a negative
+    # if leading operation is negation, take note of that...
+    # now OriginalStudentAns = negated * student
+     my $negated = 1; # -1 if negated=>TRUE
+     if ($student->{tree}->class eq "UOP" && $student->{tree}{uop} eq 'u-') {
+          $student = Formula($student->{tree}->{op});
+          $negated = -1;
+     }
+
+ Value->Error("your answer is not a rational expression") if ($student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!-!) || ($student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!+!); # match "/" with or without spacing
+
+    # give students a hint if division is not the final operation
+     Value->Error("Check the answer preview box. Maybe you forgot parenthesis around your numerator or denominator") unless ($student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!/!); # match "/" with or without spacing
+     
+    
+
+     return 0 unless $correct == $student*$negated; # student is incorrect
+     my $cnum = Formula($correct->{tree}{lop});
+     my $snum = Formula($student->{tree}{lop});
+     my $cden = Formula($correct->{tree}{rop});
+     my $sden = Formula($student->{tree}{rop});
+    # student is already equivalent to the right answer
+    # so we need only match either the numerator or denominator
+    # particularly because of the negation possibility
+     Value->Error("Your answer can be reduced further") unless ($cnum*$cden == $negated*$snum*$sden); 
+
+     return 1;
+};
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Reduce the following rational expression:
+[`` [$rationalExp] ``]
+
+[____________________]
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+# comparison is already forced to agree at x=0, 
+# now replace domain "hint" with something more
+# specific regarding what's wrong with the student answer
+ANS($answer->cmp(checker=>$rationalChecker)->withPostFilter(
+    sub { 
+        my $ans = shift; 
+        $ans->{ans_message} = "You're on the right track, but your answer can still be reduced." 
+        if $ans->{ans_message} eq "The domain of your function doesn't match that of the correct answer";
+        return $ans; 
+    }
+));
+
+BEGIN_PGML_HINT
+
+Look for the greatest common factor amongst all three terms:
+[` [$nA] x^2, [@ abs($nB) @] x, [$dB] x`]
+
+For this rational expression, the answer would be in the form [`\displaystyle \frac{ax+b}{c} `] or [` \displaystyle \frac{a(x+d)}{c} `] where [`a`], [`b`], [`c`], and [`d`] are positive or negative integers.
+
+END_PGML_HINT
+BEGIN_PGML_SOLUTION
+
+The greatest common factor of [` [$nA] x^2, [@abs($nB)@] x, \text{and} \, [$dB] x`] is [` [$common] x `].
+
+
+If we factor out [` [$common] x `] from the numerator and the denominator, we end up with:   
+[` \displaystyle \frac{[$common] x \cdot ( [$nCoeff] x - [@$nCoeff*$nRoot@] )}{[$common] x \cdot [$dCoeff]} `]
+
+which can be rewritten as:  
+[`\displaystyle \left(\frac{[$common] x}{[$common] x}\right) \left(\frac{[$nCoeff] x - [@$nCoeff*$nRoot@]}{[$dCoeff]}\right) = (1)\left(\frac{[$nCoeff] x - [@$nCoeff*$nRoot@]}{[$dCoeff]}\right) = \frac{[$nCoeff] x - [@$nCoeff*$nRoot@]}{[$dCoeff]}`]
+
+_Note:_  
+You may have factored the numerator differently:  
+[` [$nA] x (x - [$nRoot]) `]
+
+which would look like:  
+[` \displaystyle \frac{[$nA] x (x - [$nRoot])}{[$dB] x} `]
+
+in that case, the most we can reduce is still [` [$common] x `], leaving us with:  
+[` \displaystyle \frac{[$nCoeff] (x-[$nRoot])}{[$dCoeff]} `]
+
+which works out to be the same answer if you re-distribute the [$nCoeff] in the numerator.
+END_PGML_SOLUTION
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        
