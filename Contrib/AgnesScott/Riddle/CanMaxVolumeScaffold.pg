@@ -1,0 +1,273 @@
+##DESCRIPTION
+##  Optimization - Maximize volume of a cylinder with fixed surface area.
+##  Uses GeoGebra HTML5 applet to display graph of surface area
+##  function and an animation of the can as the base radius is changed.
+##  Embedding of Geogebra applet uses https://github.com/Edfinity/ww_ggb_applet.
+##  Uses scaffolding to first set up the problem in terms of radius and height,
+##  then to give a function for volume in terms of the radius, and find its derivative,
+##  then finally to use the derivative to find the optimal dimensions.
+##ENDDESCRIPTION
+
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Applications of differentiation)
+## DBsection(Optimization - general)
+## Date(9/30/2020)
+## Institution(Agnes Scott College)
+## Author(Larry Riddle)
+## MO(1)
+## KEYWORDS('optimization', 'applications', 'derivative', 'Geogebra')
+
+############################################################## 
+#  Initialization
+##############################################################
+
+DOCUMENT();      
+
+loadMacros(
+    "PGstandard.pl",
+    "MathObjects.pl",
+    "scaffold.pl",
+    "PGML.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+$showHint = 0;
+
+##############################################################
+#  Problem Setup
+##############################################################
+
+Context("Numeric");
+Parser::Number::NoDecimals;
+Context()->variables->are(r=>"Real", h=>"Real");
+Context()->flags->set(
+   tolerance => 0.000005, tolType => "absolute",
+   formatStudentAnswer => "parsed"
+);
+
+$A = random(1002,1600,6);
+$areaForm = Formula("2*pi*r**2 + 2*pi*r*h");
+$volForm = Formula("pi*r**2*h");
+$volFunc = Formula("($A*r-2*pi*r**3)/2");
+$volDeriv = Formula("($A - 6*pi*r**2)/2");
+$optimalRadius = Compute("sqrt($A/(6*pi))");
+$optimalHeight = Compute("2*sqrt($A/(6*pi))");
+$Ad6 = $A/6;
+
+
+# Possible errors in setting up the area and volume formulas
+# open top
+$openTopAreaForm = Formula("pi*r**2 + 2*pi*r*h");
+# uses pi*r for the circumference
+$circumferenceError = Formula("2*pi*r**2 + pi*r*h");
+# does not multiply the circumference by the height
+$sideAreaError1 = Formula("2*pi*r**2 + 2*pi*r");
+# takes side area to be product of diameter and height
+$sideAreaError2 = Formula("2*pi*r**2 + 2*r*h");
+
+$AreaChecker = sub {
+     my ($correct,$student,$ansHash) = @_;
+     if ($student == $openTopAreaForm) {
+         Value->Error("Your answer is close, but it appears that you may have used a cylinder with an open top, not a closed top. See the Hint.");
+     } elsif ($student == $circumferenceError) {
+         Value->Error("Your answer is close, but it appears that you may not have the correct area for the side of the cylinder. See the Hint.");
+     } elsif ($student == $sideAreaError1) {
+         Value->Error("Your answer is close, but it appears that you may not have the correct area for the side of the cylinder. See the Hint.");
+     } elsif ($student == $sideAreaError2) {
+         Value->Error("Your answer is close, but it appears that you may not have the correct area for the side of the cylinder. See the Hint.");
+     } elsif ($student != $correct) {
+         Value->Error("See the Hint.");
+     }
+     return 1; 
+};
+
+$VolumeChecker = sub {
+     my ($correct,$student,$ansHash) = @_;    
+     if ($student != $correct) {
+         Value->Error("See the Hint.");
+     }
+     return 1; 
+};
+
+HEADER_TEXT('<script type="text/javascript" src="https://cdn.geogebra.org/apps/deployggb.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/ww_ggb_applet/lib/ww_ggb_applet.js"></script>');
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+
+<div id="applet2" class="ww-ggb"></div>
+
+<script>
+  var onUpdate = function(obj) {  
+  }
+
+  var onLoad = function(applet) {
+     applet.evalCommand("A = $A");
+  }
+  
+  encodedApp = "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"
+  new WwGgbApplet('applet2', {
+    width: 716,
+    height: 360,
+    ggbBase64: encodedApp,
+    appletOnLoad: onLoad,
+    appletOnUpdate: onUpdate,
+    hideAnswers: false,
+    enableShiftDragZoom: false,
+    showResetIcon: true
+    }); 
+</script>
+
+END_SCRIPT
+
+
+##############################################################
+#  Text
+##############################################################
+BEGIN_TEXT
+$PAR
+$BBOLD Note: $EBOLD This problem uses an interactive GeoGebra applet. It may take a few seconds for the figures to appear.
+\{ knowlLink(" Instructions ", value=>'Click and hold the mouse on the point to move it, or use your finger on a touchscreen. You can also click the point and use the left/right arrow keys on a keyboard to move the point. Click or touch the small icon in the upper right corner to reset the app.') \}
+$PAR
+END_TEXT
+
+BEGIN_PGML
+## ##
+
+A closed cylindrical can must have a fixed surface area of [$A] [`\text{cm}^2`]. In this problem you will find the radius of the can that will maximize its volume. The graph above shows a plot of the volume as a function of the radius of the base. Use the slider to move the point on the graph to visualize how the volume changes for different values of the radius, and use this to estimate the optimal radius. 
+
+Click on Part 1 to open the section. Enter your answers for the two questions in Part 1, then click on Submit Answers. Once your answers are both correct, you will be able to open Part 2. When your answers to Part 2 are both correct, continue to Part 3 to find the optimal radius and height for the can of maximum volume.
+
+END_PGML
+
+#  The scaffold
+Scaffold::Begin(open_first_section => 0);
+
+Section::Begin("Part 1: The Setup",
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Let [`r`] be the radius of the base and let [`h`] be the height of the cylinder.
+
+What is the surface area of the cylinder in terms of [`r`] and [`h`]?
+
+[`A`] = [_________________________]{$areaForm->cmp(checker=>$AreaChecker)}
+
+What is the volume of the cylinder in terms of [`r`] and [`h`]?
+
+[`V`] = [_________________________]{$volForm->cmp(checker=>$VolumeChecker)}  
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+The surface area of a closed cylinder is the sum of the areas of the top and bottom circles and the area of the side of the cylinder. If you could cut and unwrap the side of the cylinder, it would become a rectangle whose width is the circumference of the base circle and whose height is the height of the cylinder. The volume of the cylinder is the area of the base times the height.
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+The surface area of a closed cylinder is the sum of the areas of the top and bottom circles and the area of the side of the cylinder. The top and bottom circles have combined area [`2\pi r^2`].  If you could cut and unwrap the side of the cylinder, it would become a rectangle whose width is the circumference of the base circle, [`2\pi r`], and whose height is the height [`h`] of the cylinder. The surface area of a closed cylinder is therefore [`A = 2(\pi r^2) + 2\pi r h.`] The volume of the can is [`V = \pi r^2 h`].  
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 2: The Calculus Part: Function and Derivative",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Use the fact that [`A = [$A]`] to determine a function [`V(r)`] that gives the volume of the cylinder in terms of the radius [`r`] of the base (this is the function plotted above).
+
+[`V(r)`] = [________________________]{$volFunc}
+
+What is the derivative of [`V(r)`]?
+
+[`V'(r)`] = [________________________]{$volDeriv}  
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+Solve the surface area equation for [`h`] and substitute into the volume formula to get a function for the volume only in terms of [`r`], then simplify as much as possible before taking the derivative.
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+Solving the surface area equation [`2(\pi r^2) + 2\pi r h = [$A]`] for [`h`] gives
+
+>>[``\begin{aligned}
+2(\pi r^2) + 2\pi r h = [$A] \\
+2\pi r h = [$A] - 2\pi r^2 \\
+h = \frac{[$A]-2\pi r^2}{2\pi r}
+\end{aligned}``]<<
+
+Now substitute into [`V = \pi r^2h`] and simplify.
+
+>>[``V(r) = \pi r^2 \left( \frac{[$A]-2\pi r^2}{2\pi r} \right) = \frac{1}{2} \left ( [$A]r - 2 \pi r^3 \right)``]<<
+
+The domain of this function is [`0 \le r \le \sqrt{\frac{[$A]}{2\pi}}`] since you want [`V(r) \ge 0`] for [`r \ge 0`].
+
+>>[``V'(r) = \frac{1}{2}\left( [$A] - 6\pi r^2\right )``]<<  
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 3: The Calculus Part: Maximizing the Volume",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+Use the derivative to find the *exact* radius [`r`] that maximizes the volume.
+
+[`r`] = [________________________]{$optimalRadius}
+
+What is the *exact* height of the cylinder of maximum volume?
+
+[`h`] = [________________________]{$optimalHeight}  
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+To minimize [`V`], take the derivative and set it equal to 0.
+
+>>[``
+\begin{aligned}
+V'(r) = \frac{1}{2}\left( [$A] - 6\pi r^2\right ) = 0 \\ \\
+[$A] - 6\pi r^2 = 0 \\ \\
+r^2 = \frac{[$A]}{6\pi} = \frac{[$Ad6]}{\pi} \\ \\
+r = \sqrt{\frac{[$Ad6]}{\pi}}
+\end{aligned}
+``]<<
+
+The graph shows that this is the global maximum of [`V`] on the domain [`0 \le r \le \sqrt{\frac{[$A]}{2\pi}}`]. Calculus can also verify this without referring to the graph. Note that [``V'' = -6\pi r \lt 0``]
+and therefore the critical point is a local maximum by the second derivative test. But since [`V`] is a continuous function and there is only one critical point in the interval [`0 \le r \le \sqrt{\frac{[$A]}{2\pi}}`], this must actually be the global maximum on this interval.
+
+The optimal height is
+
+>>[``\begin{aligned}
+h = \frac{A-2\pi r^2}{2\pi r}
+= \frac{[$A]-2\pi \left( \frac{[$Ad6]}{\pi} \right)}{2\pi \sqrt{\frac{[$Ad6]}{\pi}}} \\ \\
+= \frac{[$A-2*$Ad6]}{2\pi\sqrt{\frac{[$Ad6]}{\pi}}} 
+= \frac{\frac{[$A/2-$Ad6]}{\pi}}{\sqrt{\frac{[$Ad6]}{\pi}}}
+= \frac{2 \cdot \frac{[$Ad6]}{\pi}}{\sqrt{\frac{[$Ad6]}{\pi}}} \\ \\
+= 2\sqrt{\frac{[$Ad6]}{\pi}}
+\end{aligned}
+``]<<
+
+Therefore the optimal height is twice the optimal radius, i.e. in the optimal can the height and the diameter are the same. Can you show that this is always the case for any value of the fixed area [`A`]?
+
+END_PGML_SOLUTION
+
+Section::End();
+Scaffold::End();
+
+COMMENT(' Note: Uses GeoGebra which might not be executed in the Library Browser. Uses scaffolding.');
+
+ENDDOCUMENT();
