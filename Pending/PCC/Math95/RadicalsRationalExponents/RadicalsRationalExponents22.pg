@@ -1,0 +1,126 @@
+## MO(1)
+# WeBWorK problem written by Alex Jordan 
+# Portland Community College
+#
+# Template:
+# Simplify the expression. For this problem you may assume that all variables are positive. 
+#
+#       n-th-root(n-th-root(x))
+#
+#
+# Last updated: Spoddeck 11/12/15
+# ENDDESCRIPTION
+
+
+##############################################
+
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "contextLimitedPowers.pl",
+  "bizarroArithmetic.pl",
+  "contextFraction.pl",
+  "unionTables.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
+);
+
+
+##############################################
+
+
+TEXT(beginproblem());
+
+Context("Numeric");
+$var = list_random('x','y','z','t','r','m','n','a','b','c');
+Context()->variables->are($var=>'Real');
+
+$m = random(2,5,1);
+$n = random(2,5,1);
+$mn = $m*$n;
+
+if ($m==2) {
+   $question = ($n==2) ? "\sqrt{\sqrt{$var}}" : "\sqrt[$n]{\sqrt{$var}}";
+} else {
+   $question = ($n==2) ? "\sqrt{\sqrt[$m]{$var}}" : "\sqrt[$n]{\sqrt[$m]{$var}}";
+}
+
+Context("Fraction");
+$frac = Fraction(1,$mn);
+
+Context("Numeric");
+Context()->operators->set(
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+);
+
+Context()->variables->are($var=>'Real');
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(limits=>[2,5]);
+Context()->operators->undefine('*');
+Context()->operators->undefine('+');
+Context()->functions->undefine('sqrt');
+
+$ans = Formula("$var^($frac)");
+$evaluator = $ans->cmp(
+     checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroDiv=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      Value->Error("Your answer is not in the expected form") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroDiv=>0);
+      return 1;
+  }
+);
+
+
+##############################################
+
+
+BEGIN_PGML
+
+Simplify the expression, answering with rational exponents and not radicals. [@KeyboardInstructions('To enter [`x^{m/n}`], type [|x^(m/n)|]*.')@]**
+
+[``[$question]=``]    [_________________]{$evaluator}
+
+END_PGML
+
+##############################################
+
+$s1 = ($m==2) ? "\sqrt{$var}" : "\sqrt[$m]{$var}";
+
+BEGIN_PGML_SOLUTION
+
+We rewrite the expression using rational exponents [` \sqrt[n]{x} = x^\frac{1}{n} `]. Then we use exponent properties and multiply the fractions.
+
+    [``
+\begin{aligned}
+   [$question]
+           &= \left( [$s1] \right)^{\frac{1}{[$n]}} \\
+           &= \left([$var]^{\frac{1}{[$m]}}\right)^{\frac{1}{[$n]}} \\
+           &= [$var]^{\frac{1}{[$m]}\cdot\frac{1}{[$n]}} \\
+           &= [$var]^{\frac{1}{[$mn]}} \\
+\end{aligned}
+    ``]
+
+So the answer in calculator/WeBWorK notation is [`[$var]`]^[`(1/[$mn])`].
+
+END_PGML_SOLUTION
+
+##############################################
+
+
+ENDDOCUMENT();

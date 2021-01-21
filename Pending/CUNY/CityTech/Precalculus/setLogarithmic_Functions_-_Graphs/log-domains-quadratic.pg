@@ -1,0 +1,185 @@
+##DESCRIPTION
+##  Algebra problem: true or false for inequality 
+##ENDDESCRIPTION
+
+
+## DBsubject(Algebra)
+## DBchapter(Exponential and logarithmic expressions and functions)
+## DBsection(Graphs)
+## Date(7/9/2018)
+## Institution(City Tech)
+## Author(K. Andrew Parker)
+## MO(1)
+## KEYWORDS('algebra', 'inequality', 'fraction')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "parserAssignment.pl",
+   "contextFraction.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Fraction");
+Context()->noreduce('(-x)-y');
+Context()->flags->set(reduceConstants=>0,reduceConstantFunctions=>0);
+
+$base = random(2,9,1);
+
+package NewFunc;
+# this next line makes the function a 
+#   function from reals to reals
+our @ISA = qw(Parser::Function::numeric);
+
+sub logB {
+  shift; my $x = shift;
+  return CORE::log($x)/CORE::log($base);
+}
+
+package main;
+
+# Make it work on formulas as well as numbers
+sub logB {Parser::Function->call('logB',@_)}
+
+$logbase = "log".$base;
+
+#  Add the new functions to the Context
+Context()->functions->add(
+  "$logbase" => {class => 'NewFunc',
+           TeX => "\log_{$base}"}, );
+
+$r1 = random(-9,-2,1);
+$r2 = non_zero_random($r1+1,9,1);
+
+$fB = -($r1+$r2);
+$fC = $r1*$r2;
+
+$argument = Formula("x^2 + $fB x + $fC")->reduce;
+$f = Formula("$logbase(x^2 + $fB x + $fC)")->reduce;
+$fGraph = Formula("ln(x^2 + $fB x + $fC)/ln($base)");
+
+# BONUS: exact form for intercepts...
+$NfB = -$fB;
+$disc = $fB**2 - 4*($fC-1);
+$int1 = Formula("($NfB + sqrt($disc))/2");
+$int2 = Formula("($NfB - sqrt($disc))/2");
+
+$asyLeft = $r1 - 0.000000001;
+$asyRight = $r2 + 0.000000001;
+
+parser::Assignment->Allow;
+$logVA = List(Compute("x = $r1"),Compute("x = $r2"));
+
+$custom = sub {
+    my $ans = shift;
+    $ans->{ans_message} = "Asymptotes are lines, and must be expressed as equations - not just as numbers." if ($ans->{ans_message} =~ m/isn't a variable equal to a/);
+    $ans->{ans_message} = "Asymptotes are lines, and must be expressed as equations - not just as numbers." if ($ans->{ans_message} =~ m/should be more words/);
+    return $ans;
+    };
+
+Context("Point");
+Context()->flags->set(reduceConstants=>0,reduceConstantFunctions=>0);
+Parser::Number::NoDecimals();
+Context()->{error}{msg}{"You are not allowed to type decimal numbers in this problem"} 
+  = "Decimals are not allowed for this problem, please use exact forms instead of decimal approximations.";
+
+$logInt1 = Compute("($int1,0)");
+$logInt2 = Compute("($int2,0)");
+$logInt = List($logInt1,$logInt2);
+
+#Context()->parens->set("("=>{type=>"Point"});
+#$logInt = List(Compute("($int1,0)"),Compute("($int2,0)"));
+
+Context("Interval");
+
+$adjustError = sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "Are you sure you want to include this endpoint in the domain?" 
+    if $ans->{ans_message} eq "The type of interval is incorrect";
+  return $ans; 
+};
+
+$logDom = Compute("(-inf,$r1)U($r2,inf)");
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Consider the function [`f(x) = [$f]`]. 
+
+
+a. The domain of the function is [_______________]{$logDom->cmp()->withPostFilter($adjustError)}
+
+b. The asymptote(s) of the function is [_______________]{$logVA->cmp()->withPostFilter($custom)}
+
+c. Our function has [`x`]-intercept(s) at [_____________________________________________]{$logInt}
+
+* Decimal approximations are disabled for this problem. Enter your answers in *exact* form.
+* Use "[$logbase]( )" to represent [`\log_{[$base]}( )`].
+* Use "inf" and "-inf" to represent [`\infty`] and [`-\infty`].
+* Make sure to enter your asymptote(s) as equations. 
+* Use commas to separate multiple asymptotes.
+* Make sure to enter your intercept(s) as points.
+* Use commas to separate multiple intercepts.
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+$gr = init_graph(-10,-10,10,10,axes=>[0,0],grid=>[20,20],size=>[400,400]);
+add_functions($gr, "$fGraph for x in <-20,$asyLeft> using color:blue and weight:2");
+add_functions($gr, "$fGraph for x in <$asyRight,20> using color:blue and weight:2");
+($gr->fn)[0]->steps(200);
+($gr->fn)[1]->steps(200);
+$gr->moveTo($r1,-10);
+$gr->lineTo($r1,10,'orange',2,'dashed');
+$gr->moveTo($r2,-10);
+$gr->lineTo($r2,10,'orange',2,'dashed');
+
+BEGIN_PGML_SOLUTION
+
+>> [@ image(insertGraph($gr),height=>400,width=>400,tex_size=>800) @]* <<
+
+*Intercepts:*  
+[`[$f] = 0`] when [`[$argument] = 1`], so [`[$argument]-1 = 0`] and use quadratic formula:  
+* [``\left( [$int1], 0 \right)``]
+* [``\left( [$int2], 0 \right)``]
+
+*Vertical Asymptotes:*  
+[`[$f]`] has asymptotes when [`[$argument] = 0`], so [`(x-[$r1])(x-[$r2]) = 0`]
+* [`x = [$r1]`]
+* [`x = [$r2]`]
+
+*Domain:*  
+Because [`[$int1] > [$r2]`] and [`[$int2] < [$r1]`], we can tell that our domain will be [`[$logDom]`].
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();        

@@ -6,9 +6,9 @@ DOCUMENT();
 # Load whatever macros you need for the problem
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
   "MathObjects.pl",
+  "PGgraphmacros.pl",
+  "parserPopUp.pl",
   "weightedGrader.pl",
   "PGcourse.pl"
 );
@@ -33,6 +33,8 @@ install_weighted_grader();
 $refreshCachedImages = 1;
 $showPartialCorrectAnswers = 1;
 
+Context("Numeric");
+
 # Construct a graph for the left endpoint Riemann sum,
 # define the function to be graphed, and add it to the graph
 $graphL = init_graph(-1,-1,5,19,ticks=>[6,20],
@@ -49,7 +51,7 @@ foreach my $i (1..19) {
 
 $f = FEQ("2^x for x in <-1,5> 
    using color:blue and weight:2");
-$ftex = "2^x";
+$ftex = Compute("2^x");
 # the parentheses around $fRefL are necessary
 ($fRefL) = plot_functions( $graphL, $f );
 
@@ -60,10 +62,10 @@ $ftex = "2^x";
 $a = random(0,1,1); # left endpoint of interval
 $b = $a+random(2,3,1); # right endpoint of interval
 $n = 5; # number of rectangles
-$deltax = ($b - $a)/$n;
+$deltax = Real(($b - $a)/$n);
 foreach $k (0..$n) { $x[$k] = $a + $k * $deltax; }
 foreach $k (0..$n) { $m[$k] = $a + ($k+0.5)*$deltax; }
-foreach $k (0..$n) { $y[$k] = &{$fRefL->rule}($m[$k]); }
+foreach $k (0..$n) { $y[$k] = Real(&{$fRefL->rule}($m[$k])); }
 
 # Graph the left endpoint Riemann sum
 $lightblue = $graphL->im->colorAllocate(148,201,255);
@@ -82,43 +84,49 @@ foreach $k (0..$n-1) {
    $xaxisL,$darkblue);
 }
 
-$int_a = $a;
-$int_b = $b;
+$int_a = Compute($a);
+$int_b = Compute($b);
+
+$sumType= PopUp(['???','left endpoint', 'right endpoint','midpoint'], 'midpoint');
+
+$RiemannSum = 0;
+foreach $k (0..$n-1) { $RiemannSum = $RiemannSum + $y[$k]; }
+$RiemannSum = Real("$deltax * $RiemannSum");
+
 
 #################################################
 #  Main text
 
+Context()->texStrings;
 BEGIN_TEXT
- The 5 rectangles in the graph below illustrate a 
-\{ NAMED_POP_UP_LIST('leftright1',['?','left endpoint',
-'right endpoint','midpoint']) \} 
+ The five rectangles in the graph below illustrate a $BR 
+\{ $sumType->menu() \} (select a description) $BR
 Riemann sum for 
 \( \displaystyle f(x) = $ftex \) on the interval \( [$int_a, $int_b] \).  
 $BR
 The value of this Riemann sum 
-is \{NAMED_ANS_RULE('optional1',30)\}.
+is \{ans_rule(30)\}.
 $BR
 $BR
 $BCENTER
 \{ begintable(1) \}
 \{ row( image( insertGraph($graphL), height=>400, width=>400, 
 tex_size=>800 ) ) \}
-\{ row("Left endpoint Riemann sum for \( y = $ftex \) on 
+\{ row("Riemann sum for \( y = $ftex \) on 
 \( \lbrack $int_a, $int_b \rbrack \)") \}
 \{ endtable() \}
 $ECENTER
 $BR
 END_TEXT
+Context()->normalStrings;
 
 ## 
-NAMED_WEIGHTED_ANS('leftright1',str_cmp("midpoint"),5);
+WEIGHTED_ANS($sumType->cmp(),10);
 
-$RiemannSum = 0;
-foreach $k (0..$n-1) { $RiemannSum = $RiemannSum + $y[$k]; }
-$RiemannSum = Real("$deltax * $RiemannSum");
-NAMED_WEIGHTED_ANS('optional1',$RiemannSum->cmp(),45);
+WEIGHTED_ANS($RiemannSum->cmp(),90);
 
-SOLUTION(EV3(<<'END_SOLUTION'));
+Context()->texStrings;
+BEGIN_SOLUTION
 $BR$BBOLD Solution:$EBOLD 
 $PAR
 This is a midpoint Riemann sum.  Its value is:
@@ -130,14 +138,15 @@ This is a midpoint Riemann sum.  Its value is:
   f($m[4]) \cdot $deltax 
 \]
 \[
-  = \left( $y[0] + $y[1] + $y[2] + $y[3] + $y[4] \right)
+  \approx \left( $y[0] + $y[1] + $y[2] + $y[3] + $y[4] \right)
   \cdot $deltax 
 \]
 \[
- = $RiemannSum.
+ \approx $RiemannSum.
 \]
 $BR
 END_SOLUTION
+Context()->normalStrings;
 ENDDOCUMENT();
 
 

@@ -1,0 +1,139 @@
+##DESCRIPTION
+## Compute matrix exponential for a matrix depending on t, then use it to solve an ODE
+##ENDDESCRIPTION
+
+## DBsubject(Differential equations)
+## DBchapter(Systems of differential equations)
+## DBsection(Matrix exponential)
+## Institution(Oklahoma State University)
+## Author(Jiri Lebl)
+## Level(4)
+## MO(1)
+## TitleText1('Notes on Diffy Qs: Differential Equations for Engineers')
+## AuthorText1('Jiri Lebl')
+## EditionText1('5')
+## Section1('3.8')
+## Problem1('')
+## KEYWORDS('matrix exponential')
+
+########################################################################
+
+###########################
+# Initialization
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "AnswerFormatHelp.pl",
+  "PGmatrixmacros.pl",
+  "PGcourse.pl"
+);
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+###########################
+# Setup
+
+Context("Matrix");
+
+Context()->variables->are(t=>"Real");
+
+$v1 = random(1,4,1);
+$v2 = random($v1+1,8,1);
+$v = Matrix([$v1],[$v2]);
+
+# define A
+$a11 = random(-1,1,2);
+$a12 = non_zero_random(-3,3,1);
+$mult = non_zero_random(-2,2,1);
+$a21 = $mult * $a11;
+$b1 = random(-1,1,2);
+$a22 = $mult * $a12 + $b1;
+
+$a = Matrix([[$a11, $a12], [$a21, $a22]]);
+
+# B = A^-1
+$b = $a->inverse();
+$b11 = $b->element(1,1);
+$b21 = $b->element(2,1);
+$b12 = $b->element(1,2);
+$b22 = $b->element(2,2);
+
+# define eigenvalues
+$e1= non_zero_random(-3,3,1);
+do { $e2= non_zero_random(-3,3,1); } while ($e1==$e2);
+$e = Matrix([[$e1, 0],[0, $e2]]);
+
+# matrix = A E A^-1
+$matrix = $a * $e *$b;
+
+$matrix_exp = Compute("[[$a12*$b21*e^($e2*t)+$a11*$b11*e^($e1*t),$a12*$b22*e^($e2*t)+$a11*$b12*e^($e1*t)],[$a22*$b21*e^($e2*t)+$a21*$b11*e^($e1*t),$a22*$b22*e^($e2*t)+$a21*$b12*e^($e1*t)]]")->reduce;
+$sol = Compute("[[$v1*($a12*$b21*e^($e2*t)+$a11*$b11*e^($e1*t))+$v2*($a12*$b22*e^($e2*t)+$a11*$b12*e^($e1*t))],[$v1*($a22*$b21*e^($e2*t)+$a21*$b11*e^($e1*t))+$v2*($a22*$b22*e^($e2*t)+$a21*$b12*e^($e1*t))]]")->reduce;
+
+###########################
+# Main text
+
+
+Context()->texStrings;
+BEGIN_TEXT
+Consider
+\[
+A = $matrix
+\]
+Compute the matrix exponential
+\( e^{tA} \).
+$PAR
+\{ mbox("\( e^{tA} = \)",
+    $matrix_exp->ans_array(20),
+    AnswerFormatHelp("formulas").$BR.AnswerFormatHelp("matrices"))
+\}
+$PAR
+Next, use the exponential to find the solution to \(\vec{x}' = A \vec{x}\) with initial condition \(\vec{x}(0) = $v \):
+$PAR
+\{ mbox("\( \vec{x}(t) = \)",
+    $sol->ans_array(40),
+    AnswerFormatHelp("formulas").$BR.AnswerFormatHelp("matrices"))
+\}
+END_TEXT
+Context()->normalStrings;
+
+###########################
+# Answer evaluation
+
+ANS($matrix_exp->cmp);
+ANS($sol->cmp);
+
+###########################
+# Solution
+
+Context()->texStrings;
+BEGIN_SOLUTION
+First diagonalize \(A\) as
+\[
+A = $a $e {$a}^{-1}
+\]
+then compute
+\[
+e^{tA}
+=
+$a
+\begin{bmatrix}
+e^{\{ Compute("$e1 t")->reduce \}} & 0 \\
+0 & e^{\{ Compute("$e2 t")->reduce \}}
+\end{bmatrix}
+{$a}^{-1}
+=
+$matrix_exp
+\]
+To find the solution to \(\vec{x}' = A \vec{x}\) with initial condition \(\vec{x}(0) = $v \) multiply \(e^{tA}\) by \($v\):
+\[
+\vec{x}(t) = $matrix_exp $v = $sol .
+\]
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Solution using matrix exponential, 2 distinct real eigenvalues");
+
+ENDDOCUMENT();

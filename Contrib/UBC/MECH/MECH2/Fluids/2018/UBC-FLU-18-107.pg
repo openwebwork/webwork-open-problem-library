@@ -1,0 +1,127 @@
+##DESCRIPTION
+## 
+## Created by the UBC Faculty of Applied Science.  
+## Project led by Agnes d'Entremont, Jonathan Verrett, and Negar M. Harandi. 
+##
+## Contact: agnes.dentremont@mech.ubc.ca
+##
+## This work is licensed under the Creative Commons
+## Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+## <https://creativecommons.org/licenses/by-sa/4.0/>
+##
+## We gratefully acknowledge the financial support for this 
+## project provided by UBC Vancouver students via the Teaching
+## and Learning Enhancement Fund. We also gratefully acknowledge
+## additional funding support from BCcampus, the UBC Department of
+## Mechanical Engineering, and the UBC Applied Science Dean’s Office.  
+##
+## This work was completed on the traditional, ancestral, and unceded
+## territory of the Musqueam people. 
+##
+##ENDDESCRIPTION
+
+## DBsubject(Fluid mechanics)
+## DBchapter(Viscous flow in ducts)
+## DBsection(Turbulent pipe flow)
+## Institution('University of British Columbia')
+## Author(UBC Engineering)
+## Date()
+## Level()
+## KEYWORDS('')
+## RESOURCES('')
+## TitleText('TBD')
+## EditionText('TBD')
+## AuthorText('TBD')
+## Section('TBD')
+## Problem('TBD')
+## Beginner
+
+
+DOCUMENT();
+
+loadMacros(   
+	"PGstandard.pl",     # Standard macros for PG language
+	"MathObjects.pl",
+	"PGML.pl",
+	"parserPopUp.pl",
+	"parserMultiAnswer.pl",
+	"parserRadioButtons.pl",
+	#"source.pl",        # allows code to be displayed on certain sites.
+	#"PGcourse.pl", 	 # Customization file for the course
+   	);
+
+TEXT(beginproblem());
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+#given
+$r = random(0,20,1);
+$Length = 100 + $r * 10;#(100,300,10) [m]
+$PressureDropTmp = 50  + $r * 2.5;#(50,100,2.5) [kPa]
+
+$PressureDrop = $PressureDropTmp*1000;
+$PipeDia = 3.5*0.0254;
+$PipeArea = pi/4*($PipeDia**2);
+
+$AvgVelGuess1 = 1;
+$AvgVelGuess2 = 2;
+$dFunc1 = 1;
+
+do{
+	$FricCoeff1 = ($PressureDrop/(998*9.81) - 3.3*($AvgVelGuess1**2)/(2*9.81))*(2*$PipeDia*9.81/($Length*($AvgVelGuess1**2)));
+	$ReNum1 = 998*$AvgVelGuess1*$PipeDia/0.001;
+	$Alpha1 = (0.001/$PipeDia)/3.7 + (2.51/$ReNum1)*($FricCoeff1**(-0.5));
+	$Func1 = ($FricCoeff1**(-0.5)) + 2*log10($Alpha1);
+
+	$FricCoeff2 = ($PressureDrop/(998*9.81) -3.3*($AvgVelGuess2**2)/(2*9.81))*(2*$PipeDia*9.81/($Length*($AvgVelGuess2**2)));
+	$ReNum2 = 998*$AvgVelGuess2*$PipeDia/0.001;
+	$Alpha2 = (0.001/$PipeDia)/3.7 + (2.51/$ReNum2)*($FricCoeff2**(-0.5));
+	$Func2 = ($FricCoeff2**(-0.5)) + 2*log10($Alpha2);
+
+	if(abs($AvgVelGuess2 - $AvgVelGuess1)>0){
+		$dFunc2 = ($Func2 - $Func1)/($AvgVelGuess2 - $AvgVelGuess1);
+	}else{
+		$dFunc2 = $dFunc1;
+	}
+
+	$AvgVel = $AvgVelGuess2 - $Func2/$dFunc2;
+
+	$err = abs($AvgVel - $AvgVelGuess2);
+
+	$AvgVelGuess1 = $AvgVelGuess2;
+	$AvgVelGuess2 = $AvgVel;
+	$dFunc1 = $dFunc2;
+
+}while($err >= 1/(10**6));
+
+$Ans = $PipeArea*$AvgVel*60000;# [L/min]
+
+#set tolerance
+Context()->flags->set(
+tolerance=>2.5,
+tolType=>'absolute');
+
+##############################################################
+#
+#  PGML 
+#
+#
+
+BEGIN_PGML
+
+Water at [`20^{\circ}C`] flows through a horizontal [`[$Length]`] [`m`] long pipe with a ball valve ([`K = 2`]), a [`90^{\circ}`] elbow ([`K = 1.3`]), and surface roughness equal to [`0.001`]. If the pump maintaining the flow is working against a pressure drop of [`[$PressureDropTmp]`] [`kPa`], determine the flowrate through the pipe. The pipe diameter is [`3.5`] [`in`].
+
+[`Q=`] [_____]{"$Ans"} [`L/min`]  
+
+_Hint: The easiest way to solve this problem is to solve the nonlinear Colebrook equation (the equation plotted in the Moody chart) using a simple Newton's method algorithm implemented in Microsoft Excel. Alternatively, you may use the fsolve(Function,InitialGuess) function in MATLAB. Regardless of the method used, ensure that you arrive at a similar solution via manual iteration as practice for exams._
+
+END_PGML
+
+##############################################################
+
+ENDDOCUMENT();

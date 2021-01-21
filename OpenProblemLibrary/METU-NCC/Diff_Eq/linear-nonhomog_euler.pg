@@ -26,6 +26,7 @@ loadMacros(
   "PGcourse.pl"
 );
 
+TEXT(beginproblem());
 
 #####################################
 #  Setup
@@ -50,10 +51,14 @@ Context()->flags->set(
 # setup differential equation 
 
 my $a1, $a2, $b1, $b2, $c, $d;  #  roots are a1/b1 and a2/b2
-my @coeffs;
+my @coeff;
 
 $b1 = 1; # random(1,3,1);  
 $b2 = 1;
+
+# $b1,$b2 never change but leaving them as they are 
+# might make it easier to modify the code later to introduce fractions 
+
 $a1 = non_zero_random($b1-4, 4-$b1, 1)*$b1 
      + (($b1 == 1) ? 0 : non_zero_random(1-$b1,$b1-1,1));
 do { $a2 = non_zero_random(-3,3,1); }
@@ -89,73 +94,7 @@ $y2 = Formula("t^($a2/$b2)")->reduce;
 my $Wcoef = Formula("(($a2*$b1-$a1*$b2)/($b1*$b2))");
 my $Wronskian = Formula("$Wcoef*t^(($a2*$b1+$a1*$b2-$b1*$b2)/($b1*$b2))")->reduce;
 
-my @S_fund = (Formula("$y1"), 
-              Formula("$y2"));            # record student solutions
-my $S_wron = Formula("$Wronskian");       # record student wronskian 
-
-$multiansB = MultiAnswer($y1, $y2, $Wronskian)->with(
-    singleResult => 1,
-    checkTypes => 0,
-    allowBlankAnswers => 1,
-    format =>
-    "<table border='0' cellspacing='0'>
-     <tr><td>\(y_1 = \) %s </td></tr>
-     <tr><td>\(y_2 = \) %s </td></tr>
-     <tr><td>\(W = \) %s </td></tr>
-    </table>",
-    tex_format =>
-    "\begin{array}{l} y_1 = %s \\ y_2 = %s \\ W = %s
-     \end{array}",
-
-    checker => sub {
-        my ($correct, $student, $answerHash ) = @_;
-        my @c = @{$correct};
-        my @s = @{$student};
-        my $msg = "";   my @flag = (0,0,0);   my @S=(0,0);
-
-        if ($c[0]->typeMatch($s[0]) &&
-            $c[1]->typeMatch($s[1])) {  
-          if ((Formula("$s[0]")->usesOneOf("c1","c2") ||
-               Formula("$s[1]")->usesOneOf("c1","c2")) &&
-             !(Formula("$s[2]")->usesOneOf("c1","c2"))) {
-            Value::Error("If \(y_1\) and \(y_2\) use \(c_1\) and \(c_2\), then so does \(W(y_1,y_2)\)!${BR}(Easier if \(y_1\) and \(y_2\) don't have \(c_1\) and \(c_2\)...)");
-          }
-          @S = ( Formula("$s[0]"),
-                 Formula("$s[1]") );
-          my @dS = ( Formula("$s[0]")->D('t'),
-                     Formula("$s[1]")->D('t') );
-          my @ddS = ( Formula("$s[0]")->D('t','t'),
-                      Formula("$s[1]")->D('t','t') );
-          $S_wron = Formula("$S[0]*$dS[1] - $S[1]*$dS[0]")->reduce;
-          if ($S_wron == Formula("0")) {
-            Value::Error("Fundmental solutions not independent!");
-          }
-          my @L = ( Formula("$coef[0]*t^2*$ddS[0] + $coef[1]*t*$dS[0] + $coef[2]*$S[0]")->reduce, 
-                    Formula("$coef[0]*t^2*$ddS[1] + $coef[1]*t*$dS[1] + $coef[2]*$S[1]")->reduce );
-          if ($L[0] == Formula("0")) { $flag[0] = 1; $msg = "\(y_1\) is fine$BR"; }
-          else  { $msg = "\(y_1\) is not a fundamental solution$BR"; }
-
-          if ($L[1] == Formula("0")) { $flag[1] = 1; $msg = $msg . "\(y_2\) is fine$BR"; }
-          else  { $msg = $msg . "\(y_2\) is not a fundamental solution$BR"; }
-        }
-  
-        if (($flag[0]*$flag[1]) == 1) {
-          $S_fund[0] = Formula("$s[0]");
-          $S_fund[1] = Formula("$s[1]");
-        }
-
-        if ($c[2]->typeMatch($s[2]) && 
-           ($S_wron == Formula("$s[2]"))) { $flag[2]=1; $S_wron = Formula("$s[2]")->reduce; }
-        else { Value::Error($msg . " Wronskian is incorrect!"); }
-
-        if ($flag[0]*$flag[1]*$flag[2] == 1) { return 1; }
-        else { if (length($msg) > 1) { Value::Error($msg); } }
-        
-        return 0;
-    }
-);
-
-# C - int fund * g / wronskian dt
+## Combine part B,C and D into one MultiAnswer
 
 my $iFgt1, $iFgt2, $iFgt3, $iFgt4;
 
@@ -167,52 +106,76 @@ $iFgt4=(($a1/$b1 == 2) ? Formula("ln|t|") : Formula("($b1/(2*$b1-$a1))*t^((2*$b1
 my @iFg = ( Formula("($c*$iFgt1+$d*$iFgt2)/($Wcoef)")->reduce,
             Formula("($c*$iFgt3+$d*$iFgt4)/($Wcoef)")->reduce );
 
-$multiansD = MultiAnswer($iFg[0], $iFg[1])->with(
-    singleResult => 1,
-    checkTypes => 0,
-    allowBlankAnswers => 1,
-    format =>
-    "<table border='0' cellspacing='0'>
-     <tr><td>\(\int \frac{y_1 g}{W} dt = \) %s </td></tr>
-     <tr><td>\(\int \frac{y_2 g}{W} dt = \) %s </td></tr>
-    </table>",
-    tex_format =>
-    "\begin{array}{l} 
-        \displaystyle \int \frac{y_1 g}{W} dt  = %s \\ 
-        \displaystyle \int \frac{y_2 g}{W} dt  = %s 
-     \end{array}",
+$multiansBCD = MultiAnswer($y1, $y2, $Wronskian, $real_g, $iFg[0], $iFg[1])->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,
+  checker => sub {
+    my ($correct, $student, $self ) = @_;
+    my ( $y1cor, $y2cor, $Wcor, $real_gstu, $iFg1cor, $iFg2cor ) = @{$correct};
+    my ( $y1stu, $y2stu, $Wstu, $real_gcor, $iFg1stu, $iFg2stu ) = @{$student};
+    my @res = (0,0,0,0,0,0);  # default result 
+    # will be computed from student's y1 and y2:
+    my $dy1stu; my $dy2stu;
+    my $ddy1stu; my $ddy2stu;
+    my $wron; 
 
-    checker => sub {
-        my ($correct, $student, $answerHash ) = @_;
-        my @c = @{$correct};
-        my @s = @{$student};
-        my $msg = "";    my @flag = (0,0); 
-        if ($c[0]->typeMatch($s[0]) &&
-            $c[1]->typeMatch($s[1])) {  
-          my @dS = (Formula("$s[0]")->D('t'),
-                    Formula("$s[1]")->D('t'));
-          if (Formula("$dS[0]*$S_wron") == Formula("$S_fund[0]*$real_g")) {
-            $flag[0] = 1;
-            $msg = "First integral is correct $BR";
-          } else {
-            $msg = "First integral is incorrect! $BR";
-          } if (Formula("$dS[1]*$S_wron") == Formula("$S_fund[1]*$real_g")) {
-            $flag[1] = 1;
-            $msg = $msg . "Second integral is correct";
-          } else {
-            my $tmp1 = Formula("$s[1]")->D('t')->reduce; 
-            my $tmp2 = Formula("$sFw[1]*$g")->reduce;
-            $msg = $msg . "Second integral is incorrect!";
-          }
-        }
-        if ($flag[0]*$flag[1] == 1) { return 1; }
-        else { if (length($msg)>1) { Value::Error($msg); } }
-        
-        return 0;
+    # Part C: doesn't depend on anything else so check it first
+    if ( ref($real_gstu) == ref($real_gcor) ){ $res[3] = ( $real_gstu == $real_gcor ); }
+    
+    # Part B:
+    # check student's y1, y2
+    if ( $y1cor->typeMatch($y1stu) ) {
+      $dy1stu = $y1stu->D('t');
+      $ddy1stu = $dy1stu->D('t');
+      my $Ly1stu = Formula("$coef[0]*t^2*$ddy1stu + $coef[1]*t*$dy1stu + $coef[2]*$y1stu"); 
+      if ( $Ly1stu == Formula("0") ){
+        $res[0] = 1;
+      }
+      else {
+        $self->setMessage(1,"\(y_1\) is not a fundamental solution.");
+      }
     }
+    if ( $y2cor->typeMatch($y2stu) ) {
+      $dy2stu = $y2stu->D('t');
+      $ddy2stu = $dy2stu->D('t');
+      my $Ly2stu = Formula("$coef[0]*t^2*$ddy2stu + $coef[1]*t*$dy2stu + $coef[2]*$y2stu"); 
+      if ( $Ly2stu == Formula("0") ){
+        $res[1] = 1;
+      }
+      else {
+        $self->setMessage(2,"\(y_2\) is not a fundamental solution.");
+      }
+    }
+    # check for independence
+    if ( $res[0] && $res[1]) { 
+      # compute the wronskiaan from student's y1 and y2
+      $wron = $y1stu*$dy2stu - $y2stu*$dy1stu;
+      if ( $wron == Formula("0")){
+        $res[1]=0;
+        $self->setMessage(2,"Your fundamental solutions are not independent.");
+      }  
+      ## check the Wronskiian
+      if ( $Wcor->typeMatch($Wstu) ) {
+        if ( $Wstu == $wron ) { $res[2] = 1; }
+        else { $self->setMessage(3,"Wronskian is wrong.");}
+      }
+
+      ## Part D
+      ## check the integrals
+      if ( $iFg1cor->typeMatch($iFg1stu) ) {
+        if ( $iFg1stu->D('t') == $y1stu*$real_g/$wron ){ $res[4] = 1; }
+        else { $self->setMessage(4, "\(\displaystyle \int \frac{y_1g}{W}dt\) is wrong."); }
+      }
+      if ( $iFg2cor->typeMatch($iFg2stu) ) {
+        if ( $iFg2stu->D('t') == $y2stu*$real_g/$wron ){ $res[5] = 1;}
+        else { $self->setMessage(5, "\(\displaystyle \int \frac{y_2g}{W}dt\) is wrong."); }
+      }
+    }
+    return [ @res ];
+  }
 );
 
-# D - general solution
+# E - general solution
 
 $gen_soln = Formula("($iFg[0]+c2)*$y2 - ($iFg[1]+c1)*$y1")->reduce;
 
@@ -220,7 +183,6 @@ $multiansE = MultiAnswer($gen_soln)->with(
     singleResult => 1,
     checkTypes => 1,
     allowBlankAnswers => 0,
- 
     checker => sub{
        my ($correct, $student, $answerHash ) = @_;
        my @s = @{$student};
@@ -277,7 +239,6 @@ BEGIN_TEXT
 
 $Message
 $PAR
-
 In this problem you will use variation of parameters to solve the nonhomogeneous equation 
 \[ $L = $g \]
 
@@ -303,13 +264,13 @@ You should get two values for \(n\), which give two fundamental solutions
 of the form \(y = t^n\).
 \{ mbox([
   "\( \quad \phantom{\mathrm{W}(y_1,\,)} y_1 = \)",
-  $multiansB->ans_rule(10),
+  $multiansBCD->ans_rule(10),
   "\(\qquad y_2 = \)",
-  $multiansB->ans_rule(10)
+  $multiansBCD->ans_rule(10)
 ]) \}
 \{ mbox([
   "\(\quad \mathrm{W}\bigl(y_1, y_2\bigr) = \)",
-  $multiansB->ans_rule(20)
+  $multiansBCD->ans_rule(20)
 ]) \}
 
 $PAR
@@ -321,7 +282,7 @@ $BR $SPACE $SPACE
 What is the function \(g\)?
 \{ mbox ([
   "\( \qquad g(t) = \)",
-  ans_rule(10)
+  $multiansBCD->ans_rule(10)
 ]) \}
 
 $PAR
@@ -330,18 +291,18 @@ $BBOLD D. $EBOLD
 Compute the following integrals.
 \{ mbox ([
   "\( \quad \displaystyle \int \frac{y_1 g}{W} dt = \)",
-  $multiansD->ans_rule(35)
+  $multiansBCD->ans_rule(35)
 ]) \}
 \{ mbox ([
   "\( \quad \displaystyle \int \frac{y_2 g}{W} dt = \)",
-  $multiansD->ans_rule(35)
+  $multiansBCD->ans_rule(35)
 ]) \}
 
 $PAR
 
 $BBOLD E. $EBOLD
 Write the general solution.
-(Use ${BTT}c1${ETT} and ${BTT}c2${ETT} for \(c_1\) and \(c_2\)).
+(Use ${BKBD}c1${EKBD} and ${BKBD}c2${EKBD} for \(c_1\) and \(c_2\)).
 \{ mbox ([
   "\( \quad y = \)",
   $multiansE->ans_rule(70)
@@ -392,9 +353,7 @@ Context()->normalStrings;
 $showPartialCorrectAnswers = 1;
 
 ANS( equation_cmp("$eqn = 0", vars=>['t','n']) );
-ANS( $multiansB->cmp() );
-ANS( $real_g->cmp() );
-ANS( $multiansD->cmp() );
+ANS( $multiansBCD->cmp() );
 ANS( $multiansE->cmp() );
 
 COMMENT("MathObject version. Randomized -- currently integer powers (rational powers don't check right).");

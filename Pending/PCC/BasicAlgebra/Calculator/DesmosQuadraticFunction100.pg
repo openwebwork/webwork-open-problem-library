@@ -1,0 +1,261 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Use technology to find intersections between a parabola and a line.
+#
+# Last edit by: Carl Yao 03/20/2019
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Coordinates and Graphs')
+## DBsection('Graphs of Equations')
+## KEYWORDS('quadratic','function','parabola','application')
+## DBCCSS('F.IF.7.a','F.IF.4','A-CED.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "AnswerFormatHelp.pl",
+  "parserPopUp.pl",
+  "PCCgraphMacros.pl",
+  "PCCmacros.pl",
+  "PGgraphmacros.pl",
+  "contextFiniteSolutionSets.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+
+do {
+  @a = (random(1,9,1), 0);
+  @b = (random(-5,5,1), random(1,9,1));
+  @c = (non_zero_random(-9,9,1), non_zero_random(-9,9,1));
+  @s = (non_zero_random(-0.9,0.9,0.1), non_zero_random(-0.5,0.5,0.1));
+
+  $f = Formula("$s[0]*$a[0] x^2 + $s[0]*$b[0] x + $s[0]*$c[0]")->reduce;
+  $g = Formula("$s[1]*$a[1] x^2 + $s[1]*$b[1] x + $s[1]*$c[1]")->reduce;
+
+  $A = $s[0]*$a[0]-$s[1]*$a[1];
+  $B = $s[0]*$b[0]-$s[1]*$b[1];
+  $C = $s[0]*$c[0]-$s[1]*$c[1];
+  $disc = ($B)**2 - 4*$A*$C;
+} until $disc > 0;
+
+$x00 = Round((-$B-sqrt($disc))/(2*($A)),3);
+$x10 = Round((-$B+sqrt($disc))/(2*($A)),3);
+$x0 = min($x00,$x10);
+$x1 = max($x00,$x10);
+$y0 = Round($f->eval(x=>$x0),3);
+$y1 = Round($f->eval(x=>$x1),3);
+
+$vertexX = -$b[0]/(2*$a[0]);
+$vertexY = $f->eval(x=>$vertexX);
+
+@gr=();
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$x0,$x1,0,$vertexX],[$vertexY,$y0,$y1,0]);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+for my $i (0..2) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+
+  $gr[$i]->lb('reset');
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (Real($j) == 0) {next;}
+    $gr[$i]->lb( new Label(-$marksep[0]/8, $j, $j,'black','right','middle'));
+  }
+  
+   add_functions($gr[$i], "$f for x in <$min[0],$max[0]> using color:blue and weight:2");
+   add_functions($gr[$i], "$g for x in <$min[0],$max[0]> using color:blue and weight:2");
+  $lor0 = $x0<$x1 ? 'left' : 'right';
+  $lor1 = $x1<$x0 ? 'left' : 'right';
+  $gr[$i]->stamps( closed_circle($x0,$y0,'blue') );
+  $gr[$i]->lb( new Label($x0,$y0,"($x0,$y0)", 'blue',$lor0,'bottom'));
+  $gr[$i]->stamps( closed_circle($x1,$y1,'blue') );
+  $gr[$i]->lb( new Label($x1,$y1,"($x1,$y1)", 'blue',$lor1,'top'));
+  $tob = $s[0]>0 ? 'top' : 'bottom';
+  $gr[$i]->lb( new Label($vertexX, $vertexY, "f(x)", 'blue', 'center', $tob));
+  $tx = $max[0]-$marksep[0]/2;
+  $ty = $g->eval(x=>$tx);
+  $gr[$i]->lb( new Label($tx, $ty, "g(x)", 'blue', 'center', 'top'));
+  $alt[0] = "This is the graphs of f(x)=$f and g(x)=$g. They intersect at ($x0,$y0) and ($x1,$y1). Those two points are marked and labeled.";
+}
+
+@symbols = ('\lt','\le','\gt','\ge');
+$i0 = random(0,1,1);
+$i1 = random(2,3,1);
+$symbol0 = $symbols[$i0];
+$symbol1 = $symbols[$i1];
+
+$hof0 = $i0==0 ? "hollow" : "solid";
+$hof1 = $i1==2 ? "hollow" : "solid";
+
+if ($s[0]>0) {
+   add_functions($gr[1], "$f for x in <$x0,$x1> using color:red and weight:2");
+   add_functions($gr[2], "$f for x in <$min[0],$x0> using color:red and weight:2");
+   add_functions($gr[2], "$f for x in <$x1,$max[0]> using color:red and weight:2");
+   $alt[1] = $alt[0]." The segment on f(x) from x=$x0 to x=$x1 is highlighted. The points ($x0,$y0) and ($x1,$y1) are $hof0.";
+   $alt[2] = $alt[0]." The segment on f(x) from negative infinity to x=$x0, and from x=$x1 to infinity are highlighted. The points ($x0,$y0) and ($x1,$y1) are $hof1.";
+} else {
+   add_functions($gr[2], "$f for x in <$x0,$x1> using color:red and weight:2");
+   add_functions($gr[1], "$f for x in <$min[0],$x0> using color:red and weight:2");
+   add_functions($gr[1], "$f for x in <$x1,$max[0]> using color:red and weight:2");
+   $alt[1] = $alt[0]." The segment on f(x) from negative infinity to x=$x0, and from x=$x1 to infinity are highlighted. The points ($x0,$y0) and ($x1,$y1) are $hof0.";
+   $alt[2] = $alt[0]." The segment on f(x) from x=$x0 to x=$x1 is highlighted. The points ($x0,$y0) and ($x1,$y1) are $hof1.";
+}
+
+if ($i0 == 0) {
+  $gr[1]->stamps(open_circle($x0,$y0,'red'));
+  $gr[1]->stamps(open_circle($x1,$y1,'red'));
+} else {
+  $gr[1]->stamps(closed_circle($x0,$y0,'red'));
+  $gr[1]->stamps(closed_circle($x1,$y1,'red'));
+}
+if ($i1==2) {
+  $gr[2]->stamps(open_circle($x0,$y0,'red'));
+  $gr[2]->stamps(open_circle($x1,$y1,'red'));
+} else {
+  $gr[2]->stamps(closed_circle($x0,$y0,'red'));
+  $gr[2]->stamps(closed_circle($x1,$y1,'red'));
+}
+
+Context("FiniteSolutionSets");
+Context()->flags->set(
+  tolerance => 0.01,
+  tolType => "absolute",
+);
+Context()->flags->remove("NumberCheck");
+$solutions = Formula("{$x0,$x1}");
+
+Context("Point");
+Context()->flags->set(
+  tolerance => 0.01,
+  tolType => "absolute",
+);
+Context()->parens->set("[" => {type => "Interval", close => "]"});
+Context()->parens->set("{" => {type => "Set", close => "}"});
+Context()->parens->set("<" => {type => "Vector", close => ">"});
+Context()->flags->set(showExtraParens=>0, reduceConstants=>0);
+
+$intersections = List("($x0,$y0),($x1,$y1)");
+
+Context("Interval");
+Context()->flags->set(
+  tolerance => 0.01,
+  tolType => "absolute",
+);
+if ($s[0]>0) {
+   $ans3 = ($i0==0) ? Interval("($x0,$x1)") : Interval("[$x0,$x1]");
+   $ans4 = ($i1==2) ? Interval("(-inf,$x0)U($x1,inf)") : Interval("(-inf,$x0]U[$x1,inf)");
+} else {
+   $ans3 = ($i1==2) ? Interval("(-inf,$x0)U($x1,inf)") : Interval("(-inf,$x0]U[$x1,inf)");
+   $ans4 = ($i0==0) ? Interval("($x0,$x1)") : Interval("[$x0,$x1]");
+}
+
+
+
+##############################################
+
+BEGIN_PGML
+
+Let [`f(x)=[$f]`] and [`g(x)=[$g]`]. Use technology to determine the following.
+
+1.  What are the points of intersection for these two functions?
+
+    [__]{$intersections}{width => 30}
+
+1.  Solve [`f(x)=g(x)\text{.}`] Enter your solutions in set notation.
+
+    [__]{$solutions}{width => 30}
+
+1.  Solve [`f(x) [$symbol0] g(x)\text{.}`] Enter *inf* to represent infinity. Use capitalized 'U' to represent the union symbol, if needed.
+
+    [__]{$ans3}{width => 30}
+
+1.  Solve [`f(x) [$symbol1] g(x)\text{.}`] Enter *inf* to represent infinity. Use capitalized 'U' to represent the union symbol, if needed.
+
+    [__]{$ans4}{width => 30}
+
+END_PGML
+
+############################################################
+# Solution
+############################################################
+
+$ion0 = $i0==0 ? "not including" : "including";
+$ion1 = $i1==2 ? "not including" : "including";
+
+BEGIN_PGML_SOLUTION
+
+We will use desmos.com to solve this system.
+
+Step 1: Go to desmos.com, click on Start Graphing.
+
+Step 2: In the first textbox, enter [` f(x)=[$f] `].
+
+Step 3: In the second textbox, enter [` g(x)=[$g] `].
+
+Step 4: Zoom in/out on the window, if needed, until you can cearly see the intersections of [`f(x)`] and [`g(x)`]. Alternatively, click on the Graph Settings icon (looking like a tool) and define the ranges of [`x`]-axis and [`y`]-axis.
+
+In case you need help, set the [`x`] range to [`[$min[0]],[$max[0]]`] and [`y`] range to [`[$min[1]],[$max[1]]`].
+
+Step 4: Click on those two intersections, and desmos shows [`[$intersections]`].
+
+>>[@ image(insertGraph($gr[0]), tex_size=>400, height=>400, width=>400,
+extra_html_tags=>"alt= '$alt[0]' title= '$alt[0]'"
+) @]*<<
+
+###Question 1 and 2
+
+They intersect at [`[$intersections]`].
+
+The solutions of [`f(x)=g(x)`] are simply the [`x`]-values of those two intersections: [`[$solutions]`].
+
+###Question 3
+
+To meet the condition of [` f(x) [$symbol0] g(x) `], we must choose [`x`] values in the intervals [`[$ans3]`]. In the following graph, ponts on the red segment(s) of [`f(x)`] has [`y`]-values smaller than [`g(x)`] ([$ion0] those two intersection points).
+
+>>[@ image(insertGraph($gr[1]), tex_size=>400, height=>400, width=>400,
+extra_html_tags=>"alt= '$alt[1]' title= '$alt[1]'"
+) @]*<<
+
+###Question 4
+
+To meet the condition of [` f(x) [$symbol1] g(x) `], we must choose [`x`] values in the intervals [`[$ans4]`]. In the following graph, ponts on the red segment(s) of [`f(x)`] has [`y`]-values greater than [`g(x)`] ([$ion1] those two intersection points).
+
+>>[@ image(insertGraph($gr[2]), tex_size=>400, height=>400, width=>400,
+extra_html_tags=>"alt= '$alt[2]' title= '$alt[2]'"
+) @]*<<
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

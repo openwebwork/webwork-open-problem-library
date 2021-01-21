@@ -18,65 +18,57 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "Parser.pl",
-  "Generic.pl",
-  "PGmatrixmacros.pl",
+  "MathObjects.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
 
-$e = non_zero_random(2,4,1);
-$f = non_zero_random(2,4,1);
+Context("Matrix");
 
-$a = non_zero_random(-5*$e,-3*$e,$e);
-$b = non_zero_random(-5*$f,-3*$f,$f);
-$c = non_zero_random(-2*$e,2*$e,$e);
-$d = non_zero_random(-2*$f,2*$f,$f);
+do { $e = non_zero_random(2,4,1);
+     $f = non_zero_random(2,4,1);
 
-$m = new Matrix(4, 3);
+     $a = non_zero_random(-5*$e,-3*$e,$e);
+     $b = non_zero_random(-5*$f,-3*$f,$f);
+     $c = non_zero_random(-2*$e,2*$e,$e);
+     $d = non_zero_random(-2*$f,2*$f,$f); 
+} until ($a*$d+$b*$c != 0 );  # so $M has rank 2
 
-$m->assign(1,1,$a );
-$m->assign(2,1,$b );
-$m->assign(3,1,-$a*($e+1)/$e );
-$m->assign(4,1,$b*($f+1)/$f);
+$M = Matrix([
+  [$a, $c, 0 ],
+  [$b, -$d, $d-$b ],
+  [-$a*($e+1)/$e , -$c*($e+1)/$e, 0 ],
+  [$b*($f+1)/$f,-$d*($f+1)/$f , ($d-$b)*($f+1)/$f]]);
 
-$m->assign(1,2,$c );
-$m->assign(2,2,-$d );
-$m->assign(3,2,-$c*($e+1)/$e );
-$m->assign(4,2,-$d*($f+1)/$f );
+$ans = Matrix([[$a, $c, 0 ]]);
 
-$m->assign(1,3,0 );
-$m->assign(2,3,($d-$b) );
-$m->assign(3,3,0 );
-$m->assign(4,3,($d-$b)*($f+1)/$f);
-
-Context("Vector");
-
+Context()->texStrings;
 BEGIN_TEXT
 
-\{mbox('Let the matrix M = ', display_matrix($m))\}$BR$BR
+Find a non-zero vector \(V\) in the row space of the matrix $PAR
+\($M\).$PAR
 
-Find a non-zero vector in the row space of M.
-
-\{ans_rule()\}
+\(V = \)\{$ans->ans_array()\}.
 
 END_TEXT
+Context()->normalStrings;
 
-sub check{
-  my $stu=shift();
-  $x1=$stu->extract(1); 
-  $x2=$stu->extract(2);
-  $x3=$stu->extract(3);
-  
-  $w = ($x1 + $x2 + $x3) / ($a + $c);
-  $x = ($x1 - $a*$w) / $b;
-  $y = ($c*$w - $x2) / $d;
-  $z = $x3 / ($d - $b);
-
-  ($x == $y) && ($y == $z) && (($x1 != 0) || ($x2 != 0) || ($x3 != 0));
-}
-
-ANS(generic_cmp("23",type => 'Vector', length => 3, checker => ~~&check));
+ANS($ans->cmp(
+  checker=>sub{
+    my ($corr,$stu,$ansHash) = @_;
+    if ($stu->isZero){
+      return 0;
+    }
+    my $D = Matrix([
+      [$a, $c, 0 ],
+      [$b, -$d, $d-$b ],
+      [$stu->element(1,1),$stu->element(1,2),$stu->element(1,3)]]);
+    if ( $D->det->isZero ){ return 1;}
+    else { 
+      return 0;
+    }
+  }
+));
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.

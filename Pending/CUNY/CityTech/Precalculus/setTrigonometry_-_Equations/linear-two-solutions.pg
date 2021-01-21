@@ -1,0 +1,338 @@
+##DESCRIPTION
+##  Trigonometry problem: Solve a trig equation
+##ENDDESCRIPTION
+
+
+## DBsubject(Trigonometry)
+## DBchapter(Analytic trigonometry)
+## DBsection(Solving trigonometric equations exactly)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('trigonometry', 'trig functions', 'trigonometric functions', 'analytic trigonometry', 'trigonometric equation')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "PGchoicemacros.pl",
+   "niceTables.pl",
+   "parserPopUp.pl",
+   "contextFraction.pl",
+   "parserAssignment.pl",
+   "PGgraphmacros.pl"
+
+
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0
+);
+
+Parser::Number::NoDecimals();
+Context()->{error}{msg}{"You are not allowed to type decimal numbers in this problem"} 
+  = "Please state your answer in radians, using fractions of 'pi' rather than decimal approximations.";
+
+
+%unit = (
+  6 => {
+    x => Formula("sqrt(3)/2"),
+    nx => Formula("-sqrt(3)/2"),
+    y => Formula("1/2"),
+    ny => Formula("-1/2"),
+    t => Formula("1/sqrt(3)"),
+    nt => Formula("-1/sqrt(3)"),
+  },
+  3 => {
+    x => Formula("1/2"),
+    nx => Formula("-1/2"),
+    y => Formula("sqrt(3)/2"),
+    ny => Formula("-sqrt(3)/2"),
+    t => Formula("sqrt(3)"),
+    nt => Formula("-sqrt(3)")
+  },
+  4 => {
+    x => Formula("sqrt(2)/2"),
+    nx => Formula("-sqrt(2)/2"),
+    y => Formula("sqrt(2)/2"),
+    ny => Formula("-sqrt(2)/2"),
+    t => Formula("1"),
+    nt => Formula("-1")
+  }
+);
+
+# choose reference angle and generate necessary secondary numerators
+$denom = list_random(3,4,6);
+$dminus1 = $denom-1;
+$dplus1 = $denom+1;
+$twodminus1 = 2*$denom-1;
+
+# hash to provide principal solutions in [0,2pi)
+# $principal{$trigFunction}{$isPositive}
+%principal = (
+  sin => {
+    1 => Formula("pi/$denom"),
+    0 => Formula("$twodminus1 pi/$denom"), # or -pi/$denom outside [0,2pi)
+  },
+  cos => {
+    1 => Formula("pi/$denom"),
+    0 => Formula("$dminus1 pi/$denom"),
+  },
+  tan => {
+    1 => Formula("pi/$denom"),
+    0 => Formula("$twodminus1 pi/$denom"),  # or -pi/$denom outside [0,2pi)
+  }
+);
+
+# hash to provide secondary solutions in [0,2pi)
+# $secondary{$trigFunction}{$isPositive}
+%secondary = (
+  sin => {
+    1 => Formula("$dminus1 pi/$denom"),
+    0 => Formula("$dplus1 pi/$denom"),
+  },
+  cos => {
+    1 => Formula("$twodminus1 pi/$denom"),
+    0 => Formula("$dplus1 pi/$denom"),
+  },
+  tan => {
+    1 => Formula("$dplus1 pi/$denom"),
+    0 => Formula("$dminus1 pi/$denom"),
+  }
+);
+
+# for generating a hashkey
+@select = ( [ '0', 'y', 'y', 'ny', 'ny' ],
+  [ 'x', 'x', 'nx', 'nx', 'x' ],
+  [ '0', 't', 'nt', 't', 'nt' ] 
+);
+
+### Randomly select quadrant and trig function to use
+$quad = random(1,4,1);
+@trig = ("sin","cos","tan");
+@trigFull = ("sine", "cosine", "tangent");
+$function = random(0,2,1);
+$trigFunction = $trigFull[$function];
+
+
+### Generate a hash key for retrieving result from unit circle hash
+$hashKey = $select[$function][$quad];
+
+### Select the appropriate numerator for reference angle and generate answer
+@num = ( 0, 1, "$denom-1", "$denom+1", "2*$denom -1" );
+$numer = Formula("$num[$quad]")->reduce;
+$angle = Formula("$numer pi / $denom");
+
+### Pull the proper ratio from the unit circle hash and generate coefficients
+$ratio = Formula("$unit{$denom}{$hashKey}");
+# $A = Formula($ratio->{tree}{rop});
+# $B = Formula($ratio->{tree}{lop});
+
+$LHS = Formula("$trig[$function](x)");
+$RHS = Formula("$ratio");
+
+$isPos = ($ratio > 0) ? 1 : 0;
+$ans = List(Formula("$principal{$trig[$function]}{$isPos}"), Formula("$secondary{$trig[$function]}{$isPos}"));
+
+$periodicCheck = sub {
+     my ($correct,$student,$ansHash,$value) = @_;
+     my $n = scalar(@$student);  # number of student answers
+     my $score = 0;              # number of correct student answers
+     my @errors = ();            # stores error messages
+     my $i, $j;                  # loop counters
+   
+     #
+     #  Loop though the student answers
+     ##
+     for ($i = 0; $i < $n; $i++) {
+       my $ith = Value::List->NameForNumber($i+1);
+       my $p = $student->[$i];   # i-th student answer
+       #
+       #  Check that the student's answer is a point
+       #
+       if ($p->type ne "Number") {
+          push(@errors,"Your $ith entry is not a number");
+          next;
+       }
+       #
+       #  Make sure that student's answer is not in [0,2pi)
+       #
+       if ($p >= 0 && $p < 2*pi) {
+          push(@errors,"Your $ith entry is between 0 and 2\(\pi\).");
+          next;
+       }
+       #
+       #  Check that the point hasn't been given before
+       #
+       for ($j = 0, $used = 0; $j < $i; $j++) {
+         if ($student->[$j]->type eq "Number" && $student->[$j] == $p) {
+           push(@errors,"Your $ith value is the same as a previous one") unless $ansHash->{isPreview};
+           $used = 1; last;
+         }
+       }
+       #
+       #  If not already used, check that it satisfies the equation
+       #    and increase the score if so.
+       #
+       if (!$used) {
+         #my $theta = $p->value;
+         if ( $LHS->eval(x=>$p) == $RHS) {$score++} else {
+           push(@errors,"Your $ith value is not a valid solution to the equation.") unless $ansHash->{isPreview}
+         }
+       }
+     }
+     #
+     #  Check that there are the right number of answers
+     #
+     if (!$ansHash->{isPreview}) {
+       push(@errors,"You need to provide more solutions") if $i < 4;
+       # push(@errors,"You have given too many solutions") if $score > 4 && $i != $score;
+     }
+     return ($score,@errors);
+   };
+ 
+$periodic = List(
+    Formula("$principal{$trig[$function]}{$isPos} + 2 pi"),
+    Formula("$secondary{$trig[$function]}{$isPos} + 2 pi"),
+    Formula("$principal{$trig[$function]}{$isPos} + 4 pi"),
+    Formula("$secondary{$trig[$function]}{$isPos} + 4 pi")
+    );
+ 
+$twopip = 2*pi+2; 
+$twopi = 2*pi; 
+$im1 = init_graph(-$twopip,-6,$twopip,6,axes=>[0,0],size=>[300,300], grid=>[12,12]);
+add_functions($im1,"sin(x) for x in <-$twopip,$twopip> using color:blue and weight: 2");
+$im1->moveTo(-8.3,0.5);
+$im1->lineTo(8.3,0.5,'red',1,'dashed');
+$im1->stamps( closed_circle(pi/6,0.5,'orange') );
+$im1->stamps( closed_circle((5*pi)/6,0.5,'orange') );
+$im1->stamps( closed_circle((13*pi)/6,0.5,'orange') );
+$im1->stamps( closed_circle((-11*pi)/6,0.5,'orange') );
+$im1->stamps( closed_circle((-7*pi)/6,0.5,'orange') );
+
+$im1->lb( 'reset' );
+$im1->lb( new Label(pi,0,"pi",'black','center','top') );
+$im1->lb( new Label($twopi,0,"2pi",'black','right','top') );
+$im1->lb( new Label(-$twopi,0,"-2pi",'black','right','top') );
+$im1->lb( new Label(0,1,"1",'black','right','middle') );
+$im1->lb( new Label(0,-1,"-1",'black','right','middle') );
+$im1->h_ticks(0,'black',"-2 pi","-pi","pi","2 pi");
+$im1->v_ticks(0,'black',-6,-5,-4,-3,-2,-1,1,2,3,4,5,6);
+    
+     
+$ansex1 = "pi/6,(5 pi)/6";
+$ansex2 = "(-7pi)/6,(-11 pi)/6";
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ### Trigonometric Equations ### <<
+
+
+>>Trigonometric equations are equations of the form: <<  
+
+>>[`\tan(x)=A`],  <<  
+>>[`\cos(x)=B`], or  <<  
+>> [`\sin(x)=C`].  <<  
+ 
+>>Solving trig equations is about finding _angles_ that satisfy the given equation.<<
+
+For example, if you are asked to solve [`\sin(x)=\frac{1}{2}`], then our solution must be an angle whose sine ratio is [`\frac{1}{2}`].
+
+From the unit circle, we know that the angle [`\frac{\pi}{6}`] has sine ratio [` = \frac{1}{2}`] ;
+
+therefore, a solution for [`\sin(x)=\frac{1}{2}`] would be [`x=\frac{\pi}{6}`].
+
+But wait, what about the angle [`\frac{5\pi}{6}`]? It _also_ has sine ratio [`= \frac{1}{2}`]. So, [`x=\frac{5\pi}{6}`] should also be a solution.
+
+Even still, these two angles are not the only solutions. 
+
+>>Trigonometric functions are _periodic_ so they will end up having an *infinite* number of solutions over their domain.<<
+
+Returning to our example, the period of [`\sin(x)`] is [`2\pi`]. This means when [`2\pi`] is added to or subtracted from a given angle [`x`], the sine ratio remains the same i.e. 
+
+[`\sin(x+2\pi) = \sin(x)`] and [`\sin(x-2\pi) = \sin(x)`]
+
+We thus get additional solutions:
+
+[`\frac{\pi}{6}+2\pi=\frac{13\pi}{6}`],
+
+[`\frac{\pi}{6}-2\pi=\frac{-11\pi}{6}`],
+
+[`\frac{5\pi}{6}-2\pi=\frac{-7\pi}{6}`], ...
+
+
+All these angles have sine [`\frac{1}{2}`]. Can you find one more solution?
+
+We can see from the graph below where the sine function (blue) intersects the line [`y=\frac{1}{2}`] (red) that there will be many solutions to [`\sin(x)=\frac{1}{2}`]:
+
+>> [@image( insertGraph($im1),width=>200,height=>200,tex_size=>400 )@]* <<
+
+
+Let's go back to our problem and list all solutions for [`\sin(x)=\frac{1}{2}`] in [`[0,2 \pi)`]:
+
+[`x = `] [__________]{$ansex1}
+
+Now, list all solutions for [`\sin(x)=\frac{1}{2}`] in [`(-2 \pi,0]`]:
+
+[`x = `] [__________]{$ansex2}
+
+When solving trig equations:
+* use the unit circle to find *all* the basic angles that satisfy the given equation
+* find the *period* of the given trig function
+* use the period and the basic angles to find *more solutions* as needed
+
+
+
+
+>> ### Practice ### <<
+
+>> [`` \large [$LHS] = [$RHS] ``] <<
+
+List all solutions in [`[0,2 \pi)`]:
+
+    [`x = `] [__________]{$ans}
+
+* Give your answer in radians.
+* Separate multiple solutions with commas.
+* Do not use decimal approximations. Use 'pi' to represent [` \pi `].
+
+Use the periodicity of [$trigFunction] to find at least 4 more solutions to the equation: 
+
+    [`x = `] [____________________]{$periodic->cmp(entry_type => "a value", list_checker=>$periodicCheck)}
+
+* Solutions between 0 and 2[`\pi`] belong in the first answer.
+* Your four additional solutions should not be between 0 and 2[`\pi`]. 
+
+END_PGML
+
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        
+

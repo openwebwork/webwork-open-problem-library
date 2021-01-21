@@ -1,0 +1,807 @@
+## DESCRIPTION
+## First order ODEs: phase portraits
+## ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(First order differential equations)
+## DBsection(Equilibrium points and phase lines)
+## Date(02/15/2013)
+## Institution(Cleveland State University)
+## Author(Felipe Martins)
+## Level(4)
+## MO(1)
+## TitleText1('A Modern Introduction to Differential Equations')
+## AuthorText1('Ricardo')
+## EditionText1('2009')
+## Section1('2.5')
+## Problem1('5')
+## KEYWORDS('differential equations','first order','phase portraits','NSF-0941388')
+## Language(en)
+## 
+## Javascript & html5 canvas replace original Flash app. -- G. Jennings, Jan. 2021 
+
+
+########################################################################
+# This work is supported in part by the National Science Foundation 
+# under the grant DUE-0941388.
+########################################################################
+
+DOCUMENT();
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGcourse.pl"
+);
+
+########## set up in perl ##################################
+
+Context("Numeric");
+Context()->variables->are(P=>"Real");
+
+## parameters used in problem
+$a = random(11,19,1);
+$b = random(5,9,1);
+$c = random(4,$b-1,1);
+
+$dP = Compute("(1-P/$a)^3*(P/$b-1)P^5");
+
+$canvasId = "phasePortrait16a";
+$canvasWidth_A = 420; # for part A
+$canvasHeight_A = 150;
+$canvasWidth_B = 420;  # for part B
+$canvasHeight_B = 250;
+$axLengthX = 400; # axis length in canvas coordinates
+$debug = 0;  # =0 to hide answer box, =1 to show answer box 
+
+# # # # # # # # # # # # # # # # # # # # # # 
+# Configure ticks on the axis 
+# the axis has three coordinate systems:
+# t and T stand for the coordinate displayed on the tick labels
+# x and X stand for the X-coordinate in the canvas coordinate system
+# n is integer valued, used for locating arrows etc.
+# t,x,n are related by their values at left tick and intervals between ticks.
+# ticks range from leftTickT to tPerTick*(tickCount - 1) in t-coordinates 
+# # # # # # # # # # # # # # # # # # # # # # 
+
+$leftTickT = -2;
+$tickCount = $a+5; 
+$tPerTick = 1;
+$nPerTick = 2;
+
+
+## the canvas elements
+
+# for part A   
+
+sub printCanvas_A {   
+  return MODES( 
+    TeX => image("phaseline16a.png"), 
+    HTML => qq!<canvas id="${canvasId}_A" width="$canvasWidth_A" height="$canvasHeight_A"></canvas>!,
+    PTX => " HTML5 canvas element "
+  );
+}
+
+# for part B   
+
+sub printCanvas_B {   
+  return MODES( 
+    TeX => image("graph16b.png"), 
+    HTML => qq!<canvas id="${canvasId}_B" width="$canvasWidth_B" height="$canvasHeight_B"></canvas>!,
+    PTX => " HTML5 canvas element "
+  );
+}
+
+##  the answer boxes.  It holds the canvas state and is  filled automatically by javascript so 
+##  normally it's hidden (displayed only if $debug = 1).   
+
+# for part A
+
+sub printAnswerBox_A {
+  if ($debug) { return MODES(
+    TeX => '',
+    HTML => NAMED_ANS_RULE( 'answerBox_A', 50 ),
+    PTX => ''
+  );}
+  else { return MODES (
+    TEX => '',
+    HTML => NAMED_HIDDEN_ANS_RULE( 'answerBox_A', 50 ),
+    PTX => ''
+  );}
+} 
+
+# for part B
+
+sub printAnswerBox_B {
+  if ($debug) { return MODES(
+    TeX => '',
+    HTML => NAMED_ANS_RULE( 'answerBox_B', 50 ),
+    PTX => ''
+  );}
+  else { return MODES (
+    TEX => '',
+    HTML => NAMED_HIDDEN_ANS_RULE( 'answerBox_B', 50 ),
+    PTX => ''
+  );}
+}
+
+
+####################################################################
+##### Begin javascript (this will go in html header) ###############
+####################################################################
+
+$javascript = <<"END_JAVASCRIPT";
+    <script>
+
+//////////////////////////////
+/////// Part A ///////////////
+//////////////////////////////
+
+{
+  // ***** layout ********
+  // x,y refer to canvas coordinates 
+
+  // boxes
+  const boxLeftX = 35;       // center of left box 
+  const boxY = 40;           // box center
+  const boxSize = 20;        // distance from center to edge
+  const boxSpacing = 88;    // space between boxes
+  // box legends
+  const legendY = 15;
+  // axis
+  const axLeftX = 10;        // position of axis 
+  const axY = 125;
+  const axLengthX = $axLengthX; 
+  // ticks
+  const tickCount = $tickCount;
+  const xPerTick = $axLengthX/$tickCount;
+  const tPerTick = $tPerTick;
+  const nPerTick = $nPerTick;
+  const leftTickX = axLeftX + xPerTick/2;
+  const leftTickT = $leftTickT;
+  const tickHeight = 10;
+  // tick labels
+  const labelOffsetY = 20;      // relative to axis
+
+  // functions that draw boxes, symbols, axis, ticks, tick labels
+
+  function drawBox(ctx,x){	
+    ctx.beginPath();
+    ctx.strokeStyle="Black";
+    ctx.lineWidth = 2;
+    ctx.rect(x-boxSize,boxY-boxSize,2*boxSize,2*boxSize);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function drawLeftArrow(ctx,x,y){
+    ctx.strokeStyle="Black";
+    ctx.lineWidth=5;
+    ctx.beginPath();
+    ctx.moveTo(x+10,y-10);
+    ctx.lineTo(x,y);
+    ctx.lineTo(x+10,y+10);
+    ctx.stroke()
+  }
+
+  function drawRightArrow(ctx,x,y){
+    ctx.strokeStyle="Black";
+    ctx.lineWidth=5;
+    ctx.beginPath();
+    ctx.moveTo(x-10,y-10);
+    ctx.lineTo(x,y);
+    ctx.lineTo(x-10,y+10);
+    ctx.stroke()
+  }
+   
+  function drawDot(ctx,x,y){
+    ctx.strokeStyle="Black";
+    ctx.beginPath();
+    ctx.arc(x,y,5,0,2*Math.PI);
+    ctx.fillStyle="Black";
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function drawVert(ctx,x,y){
+    ctx.strokeStyle="Black";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(x, y-10);
+    ctx.lineTo(x, y+10);
+    ctx.stroke();
+  }
+
+  function drawCross(ctx,x,y){
+    ctx.strokeStyle="Red";
+    ctx.lineWidth=5;
+    ctx.beginPath();
+    ctx.moveTo(x-10, y-10);
+    ctx.lineTo(x+10, y+10);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+10, y-10);
+    ctx.lineTo(x-10, y+10);
+    ctx.stroke();
+  }
+
+  function drawAxis(ctx){
+    ctx.strokeStyle="Black";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(axLeftX, axY);
+    ctx.lineTo(axLeftX + axLengthX, axY);
+    ctx.stroke();
+  }
+
+  function drawTick(ctx,x){
+    ctx.beginPath();
+    ctx.moveTo(x,axY);
+    ctx.lineTo(x,axY+tickHeight);
+    ctx.stroke();
+  }
+
+  function drawTickLabel(ctx, x ,i){
+    // label every other tick
+    if (i % 2 == 0){
+      ctx.fillText(String(leftTickT + i*tPerTick), x - 3, axY + labelOffsetY );  
+    }
+  }
+
+  // functions for converting between canvas x coordinate and discrete coordinate n on axis
+  // n is used for comparing locations of points
+
+  let nPerX = nPerTick/xPerTick;
+
+  function xToN(x){
+    const N = (x - leftTickX)*nPerX;
+    const n = Math.floor(N);
+    if (N-n < 0.5){ return n; }
+    else { return n+1; }
+  }
+
+  function nToX(n){
+    return leftTickX + n/nPerX;
+  }
+
+  // box legends
+  legend = ["decreasing", "increasing", "equilibrium", "slope undefined", "delete"];
+  legendOffset = [-33, -32, -34, -44, -18];
+
+  /////////////////////////////////////////////
+  // the axisSymbol object represents the current state of the canvas.
+  // It saves the symbols that appear on the axis and their positions 
+  // in "n-coordinates": axisSymbol[n] = symbol at position n
+  // It will be encoded as a Webwork List of Lists 
+  // ...,(n,symbol),...  in the answer box.  To avoid confusing 
+  // WeBWork's answer checkers it uses integers to represent 
+  // the symbols :
+  // 0 represents left arrow, 
+  // 1 represents right arrow
+  // 2 represents dot
+  // 3 represents vertical bar
+  // 4 represents cross ("delete")
+  /////////////////////////////////////////////////
+
+  // drawSymbol[i]( ...arguments.. ) draws symbol i  
+
+  drawSymbol = [ drawLeftArrow, drawRightArrow, drawDot, 
+    drawVert, drawCross ];
+
+  symbolOffset = [-5, 5, 0, 0, 0]; // X-offset for drawing symbol[i] in box[i]
+
+  /////////////////////////////////////////////////////////////////
+  // convert between answer string and canvas state 
+  // axisSymbol = { .., n:s , ... } assigns a symbol s = 0,1,2,3, or 4 to 
+  // the point on the axis with n-coordinate = n.  It sets the state 
+  // of the canvas and is equivalent to the answer
+  /////////////////////////////////////////////////////////////////
+
+  // convert axisSymbol object to answer string, a list of pairs "...,(s,n),..." 
+
+  function axisSymbolToAnswer(){
+    let answerList = [];
+    for (const n in axisSymbol){
+      answerList.push("(" + n + "," + axisSymbol[n] + ")" ); 
+    }
+    return answerList.join(",");
+  };
+
+  // convert answer string to axisSymbol object
+
+  function answerToAxisSymbol(answer){
+    if (answer === ''){return {};}
+    // convert n pairs to nx2 array
+    let str = answer.slice(1,-1);   
+    let arr = str.split( '),(' ).map( pair => pair.split(',') ); 
+    // convert array to object
+    let axisSymbol = {};
+    for (let i=0; i < arr.length; i++){
+      axisSymbol[Number(arr[i][0])] = Number(arr[i][1]);
+    }
+    return axisSymbol;
+  };
+
+  selectedSymbol = null;
+
+  /////////////////////
+  ////  Draw  /////////
+  /////////////////////
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const canvas = document.getElementById("${canvasId}_A");
+    const ctx = canvas.getContext('2d');
+
+    // get canvas state from previous answer
+
+    let previousAnswer = document.getElementById("answerBox_A").value;
+    axisSymbol = answerToAxisSymbol(previousAnswer);
+    
+    // draw  
+    ctx.font = "10pt Arial";
+    for (let i = 0; i < drawSymbol.length; i++){
+      let x = boxLeftX + i*boxSpacing;
+      ctx.fillStyle = "Black";
+      ctx.fillText(legend[i], x+legendOffset[i], legendY); 
+      ctx.fillStyle = "LightGrey";
+      drawBox(ctx, x,boxY);
+      drawSymbol[i](ctx, x + symbolOffset[i], boxY);
+    }
+    drawAxis(ctx);
+    ctx.fillStyle="Black";
+    ctx.font = "10pt Arial";
+    for (let i = 0; i < tickCount; i++){
+      let tickX = leftTickX + i*xPerTick;
+      drawTick(ctx, tickX);
+      drawTickLabel(ctx, tickX, i); 
+    }
+    // draw axis symbols 
+    for (n in axisSymbol){
+      let x = nToX(n);
+      drawSymbol[axisSymbol[n]](ctx, x, axY);
+    }
+
+    canvas.addEventListener('mousedown', function(event) {
+      const x = event.offsetX;
+      const y = event.offsetY;
+
+      // if cursor points to a box then update selectedSymbol
+      if ( Math.abs(y-boxY) < boxSize +1){
+	for (let i = 0; i < drawSymbol.length; i++){
+	  let boxX = boxLeftX + i*boxSpacing;
+	  if ( Math.abs(x - boxX) < boxSize + 1 ) { selectedSymbol = i; }
+	}
+      }
+      // if cursor points to the axis then update axisSymbol
+      if ( selectedSymbol != null && Math.abs(y - axY) < 10 &&
+	   axLeftX - 1 < x && x < axLeftX + axLengthX +1  
+      ){
+	const n = xToN(x);  // discrete coordinate on axis
+	if ( selectedSymbol == 4){   // "delete"
+	  if (axisSymbol[n] != undefined){ delete axisSymbol[n]; }
+	}
+	else {
+	  axisSymbol[n] = selectedSymbol;
+	}
+      }
+      
+      // redraw  
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.font = "10pt Arial";
+      for (let i = 0; i < drawSymbol.length; i++){
+	let x = boxLeftX + i*boxSpacing;
+	ctx.fillStyle = "Black";
+	ctx.fillText(legend[i], x+legendOffset[i], legendY); 
+	// update box color
+	if ( selectedSymbol == i ){ ctx.fillStyle = "White"; }
+	else { ctx.fillStyle = "LightGrey";}
+	drawBox(ctx, x ,boxY);
+	drawSymbol[i](ctx, x + symbolOffset[i], boxY);
+      }
+      drawAxis(ctx);
+      ctx.fillStyle="Black";
+      ctx.font = "10pt Arial";
+      for (let i = 0; i < tickCount; i++){
+	let tickX = leftTickX + i*xPerTick;
+	drawTick(ctx, tickX);
+	drawTickLabel(ctx, tickX, i);
+      }
+      // draw axis symbols 
+      for (n in axisSymbol){
+	let x = nToX(n);
+	drawSymbol[axisSymbol[n]](ctx, x, axY);
+      }
+      // insert axisSymbol into answer blank
+      document.getElementById('answerBox_A').value = axisSymbolToAnswer();
+    });
+  });
+}
+
+///////////////////////////////////////////////
+////////// Part B /////////////////////////////
+///////////////////////////////////////////////
+
+document.addEventListener("DOMContentLoaded", function() {
+  const canvas = document.getElementById("${canvasId}_B");
+  const ctx = canvas.getContext('2d');
+  
+  // point object prototype 
+
+  // "tangents" at a point p
+  // A node p has an attribute ends:[pt,..], an array 
+  // containing one or two control points at the ends of a tangent
+  // through p.
+  // A control point p has attributes mid:pt1 and opp:pt2 if p is 
+  // the endpoint of a tangent whose opposite end is opp and midpoint is mid 
+
+  function Point(ctx,x,y,color){
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    this.radius = 5;
+    this.isMouseTarget = function (mx,my){
+      return ( (this.x - mx)**2 + (this.y - my)**2 < this.radius**2 + 1 )
+    }
+    this.draw = function(){
+      ctx.beginPath();
+      ctx.fillStyle = this.color;
+      ctx.arc(this.x,this.y,this.radius,0,2*Math.PI);
+      ctx.fill();
+    }
+  }
+  
+  // Define the nodes p0, p1, ... with default coordinates
+
+  let p0 = new Point(ctx, 30, 170, "blue");
+  let p1 = new Point(ctx, 390, 84, "blue");  
+
+  // Define the control points cpij at pi-end of curve [pi,pj]
+
+  let cp01 = new Point(ctx, 139, 30, "red");
+  let cp10 = new Point(ctx, 234, 202, "red");
+  
+  pointList = [p0,p1,cp01,cp10];
+
+  // if there's a previous answer, use its coordinates instead of the defaults
+ 
+  let previousAnswer = document.getElementById("answerBox_B").value;
+  if (previousAnswer !== ''){
+    // convert n pairs to nx2 array
+    let str = previousAnswer.slice(1,-1);   
+    let arr = str.split( '),(' ).map( pair => pair.split(',') ); 
+    for (i=0; i<pointList.length; i++){ 
+      pointList[i].x = Number(arr[i][0]);
+      pointList[i].y = Number(arr[i][1]);
+    }
+  }
+
+  // attach tangents
+
+  p0.ends = [cp01];
+  p1.ends = [cp10];
+
+  // nodes have fixed x coordinates
+  // control points have constrained x coordinates
+
+  cp01.xmin = 40; cp01.xmax=200;
+  cp10.xmin = 220; cp10.xmax=380;
+
+  // draw cubic Bézier curve
+
+  function drawCurve(ctx){
+    ctx.strokeStyle = "black";
+    ctx.setLineDash([]);
+    ctx.beginPath()
+    ctx.moveTo(p0.x, p0.y);
+    ctx.bezierCurveTo(cp01.x, cp01.y, cp10.x, cp10.y, p1.x, p1.y);
+    ctx.stroke();
+  }
+
+  // draw tangents
+
+  function drawTangents(ctx){
+    ctx.strokeStyle = 'red';
+    ctx.setLineDash([10,5]);
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(cp01.x, cp01.y);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(cp10.x,cp10.y);
+    ctx.lineTo(p1.x,p1.y);
+    ctx.stroke();
+
+  }
+
+  // draw axes
+  function drawAxes(ctx){
+    ctx.strokeStyle = 'black';
+    ctx.fillStyle = 'black';
+    ctx.font = "12pt Arial";
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(30,250);
+    ctx.lineTo(30,0);
+    ctx.stroke();
+    ctx.moveTo(0,216);
+    ctx.lineTo(390,216);
+    ctx.stroke();
+    for (let i=1; i<13; i++){
+      ctx.moveTo(20,18*i);
+      ctx.lineTo(30,18*i);
+      ctx.stroke();
+      if (i%2 == 0 && i<12){
+	ctx.fillText(String(12-i),4,18*i+6);
+      }
+      ctx.fillText("P",35,15);
+      ctx.fillText("t",345,235);
+      ctx.fillText("0",35,232);
+    }
+  }
+
+  let showTangents = true;
+
+  function drawAll(ctx){
+    let i;
+    drawCurve(ctx);
+    if (showTangents){
+      drawTangents(ctx);
+      for (i = 0; i<pointList.length; i++){
+	pointList[i].draw(ctx);
+      }
+    }
+    drawAxes(ctx);
+  }
+
+  drawAll(ctx);
+
+  // button to toggle showTangents and re-draw
+
+  const showHideTangentsButton = document.getElementById("showOrHideTangents");
+  showHideTangentsButton.addEventListener("click", function(e){
+    showTangents = ! showTangents;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawAll(ctx);
+  });
+
+  // listen for mouse events 
+
+  let x = 0; 
+  let y = 0; 
+  let selectedPoint = null;
+  let ans = [];
+
+  canvas.addEventListener('mousedown', function(e){
+    let i;
+    let mx = e.offsetX;
+    let my = e.offsetY;
+    for (i=0; i<pointList.length; i++){
+      if (pointList[i].isMouseTarget(mx,my)){
+	selectedPoint = pointList[i];
+	break;
+      }
+    }
+  });
+
+  canvas.addEventListener('mousemove', function(e){
+    if ( selectedPoint != null) {
+      // save the current position of the selected point
+      let x = selectedPoint.x;
+      let y = selectedPoint.y;
+      // update the position of the selected point
+      if (! selectedPoint.ends){
+        // then it's a control point so we can change x
+        if (selectedPoint.xmin < e.offsetX && e.offsetX < selectedPoint.xmax){
+          selectedPoint.x = e.offsetX;
+        }
+      }
+      selectedPoint.y = e.offsetY; 
+      // displacement
+      let dx = selectedPoint.x - x;
+      let dy = selectedPoint.y - y;
+      if (selectedPoint.ends){
+	// then it's a node so displace ends of its tangent
+	for (i=0; i<selectedPoint.ends.length; i++){
+	  selectedPoint.ends[i].y += dy;
+	}
+      }
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawAll(ctx);
+    }
+  });
+
+  canvas.addEventListener('mouseup', function(e){
+    // save the positions of the points in the answer box
+    ans=[];
+    for (i=0; i < pointList.length; i++){
+      ans.push( "(" + pointList[i].x + "," + pointList[i].y + ")" );
+    }
+    document.getElementById("answerBox_B").value = ans.join(",");
+    selectedPoint = null;
+  });
+});
+
+    </script>
+END_JAVASCRIPT
+
+################################################
+######## end of javascript #####################
+################################################
+
+MODES (
+  TeX => '',
+  HTML => HEADER_TEXT($javascript),
+  PTX => ''
+);
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+Part A)$PAR
+Use the symbols provided below to sketch the phase line for the differential equation $BR
+\[  \frac{dP}{dt} = $dP .\] 
+$PAR
+To place a symbol on the line click a symbol button then click a point on the line. $BR 
+To remove a symbol from the line click the "delete" button then click the symbol on the line. $PAR
+\{printCanvas_A()\} 
+\{printAnswerBox_A\}
+END_TEXT
+Context()->normalStrings;
+
+## grade the answer
+## "answer" is a string encoding axisState so we'll need to decode it
+
+# answer code: symbol codes are listed left to right, separated by commas.  
+# Symbol codes are: 0=left arrow, 1=right arrow, (2,t)=dot at coordinate t,
+# (3,t)=vertical bar ("undefined") at coordinate t.   
+# Arrows are not given coordinates.
+
+$ans_A = List("1,(2,0),0,(2,$b),1,(2,$a),0");
+
+sub nToT{  
+  my $n = shift;
+  return $leftTickT + $n*$tPerTick/$nPerTick;
+}
+
+NAMED_ANS( 'answerBox_A' => $ans_A->cmp( 
+list_checker => sub { 
+  my ($correct, $student, $ansHash, $value) = @_;
+  my $corrN = scalar(@$correct);
+  my $studN = scalar(@$student);
+  my $score = 0;
+  my @errors = ();
+  # copy student answers into a sortable doubly-indexed array
+  my @arr = ();
+  for ($i=0; $i<$studN; $i++){
+    push(@arr, [$student->[$i]->value]);
+  }
+  # sort the array so the n's are in increasing order
+  my @arrSort = PGsort( sub { return $_[0][0] < $_[1][0] }, @arr);
+  # drop redundant consecutive duplicate arrow symbols (s=0,1) 
+  # and drop n from arrows that remain 
+  my @studClean=(); ## for grading
+  my @display=(); ## for display
+  my @toSymbol = ("-<<-","->>-","dot","undef");
+  my $t;
+  for ($i=0; $i<scalar(@arrSort); $i++){
+    my ($n,$s) = @{$arrSort[$i]};
+    # if s is not an arrow convert position to t-coordinates
+    if ($s>1) { 
+      $t = nToT($n);
+      push(@studClean, "($s,$t)" ); 
+      push(@display, "(".$toSymbol[$s]." at $t)" );
+    }
+    # otherwise s is an arrow so eliminate redundancies and drop position 
+    elsif ( $i==0 or $s != $arrSort[$i-1][1] ){ 
+      push( @studClean, "$s" );
+      push( @display, $toSymbol[$s] );
+    } 
+  }
+  # answer is converted to display to make it easier to read
+  $ansHash->{student_ans}=join("",@display);
+  $ansHash->{preview_latex_string}="\text{".join("",@display)."}";
+  $ansHash->{correct_ans_latex_string}="\text{->>-(dot at 0)-<<-(dot at $b)->>-(dot at $a)-<<-}";
+  my $decodedStudAns = List(join(",",@studClean));
+  my $correctAns = List($correct);
+  if ($decodedStudAns == $correctAns){ return ($studN,@errors); }
+  else { return (0,@errors); }
+}
+));
+
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+Part B)$PAR
+
+Use the phase portrait for this differential equation to give a rough sketch of the solution \(P(t)\) with initial condition 
+\[P(0)=$c\] 
+on the interval \([0,\infty)\) in the space below.  $PAR
+
+To sketch the solution, click the "Show/Hide Tangents" button until the red tangents appear. To move a blue endpoint click it with your mouse and hold the mouse button down while you move the point up or down.  To change a slope click a red point, hold the mouse button down and move the red point in any direction.  Click the "Show/Hide Tangents" again to make the tangents disappear.
+$PAR
+\{printCanvas_B()\}$BR
+<button id="showOrHideTangents" type="button">Show/Hide Tangents</button>
+\{printAnswerBox_B\}
+END_TEXT
+Context()->normalStrings;
+
+# expects list of points (x,y) in canvas coordinates
+# conversion from canvas (x,y) coordinates to axis coordinates do:
+# (x,y) --> (x-30,(216-y)*18)
+
+$ans_B = List("(30,216-18*$c),(390,216),(60,216-18*$c/2),(360,216)");  
+
+NAMED_ANS( 'answerBox_B' => $ans_B->cmp(
+  list_checker => sub { 
+    my ($correct, $student, $ansHash, $value) = @_;
+    my $corrN = scalar(@$correct);
+    my $studN = scalar(@$student);
+    my $score = 0;
+    my @errors = ();
+    my $i;
+    # copy student answers into a sortable doubly-indexed array
+    my @arr = ();
+    for ($i=0; $i<$studN; $i++){
+      push(@arr, [$student->[$i]->value]);
+    }
+    # display answer in an easy-to-read form
+    my @display = ();
+    push(@display, "Left end P is approximately " . round(10*(216-$arr[0][1])/18)/10  . ".");
+    if ( abs($arr[0][1] - (216-18*$c) ) < 5 ){
+      # then left endpoint is at (0,$c)
+      $score++;
+    } 
+    else { push(@errors, "Check left endpoint."); }
+    my $leftSlope = -($arr[2][1] - $arr[0][1])/($arr[2][0]-$arr[0][0]); 
+    if ( $leftSlope  < -0.1) {
+      push(@display,"Left end slope is negative.");
+      $score++;
+    }
+    else { 
+      if ($leftSlope < 0.1) { push(@display,"Left end slope is nearly zero."); }
+      else {push(@display,"Left end slope is positive.");}
+      push(@errors, "Check slope at left end."); 
+    }
+    my $rightSlope = -($arr[3][1] - $arr[1][1])/($arr[3][0]-$arr[1][0]);
+    if ( -0.1 < $rightSlope && $rightSlope < 0.2 ){
+      push(@display,"Right end slope is nearly zero."); 
+      $score++;
+    } 
+    else { 
+      if ( 0.2 <= $rightSlope){ push(@display,"Right end slope is distinctly positive.");}
+      else { push(@display,"Right end slope is distinctly negative.");}
+      push(@errors, "Check slope at right end."); 
+    }
+    if ( 221 > $arr[1][1] && $arr[1][1] > 206 ){
+      push(@display,"Right end P is close to zero.");
+      # then right endpoint is close to 0
+      $score++;
+    }
+    else { 
+      if ($arr[1][1]>220) { push(@display,"Right end P is distinctly positive.");}
+      else { push(@display, "Right end P is distinctly negative."); }
+      push(@errors, "Check limit as t->infinity."); 
+    } 
+    $ansHash->{student_ans}=join("  ",@display);
+    my @texout = map { "\text{" . $_ . "}" } @display;
+    $ansHash->{preview_latex_string}= join("\\",@texout);
+    $ansHash->{correct_ans_latex_string} = "\text{Left end }P = $c.  \\ \text{Left end slope distinctly negative.} \\ \text{Right end slope }\approx 0.  \\ \text{Right end }P \approx 0.";
+    return ($score,@errors);
+  }
+)); 
+
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+Part C)$PAR
+If \(P(0)=$c\) what happens to \(P(t)\) as \(t\) gets very large? $BR
+\(\displaystyle \lim_{t\to\infty}P(t) = \)\{ans_rule()\}
+END_TEXT
+Context()->normalStrings;
+
+ANS(Compute(0)->cmp());
+
+COMMENT("To show graphics in Library Browser click 'eye' icon (on upper right).");
+
+ENDDOCUMENT();

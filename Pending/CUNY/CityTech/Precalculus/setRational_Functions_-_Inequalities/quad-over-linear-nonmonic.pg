@@ -1,0 +1,380 @@
+##DESCRIPTION
+##  Algebra problem: true or false for inequality 
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra', 'inequality', 'fraction')
+
+## DBsubject('Algebra')
+## DBchapter('Rational equations and functions')
+## DBsection('Rational inequalities')
+## Date('7/3/2018')
+## Author('K. Andrew Parker')
+## Institution('City Tech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "PGgraders.pl",
+   "contextFraction.pl",
+   "parserMultiAnswer.pl",
+   "parserPopUp.pl",
+   "scaffold.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+# Give full credit if the student is able to complete the
+# quotient without doing the scaffold steps...
+install_problem_grader(~~&full_partial_grader);
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Fraction");
+Context()->noreduce('(-x)-y');
+Parser::Number::NoDecimals();
+Context()->{error}{msg}{"You are not allowed to type decimal numbers in this problem"} 
+  = "Decimals are not allowed for this problem, please use exact forms (such as fractions) instead of decimal approximations.";
+
+# [(ax - r0)(x - r2)]/[ab(x - r1)]
+# [(x-r1)(x-r2)]/(ax-r0)
+
+$r[1] = random(-8,-4,1);
+$r[2] = random(4,8,1);
+
+do { 
+    $r[0] = random(-1,1,2)*random(5,12,1);
+    do { $a = random(-1,1,2)*list_random(2,3,5); } until (gcf(abs($r[0]),abs($a))==1);
+} until ($r[0]/$a - $r[1] > 1 && $r[2] - $r[0]/$a > 1);
+
+#$r[1] = random(-8,($r[0]>0)?-2:floor($r[0]/$a),1);
+#$r[2] = random(($r[0]>0)?ceil($r[0]/$a):2,8,1);
+
+@rootReal = ($r[0]/$a,$r[1],$r[2]);
+
+$nA = 1;
+$nB = -($r[2]+$r[1]);
+$nC = $r[1]*$r[2];
+$n = Formula("$nA x^2 + $nB x + $nC")->reduce;
+
+$b = random(2,3,1);
+$dA = 0;
+$dB = $a;
+$dC = -$r[0];
+$d = Formula("$dA x^2 + $dB x + $dC")->reduce;
+
+$rational = Formula("$n/$d");
+
+@rootFrac = (Fraction($r[0],$a),Fraction($r[1],1),Fraction($r[2],1));
+
+@rootFOrd = PGsort(sub {$_[0]<$_[1]}, @rootFrac);
+@rootROrd = PGsort(sub {$_[0]<$_[1]}, @rootReal);
+    
+$asyLeft = $rootReal[0]-.001;
+$asyRight = $rootReal[0]+.001;
+#$asyLeft[2] = $rootReal[2]-.001; #not an asymptote
+#$asyRight[2] = $rootReal[2]+.001; #not an asymptote
+
+$yHole = ($a*$r[2] - $r[0])/($r[2] - $r[1]);
+#graph of rational:
+$gr = init_graph(-10,-10,10,10,grid=>[20,20],axes=>[0,0],size=>[400,400]);
+add_functions($gr,"$rational for x in <-10,$asyLeft> using color:blue and weight:2");
+add_functions($gr,"$rational for x in <$asyRight,10> using color:blue and weight:2");
+($gr->fn)[0]->steps(100);
+($gr->fn)[1]->steps(100);
+#($gr->fn)[2]->steps(100);
+$gr->moveTo($rootReal[0],-10);
+$gr->lineTo($rootReal[0],10,'orange',2,'dashed');
+#$gr->moveTo($rootReal[2],-10);
+#$gr->lineTo($rootReal[2],10,'orange',2,'dashed');
+$gr->stamps(closed_circle($rootReal[1],0,'orange'));
+$gr->stamps(closed_circle($rootReal[2],0,'orange'));
+$gr->stamps(open_circle($rootReal[0],0,'orange'));
+#$gr->stamps(open_circle($rootReal[2],0,'orange'));
+#$gr->stamps(open_circle($rootReal[2],$yHole,'blue'));
+
+$grDom = init_graph(-10,-1,10,1, size=>[680,68]);
+# x-axis
+$grDom -> moveTo(-10,0);
+$grDom -> lineTo(10,0,'black','1');
+# x-axis ticks entered as y-value, color, list of x-values
+$grDom -> h_ticks(0,"black",-9,-8-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9);
+# labels for tickmarks
+foreach my $j (0..9) {
+    $grDom->lb( new Label($j,-0.5,$j, 'black','center','middle'));
+    $grDom->lb( new Label(-$j,-0.5,-$j, 'black','center','middle'));
+}
+$firstMid = (-10+$rootROrd[0])/2;
+$secondMid = ($rootROrd[0]+$rootROrd[1])/2;
+$thirdMid = ($rootROrd[1]+$rootROrd[2])/2;
+$fourthMid = ($rootROrd[2]+10)/2;
+$grDom->lb( new Label($firstMid,0.5,"(-inf,$rootFOrd[0])",'black','center','middle'));
+$grDom->lb( new Label($secondMid,0.5,"($rootFOrd[0],$rootFOrd[1])",'black','center','middle'));
+$grDom->lb( new Label($thirdMid,0.5,"($rootFOrd[1],$rootFOrd[2])",'black','center','middle'));
+$grDom->lb( new Label($fourthMid,0.5,"($rootFOrd[2],inf)",'black','center','middle'));
+$grDom->stamps(open_circle($rootReal[0],0,'orange'));
+$grDom->stamps(closed_circle($rootReal[1],0,'orange'));
+$grDom->stamps(closed_circle($rootReal[2],0,'orange'));
+
+$x1 = Real(random(-10,floor($rootROrd[0]-.001),1));
+$y1 = Fraction($n->eval(x=>$x1),$d->eval(x=>$x1));
+$ans1String = ($y1>0)?"Positive":"Negative";
+$pn1 = PopUp(["?","Positive","Negative"],"$ans1String");
+$xy1 = MultiAnswer($x1,$y1)->with(
+    singleResult=>1, 
+    checkTypes=>0,
+    format=>'f(%1$s)=%2$s',
+    tex_format=>'f(%1$s)=%2$s',
+    checker=> sub {
+        my ($correct, $student, $self) = @_;
+        my ($x,$y) = @{$student};
+        Value::Error("You should select a number for your x-value.") unless ($x->type eq "Number");
+        Value::Error("f($x) should be a number.") unless ($y->type eq "Number");
+        $self->setMessage(1,"You need to select an x-value less than $rootFOrd[0] for this interval.") unless ($x < $rootROrd[0]);
+        $self->setMessage(2,"You have incorrectly evaluated f($x).") unless( $y == $rational->eval(x=>$x));
+        return ($x < $rootROrd[0], $x< $rootROrd[0] && $y == $rational->eval(x=>$x));
+    });
+
+$x2 = Real(random(ceil($rootROrd[0]+.0001),floor($rootROrd[1]-.0001,1)));
+$y2 = Fraction($n->eval(x=>$x2),$d->eval(x=>$x2));
+$ans2String = ($y2>0)?"Positive":"Negative";
+$pn2 = PopUp(["?","Positive","Negative"],"$ans2String");
+$xy2 = MultiAnswer($x2,$y2)->with(
+    singleResult=>1, 
+    checkTypes=>0,
+    format=>'f(%1$s)=%2$s',
+    tex_format=>'f(%1$s)=%2$s',
+    checker=> sub {
+        my ($correct, $student, $self) = @_;
+        my ($x,$y) = @{$student};
+        Value::Error("You should select a number for your x-value.") unless ($x->type eq "Number");
+        Value::Error("f($x) should be a number.") unless ($y->type eq "Number");
+        $self->setMessage(1,"You need to select an x-value between $rootFOrd[0] and $rootFOrd[1] for this interval.") unless ($x > $rootROrd[0] && $x < $rootROrd[1]);
+        $self->setMessage(2,"You have incorrectly evaluated f($x).") unless( $y == $rational->eval(x=>$x));
+        return ($x > $rootROrd[0] && $x < $rootROrd[1], $x > $rootROrd[0] && $x < $rootROrd[1] && $y == $rational->eval(x=>$x));
+    });
+
+$x3 = Real(random(ceil($rootROrd[1]+.0001),floor($rootROrd[2]-.0001),1));
+$y3 = Fraction($n->eval(x=>$x3),$d->eval(x=>$x3));
+$ans3String = ($y3>0)?"Positive":"Negative";
+$pn3 = PopUp(["?","Positive","Negative"],"$ans3String");
+$xy3 = MultiAnswer($x3,$y3)->with(
+    singleResult=>1, 
+    checkTypes=>0,
+    format=>'f(%1$s)=%2$s',
+    tex_format=>'f(%1$s)=%2$s',
+    checker=> sub {
+        my ($correct, $student, $self) = @_;
+        my ($x,$y) = @{$student};
+        Value::Error("You should select a number for your x-value.") unless ($x->type eq "Number");
+        Value::Error("f($x) should be a number.") unless ($y->type eq "Number");
+        $self->setMessage(1,"You need to select an x-value between $rootFOrd[1] and $rootFOrd[2] for this interval.") unless ($x > $rootROrd[1] && $x < $rootROrd[2]);
+        $self->setMessage(2,"You have incorrectly evaluated f($x).") unless( $y == $rational->eval(x=>$x));
+        return ($x > $rootROrd[1] && $x < $rootROrd[2], $x > $rootROrd[1] && $x < $rootROrd[2] && $y == $rational->eval(x=>$x));
+
+    });
+
+$x4 = Real(random(ceil($rootROrd[2]+.0001),10,1));
+$y4 = Fraction($n->eval(x=>$x4),$d->eval(x=>$x4));
+$ans4String = ($y4>0)?"Positive":"Negative";
+$pn4 = PopUp(["?","Positive","Negative"],"$ans4String");
+$xy4 = MultiAnswer($x4,$y4)->with(
+    singleResult=>1, 
+    checkTypes=>0,
+    format=>'f(%1$s)=%2$s',
+    tex_format=>'f(%1$s)=%2$s',
+    checker=> sub {
+        my ($correct, $student, $self) = @_;
+        my ($x,$y) = @{$student};
+        Value::Error("You should select a number for your x-value.") unless ($x->type eq "Number");
+        Value::Error("f($x) should be a number.") unless ($y->type eq "Number");
+        $self->setMessage(1,"You need to select an x-value greater than $rootROrd[2] for this interval.") unless ($x > $rootROrd[2]);
+        $self->setMessage(2,"You have incorrectly evaluated f($x).") unless( $y == $rational->eval(x=>$x));
+        return ($x > $rootROrd[2], $x > $rootROrd[2] && $y == $rational->eval(x=>$x));
+    });
+
+$grDom2 = init_graph(-10,-2,10,1, size=>[680,102]);
+# x-axis
+$grDom2 -> moveTo(-10,0);
+$grDom2 -> lineTo(10,0,'black','1');
+# x-axis ticks entered as y-value, color, list of x-values
+$grDom2 -> h_ticks(0,"black",-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9);
+# labels for tickmarks
+foreach my $j (0..9) {
+    $grDom2->lb( new Label($j,-0.5,$j, 'black','center','middle'));
+    $grDom2->lb( new Label(-$j,-0.5,-$j, 'black','center','middle'));
+}
+$color1=($y1>0)?'green':'red';
+$color2=($y2>0)?'green':'red';
+$color3=($y3>0)?'green':'red';
+$color4=($y4>0)?'green':'red';
+$grDom2->moveTo(-10,0);
+$grDom2->lineTo($rootROrd[0],0,$color1,3);
+$grDom2->lineTo($rootROrd[1],0,$color2,3);
+$grDom2->lineTo($rootROrd[2],0,$color3,3);
+$grDom2->lineTo(10,0,$color4,3);
+$grDom2->lb( new Label($firstMid,0.4,$ans1String,$color1,'center','middle'));
+$grDom2->lb( new Label($secondMid,0.4,$ans2String,$color2,'center','middle'));
+$grDom2->lb( new Label($thirdMid,0.4,$ans3String,$color3,'center','middle'));
+$grDom2->lb( new Label($fourthMid,0.4,$ans4String,$color4,'center','middle'));
+$grDom2->moveTo($rootReal[0],0.55);
+$grDom2->lineTo($rootReal[0],-1,'orange',1,'dashed');
+$grDom2->stamps(open_circle($rootReal[0],0,'orange'));
+$grDom2->lb( new Label($rootReal[0],0.75,"asymptote",'orange','center','middle'));
+$grDom2->lb( new Label($rootReal[0],-1.5,"x=$rootFrac[0]",'orange','center','middle'));
+$grDom2->moveTo($rootReal[1],0.55);
+$grDom2->lineTo($rootReal[1],-1,'orange',1);
+$grDom2->stamps(closed_circle($rootReal[1],0,'orange'));
+$grDom2->lb( new Label($rootReal[1],0.75,"root",'orange','center','middle'));
+$grDom2->lb( new Label($rootReal[1],-1.5,"x=$rootFrac[1]",'orange','center','middle'));
+$grDom2->moveTo($rootReal[2],0.55);
+$grDom2->lineTo($rootReal[2],-1,'orange',1);
+$grDom2->stamps(closed_circle($rootReal[2],0,'orange'));
+$grDom2->lb( new Label($rootReal[2],0.75,"root",'orange','center','middle'));
+$grDom2->lb( new Label($rootReal[2],-1.5,"x=$rootFrac[2]",'orange','center','middle'));
+
+Context("Interval");
+
+$nonZero = Compute("(-inf,$rootFOrd[0]) U ($rootFOrd[0],$rootFOrd[1]) U ($rootFOrd[1],$rootFOrd[2])U($rootFOrd[2],inf)");
+
+# set up all four inequalities to solve, align with answer
+@texIneq = ('>','<','\geq','\leq');
+
+# if $a is positive we alternate neg-pos-neg-pos
+# randomization ensures that middle root [1] is always asymptote 
+# [0] & [2] are always roots
+if ($a > 0) {
+    $ansInt[1] = Compute("(-inf,$rootFOrd[0]) U ($rootFOrd[1],$rootFOrd[2])");
+    $ansInt[0] = Compute("($rootFOrd[0],$rootFOrd[1])U($rootFOrd[2],inf)");
+    $ansInt[3] = Compute("(-inf,$rootFOrd[0]] U ($rootFOrd[1],$rootFOrd[2]]");
+    $ansInt[2] = Compute("[$rootFOrd[0],$rootFOrd[1])U[$rootFOrd[2],inf)");
+} else {
+    $ansInt[0] = Compute("(-inf,$rootFOrd[0]) U ($rootFOrd[1],$rootFOrd[2])");
+    $ansInt[1] = Compute("($rootFOrd[0],$rootFOrd[1])U($rootFOrd[2],inf)");
+    $ansInt[2] = Compute("(-inf,$rootFOrd[0]] U ($rootFOrd[1],$rootFOrd[2]]");
+    $ansInt[3] = Compute("[$rootFOrd[0],$rootFOrd[1])U[$rootFOrd[2],inf)");
+};
+
+$randomIneq = random(0,3,1); 
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Solve for [`x`]:
+
+>> [`\displaystyle [$rational] [$texIneq[$randomIneq]] 0 `] <<
+
+END_PGML
+
+Scaffold::Begin();
+Section::Begin("Identify roots and asymptotes");
+BEGIN_PGML
+
+[`\displaystyle [$rational]`] has root(s) at [`x=`][_____]{List(Real($r[1]), Real($r[2]))}
+
+[`\displaystyle [$rational]`] has vertical asymptote(s) at [`x=`][_____]{List($rootFrac[0])}
+
+Use interval notation to represent the four separate intervals where [`` [$rational] ``] will be *non-zero*: [_________________________]{$nonZero}
+
+* Type "inf" and "-inf" for [`\infty`] and [`-\infty`], respectively.
+* Type the capital letter "U" to represent the union symbol [`\cup`].
+
+
+END_PGML
+Section::End();
+
+Section::Begin("Test each interval");
+BEGIN_PGML
+
+>> [@ image( insertGraph($grDom), width=>544, height=>68, tex_size=>800 ) @]* <<
+
+a. Select an [`x`]-value in the first interval, [`(-\infty,[$rootFOrd[0]])`]: [_____]{$xy1}  
+
+    Evaluate the function [`f(x)`] at your selected [`x`]-value: [_____]{$xy1}  
+    
+    Will [`f(x)`] be positive or negative on the first interval? [_]{$pn1}
+    
+b. Select an [`x`]-value in the second interval, [`([$rootFOrd[0]],[$rootFOrd[1]])`]: [_____]{$xy2}  
+
+    And evaluate the function [`f(x)`] at your selected [`x`]-value: [_____]{$xy2}  
+    
+    Will [`f(x)`] be positive or negative on the second interval? [_]{$pn2}
+    
+c. Select an [`x`]-value in the third interval, [`([$rootFOrd[1]],[$rootFOrd[2]])`]: [_____]{$xy3}  
+
+    And evaluate the function [`f(x)`] at your selected [`x`]-value: [_____]{$xy3}  
+    
+    Will [`f(x)`] be positive or negative on the third interval? [_]{$pn3}
+
+d. Select an [`x`]-value in the fourth interval, [`([$rootFOrd[2]],\infty)`]: [_____]{$xy4}  
+
+    And evaluate the function [`f(x)`] at your selected [`x`]-value: [_____]{$xy4}  
+    
+    Will [`f(x)`] be positive or negative on the third interval? [_]{$pn4}
+
+END_PGML
+Section::End();
+
+Section::Begin("Solve inequalities by interpreting your results");
+
+BEGIN_PGML
+
+
+a. On what interval(s) will [` \displaystyle [$rational] [$texIneq[0]] 0 `]? [_______________]{$ansInt[0]}
+
+a. On what interval(s) will [` \displaystyle [$rational] [$texIneq[1]] 0 `]? [_______________]{$ansInt[1]}
+
+a. On what interval(s) will [` \displaystyle [$rational] [$texIneq[2]] 0 `]? [_______________]{$ansInt[2]}
+
+a. On what interval(s) will [` \displaystyle [$rational] [$texIneq[3]] 0 `]? [_______________]{$ansInt[3]}
+
+END_PGML
+Section::End();
+Scaffold::End();
+BEGIN_PGML
+
+You may receive full credit for this problem by giving the correct answer here.  
+(The steps above are provided to assist you with the process of finding the correct final answer.)
+
+[`\displaystyle [$rational] [$texIneq[$randomIneq]] 0 `] on the interval(s): [_______________]{$ansInt[$randomIneq]}
+
+* Type "inf" and "-inf" for [`\infty`] and [`-\infty`], respectively.
+* Type the capital letter "U" to represent the union symbol [`\cup`].
+
+
+END_PGML
+##############################################################
+#
+#  Answers
+#
+#
+
+BEGIN_PGML_SOLUTION
+
+The graph of [`y=f(x)`] looks like:
+
+>> [@ image( insertGraph($gr), width=>400, height=>400, tex_size=>800 ) @]* <<
+
+>> [@ image( insertGraph($grDom2), width=>680, height=>102, tex_size=>800 ) @]* <<
+
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

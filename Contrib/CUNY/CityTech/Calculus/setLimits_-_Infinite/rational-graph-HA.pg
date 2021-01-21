@@ -1,0 +1,293 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS('calculus', '', '')
+
+## DBsubject('Calculus - single variable')
+## DBchapter('')
+## DBsection('')
+## Date('6/15/2019')
+## Author('K. Andrew Parker')
+## Institution('CityTech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGchoicemacros.pl",
+   "PGgraphmacros.pl",
+   "AppletObjects.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+
+$M = random(-1,1,2)*random(2,6,1);
+
+@r = NchooseK(21,4); #ensure we get 4 unique roots
+#shift from 0-21 to -10 - 10
+for my $i (0..3) {
+  $r[$i] -= 10;
+}
+
+$nA = $M;
+$nB = -$M*($r[0]+$r[1]);
+$nC = $M*$r[0]*$r[1];
+$dB = -($r[2]+$r[3]);
+$dC = $r[2]*$r[3];
+$n = Formula("$nA x^2 + $nB x + $nC")->reduce;
+$d = Formula("x^2 + $dB x + $dC")->reduce;
+$f = Formula("$n/$d");
+
+%lim = (
+  $r[2]=>{
+    left => ($f->eval(x=>($r[2]-0.0000001)) > 10) ? Infinity : -(Infinity),
+    right => ($f->eval(x=>($r[2]+0.0000001)) > 10) ? Infinity : -(Infinity)
+  },
+  $r[3]=>{
+    left => ($f->eval(x=>($r[3]-0.0000001)) > 10) ? Infinity : -(Infinity),
+    right => ($f->eval(x=>($r[3]+0.0000001)) > 10) ? Infinity : -(Infinity)
+  },
+  H=>{
+    left => Real($M),
+    right => Real($M)
+  }
+);
+
+# sort the roots so that we can intelligently split up the domain for graphing
+
+($a1, $a2) = $r[3] > $r[2] ? ($r[2],$r[3]) : ($r[3],$r[2]);
+
+$a1L = $a1 - 0.0001;
+$a1R = $a1 + 0.0001;
+$a2L = $a2 - 0.0001;
+$a2R = $a2 + 0.0001;
+
+$xMax = 20;
+$yMax = $xMax;
+$xMin = -$xMax;
+$yMin = -$yMax;
+
+$gr = init_graph($xMin,$yMin,$xMax,$yMax,
+  grid=>[20,20],
+  axes=>[0,0],
+  pixels=>[400,400]);
+add_functions($gr, "$f for x in <$xMin,$a1L> using weight:3 and color:blue");
+add_functions($gr, "$f for x in <$a1R,$a2L> using weight:3 and color:blue");
+add_functions($gr, "$f for x in <$a2R,$xMax> using weight:3 and color:blue");
+$gr->moveTo($a1,$yMin);
+$gr->lineTo($a1,$yMax,'red',2,'dashed');
+$gr->moveTo($a2,$yMin);
+$gr->lineTo($a2,$yMax,'red',2,'dashed');
+$gr->moveTo($xMin,$M);
+$gr->lineTo($xMax,$M,'red',2,'dashed');
+
+$fig = image(insertGraph($gr), width=>400, height=>400, tex_size=>800 );
+######################################
+# Create  link to applet:
+###################################
+# You can name your applet (anything reasonable :-) )
+# Adjust the height and width as desired
+# Paste the geogebra parameters in at the bottom of the page just above the
+# command end command
+# so that they don't get in the way
+###################################
+
+
+$appletName = "ggbfoo";
+
+$applet =  GeogebraWebApplet(
+   code       => "geogebra.GeoGebraApplet",
+   archive    => "",
+   codebase                 => "",
+   appletName              => $appletName,
+   appletId                    => $appletName,
+   submitActionAlias     => 'getAppletValues',  # default actionAlias
+   initializeActionAlias   => 'configure',  # default actionAlias
+   setStateAlias             => 'setXML',
+   getStateAlias             => 'getXML',
+   setConfigAlias           => '',
+   getConfigAlias           => '',
+   returnFieldName       => '',
+   width                 => 600,              # may want to modify width
+   height                => 540,              # may want to modify height
+  # mayscript             => "true",
+   debugMode             => 0,   # set debugMode to 0 for no debug
+                                              # to 1 to make xml representation visible
+                                              # to 2 to add alerts detailing progression
+                                              # through the applet
+   onInit                => 'ggbOnInit',
+   type                  => 'geogebraweb',
+   # submitActionScript    => qq{ getQE('answerBox').value = getAppletValues() },
+   submitActionScript => '',
+   selfLoading           => 1,
+   params     => GEOGEBRA_PARAMS(),# paste parameters in
+
+);
+
+##################################
+# Setup GeogebraWebApplet --
+###################################
+
+###############################################
+#
+#  For persistence of GeoGebra applet state 
+#  when answers are submitted or page is refreshed.
+#  Uses JavaScript interface to GeoGebra.
+
+HEADER_TEXT(
+qq! 
+<script language="javascript">
+   function ggbOnInit(param) {
+       if (param == "$appletName") {
+           applet_loaded(param,1);  // report that applet is ready. 
+           ww_applet_list[param].safe_applet_initialize(2);
+       }
+   } 
+</script>
+<noscript>For this question to work properly, 
+you must enable JavaScript, or use another browser 
+(or computer) on which JavaScript works.</noscript>
+!);
+
+
+#######################################################
+#
+#  For setting initial values in GeoGebra from WeBWorK
+#  Uses JavaScript interface to GeoGebra.
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+<script language="javascript">
+function setAppletCoefficients() {
+   var applet=getApplet("$appletName");   // alert("Updating coefficients");
+   if (typeof(applet)!="undefined") {
+     if (typeof(applet.setValue)!="undefined") {
+     
+     ////////////////////////////////////////////////////////////////
+     //  List the values of the parameters to be set in the applet here
+     
+          applet.setPerspective("G");
+          applet.setCoordSystem(-15,15,-15,15);
+          //applet.setAxisSteps(1,1,1);
+          applet.setGridVisible(true);
+
+          applet.evalCommand("f = $f");
+          applet.evalCommand("v1: x = $r[2]");
+          applet.evalCommand("v2: x = $r[3]");
+          applet.evalCommand("h1: y = $M");
+          
+          applet.setLineStyle('v1',1);
+          applet.setLineStyle('v2',1);
+          applet.setLineStyle('h1',1);
+          
+          applet.setLineThickness('v1',2);
+          applet.setLineThickness('v2',2);
+          applet.setLineThickness('h1',2);
+          
+          applet.setColor('v1',115,0,230);
+          applet.setColor('v2',115,0,230);
+          applet.setColor('h1',115,0,230);
+     } else {
+          setTimeout("setAppletCoefficients()", 1000);
+     }
+   } else {
+      setTimeout("setAppletCoefficients()",1000);
+   }
+}
+ww_applet_list["$appletName"].setConfig = function() {setAppletCoefficients()};
+</script>
+END_SCRIPT
+
+HEADER_TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+
+<script language="javascript">
+function getAppletValues() {
+    console.log("getAppletValues() entered");
+	// get a handle for the applet object
+	var applet = $appletName;
+	var l = applet.getLaTeXString("l");
+	
+        return( l ); 
+}
+ </script>
+END_SCRIPT
+
+###################################
+#insert applet into body  -- this does not need to be changed
+# except to adjust the insertion of the reinitialize_button or
+# a hidden AnswerBox
+###################################
+$ggbCode = MODES(TeX=>$fig,
+                      HTML=>"<div align='center'>".$applet->insertAll(
+                                debug =>0,
+                                reinitialize_button => 0,
+                                includeAnswerBox=>0,
+)."</div>");
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> [$ggbCode]*** <<
+
+[``` f(x) = [$f] ```]
+
+1. [``\lim_{x \to [$r[2]]^-} f(x) = ``] [__________]{$lim{$r[2]}{left}}
+1. [``\lim_{x \to [$r[2]]^+} f(x) = ``] [__________]{$lim{$r[2]}{right}}
+1. [``\lim_{x \to [$r[3]]^-} f(x) = ``] [__________]{$lim{$r[3]}{left}}
+1. [``\lim_{x \to [$r[3]]^+} f(x) = ``] [__________]{$lim{$r[3]}{right}}
+1. [``\lim_{x \to -\infty} f(x) = ``] [__________]{$lim{H}{left}}
+1. [``\lim_{x \to \infty} f(x) = ``] [__________]{$lim{H}{right}}
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+BEGIN_PGML_HINT
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+END_PGML_SOLUTION
+
+sub GEOGEBRA_PARAMS {
+    my $result = {
+        appName=>"classic", # instead of using ggbbase64
+        enableShiftDragZoom=>"true",
+        showResetIcon=>"false" ,
+        enableRightClick=>"false" ,
+        enableLabelDrags=>"false",
+        showMenuBar=>"false" ,
+        showToolBar=>"false",
+        showAlgebraInput=>"false",
+        useBrowserForJS=>"true",
+        #ggbbase64=>''
+};
+
+$result;
+}
+
+ENDDOCUMENT();        

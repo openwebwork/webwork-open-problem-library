@@ -1,0 +1,271 @@
+#################################################################
+## DESCRIPTION
+## Linear models, multiple regression; 
+## fit a multiple regression model with two covariates, perform a multiple regression analysis involving a dummy variable, 
+## interpret the P-values of hypothesis tests for a multiple regression analysis,
+## draw a conclusion from a multiple regression analysis.
+## ENDDESCRIPTION 
+#################################################################
+
+#################################################################
+## DBsubject(Statistics)
+## DBchapter(Multiple regression)
+## DBsection(Hypothesis tests)
+## Date(2019/12/20)
+## Author(Bruce Dunham)
+## Institution(UBC)
+## Level(4)
+#################################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "unionTables.pl",
+  "PGgraphmacros.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+);
+
+#################################################################
+## Setup: this is where we use Perl and PG objects (Required)
+Context("Numeric");
+
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+
+## fix the name of the downloadable data files 
+rserve_eval("filename <- file.path(tempdir(), 'stockprice_${studentLogin}.txt')");
+
+my @remote_file = rserve_eval('
+  library(MASS);
+  sigma <- matrix(c(1, 0, -0.17, 0, 1, 0.1, -0.17, 0.1, 1), ncol=3);
+  x <- mvrnorm(29, mu = c(-3, 2.9, 1.9), Sigma = sigma);
+  x <- round(x, 2);
+  LayPercent <- x[,2];
+  ActualPercent <- x[,1];
+  ExpertPercent <- x[,3];
+  x <- c(ActualPercent, ActualPercent[1:22]);
+  resp <- c(LayPercent,ExpertPercent[1:22]);
+  status <- c(rep(0,29), rep(1,22));
+  status <- as.factor(status);
+  data <- matrix(c(resp, x, status), ncol=3);
+  write.table(data, file = filename, append = FALSE, quote = TRUE, sep = " ", eol = "\n", na = "NA", dec = ".", row.names = F, 
+              col.names = c("Predicted", "Actual", "Status"));
+  filename
+');
+
+my $local_file = rserve_get_file($remote_file[0]);
+
+$local_url = $local_file;
+$local_url =~ s|$tempDirectory|$tempURL|;
+
+# Scatter plot for part (b)
+$file = rserve_start_plot('png');
+rserve_eval('plot(x, resp, xlab="Actual percent change", ylab="Predicted percent change", col=status);
+legend("topleft", c("Laypeople","Experts"), fill=c("black", "red"))
+');
+$imagefile = rserve_finish_plot($file);
+$fig = image($imagefile, width=>400, height=>400);
+
+@answers = rserve_eval('
+  lm1 <- lm(resp~x);
+  lm2 <- lm(resp~x+status);
+  lm3 <- lm(resp~x*status);
+
+  ansc <- round(100*summary(lm1)$r.squared,2);
+  ansd <- round(summary(lm2)$coef[3,4],2);
+  anse <- round(summary(lm3)$coef[4,4],3);
+  c(ansc, ansd, anse);
+');
+
+# Part (a)
+$mca = new_multiple_choice();
+$mcquesa = "The study described above is:";
+$mca->qa($mcquesa, "an observational study.");
+$mca->extra("an experiment.");
+
+# Part (b)
+
+$mcb = new_multiple_choice();
+$mcquesb = "Ignoring initially whether the predictions were made by an expert or layperson, plot the actual percentage change in the stock
+            against the predicted change. From this plot it is";
+@ansb = ("obvious the experts were better at predicting than the laypeople.", 
+         "obvious the laypeople were better at predicting than the experts.", 
+         "obvious there was no appreciable difference in the quality of predictions between experts and laypeople.", 
+         "impossible to say whether there is any difference in the quality of predictions between experts and laypeople.");
+$mcb->qa($mcquesb, $ansb[3]);
+$mcb->extra($ansb[0], $ansb[1], $ansb[2]);
+
+# Part (f)
+
+$mcf = new_multiple_choice();
+$mcquesf = "Based on your analysis, what would you conclude from this study?";
+@ansf = ("The expert predictions were on average closer to the actual
+changes than predictions of the laypeople, but neither set of
+predictions appear correlated with the actual changes.", 
+         "The laypeople predictions were on average closer to the actual
+changes than predictions of the experts, but neither set of
+predictions appear correlated with the actual changes.",
+"There was no appreciable difference in the predictions between
+experts and laypeople, but both sets of people had predictions
+that were correlated with the actual changes.",
+"There was no appreciable difference in the predictions between
+experts and laypeople, and no evidence either set of people
+had predictions that were correlated with the actual changes.",
+"It is impossible to say whether there is any difference in the
+predictions between experts and laypeople.");
+$mcf->qa($mcquesf, $ansf[0]);
+$mcf->extra($ansf[1], $ansf[2], $ansf[3], $ansf[4]);
+
+#################################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+How good are people at predicting how the value of a stock will change over thirty days? Are stock market professionals ("experts") better
+at predicting than laypeople? Torngren and Montgomery (2004) conducted studies to explore how well individuals could predict the values of a set of stocks thirty days into the future. In one such study, predictions from 22 stock market experts were compared with those from 29 lay people. The percentage change over a thirty day period was measured for each stock predicted, along with the corresponding percentage changes predicted by the experts and laypeople. Suppose that the data from this study for a selection of stocks are as given in the file below. (\{ htmlLink($local_url, "Download the data here") \})
+$BR
+Torngren G. and Montgomery, H. (2004): Worse Than Chance? Performance and Confidence Among Professionals and Laypeople in the
+Stock Market. $BITALIC Journal of Behavioral Finance $EITALIC $BBOLD 5 $EBOLD, No.3, 148-153.
+$BR
+$BR
+$BBOLD Part (a) $EBOLD
+$BR
+\{$mca->print_q()\}
+\{$mca->print_a()\}
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+\{$mcb->print_q()\}
+\{$mcb->print_a()\}
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+To explore whether there is a linear relationship between the actual percentage change and the predicted change across all individuals in the study, fit a linear model to the data. What percentage of variation in the predicted percentage price change is accounted for by the actual change? Give your answer to two decimal places.
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR 
+Fit a linear model that permits the expert predictions to differ by a fixed constant from the predictions of the laypeople. In testing the hypothesis that this constant is zero, what is the P-value? Give your answer to two decimal places.
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (e) $EBOLD
+$BR
+Fit a linear model that permits the expert predictions to differ in both slope and intercept from the predictions of the laypeople. In testing the hypothesis that the difference in slopes is zero, what is the P-value? Give your answer to two decimal places.
+$BR
+\{ans_rule(8) \}
+$BR
+
+$BR
+$BBOLD Part (f) $EBOLD
+$BR
+\{$mcf->print_q()\}
+\{$mcf->print_a()\}
+
+
+END_TEXT
+
+#################################################################
+## Answers evaluation (Required)
+
+$showPartialCorrectAnswers = 1;
+
+ANS(radio_cmp($mca->correct_ans()) );
+ANS(radio_cmp($mcb->correct_ans()) );
+ANS(num_cmp($answers[0], tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($answers[1], tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($answers[2], tol=>0.02, tolType=>"absolute") );
+ANS(radio_cmp($mcf->correct_ans()) );
+
+#################################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+$BBOLD Part (a) $EBOLD
+$BR
+There is no treatment applied to the subjects and responses were recorded without intervention. The study is purely observational.
+$BR
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+The plot can be drawn with the R function $BBOLD plot $EBOLD:
+$BR
+$BBOLD
+plot(Actual, Predicted, xlab="Actual percent change", ylab="Predicted percent change", col=status);
+$BR
+legend("topleft", c("Laypeople","Experts"), fill=c("black", "red"))
+$EBOLD,
+$BR
+which generates the following scatter plot.
+$BR
+$BCENTER
+$fig
+$ECENTER
+From this plot it is not possible to deduce whether there is any difference between the experts and laypeople. In this context it makes sense to consider the actual percentage change as the explanatory variable, noting that it is feasible that the actual change could influence the predictions but not vice versa.
+$BR
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+The regression model can be fitted with the R function $BBOLD lm1 <- lm(Predicted ~ Actual) $EBOLD.
+The part of variation in the response accounted for by the model is the R\(^2\) statitic, which can be obtained with the R code $BBOLD 100*summary(lm1)${DOLLAR}r.squared$EBOLD, which is $answers[0]%.
+$BR
+
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR
+The model fitted is of the form
+\[
+Y_i = \beta_0 + \beta_1x_i + \gamma z_i + \epsilon,
+\]
+$BR
+where \(Y_i\) is the predicted change, \(x_i\) the actual change, and 
+\(z_i = 1 \) for laypeople and \(z_i = 2\) for experts.
+$BR
+The R code to fit the model is $BBOLD lm2 <- lm(Predicted ~ Actual + Status)$EBOLD. Fitting such a model, the test statistic for \(H_0: \gamma=0 \) can be obtained with the R code $BBOLD summary(lm2)${DOLLAR}coef[3, 3]$EBOLD and P-value can be obtained with $BBOLD summary(lm2)${DOLLAR}coef[3, 4]$EBOLD, which is $answers[1].
+$BR
+
+$BR
+$BBOLD Part (e) $EBOLD
+$BR
+The model fitted is of the form
+\[
+Y_i = \beta_0 + \beta_1x_i + (\gamma + \delta x_i) z_i + \epsilon.
+\]
+$BR
+The R code to fit the model is $BBOLD lm3 <- lm(Predicted ~ Actual * Status)$EBOLD. Fitting such a model, the test statistic for \(H_0: \delta=0 \) can be obtained with the R code $BBOLD summary(lm3)${DOLLAR}coef[4, 3]$EBOLD and P-value can be obtained with $BBOLD summary(lm3)${DOLLAR}coef[4, 4]$EBOLD, which is $answers[2].
+$BR
+
+$BR
+$BBOLD Part (f) $EBOLD
+$BR
+The expert predictions were on average closer to the actual changes than those of the laypeople. However, neither set of individuals had predictions that appear linearly related to the actual changes.
+
+END_SOLUTION
+
+ENDDOCUMENT();

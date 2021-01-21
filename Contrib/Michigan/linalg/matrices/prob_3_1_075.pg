@@ -1,0 +1,190 @@
+# DESCRIPTION
+# Problem from Holt Linear Algebra, 1st ed.
+# WeBWorK problem written by Gavin LaRose,
+# <glarose(at)umich(dot)edu>
+# ENDDESCRIPTION
+
+## DBsubject('Linear Algebra')
+## DBchapter('Matrices')
+## DBsection('Linear Transformations')
+## KEYWORDS('linear transformations, one-to-one, onto')
+## TitleText1('Linear Algebra')
+## EditionText1('1')
+## AuthorText1('Holt')
+## Section1('3.1')
+## Problem1('75')
+## Author('Gavin LaRose')
+## Institution('UMich')
+
+DOCUMENT();
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+);
+
+# make sure we're in the context we want
+Context("Matrix");
+Context()->variables->add( a=>'Real' );
+Context()->strings->add( none=>{} );
+
+# a random 3x5 matrix
+@a = ();
+$numZeros = 0;
+for ( my $i=0; $i<3; $i++ ) {
+    $a[$i] = [];
+    for ( my $j=0; $j<5; $j++ ) {
+	$v = random(-7,7,1);
+	$numZeros++ if ( $v == 0 );
+	push( @{$a[$i]}, $v );
+    }
+}
+# make the first entry nice
+$numZeros-- if ( ! $a[0]->[0] );
+$a[0]->[0] = 1;
+
+# placeholder for our variable a
+$numZeros-- if ( ! $a[2]->[4] );
+$a[2]->[4] = 0;
+
+# make sure there are at least two zeros
+for ( my $j=$numZeros; $j<2; $j++ ) {
+    $ii = random(0,2,1);
+    $ij = random(0,4,1);
+    while ( ! $a[$ii]->[$ij] ) {
+	$ij = ($ij + 1)%5;
+	$ii = ($ii + 1)%3 if ( ! $ij );
+	$ij++ if ( $ii == 0 && $ij == 0 );
+    }
+    $a[$ii]->[$ij] = 0;
+}
+
+# and ensure that we're well conditioned through
+#    two columns
+$a[1]->[1]++ if ( $a[1]->[1] - $a[1]->[0]*$a[0]->[1] == 0 );
+
+# yucky row reduction
+# clear first entries
+@ind = ( 0, 1, 2, 3, 4 );
+@b = ( [ map { $a[0]->[$_] } @ind ] );
+#    a[1,1] is one
+$a21 = $a[1]->[0];  $a31 = $a[2]->[0];
+$b[1] = [ map { $a[1]->[$_]-$a21*$a[0]->[$_] } @ind ];
+$b[2] = [ map { $a[2]->[$_]-$a31*$a[0]->[$_] } @ind ];
+# clear second entry for last row, normalize second
+#    (first is already nice)
+$b22 = $b[1]->[1];   # guaranteed to be nonzero
+@c = ( [ @{$b[0]} ],
+       [ map { $b[1]->[$_]/$b22 } @ind ] );
+$b32 = $b[2]->[1];
+$c[2] = [ map { $b[2]->[$_]-($b32/$b22)*$b[1]->[$_] } @ind ];
+
+# normalize last row
+@d = ( [ @{$b[0]} ], [ @{$c[1]} ] );
+if ( $c[2]->[2] ) {
+    $c33 = $c[2]->[2];
+    $d[2] = [ map { $c[2]->[$_]/$c33 } @ind ];
+} else {
+    $d[2] = [ @{$c[2]} ];
+}
+
+# need to substitute in our variable a
+$amat = Matrix( [ $a[0], $a[1], [ @{$a[2]}[0..3], Compute("a") ] ] );
+$redform = Matrix( [ $d[0], $d[1],
+		     [ @{$d[2]}[0..3], Compute("a + $d[2]->[4]") ] ] );
+
+# we can't make this one-to-one
+$a1 = Compute( "none" );
+
+# there is a condition on a for the transformation to be onto only
+#    if all other entries in the last row of the reduced matrix
+#    are zero
+if ( $d[2]->[2] == 0 && $d[2]->[3] == 0 ) {
+    $a2 = Compute( 1 - $d[2]->[4] );
+    $cond = "if \(a \ne $d[2]->[4]\)";
+    $a4 = Compute( "-$d[2]->[4]" );
+    $ans4 = "can make \(T\) be neither one-to-one nor if \(a = $a4\)";
+} else {
+    $a2 = Compute(0);
+    $cond = "";
+    $a4 = Compute( "none" );
+    $ans4 = "cannot make \(T\) be neither one-to-one nor onto";
+}
+
+$a3 = Compute( "none" );
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Let \(T(\mathbf{x}) = A\mathbf{x}\) for
+\[ A = $amat. \]
+Find values of \(a\) such that
+$PAR
+${BBOLD}(a)$EBOLD
+\(T\) is one-to-one: \( a = \) \{ $a1->ans_rule() \}
+$BR
+${BITALIC}(If it is not possible to find such a value,
+enter ${BBOLD}none$EBOLD for your answer.)$EITALIC
+
+$PAR
+${BBOLD}(b)$EBOLD
+\(T\) onto: \( a = \) \{ $a2->ans_rule() \}
+$BR
+${BITALIC}(If it is not possible to find such a value,
+enter ${BBOLD}none$EBOLD for your answer.)$EITALIC
+
+$PAR
+${BBOLD}(c)$EBOLD
+\(T\) is both one-to-one and onto: \( a = \) \{ $a3->ans_rule() \}
+$BR
+${BITALIC}(If it is not possible to find such a value,
+enter ${BBOLD}none$EBOLD for your answer.)$EITALIC
+
+$PAR
+${BBOLD}(d)$EBOLD
+\(T\) is neither one-to-one nor onto: \( a = \) \{ $a4->ans_rule() \}
+$BR
+${BITALIC}(If it is not possible to find such a value,
+enter ${BBOLD}none$EBOLD for your answer.)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $a1->cmp( typeMatch=>Value::Real ) );
+ANS( $a2->cmp( typeMatch=>Value::Real, checker=>sub {
+		  my ( $cor, $stu, $ans ) = @_;
+		  if ( $cond ) {
+		     return (1 - $a2 != $stu);
+		  } else {
+		     return 1;
+		  } } ) );
+ANS( $a3->cmp( typeMatch=>Value::Real ) );
+ANS( $a4->cmp( typeMatch=>Value::Real ) );
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+${BBOLD}(a)$EBOLD
+Because \(T:\mathbf{R}^5\to\mathbf{R}^3\), we know
+that it is not one-to-one, so no value of \(a\) will accomplish this.
+$PAR
+
+${BBOLD}(b)$EBOLD
+Using a computer algebra system, the matrix has the
+row-reduced form
+\[ $amat \sim $redform. \]
+Hence $cond \(T\) is onto, as \(A\mathbf{x} = \mathbf{b}\) has
+solutions for all \(\mathbf{b}\).
+$PAR
+
+${BBOLD}(c)$EBOLD
+\(T\) is never one-to-one, so no value of \(a\) will accomplish this.
+$PAR
+
+${BBOLD}(d)$EBOLD
+From (a) and (b), we $ans4.
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

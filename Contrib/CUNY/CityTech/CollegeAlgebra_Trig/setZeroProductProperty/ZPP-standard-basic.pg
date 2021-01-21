@@ -1,0 +1,186 @@
+##DESCRIPTION
+## Algebra problem: factor & solve a quadratic equation using Zero Product Property
+##ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Quadratic equations and functions)
+## DBsection(Solve by factoring)
+## Level(2)
+## KEYWORDS('factoring')
+## Author(K. Andrew Parker)
+## Institution(CUNY City Tech)
+## Language(en)
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "parserMultiAnswer.pl",
+   "contextFraction.pl",
+   "contextLimitedFactor.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->variables->are(x=>["Real",limits=>[-9,9]]);
+Context()->noreduce('(-x)+y','(-x)-y');
+Context()->flags->set(reduceConstants=>0,reduceConstantFunctions=>0);
+Context()->operators->set(
+     '+' => {class => 'bizarro::BOP::add', isCommand => 1},
+     '-'  => {class => 'bizarro::BOP::subtract', isCommand => 1},
+     '/'  => {class => 'bizarro::BOP::divide', isCommand => 1},
+     '^' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+#     '**' => {class => 'bizarro::BOP::power', isCommand => 1},
+  );
+
+$factorCheck = sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview};
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      Value->Error("Your answer is not equivalent to the original polynomial") unless ($correct == $student);
+      Context()->flags->set(bizarroAdd=>1, bizarroSub=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      Value->Error("Your answer is equivalent to the correct answer, but is not properly factored") unless (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroAdd=>0,bizarroSub=>0);
+      return 1;
+  };
+
+$checker = sub{
+     my ($correct,$student,$self) = @_;  # get the parameters
+     my ($stu1,$stu2) = @{$student};      # extract the student answers
+     my ($ans1,$ans2) = @{$correct};
+     return ( ($ans1==$stu1 && $ans2==$stu2) || ($ans2==$stu1 && $ans1==$stu2) || ($ans1==-1*$stu1 && $ans2 == -1*$stu2) || ($ans2==-1*$stu1 && $ans1==-1*$stu2) );
+};
+
+$rootCheck = sub{
+     my ($correct,$student,$self) = @_;  # get the parameters
+     my ($stu1,$stu2) = @{$student};      # extract the student answers
+     my ($ans1,$ans2) = @{$correct};
+     return (($ans1==$stu1 && $ans2==$stu2)||($ans2==$stu1 && $ans1==$stu2));
+};
+
+$C1 = 1; #list_random(2,3,5);
+do{ $C2 = non_zero_random(-9,9,1); } until (gcf(abs($C2),$C1)==1);
+$C3 = 1; # list_random(2,3,5);
+do{ $C4 = non_zero_random(-9,9,1); } until ( abs($C2) != abs($C4) && gcf(abs($C4),$C3)==1 );
+
+# (C1 x + C2) (C3 x + C4)
+
+$A = $C1*$C3;
+$B = $C1*$C4+$C2*$C3;
+$C = $C2*$C4;
+
+$C1C4 = $C1*$C4;
+$C2C3 = $C2*$C3;
+
+$quad = Formula("$A x^2 + $B x + $C")->reduce;
+
+$pair = List(Real($C1C4), Real($C2C3));
+
+$FBG1A = Formula("($A x^2 + $C1C4 x) + ($C2C3 x + $C)")->reduce;
+$FBG1B = Formula("($A x^2 + $C2C3 x) + ($C1C4 x + $C)")->reduce;
+
+$FBG1B = Formula("$C1 x ($C3 x + $C4) + $C2 ($C3 x + $C4)")->reduce;
+$FBG2B = Formula("$C3 x ($C1 x + $C2) + $C4 ($C1 x + $C2)")->reduce;
+
+$ans = Formula("($C3 x + $C4)($C1 x + $C2)")->reduce;
+
+$ans1 = Formula("$C1 x + $C2")->reduce;
+$ans2 = Formula("$C3 x + $C4")->reduce;
+
+$ansZPP = MultiAnswer($ans1,$ans2)->with(checker=>$checker);
+
+Context("Fraction-NoDecimals");
+$frac1 = Fraction(-$C2,$C1);
+$frac2 = Fraction(-$C4,$C3);
+$ansR = MultiAnswer($frac1,$frac2)->with(checker=>$rootCheck);
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+We want to solve the equation  
+    [` [$quad] = 0 `]
+
+First, factor [`[$quad]`]: [____________________]{$ans->cmp(checker=>$factorCheck)}
+
+By the zero product property we know:  
+[_____]{$ansZPP}[`=0`] OR [_____]{$ansZPP}[`=0`]
+
+And therefore we know that:
+
+[`x=`][_____]{$ansR} OR [`x=`][_____]{$ansR}
+
+* Do not use decimal approximations in your answer.
+* Use fractions instead.
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+Remember that the zero product property states:  
+If [` MN=0 `], then either [`M=0`] or [`N=0`].
+
+How does the zero product property apply to this problem?
+
+Perhaps you should factor the polynomial first...
+
+END_PGML_HINT
+BEGIN_PGML_SOLUTION
+
+First, identify [`AC`]:  
+    [` AC = [$A]\times[$C] = [@$A*$C@] `]
+
+Then find a pair of values who's sum is [` B = [$B] `], and product is [` AC = [@$A*$C@] `].
+
+This pair of values is [`[$C1C4]`] and [`[$C2C3]`]:  
+    [` ([$C1C4]) + ([$C2C3]) = [$B] `]  
+    [` ([$C1C4]) \times ([$C2C3]) = [@$A*$C@] `]
+
+Rewrite our original quadratic:  
+    [`[$quad]`]  
+    _Split the linear term using our pair of values:_  
+    [`([@$A==1?"":"$A"@] x^2 + [$C1C4] x) + ([$C2C3] x + [$C])`]  
+    _Factor by grouping:_  
+    [`[$FBG1B]`]  
+    [`[$ans]`]
+
+Rewrite our original problem:  
+    [` [$quad]=0 `]  
+    becomes  
+    [`([$ans1])([$ans2]) = 0`]
+
+By the zero product property,  
+    If [` ([$ans1])([$ans2]) = 0 `], then either [`[$ans1]=0`] or [`[$ans2]=0`]
+
+These two equations are solved for [`x`] very easily:  
+    When [`[$ans1]=0`], we get that [` x = [$frac1]`]  
+_or_   
+    When [`[$ans2]=0`], we get that [` x=[$frac2]`].
+
+END_PGML_SOLUTION
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

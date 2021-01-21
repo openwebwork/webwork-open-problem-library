@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright @copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader$
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -39,8 +39,9 @@ sub _contextRestrictedDomains_init {
     checkSqrt => 0, 
     checkRoot => 0,
     setSqrt => exp(1)/main::ln(2),
-    wrongFormMessage => 'Your answer is algebraically equivalent to the correct answer, but not in the expected form. Maybe it is not fully simplified.',
-    
+    wrongFormMessage => 'Your answer is algebraically equivalent to the correct answer, but not in the expected form. Maybe it is not fully simplified. Maybe something is not completely factored. Maybe it is not in the expected form for some other reason.',
+    useBizarro => 1, 
+    expressionWeight => 0.9,
   );
   $context->noreduce('(-x)+y','(-x)-y');
   $context->operators->set(
@@ -61,7 +62,7 @@ sub _contextRestrictedDomains_init {
   $context->operators->redefine('where',using=>',',from=>'Numeric');
   $context->operators->redefine(',where',using=>',',from=>'Numeric');
   $context->operators->redefine(', where',using=>',',from=>'Numeric');
-  $context->operators->add('¿' => {precedence => .5, associativity => 'left', type => 'bin', string => ' != ', TeX => '\ne ',
+  $context->operators->add('â‰ ' => {precedence => .5, associativity => 'left', type => 'bin', string => ' != ', TeX => '\ne ',
 class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
   $context->functions->set(sqrt=>{class=>'restrictedDomains::Function::numeric'}); # override sqrt()
   $context->functions->add(identity => {class => 'restrictedDomains::Function::numeric'});
@@ -71,7 +72,8 @@ class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
     $student = $ans->{student_formula};
     $student = Formula("identity($student)");  #ensure student is parsed as Formula object
     my $setSqrt = Context()->flag("setSqrt");
-    Context()->flags->set(checkSqrt => $setSqrt, bizarroAdd => 1, bizarroSub => 1, bizarroMul => 1, bizarroDiv => 1); 
+    my $useBizarro = Context()->flag("useBizarro");
+    Context()->flags->set(checkSqrt => $setSqrt, bizarroAdd => $useBizarro, bizarroSub => $useBizarro, bizarroMul => $useBizarro, bizarroDiv => $useBizarro); 
     delete $correct->{test_values};
     delete $student->{test_values};
     my $OK = ($correct == $student); 
@@ -79,6 +81,7 @@ class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
     Value::Error(Context()->flag('wrongFormMessage')) unless $OK;
     return $OK;
   };
+  $showPartialCorrectAnswers = 1;
   $context->{cmpDefaults}{Formula}{showLengthHints} = 0;
   $context->{cmpDefaults}{Formula}{list_checker} = sub {
     my ($correct,$student,$ansHash,$value) = @_;
@@ -97,6 +100,8 @@ class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
      }
      my $studentList = $studentFormula;
      if ($studentFormula->type eq 'Number') {$studentList = Compute("$studentFormula, (-inf,inf)");};
+     # Check that first item in list is a Formula that returns a number
+     if (($studentList->value)[0]->type ne 'Number') {push(@errors,"The first part of your answer is not an expression")};
      $domainsCount = scalar($studentList->value) - 1;
      # Identify student answers like "1/x for x != 1, 2" and change to "1/x for x!=1, x!=2"
      my $alteredStudentList = Formula(($studentList->value)[0].", ".($studentList->value)[1]);
@@ -106,7 +111,7 @@ class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
        if ($dom->type eq 'Number' and $prevdom->class eq 'Formula' and $prevdom->type eq 'Interval') {
          if (defined $prevdom->{tree}->{bop}) {
            if ($prevdom->{tree}->{bop} eq '!=') {
-             my $x = ($context->variables->variables)[0];
+             my $x = (Context()->variables->variables)[0];
              $alteredStudentList = Formula($alteredStudentList->string.", $x != $dom");
            }
            else {$alteredStudentList = Formula($alteredStudentList->string.", $dom");}
@@ -132,16 +137,21 @@ class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
 
      # Set correct answer parts
      my $correctFormula = $ansHash->{correct_value};
+     my $correctScore = scalar ($correctFormula->value); 
      my $correctExpression = ($correctFormula->value)[0];
      my $correctDomain = ($correctFormula->value)[1];
      $correctDomain = Compute("$correctDomain");
+     # If the correct answer has (-inf, inf) as the domain, don't print that in the correct answer
+     if ($correctDomain == Interval("(-inf,inf)")) {
+       $ansHash->{correct_ans_latex_string} = $correctExpression->TeX;
+     }
      my $trueDomain = $correctDomain;
      if (defined($correctFormula->{trueDomain})) {$trueDomain = $correctFormula->{trueDomain};}
 
      # Check math expression
      my $expression_cmp = $correctExpression->cmp->evaluate($studentExpression->string);
      my $expressionOK = $expression_cmp->{score};
-     push(@errors,'Your expression is not correct') unless ($expressionOK or $expression_cmp->{ans_message});
+     push(@errors,'Your expression is not correct') unless ($expressionOK or $expression_cmp->{ans_message} or $ansHash->{isPreview});
      push(@errors,$expression_cmp->{ans_message}) if $expression_cmp->{ans_message};
      
      # Check student's domain
@@ -151,12 +161,15 @@ class => 'Inequalities::BOP::inequality', eval => 'evalNotEqualTo'});
      my $correctUnion = Interval($correctDomain);
      if (!$correctUnion->contains($studentUnion) or !$studentUnion->contains($trueUnion)) {
        $domainOK = 0;
-       push(@errors,'Your domain is not correct') unless ($studentFormula->type eq 'Number');
+       push(@errors,'Your domain is not correct') unless ($studentFormula->type eq 'Number' or $ansHash->{isPreview});
        push(@errors,'You need to specify the restricted domain') if ($studentFormula->type eq 'Number' and $expressionOK);
      };
 
-     $score++ if $expressionOK;
-     $score = $score + $domainsCount if $domainOK;
+     my $allCorrectScore = ($ansHash->{student_formula}->type eq 'Number') ? 2 : scalar ($ansHash->{student_value}->value); 
+     my $expressionWeight = Context()->flag("expressionWeight");
+     $score += $expressionWeight*$allCorrectScore if $expressionOK;
+     $score += (1-$expressionWeight)*$allCorrectScore if $domainOK;
+     #$score = $score + $domainsCount if $domainOK;
 
      return ($score,@errors);
   };

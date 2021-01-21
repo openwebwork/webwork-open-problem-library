@@ -1,0 +1,203 @@
+##DESCRIPTION
+##  Problem Description
+##ENDDESCRIPTION
+
+##KEYWORDS('sample')
+
+## DBsubject('Course')
+## DBchapter('Section')
+## DBsection('Subsection')
+## Date('6/25/2018')
+## Author('Stephen Flood and John Pike')
+## Institution('Bridgewater State University')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+
+
+
+########################################################################
+
+
+
+DOCUMENT();
+
+# Load whatever macros you need for the problem
+loadMacros(
+        "PGstandard.pl",     # Standard macros for PG language
+        "PGcourse.pl",       
+	"PGML.pl",
+	"MathObjects.pl",
+    "bizarroArithmetic.pl",
+    "unionLists.pl",
+    "parserPopUp.pl",
+    "PGauxiliaryFunctions.pl", 
+        # "PGgraphmacros.pl",
+    	# "parserMultiAnswer.pl",
+    	# "contextInequalities.pl",
+);
+
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 0;
+
+
+##############################################################
+#  Setup
+
+Context("Numeric");
+## Add new *integer* variables n and k to the context
+Context()->variables->add(k => ['Real', limits=>[1,10],resolution =>1], n => ['Real', limits=>[1,10],resolution =>1]);
+# n and k must be restricted to integers to accept n! or k! as answers
+# See http://webwork.maa.org/wiki/FormulaTestPoints for details.  
+
+
+
+#################################################
+
+
+#$nstart = 12; # Hardcode $nstart for testing.
+$nstart = random(7,12,1);
+$a = Compute( "($nstart !)**(1/$nstart)" );
+$a = floor($a);
+
+## Reduce $nstart until it is optimal for the chosen $a. 
+while ($a**$nstart < Compute( "($nstart !)" )) {$nstart--;}
+$nstart=$nstart + 1;
+
+$LHS = Compute("n!");
+$RHS = Compute("($a)^n");
+
+
+$LHSone = $LHS->substitute(n=> "$nstart")->reduce();
+$LHSk = $LHS->substitute(n=> "k")->reduce();
+$LHSkplusone = $LHS->substitute(n=> "k+1")->reduce();
+$LHSchange = Compute("k+1")->reduce();
+
+$RHSone = $RHS->substitute(n=> "$nstart")->reduce();
+$RHSk = $RHS->substitute(n=> "k")->reduce();
+$RHSkplusone = $RHS->substitute(n=> "k+1")->reduce();
+$RHSkplusoneReduce = $RHS->substitute(n=> "k+1")->reduce();
+$RHSchange = Compute("$a")->reduce();
+
+
+####
+#  Be *CAREFUL* when using "drop down" lists in PGML problems.  
+#  
+#  the PopUp parser needs to be called by the Answer environment 
+#  AND 
+#  Answer environments need to be parsed in order 
+#  so you'd need an END_PGML  ANS ( $popup->cmp() ) BEGIN_PGML
+#  immediately after the popup list will be typeset
+
+$completeBaseCase = PopUp(["?", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone > $RHSone"],  "$LHSone > $RHSone");
+$completeInductiveStep = PopUp(["?", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone > $RHSone"],  "$LHSkplusone > $RHSkplusone");
+
+
+$supposeIHk = PopUp(["?","Suppose that ","Prove that "],"Suppose that "); 
+$proveIHkplus1 =  PopUp(["?","Suppose that ","Prove that "],"Prove that ");
+
+$inducton = PopUp(["?", "n", "$nstart", "$a"], "n");
+
+$stateIH = PopUp(["?", "$LHS > $RHS", "two", "three"], "$LHS > $RHS");
+
+#$applyIH = PopUp(["?", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone>$RHSone"], "$LHSk > $RHSk");
+#
+#$nextIH = PopUp(["?", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone>$RHSone"], "$LHSkplusone > $RHSkplusone");
+
+## Distractors from "Proof of Equality" problems
+## Idea: Add "recursive definitions" to the distractors.   
+##
+$applyIH = PopUp(["?", "$LHSkplusone = $LHSk * $LHSchange", "$RHSkplusone = $RHSk * $RHSchange", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone>$RHSone"], "$LHSk > $RHSk");
+
+$nextIH = PopUp(["?", "$LHSkplusone = $LHSk * $LHSchange", "$RHSkplusone = $RHSk * $RHSchange", "$LHSk > $RHSk", "$LHSkplusone > $RHSkplusone", "$LHSone>$RHSone"], "$LHSkplusone > $RHSkplusone");
+
+
+BEGIN_PGML
+
+
+----  
+
+
+We wish to prove by induction that [``[$LHS] > [$RHS] ``] for each natural number [``n\geq [$nstart]``].
+
+
+----  
+
+
+We proceed by induction on [`n`].
+
+END_PGML
+# with induction hypothesis [@ $inducton->menu @]*.
+# ANS($inducton->cmp());# Answer checker for the popup list object.
+BEGIN_PGML
+
+(a) *Base Case*
+
+When [`n=[$nstart]`], we have 
+
+[`` [$LHS] = ``] [___________]{$LHSone} and [`` [$RHS] = ``][__________]{$RHSone}, so the base case holds. 
+
+_Hint:_ You will probably need to use a calculator to compute these values.
+
+[`\,`]
+
+(b) *Inductive Step*
+
+>>[@ $supposeIHk->menu @]* [@ $applyIH->menu @]*.<<
+END_PGML
+ANS($supposeIHk->cmp());# Answer checker for the popup list object.
+ANS($applyIH->cmp());# Answer checker for the popup list object.
+BEGIN_PGML
+
+>>[@ $proveIHkplus1->menu @]* [@ $nextIH->menu @]*.<<
+END_PGML
+ANS($proveIHkplus1->cmp());# Answer checker for the popup list object.
+ANS($nextIH->cmp());# Answer checker for the popup list object.
+BEGIN_PGML
+
+  
+The trick in this problem is to realize that you can rewrite the left-hand side when [`n = k+1`] in terms of the left-hand side when [`n=k`], and similarly with the right-hand side.  
+
+The left hand side for [`n=k+1`]:
+>> [________________________]{$LHSkplusone} [` = [$LHSk] \cdot`] [____________]{$LHSchange} <<
+
+The right hand side for [`n=k+1`]:
+>> [________________________]{$RHSkplusone} [` = [$RHSk] \cdot`] [____________]{$RHSchange} <<
+
+Recall that our inductive hypothesis is that 
+[@ $applyIH->menu @]*.
+END_PGML
+ANS($applyIH->cmp());# Answer checker for the popup list object.
+BEGIN_PGML
+
+
+In addition, we are restricting our attention to [`k \geq [$nstart]`], hence  [`[$LHSchange] > [$RHSchange]`].  
+
+It follows that [`[$LHSk] \cdot ([$LHSchange]) > [$RHSk] \cdot [$RHSchange]`].
+
+In other words, having assumed the inductive hypothesis, we have now proved that [@ $completeInductiveStep->menu @]*.
+
+Therefore, it follows from the principle of induction that [@ $stateIH->menu @]* for *every* [`n\geq [$nstart]`].
+
+END_PGML
+ANS($completeInductiveStep->cmp());# Answer checker for the popup list object.
+ANS($stateIH->cmp());# Answer checker for the popup list object.
+
+
+#BEGIN_PGML_HINT
+#The goal of this problem is to help you learn the details of a *proof* by induction.  *Hint:* read the directions carefully.  
+#
+#If you have answers that are being marked wrong, make sure that you are not skipping any steps.  
+#
+#Talk to your instructor if you are unsure of which steps are required!
+#END_PGML_HINT
+
+
+
+ENDDOCUMENT();

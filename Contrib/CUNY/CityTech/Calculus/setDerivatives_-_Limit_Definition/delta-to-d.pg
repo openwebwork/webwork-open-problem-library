@@ -1,0 +1,242 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS('calculus', '', '')
+
+## DBsubject('Calculus - single variable')
+## DBchapter('')
+## DBsection('')
+## Date('6/15/2019')
+## Author('K. Andrew Parker')
+## Institution('CityTech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->variables->add(y=>'Real');
+Context()->flags->set(
+  tolerance=>5*10**(-10),
+  tolType=>'absolute'
+);
+
+$R = random(3,8,1);
+$R2 = $R**2;
+$f = Formula("sqrt($R2 - x^2)");
+
+# keep variables in perl as long as we can
+# that way we preserve more sig-figs
+$a = non_zero_random(-$R+1,$R-1,1);
+$rad = $R2 - $a**2;
+$fa = $f->eval(x=>$a);
+$faTeX = ($rad==9||$rad==16)?$fa:"\sqrt{$rad}";
+$fa = $fa->value;
+
+$m = Formula("(y - $fa)/(x - $a)");
+
+$n = 3;
+
+$xMin = -$R-1;
+$xMax = $R+1;
+$yMin = ($R%2) ? -0.5*$R-1-0.5 : -0.5*$R-1;
+$yMax = ($R%2) ? 1.5*$R+1-0.5 : 1.5*$R+1;
+$gr = init_graph($xMin,$yMin,$xMax,$yMax,
+  size=>[500,500],
+  grid=>[2*$R+2,2*$R+2],
+  axes=>[0,0]);
+add_functions($gr, "$f for x in <-$R,$R> using color:blue and weight:2");
+($gr->fn)[0]->steps(300);
+$gr->stamps(closed_circle($a,$fa,'black'));
+$hAlign= ($a>0)?'left':'right';
+$gr->lb(new Label($a,$fa,"($a,$fa)",'black',$hAlign,'bottom'));
+
+for my $i (0..$n-1) {
+
+  # computations for the left side of $a
+  $xl[$i] = $a - 5*10**(-$i-1);
+  $yl[$i] = $f->eval(x=>$xl[$i]);
+  $ml[$i] = $m->eval(x=>$xl[$i],y=>$yl[$i]);
+  
+  # computations for the right side of $a
+  $xr[$i] = $a + 5*10**(-$i-1);
+  $yr[$i] = $f->eval(x=>$xr[$i]);
+  $mr[$i] = $m->eval(x=>$xr[$i],y=>$yr[$i]);
+  
+  # graphing it? LEFT
+  $width = abs($xl[$i]-$a);
+  $height = abs($yl[$i]-$fa);
+  $dim = max($width,$height)*1.1;
+  $cenX = 0.5*($xl[$i]+$a);
+  $cenY = 0.5*($yl[$i]+$fa);
+  $xMin = $cenX - 0.5*$dim;
+  $xMax = $cenX + 0.5*$dim;
+  $yMin = $cenY - 0.5*$dim;
+  $yMax = $cenY + 0.5*$dim;
+  $hAlignA = 'right';
+  $vAlignA = ($a>0)?'top':'bottom';
+  $hAlignX = 'left';
+  $vAlignX = ($a>0)?'bottom':'top';
+  $grL[$i] = init_graph($xMin,$yMin,$xMax,$yMax, size=>[400,400], axes=>[0,0]);
+  add_functions($grL[$i], "$f for x in <$xMin, $xMax> using color:blue and weight: 2");
+  $grL[$i]->moveTo($xl[$i],$yl[$i]);
+  $grL[$i]->lineTo($a,$fa,'red',4,'dashed');
+  $grL[$i]->stamps(closed_circle($xl[$i],$yl[$i]));
+  $grL[$i]->stamps(closed_circle($a,$fa));
+  $grL[$i]->lb(new Label($a,$fa,"A: ($a,$fa)",'black',$hAlignA,$vAlignA));
+  $grL[$i]->lb(new Label($xl[$i],$yl[$i],"B: ($xl[$i],$yl[$i])",'black',$hAlignX,$vAlignX));
+
+  # graphing it? RIGHT
+  $width = abs($xr[$i]-$a);
+  $height = abs($yr[$i]-$fa);
+  $dim = max($width,$height)*1.1;
+  $cenX = 0.5*($xr[$i]+$a);
+  $cenY = 0.5*($yr[$i]+$fa);
+  $xMin = $cenX - 0.5*$dim;
+  $xMax = $cenX + 0.5*$dim;
+  $yMin = $cenY - 0.5*$dim;
+  $yMax = $cenY + 0.5*$dim;
+  $hAlignA = 'left';
+  $vAlignA = ($a>0)?'bottom':'top';
+  $hAlignX = 'right';
+  $vAlignX = ($a>0)?'top':'bottom';
+  $grR[$i] = init_graph($xMin,$yMin,$xMax,$yMax, size=>[400,400], axes=>[0,0]);
+  add_functions($grR[$i], "$f for x in <$xMin, $xMax> using color:blue and weight: 2");
+  $grR[$i]->moveTo($xr[$i],$yr[$i]);
+  $grR[$i]->lineTo($a,$fa,'red',4,'dashed');
+  $grR[$i]->stamps(closed_circle($xr[$i],$yr[$i]));
+  $grR[$i]->stamps(closed_circle($a,$fa));
+  $grR[$i]->lb(new Label($a,$fa,"A: ($a,$fa)",'black',$hAlignA,$vAlignA));
+  $grR[$i]->lb(new Label($xr[$i],$yr[$i],"B: ($xr[$i],$yr[$i])",'black',$hAlignX,$vAlignX));
+};
+
+$approxTable = DataTable(
+[
+  [[image(insertGraph($gr), width=>300, height=>300, tex_size=>300), colspan=>7,noencase=>1]],
+  [['f(x) = '.$f->TeX,colspan=>7,cellcss=>'padding-bottom:10pt;']],
+  [["approximate the instantaneous slope at: \(A: ($a,$faTeX)\)",colspan=>7,noencase=>1]],
+  [['secant slope from the left:',noencase=>1,colspan=>3], 
+    [' ',cellcss=>'padding:10pt;'],
+    ['secant slope from the right:',noencase=>1,colspan=>3]],
+  ['x', 'f(x)', '\dfrac{\Delta y}{\Delta x}', ' ', 'x', 'f(x)', '\dfrac{\Delta y}{\Delta x}'],
+  ["$xl[0]", [ans_rule(10),noencase=>1], [ans_rule(10),noencase=>1],
+    ' ', "$xr[0]", [ans_rule(10),noencase=>1], [ans_rule(10),noencase=>1]],
+  ["$xl[1]", [ans_rule(10),noencase=>1], [ans_rule(10),noencase=>1],
+    ' ', "$xr[1]", [ans_rule(10),noencase=>1], [ans_rule(10),noencase=>1]],  
+  ["$xl[2]", [ans_rule(10),noencase=>1], [ans_rule(10),noencase=>1],
+    ' ', "$xr[2]", [ans_rule(10),noencase=>1], [ans_rule(10),noencase=>1]],
+],
+allcellcss=>'padding: 1pt;',
+align=>'c c c c c c c',
+encase=>['\(','\)']);
+
+# approximation is centered at the mean between the left/right
+$approxM = ($ml[$n-1]+$mr[$n-1])/2;
+# tolerance is slightly less than half to avoid giving credit for left/right
+$tolM = 0.47*abs($ml[$n-1]-$mr[$n-1]);
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+guiding text:  
+* comparing secant slope through [`A: (x_A, y_A)`] and [`B: (x_B, y_B)`]
+* taking [`A`] and [`B`] as points "on" the function [`y = f(x)`], we have [`y_A = f(x_A)`] and [`y_B = f(x_B)`]
+* so [`A: (x_A, f(x_A))`] and [`B: (x_B, f(x_B))`]
+* secant slope: [` \dfrac{\Delta y}{\Delta x} = \dfrac{f(x_B)-f(x_A)}{x_B-x_A} `]
+* instantaneous (or "tangent") slope requires [`A`] and [`B`] to be "infinitely close"
+* fix the point where we want instantaneous slope: [`A: (a, f(a))`]
+* let point [`B`] vary, so that it can "approach" [`A`]: [`B: (x, f(x))`]
+* then secant slope: [` \dfrac{\Delta y}{\Delta x} = \dfrac{f(x)-f(a)}{x-a} `]
+* note that [`\dfrac{\Delta y}{\Delta x}`] is undefined if we let [`x=a`] 
+* in other words, we cannot make [`B`] and [`A`] be the same point... *of course,* slope needs _two_ points!
+
+>> ### Compute secant slopes of [`f(x)`] through [`A`] ### <<
+
+[$approxTable]***
+
+*Notes:* 
+* Your answers must be given as decimal approximations.
+* When completing the table, make sure your answers are accurate to _at least_ 4 decimal places.
+* Be careful when computing the slope, you may need _more_ than 4 decimal places for the [`y`]-coordinate in order for the slope to achieve the required accuracy.
+
+>> ### Estimate the instantaneous slope of [`f(x)`] at [`A`] <<
+
+Using your computations above, estimate the instantaneous slope of [`f(x)`] at [`([$a],[$faTeX])`]: [_____________]
+
+* In other words, are the secant slopes approaching a specific value? Estimate that value.
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+Context("LimitedNumeric");
+Context()->{error}{msg}{"Can't use '+' in this context"} 
+  = "Addition is disabled for this problem. Simplify the sum and resubmit your answer.";
+Context()->{error}{msg}{"Can't use '-' in this context"} 
+  = "Subtraction is disabled for this problem. Simplify the difference and resubmit your answer.";
+Context()->{error}{msg}{"Can't use '*' in this context"} 
+  = "Multiplication is disabled for this problem. Simplify the product and resubmit your answer.";
+Context()->{error}{msg}{"Can't use '/' in this context"} 
+  = "Division is disabled for this problem. Simplify the quotient and resubmit your answer.";
+Context()->{error}{msg}{"Can't use '^' in this context"} 
+  = "Exponents are disabled for this problem. Compute the result for yourself and resubmit your answer.";
+Context()->{error}{msg}{"Can't use '**' in this context"} 
+  = "Exponents are disabled for this problem. Compute the result for yourself and resubmit your answer.";
+Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
+  = "Square roots are disabled for this problem. Compute the result for yourself and resubmit your answer.";
+Context()->{error}{msg}{"Unexpected character '('"}
+  = "Your answer should not contain parenthesis. Compute the result as a number.";
+  
+Context()->flags->set(tolerance=>5*10**(-5), tolType=>'absolute');
+
+ANS(Real($yl[0])->cmp); ANS(Real($ml[0])->cmp); ANS(Real($yr[0])->cmp); ANS(Real($mr[0])->cmp);
+
+ANS(Real($yl[1])->cmp); ANS(Real($ml[1])->cmp); ANS(Real($yr[1])->cmp); ANS(Real($mr[1])->cmp);
+
+ANS(Real($yl[2])->cmp); ANS(Real($ml[2])->cmp); ANS(Real($yr[2])->cmp); ANS(Real($mr[2])->cmp);
+
+ANS(Real($approxM)->cmp(tolerance=>$tolM,tolType=>'absolute'));
+
+BEGIN_PGML_HINT
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+[@ image(insertGraph($grL[0], width=>300, height=>300)) @]*** [@ image(insertGraph($grR[0], width=>300, height=>300)) @]***
+
+[@ image(insertGraph($grL[1], width=>300, height=>300)) @]*** [@ image(insertGraph($grR[1], width=>300, height=>300)) @]***
+
+[@ image(insertGraph($grL[2], width=>300, height=>300)) @]*** [@ image(insertGraph($grR[2], width=>300, height=>300)) @]***
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        
+

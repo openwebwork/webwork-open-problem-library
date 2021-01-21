@@ -1,0 +1,151 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+## DBsubject('Linear algebra')
+## DBchapter('Abstract vector spaces')
+## DBsection('Coordinate vectors and change of basis')
+## Institution('University of Michigan')
+## TitleText1('Linear Algebra with Applications')
+## AuthorText1('Otto Bretscher')
+## EditionText1('5')
+## Section1('8.1')
+## Problem1('12')
+## Author('Gavin LaRose')
+## Date('4/10/2014')
+
+DOCUMENT();
+
+loadMacros(
+# "PGstandard.pg",
+"PG.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGanswermacros.pl",
+"PGmatrixmacros.pl",
+"PGnumericalmacros.pl",
+"PGauxiliaryFunctions.pl",
+"parserMultiAnswer.pl",
+"MathObjects.pl",
+);
+
+Context("Vector");
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+@w = ( non_zero_random(-4,4), 0, non_zero_random(-4,4) );
+$w[2] = abs($w[0]) + 1 if ( $w[2] == $w[0] );
+$msq = $w[0]*$w[0] + $w[1]*$w[1] + $w[2]*$w[2];
+
+# for lambda = -1
+$v1 = ColumnVector( "<-$w[2]/$w[0], 0, 1>" );
+$v2 = ColumnVector( "<0, 1, 0>" );
+# for lambda = 1
+$v3 = ColumnVector( "<$w[0]/$w[2], 0, 1>" );
+
+Context("Matrix");
+$bmat = Matrix( [ [ -1, 0, 0 ], [ 0, -1, 0 ], [ 0, 0, 1 ] ] );
+$amat = Matrix(
+    "[[ (2*$w[0]*$w[0]/$msq - 1), 2*$w[0]*$w[1]/$msq, 2*$w[0]*$w[2]/$msq ], " .
+    " [ 2*$w[0]*$w[1]/$msq, (2*$w[1]*$w[1]/$msq - 1), 2*$w[1]*$w[2]/$msq ], " .
+    " [ 2*$w[0]*$w[2]/$msq, 2*$w[1]*$w[2]/$msq, (2*$w[2]*$w[2]/$msq - 1) ]]"
+);
+@mchk = ( [-1, 0, 0], [0, -1, 0], [0, 0, -1] );
+
+Context("Vector");
+Context()->flags->set( tolerance=>0.01, tolType=>'relative' );
+
+$eb = MultiAnswer( $v1, $v2, $v3, $bmat )->with(
+    singleResult => 0,
+    checker => sub {
+	my ( $cor, $stu, $ans ) = @_;
+	my @cor = @$cor;
+	my @stu = @$stu;
+	my @res = ( 0, 0, 0, 0 );
+	# try to match student's vectors to correct ones
+	#    by checking which are parallel to the correct
+	#    vector and nonzero
+	my @stuInd = ( -1, -1 ,-1 );
+	my $oneInd = -1;
+	for ( my $i=0; $i<3; $i++ ) {
+	    if ( $stu[$i] != Vector( "<0,0,0>" ) ) {
+		for ( my $j=0; $j<3; $j++ ) {
+		    if ( ! grep( /^$j$/, @stuInd ) &&
+			 $cor[$j]->isParallel( $stu[$i] ) ) {
+			$stuInd[$i] = $j;
+			$oneInd = $i if ( $j == 2 );
+		    }
+		}
+	    }
+	}
+	# then check to be sure that the student's answers are
+	#    orthonormal
+	for ( my $i=0; $i<3; $i++ ) {
+	    if ( $stuInd[$i] != -1 && norm($stu[$i]) == 1 ) {
+		my $orthog = 1;
+		for ( my $j=0; $j<3; $j++ ) {
+		    next if ( $j == $i || $stuInd[$j] == -1 );
+		    $orthog = 0 if ( $stu[$i].$stu[$j] != 0 );
+		}
+		$res[$i] = 1 if ( $orthog );
+	    }
+	}
+	# if we have a correct basis, we can check the matrix
+	if ( $res[0] && $res[1] && $res[2] ) {
+	    $mchk[$oneInd]->[$oneInd] = -1*$mchk[$oneInd]->[$oneInd];
+	    $res[3] = (Matrix( @mchk ) == $stu[3]);
+	}
+	return [ @res ];
+    } );
+
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Let \(L\) from \({\mathbb R}^3\) to \({\mathbb R}^3\) be the
+reflection about the line spanned by
+\[ \vec v = \begin{bmatrix} $w[0]\\ $w[1]\\ $w[2] \end{bmatrix}. \]
+${BITALIC}(${BBOLD}Note$EBOLD: you must enter a value for all parts
+of this problem for the system to correctly check whether your 
+answers are correct.)$EITALIC
+$PAR
+${BBOLD}(a)$EBOLD
+Find an orthonormal eigenbasis \(\mathfrak B\) for \(L\).
+$BR
+\(\vec v_1 = \) \{ $eb->ans_array() \}
+$BR
+\(\vec v_2 = \) \{ $eb->ans_array() \}
+$BR
+\(\vec v_3 = \) \{ $eb->ans_array() \}
+
+$PAR
+${BBOLD}(b)$EBOLD
+Find the matrix \(B\) of \(L\) with respect to \(\mathfrak B\).
+$BR
+\( B = \) \{ $eb->ans_array() \}
+
+$PAR
+${BBOLD}(c)$EBOLD
+Find the matrix \(A\) of \(L\) with respect to the standard
+basis of \({\mathbb R}^3\).
+$BR
+\( A = \) \{ $amat->ans_array() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $eb->cmp() );
+ANS( $amat->cmp() );
+
+# Context()->texStrings;
+# BEGIN_SOLUTION
+
+# Note that the transformation \(L\) is given by
+
+# ${BBOLD}(a)$EBOLD
+# To find an orthonormal eigenbasis, we first find
+
+# END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

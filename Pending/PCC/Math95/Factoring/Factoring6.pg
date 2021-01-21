@@ -1,0 +1,243 @@
+## MO(1)
+# WeBWorK problem written by Alex Jordan 
+# Portland Community College
+# ENDDESCRIPTION
+
+
+
+
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGpolynomialmacros.pl",
+  
+);
+
+TEXT(beginproblem());
+##############################################
+
+%S3 = (A => {0 => 0, 1 => 1, 2 => 2}, B => {0 => 0, 1 => 2, 2 => 1},
+       C => {0 => 1, 1 => 0, 2 => 2}, D => {0 => 1, 1 => 2, 2 => 0},
+       E => {0 => 2, 1 => 1, 2 => 0}, F => {0 => 2, 1 => 0, 2 => 1},);
+%S2 = (A => {0 => 0, 1 => 1}, B => {0 => 1, 1 => 0},);
+%S1 = (A => {0 => 0},);
+
+
+
+Context("Numeric");
+Context()->reduction->set('(-x)-y'=>0, '(-x)+y'=>0); 
+Context()->strings->add("cannot be factored"=>{},
+    "cannot be factored."=>{alias=>"cannot be factored"});
+#In my opinion, not desired reductions for this kind of problem.
+$var = 'y';
+Context()->variables->are(x=>'Real',$var=>'Real');
+
+$a = random(1,8,1);
+$b = random(2,5,1);
+$c = random(2,10,1);
+$d = random(2,10,1);
+
+@coef = ([$a,0,$b],       
+         [$c,$d],       
+         [1]);      
+
+$n = $#coef; 
+
+
+
+#Get the array of coefficients for the product
+
+@prod = PolyMult(~~@{$coef[0]},~~@{$coef[1]});    
+@prod = PolyMult(~~@prod,~~@{$coef[2]});   
+
+#Make the presented polynomial.  I'm using PolyString (included in
+#PGpolynomialmacros.pl) but it currently doesn't handle negative Math Objects
+#correctly.  That could easily be fixed.  Anyway, for this current example,
+#keep the original coefficients as Perl reals.
+
+$polynomial = Formula(PolyString(~~@prod))->reduce;
+$polynomial = $polynomial->substitute(x=>'y');
+
+
+
+$polynomial = Formula("$a*$c*y^3+($a*$d)*y^2+($b*$c)*y+$b*$d")->reduce;
+
+
+#Pull out any constants that can be pulled out.
+$const = 1;
+foreach my $i (0..$n) {
+  my $z = @{$coef[$i]}-1;
+  my $g = 1;
+  if ($z > 0) {
+    $g = gcd(@{$coef[$i]});
+    foreach my $j (2..$z) {
+      $g = gcd($g,$coef[$i]->[$j]);
+    }
+  }
+  else {$g = $coef[$i]->[0];};
+  $const = $const * $g;
+
+
+  my @temp = ();
+  foreach my $j (0..$z) {
+    @temp = (@temp,($coef[$i]->[$j])/$g);
+  };
+  $coef[$i] = [ @temp ];
+}
+
+#A Formula reduction pushes constants to the left anyway, so we won't worry about all the places student could conceivable put this constant.  $const is put back in toward the end, below.
+  
+
+
+
+#Upgrade @coef so that each entry is a Formula with the proper 
+#power of x attached.  Remove all empty slots, like 0*x.
+
+@terms =([]);
+
+foreach my $i (0..$n) {
+  my @temp = ();
+  my $temp2 = @{$coef[$i]}-1;
+  foreach my $j (0..$temp2) {
+    my $c = $coef[$i]->[$j];
+    my $d = $temp2-$j;
+    if ($c != 0) {
+      @temp = (@temp, Formula("$c $var^{$d}")->reduce);
+    };
+  };
+  $terms[$i] = [ @temp ];
+};
+    
+
+#Make the array of acceptable alternative factorizations.
+
+#First, make a two-dimensional array indexed by the original factors, 
+#then by order of terms within that factor.  If the factorization includes a 
+#trinomial, that row should be handled differently.
+
+@altF = ([]);  
+
+
+
+
+foreach my $i (0..$n) {
+  my $t = @{$terms[$i]};
+  if ($t == 1) {                #for monomial factors
+    $altF[$i] = [ ( $terms[$i]->[0] ) ];
+  };
+
+  if ($t == 2) {                #for binomial factors
+    my @tmp = ();
+    foreach my $j (A,B) {
+      @tmp = (@tmp, ($terms[$i]->[$S2{$j}{0}] 
+                   + $terms[$i]->[$S2{$j}{1}])->reduce );
+    };
+    $altF[$i] = [ @tmp ];
+  };
+
+  if ($t == 3) {                #for trinomial factors
+    my @tmp = ();
+    foreach my $j (A..F) {
+      @tmp = (@tmp, Compute($terms[$i]->[$S3{$j}{0}] + $terms[$i]->[$S3{$j}{1}] 
+                          + $terms[$i]->[$S3{$j}{2}])->reduce );
+    };
+    $altF[$i] = [ @tmp ];
+  };
+
+};
+
+
+#Make a one-dimensional array with all legal alternative factorizations.
+#We will make use of a two-dimensional array of indices
+$t0 = @{$altF[0]}-1;
+$t1 = @{$altF[1]}-1;                   
+$t2 = @{$altF[2]}-1;                   
+
+@indices = ([0..$t0],[0..$t1],[0..$t2],);   
+
+@altFtions = ();  
+
+foreach my $k (A..F) {
+  $s0 = @{$altF[$S3{$k}{0}]}-1;
+  $s1 = @{$altF[$S3{$k}{1}]}-1;                   
+  $s2 = @{$altF[$S3{$k}{2}]}-1;        
+  foreach my $m0 (0..$s0) {            
+    foreach my $m1 (0..$s1) {          
+      foreach my $m2 (0..$s2) {        
+
+         @altFtions = (@altFtions, $const
+         *($altF[$S3{$k}{0}]->[$indices[$S3{$k}{0}]->[$m0]])
+         *($altF[$S3{$k}{1}]->[$indices[$S3{$k}{1}]->[$m1]])   
+         *($altF[$S3{$k}{2}]->[$indices[$S3{$k}{2}]->[$m2]])
+                       );
+      };                              
+    };                                
+  };
+};
+
+#Pick the version that is displayed as correct.  Return the turned-off reductions. 
+
+Context()->reduction->set('(-x)-y'=>1, '(-x)+y'=>1); 
+$factored = Compute("$altFtions[0]")->reduce;
+
+
+
+
+
+##############################################
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Factor the polynomial. 
+$PAR
+
+
+$SPACE $SPACE $SPACE \( $polynomial \)
+
+$PAR
+
+
+\{ans_rule(20)\}
+
+
+
+ 
+
+
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################
+$showPartialCorrectAnswers = 1;
+
+
+ANS($factored->cmp(typeMatch=>Formula("x"), checker => sub {
+      my ($correct,$student,$ans) = @_;
+      my $ret = 0;
+      my $l = 0;
+      while (($ret != 1) && ($l <= $#altFtions)) {
+        if ($student->reduce eq $altFtions[$l]->reduce) {$ret = 1;};
+        $l = $l + 1;
+      }
+      Value->Error("You haven't factored completely.") 
+         if (($ret == 0) && ($student == $correct));
+
+      Value->Error("Your factorization is incorrect.") 
+         if ($student != $correct);
+
+      return $ret
+    }));
+
+
+ENDDOCUMENT();

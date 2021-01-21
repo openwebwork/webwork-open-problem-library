@@ -1,0 +1,191 @@
+##DESCRIPTION
+##  Algebra problem: Simplify square root of an integer
+##ENDDESCRIPTION
+
+##KEYWORDS('algebra', 'radical', 'radicals', 'radical expression')
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Level(2)
+## Author(K. Andrew Parker)
+## Institution(CUNY City Tech)
+## Language(en)
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextLimitedPowers.pl",
+   "bizarroArithmetic.pl",
+   "PGML.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+    # code essentially from Davide Cervone 4/25/10
+    ###########################
+    #
+    # Subclass the numeric functions
+    #
+    package my::Function::numeric;
+    our @ISA = ('Parser::Function::numeric');
+
+    #
+    # Override sqrt() to return a special value (usually 1) when evaluated
+    # effectively eliminating it from the product.
+    #
+    sub sqrt {
+      my $self = shift;
+      my $value = $self->context->flag("setSqrt");
+ 
+ return $value+2 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+      return $value if $value;
+      return $self->SUPER::sqrt(@_);
+    }
+
+    #
+    # end of subclass
+    #
+package main;
+
+    Context("Numeric")->variables->are(
+      y => ["Real", limits => [-2,2]],    # only needed if x is used in the square roots\
+#      b => ["Real", limits => [0,2]],
+    );
+    #
+    # make sqrt() use our subclass
+    #
+    Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+    Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0);
+    #
+    #
+    # Don't allow fractional powers (avoids 1/2 power)
+    # [Could subclass exponentiation to handle that as well]
+    #
+    LimitedPowers::OnlyPositiveIntegers();
+Context()->operators->set(
+'+' => {class => 'bizarro::BOP::add', isCommand => 1},
+'-' => {class => 'bizarro::BOP::subtract', isCommand => 1},
+'*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+);
+
+
+
+$reducedSqrt = sub  {
+      my ($correct,$student,$ans) = @_;
+      return 0 if $ans->{isPreview} || $correct != $student;
+      #
+      #  Get parsed formula for student and correct answers
+      #
+      $student = $ans->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      #
+      # check if equal when sqrt's are replaced by 1
+      #
+      Context()->flags->set(setSqrt => 1, bizarroMul=>1, bizarroDiv=>1);
+      delete $correct->{test_values}, $student->{test_values};
+      my $OK = ($correct == $student);
+      Context()->flags->set(setSqrt => 0, bizarroMul=>0, bizarroDiv=>0);
+      #
+      Value::Error("Your answer is not fully simplified.<BR>Can you simplify any radicals? Is your fraction reduced?") unless $OK;
+      return $OK;
+    };
+
+Context()->flags->set(reduceConstants=>0, reduceConstantFunctions=>0, formatStudentAnswer=>'parsed');
+Parser::Number::NoDecimals;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+$p1 = list_random(2,3,5,7,11);
+do { $p2 = list_random(2,3,5,7,11); } until ($p1!=$p2);
+
+$N = $p1*$p2;
+$Din = Formula("$p2 y");
+
+$problem = Formula("$N/sqrt($Din)");
+
+$ans = Compute("($p1*sqrt($Din))/y");
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Rationalize the denominator. 
+
+[` \large{ [$problem] } `] = [__________]
+
+* Use "sqrt" to input a square-root into WeBWorK. For example "sqrt(5)" represents [`\sqrt{5}`]
+* Make sure to simplify all square-roots completely.
+* Make sure your fraction is completely reduced as well.
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($ans->cmp(checker=>$reducedSqrt)->withPostFilter(sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "Use 'sqrt(...)' for radicals instead of rational exponents."  
+    if $ans->{ans_message} eq "Powers must be positive integer constants";
+  return $ans; 
+}));
+
+BEGIN_PGML_HINT
+
+Remember that [`\sqrt{\frac{M}{N}} = \frac{\sqrt{M}}{\sqrt{N}}`]
+
+Also, remember that your goal is to rationalize the denominator.  
+You may multiply the numerator and denominator by same expression.  
+Something like: [`\left(\frac{\sqrt{M}}{\sqrt{N}}\right)\left(\frac{\sqrt{N}}{\sqrt{N}}\right)`]
+
+Why would we want to multiply by [`\frac{\sqrt{N}}{\sqrt{N}}`]?  
+What does that accomplish?
+
+Make sure your final answer has reduced square-roots and fractions, where possible.
+
+END_PGML_HINT
+BEGIN_PGML_SOLUTION
+
+*We begin by noticing that our original radical cannot be simplified.*
+
+*The denominator contains a radical, so rationalize it:*  
+    [` \frac{[$N]}{\sqrt{[$Din]}} \rightarrow \left(\frac{[$N]}{\sqrt{[$Din]}}\right)\left(\frac{\sqrt{[$Din]}}{\sqrt{[$Din]}}\right)`] _(multiply the numerator and denominator by [`\sqrt{[$Din]}`])_  
+    [` \left(\frac{[$N]}{\sqrt{[$Din]}}\right)\left(\frac{\sqrt{[$Din]}}{\sqrt{[$Din]}}\right) \rightarrow \frac{[$N]\sqrt{[$Din]}}{[$Din]}`] _(multiply and reduce the product)_  
+
+*Again, we're looking to simplify our radical - but it is already reduced.*
+
+*However, our fraction may be simplified. [`[$p2]`] is a common factor.*
+[`\frac{[$N]\sqrt{[$Din]}}{[$Din]} \rightarrow [$ans]`]
+
+All our radicals are now simplified, our fraction is reduced, and our denominator contains _no_ radicals.  
+*Answer:* [`[$ans]`]
+
+END_PGML_SOLUTION
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

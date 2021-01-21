@@ -1,0 +1,198 @@
+##DESCRIPTION
+##  Algebra problem: Multiply radical expressions
+##ENDDESCRIPTION
+
+
+## DBsubject(Algebra)
+## DBchapter(Properties of exponents, rational exponents and radicals)
+## DBsection(Properties of rational exponents and radicals)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'radical', 'radicals', 'radical expression')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextLimitedPowers.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+###########################
+#
+# Subclass the numeric functions
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+
+#
+# Override sqrt() to return a special value (usually 1) when evaluated
+# effectively eliminating it from the product.
+#
+sub sqrt {
+  my $self = shift;
+  my $value = $self->context->flag("setSqrt");
+  return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+  return $value if $value;
+  return $self->SUPER::sqrt(@_);
+}
+
+#
+# end of subclass
+#
+package main;
+
+###########################
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric")->flags->set(reduceConstants=>0, reduceConstantFunctions=>0);
+Context()->variables->are(x=>[Real,limits=>[0,2]],y=>[Real,limits=>[0,2]]);
+Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+Context()->flags->set(reduceConstantFunctions=>0);
+LimitedPowers::OnlyPositiveIntegers();
+
+$p1 = list_random(2,3,5,7);
+do { $p2 = list_random(2,3,5); } until ( $p1 != $p2 );
+
+$a1 = random(3,7,2);
+$a2 = random(3,7,2);
+$b1 = random(2,6,2);
+$b2 = random(3,7,2);
+
+$a = ($a1 + $a2)/2;
+$b = ($b1 + $b2 - 1)/2;
+
+$rad1 = Formula("$p1 x^$a1 y^$b1")->reduce;
+$rad2 = Formula("$p1*$p2 x^$a2 y^$b2")->reduce;
+
+$o1 = random(-1,1,2)*random(2,6,1);
+$o2 = random(-1,1,2)*random(2,6,1);
+
+$out = Formula("$o1*$o2*$p1 x^$a y^$b")->reduce;
+$in = Formula("$p2 y");
+
+$fac1 = Formula("$o1 sqrt($rad1)");
+$fac2 = Formula("$o2 sqrt($rad2)");
+$ans = Formula("$out sqrt($in)");
+
+### For solutions
+$c1 = $p1;
+$c2 = $p1*$p2;
+$o = $o1*$o2;
+$c = $o*$p1;
+$aTot = $a1+$a2;
+$bTot = $b1+$b2;
+$bEven = $bTot - 1;
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Multiply the radical expression and reduce your answer.
+$BR
+Do not use rational exponents. Use "sqrt(...)" instead.
+$PAR
+\[ \large{ \left($fac1\right) \left($fac2\right) } \]
+$PAR
+\{ ans_rule(10) \}
+
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS( $ans->cmp( checker => sub {
+  my ($correct,$student,$ans) = @_;
+  return 0 if $ans->{isPreview} || $correct != $student;
+  #
+  #  Get parsed formula for student and correct answers
+  #
+  $student = $ans->{student_formula};
+  $correct = $correct->{original_formula} if defined $correct->{original_formula};
+  #
+  # check if equal when sqrt's are replaced by 1
+  #
+  Context()->flags->set(setSqrt => 1);
+  delete $correct->{test_values}, $student->{test_values};
+  my $OK = ($correct == $student);
+  Context()->flags->set(setSqrt => 0);
+  #
+  Value::Error("Your answer can be simplified further.") unless $OK;
+  return $OK;
+  }, formatStudentAnswer=>"parsed"
+  )
+ );
+
+Context()->texStrings;
+BEGIN_HINT
+
+Try factoring your radicands, see if you can find some repeated factors.
+$PAR
+Remember that \(\sqrt{a}\sqrt{a} = a\)
+
+END_HINT
+BEGIN_SOLUTION
+$BBOLD Deal with each variable and the constants separately: $EBOLD $BR
+\( \displaystyle \left( $o1 \sqrt{$rad1}\right) \left( $o2 \sqrt{$rad2}\right) = 
+\left( $o1 \sqrt{$c1}\sqrt{x^$a1}\sqrt{y^$b1}\right) 
+\left( $o2 \sqrt{$c2}\sqrt{x^$a2}\sqrt{y^$b2}\right) \)
+$BR
+\( \displaystyle \left($o1\sqrt{$c1}\sqrt{x^$a1}\sqrt{y^$b1}\right) \left($o2\sqrt{$c2}\sqrt{x^$a2}\sqrt{y^$b2}\right) = \left($o1 \cdot $o2\right) \left(\sqrt{$c1}\sqrt{$c2}\right) \left(\sqrt{x^$a1}\sqrt{x^$a2}\right) \left(\sqrt{y^$b1}\sqrt{y^$b2}\right) \)
+$PAR
+$BBOLD Simplify the constant radicals: $EBOLD $BR
+\( \displaystyle \sqrt{$c1}\sqrt{$c2} = \sqrt{$p1} \sqrt{$p1} \sqrt{$p2} \)
+$BR
+\( \displaystyle \sqrt{$p1} \sqrt{$p1} \sqrt{$p2} = $p1 \sqrt{$p2} \)
+$PAR
+$BBOLD Simplify the \(a\) radicals: $EBOLD $BR
+\( \displaystyle \sqrt{x^$a1}\sqrt{x^$a2} = \sqrt{x^{$aTot}} \)
+$BR
+\( \displaystyle \sqrt{x^{$aTot}} = x^$a \)
+$PAR
+$BBOLD Simplify the \(b\) radicals: $EBOLD $BR
+\( \displaystyle \sqrt{y^$b1}\sqrt{y^$b2} = \sqrt{y^{$bTot}} \)
+$BR
+\( \displaystyle \sqrt{y^{$bTot}} = \sqrt{y^{$bEven}} \sqrt{b} \)
+$BR
+\( \displaystyle \sqrt{y^{$bEven}} \sqrt{y} = y^$b \sqrt{y} \)
+$PAR
+$BBOLD Our original problem now looks like: $EBOLD $BR
+$BR
+\( \displaystyle \left($o1\sqrt{$rad1}\right)\left($o2\sqrt{$rad2}\right) = \left($o1 \cdot $o2\right) \left(\sqrt{$c1}\sqrt{$c2}\right) \left(\sqrt{x^$a1}\sqrt{x^$a2}\right) \left(\sqrt{y^$b1}\sqrt{y^$b2}\right) = \left($o\right) \left( $p1 \sqrt{$p2} \right) (x^$a) \left(y^$b \sqrt{y}\right) \)
+$PAR
+$BBOLD Gather the radicals and non-radicals: $EBOLD $BR
+\( \displaystyle ($o) \left( $p1 \sqrt{$p2} \right) (x^$a) \left(y^$b \sqrt{y}\right) = \left( $o \cdot $p1 x^$a y^$b\right) \left( \sqrt{$p2} \sqrt{y} \right) \)
+$PAR
+$BBOLD Combine for the final answer: $EBOLD $BR
+\( \displaystyle \left( $o \cdot $p1 x^$a y^$b\right) \left( \sqrt{$p2} \sqrt{y} \right) = $ans \)
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

@@ -1,0 +1,136 @@
+##DESCRIPTION
+##  Algebra problem: Simplify complex fraction
+##ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Operations on polynomial and rational expressions)
+## DBsection(Simplify rational expressions)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'algebra, operations with rational expressions', 'algebra, simplifying rational expression', 'rational expressions', 'rational expression')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+$rationalChecker = sub {
+     my ($correct,$student,$ansHash) = @_; 
+     $studentRaw = $student;
+     Value->Error("Your answer doesn't contain any variables. <BR> Perhaps you oversimplified?") unless $student->class eq "Formula";
+     if ($student->{tree}->class eq "UOP" && $student->{tree}{uop} eq 'u-') {
+          $student = Formula($student->{tree}->{op});
+     }
+     Value->Error("Check the answer preview box. Maybe you forgot parenthesis around your numerator or denominator?") unless $student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!/!;
+     return 0 unless $correct == $studentRaw;
+     my $cnum = Formula($correct->{tree}{lop});
+     my $snum = Formula($student->{tree}{lop});
+     my $cden = Formula($correct->{tree}{rop});
+     my $sden = Formula($student->{tree}{rop});
+     Value->Error("Your answer can be reduced further") unless (abs($cnum) == abs($snum) && abs($cden) == abs($sden));
+     return 1;
+};
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric")->flags->set(reduceConstants=>0,reduceConstantFunctions=>0);
+Context()->variables->are("r"=>Real,"s"=>Real,"w"=>Real);
+
+$NN = random(2,9,1);
+do { $ND = random(1,9,1); } until ( gcf($NN,$ND) == 1 );
+$Nw = random(2,5,1);
+$fracN = Formula("($NN w^$Nw)/($ND r s)")->reduce;
+
+do { $DN = random(2,9,1); } until ( gcf($DN, $NN) == 1 );
+$Dn = $DN*$NN;
+do { $DD = random(1,9,1); } until ( gcf($DD, $ND) == 1 && gcf($DD,$DN) == 1 );
+$Ds = random(2,5,1);
+$fracD = Formula("($Dn w r)/($DD s^$Ds)")->reduce;
+$fracDinv = Formula("($DD s^$Ds)/($Dn w r)")->reduce;
+
+$ansNcoeff = $NN*$DD;
+$ansDcoeff = $ND*$Dn;
+$NDDN = $ND*$DN; #reduced denominator coefficient for solution
+$ansWexp = $Nw-1; #for solution
+$ansSexp = $Ds-1;   #for solution
+$ansN = Formula("$DD w^($Nw-1) s^($Ds-1)")->reduce;
+$ansD = Formula("$ND*$DN r^2")->reduce;
+
+$ans = Formula("$ansN/$ansD");
+
+##############################################################
+#
+#  Text
+#
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+
+$PAR
+Simplify the complex fraction:
+\[ \Large\frac{$fracN}{$fracD} \]
+$BR
+\{ans_rule(25)\}
+END_TEXT
+Context()->normalStrings;
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS($ans->cmp(checker=>$rationalChecker));
+
+Context()->texStrings;
+BEGIN_HINT
+
+Remember that fractions are shorthand for division:$BR
+\[\Large\frac{$fracN}{$fracD}\]
+can be rewritten as
+\[ \displaystyle $fracN \div $fracD \]
+$PAR
+Do you remember how to divide fractions? There's a way to rewrite the division as a multiplication instead...
+
+END_HINT
+BEGIN_SOLUTION
+
+$BBOLD Begin by rewriting the division of fractions as multiplication by the reciprocal: $EBOLD $BR
+\( \displaystyle $fracN \div $fracD = $fracN \times $fracDinv \)
+$PAR
+$BBOLD Then multiply the fractions: $EBOLD $BR
+\( \displaystyle $fracN \times $fracDinv = \frac{($NN w^$Nw)($DD s^$Ds)}{($ND r s)($Dn w r)} = \frac{$ansNcoeff s^{$Ds} w^{$Nw}}{$ansDcoeff r^2 s w} \)
+$PAR
+$BBOLD Now we must reduce our answer: $EBOLD $BR
+\( $ansNcoeff \) and \( $ansDcoeff \) have a common factor of \( $NN \), $BR
+so \( \displaystyle \frac{$ansNcoeff}{$ansDcoeff} \) reduces to \( \displaystyle \frac{$DD}{$NDDN} \). $PAR
+\( \displaystyle \frac{1}{r^2} \) does not reduce. $PAR
+\( \displaystyle \frac{s^{$Ds}}{s} \) reduces to \( \displaystyle \frac{s^{$ansSexp}}{1} \) $PAR
+\( \displaystyle \frac{w^{$Nw}}{w} \) reduces to \( \displaystyle \frac{w^{$ansWexp}}{1} \)
+$PAR
+$BBOLD Putting it all back together, we end up with: $EBOLD $BR
+\( \displaystyle \left(\frac{$DD}{$NDDN}\right) \left(\frac{1}{r^2}\right) \left(\frac{s^{$ansSexp}}{1}\right) \left(\frac{w^{$ansWexp}}{1}\right)
+= $ans \)
+END_SOLUTION
+Context()->normalStrings;
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        
