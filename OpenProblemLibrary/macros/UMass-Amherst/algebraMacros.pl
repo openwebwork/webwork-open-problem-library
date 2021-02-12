@@ -149,11 +149,13 @@ sub disjointCycles
 	{
 		$result = List( map { List( join( ',', @$_ ) ) } ( @cycles ) );
 	}
-	else
+	elsif (scalar @cycles > 0 )
 	{
 		$result = List( map { List( '(' . join( ',', @$_ ) . ')' ) } @cycles );
+	} else {
+                Context()->strings->add(id => {alias => "identity"});          
+                $result = List( ( id ) );
 	}
-	
 	return $result;
 };
 
