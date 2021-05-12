@@ -5,157 +5,487 @@
 
 ## DBsubject(Differential equations)
 ## DBchapter(First order differential equations)
-## DBsection(Direction fields)
+## DBsection(Equilibrium points and phase lines)
 ## Date(08/12/2013)
 ## Institution(Cleveland State University)
 ## Author(Felipe Martins)
-## MLT(d_field_01)
-## MLTleader(1)
 ## Level(2)
 ## MO(1)
+## MLT(auton-2root)
 ## TitleText1('A Modern Introduction to Differential Equations')
 ## AuthorText1('Ricardo')
 ## EditionText1('2009')
 ## Section1('2.5')
 ## Problem1('1')
-## KEYWORDS('differential equations','first order','phase portraits','Flash applets','NSF-0941388')
+## KEYWORDS('differential equations','first order','phase portraits','NSF-0941388')
+## Language(en)
+## 
+## Javascript & html5 canvas replace original Flash app. -- G. Jennings, Jan. 2021 
+
 
 ########################################################################
 # This work is supported in part by the National Science Foundation 
 # under the grant DUE-0941388.
 ########################################################################
 
-##############################
-#  Initialization
-
-DOCUMENT(); 
-
+DOCUMENT();
 loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "AppletObjects.pl",
-  "PGcourse.pl"
+"PGstandard.pl",
+"MathObjects.pl",
+"PGcourse.pl"
+);
+
+########## set up in perl ##################################
+
+Context("Numeric");
+Context()->variables->are(y=>"Real");
+
+## parameters used in problem
+$a = random(1,4,1);
+$dy = Compute("y^2-$a^2")->reduce;
+
+$canvasId = "phasePortrait2";
+$canvasWidth = 420;
+$canvasHeight = 150;
+$axLengthX = 400; # axis length in canvas coordinates
+$debug = 0;  # =0 to hide answer box, =1 to show answer box 
+
+# # # # # # # # # # # # # # # # # # # # # # 
+# Configure ticks on the axis 
+# the axis has three coordinate systems:
+# t and T stand for the coordinate displayed on the tick labels
+# x and X stand for the X-coordinate in the canvas coordinate system
+# n is integer valued, used for locating arrows etc.
+# t,x,n are related by their values at left tick and intervals between ticks.
+# ticks range from leftTickT to tPerTick*(tickCount - 1) in t-coordinates 
+# # # # # # # # # # # # # # # # # # # # # # 
+
+$leftTickT = -2*$a;
+
+if ($a == 4){
+  $tickCount = 17;
+  $tPerTick = 1;
+  $nPerTick = 2;
+} 
+elsif ($a == 3){
+  $tickCount = 13;
+  $tPerTick = 1;
+  $nPerTick = 2;
+}
+elsif ($a == 2){
+  $tickCount = 17;
+  $tPerTick = 0.5;
+  $nPerTick = 2;
+}
+elsif ($a == 1){
+  $tickCount = 17;
+  $tPerTick = 0.25;
+  $nPerTick = 2;
+}
+
+## the canvas element
+
+sub printCanvas {   
+  return MODES( 
+    TeX => image("phaseline.png"), 
+    HTML => qq!<canvas id="$canvasId" width="$canvasWidth" height="$canvasHeight"></canvas>!,
+    PTX => " HTML5 canvas element "
+  );
+}
+
+##  the answer box.  It holds the canvas state and is  filled automatically by javascript so 
+##  normally it's hidden (displayed only if $debug = 1).   
+
+sub printAnswerBox {
+  if ($debug) { return MODES(
+    TeX => '',
+    HTML => NAMED_ANS_RULE( 'answerBox', 50 ),
+    PTX => ''
+  );}
+  else { return MODES (
+    TEX => '',
+    HTML => NAMED_HIDDEN_ANS_RULE( 'answerBox', 50 ),
+    PTX => ''
+  );}
+} 
+
+####################################################################
+##### Begin javascript (this will go in html header) ###############
+####################################################################
+
+$javascript = <<"END_JAVASCRIPT";
+    <script>
+// ***** layout ********
+// x,y refer to canvas coordinates 
+
+// boxes
+const boxLeftX = 35;       // center of left box 
+const boxY = 40;           // box center
+const boxSize = 20;        // distance from center to edge
+const boxSpacing = 88;    // space between boxes
+// box legends
+const legendY = 15;
+// axis
+const axLeftX = 10;        // position of axis 
+const axY = 125;
+const axLengthX = $axLengthX; 
+// ticks
+const tickCount = $tickCount;
+const xPerTick = $axLengthX/$tickCount;
+const tPerTick = $tPerTick;
+const nPerTick = $nPerTick;
+const leftTickX = axLeftX + xPerTick/2;
+const leftTickT = $leftTickT;
+const tickHeight = 10;
+// tick labels
+const labelOffsetY = 20;      // relative to axis
+
+// functions that draw boxes, symbols, axis, ticks, tick labels
+
+function drawBox(ctx,x){	
+  ctx.beginPath();
+  ctx.strokeStyle="Black";
+  ctx.lineWidth = 2;
+  ctx.rect(x-boxSize,boxY-boxSize,2*boxSize,2*boxSize);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawLeftArrow(ctx,x,y){
+  ctx.strokeStyle="Black";
+  ctx.lineWidth=5;
+  ctx.beginPath();
+  ctx.moveTo(x+10,y-10);
+  ctx.lineTo(x,y);
+  ctx.lineTo(x+10,y+10);
+  ctx.stroke()
+}
+
+function drawRightArrow(ctx,x,y){
+  ctx.strokeStyle="Black";
+  ctx.lineWidth=5;
+  ctx.beginPath();
+  ctx.moveTo(x-10,y-10);
+  ctx.lineTo(x,y);
+  ctx.lineTo(x-10,y+10);
+  ctx.stroke()
+}
+ 
+function drawDot(ctx,x,y){
+  ctx.strokeStyle="Black";
+  ctx.beginPath();
+  ctx.arc(x,y,5,0,2*Math.PI);
+  ctx.fillStyle="Black";
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawVert(ctx,x,y){
+  ctx.strokeStyle="Black";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(x, y-10);
+  ctx.lineTo(x, y+10);
+  ctx.stroke();
+}
+
+function drawCross(ctx,x,y){
+  ctx.strokeStyle="Red";
+  ctx.lineWidth=5;
+  ctx.beginPath();
+  ctx.moveTo(x-10, y-10);
+  ctx.lineTo(x+10, y+10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x+10, y-10);
+  ctx.lineTo(x-10, y+10);
+  ctx.stroke();
+}
+
+function drawAxis(ctx){
+  ctx.strokeStyle="Black";
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(axLeftX, axY);
+  ctx.lineTo(axLeftX + axLengthX, axY);
+  ctx.stroke();
+}
+
+function drawTick(ctx,x){
+  ctx.beginPath();
+  ctx.moveTo(x,axY);
+  ctx.lineTo(x,axY+tickHeight);
+  ctx.stroke();
+}
+
+function drawTickLabel(ctx, x ,i){
+  if ($tPerTick > .4 ){
+    // label every other tick
+    if (i % 2 == 0){
+      ctx.fillText(String(leftTickT + i*tPerTick), x - 3, axY + labelOffsetY );  
+    }
+  }
+  else { 
+    // label every fourth tick
+    if ( (i % 4) == 0 ){
+      ctx.fillText(String(leftTickT + i*tPerTick), x - 3, axY + labelOffsetY );  
+    }
+  }
+}
+
+// functions for converting between canvas x coordinate and discrete coordinate n on axis
+// n is used for comparing locations of points
+
+let nPerX = nPerTick/xPerTick;
+
+function xToN(x){
+  const N = (x - leftTickX)*nPerX;
+  const n = Math.floor(N);
+  if (N-n < 0.5){ return n; }
+  else { return n+1; }
+}
+
+function nToX(n){
+  return leftTickX + n/nPerX;
+}
+
+// box legends
+legend = ["decreasing", "increasing", "equilibrium", "slope undefined", "delete"];
+legendOffset = [-33, -32, -34, -44, -18];
+
+/////////////////////////////////////////////
+// the axisSymbol object represents the current state of the canvas.
+// It saves the symbols that appear on the axis and their positions 
+// in "n-coordinates": axisSymbol[n] = symbol at position n
+// It will be encoded as a Webwork List of Lists 
+// ...,(n,symbol),...  in the answer box.  To avoid confusing 
+// WeBWork's answer checkers it uses integers to represent 
+// the symbols :
+// 0 represents left arrow, 
+// 1 represents right arrow
+// 2 represents dot
+// 3 represents vertical bar
+// 4 represents cross ("delete")
+/////////////////////////////////////////////////
+
+// drawSymbol[i]( ...arguments.. ) draws symbol i  
+
+drawSymbol = [ drawLeftArrow, drawRightArrow, drawDot, 
+  drawVert, drawCross ];
+
+symbolOffset = [-5, 5, 0, 0, 0]; // X-offset for drawing symbol[i] in box[i]
+
+/////////////////////////////////////////////////////////////////
+// convert between answer string and canvas state 
+// axisSymbol = { .., n:s , ... } assigns a symbol s = 0,1,2,3, or 4 to 
+// the point on the axis with n-coordinate = n.  It sets the state 
+// of the canvas and is equivalent to the answer
+/////////////////////////////////////////////////////////////////
+
+// convert axisSymbol object to answer string, a list of pairs "...,(s,n),..." 
+
+function axisSymbolToAnswer(){
+  let answerList = [];
+  for (const n in axisSymbol){
+    answerList.push("(" + n + "," + axisSymbol[n] + ")" ); 
+  }
+  return answerList.join(",");
+};
+
+// convert answer string to axisSymbol object
+
+function answerToAxisSymbol(answer){
+  if (answer === ''){return {};}
+  // convert n pairs to nx2 array
+  let str = answer.slice(1,-1);   
+  let arr = str.split( '),(' ).map( pair => pair.split(',') ); 
+  // convert array to object
+  let axisSymbol = {};
+  for (let i=0; i < arr.length; i++){
+    axisSymbol[Number(arr[i][0])] = Number(arr[i][1]);
+  }
+  return axisSymbol;
+};
+
+selectedSymbol = null;
+
+/////////////////////
+////  Draw  /////////
+/////////////////////
+
+document.addEventListener("DOMContentLoaded", function() {
+  const canvas = document.getElementById("$canvasId");
+  const ctx = canvas.getContext('2d');
+
+  // get canvas state from previous answer
+
+  let previousAnswer = document.getElementById("answerBox").value;
+  axisSymbol = answerToAxisSymbol(previousAnswer);
+  
+  // draw  
+  ctx.font = "10pt Arial";
+  for (let i = 0; i < drawSymbol.length; i++){
+    let x = boxLeftX + i*boxSpacing;
+    ctx.fillStyle = "Black";
+    ctx.fillText(legend[i], x+legendOffset[i], legendY); 
+    ctx.fillStyle = "LightGrey";
+    drawBox(ctx, x,boxY);
+    drawSymbol[i](ctx, x + symbolOffset[i], boxY);
+  }
+  drawAxis(ctx);
+  ctx.fillStyle="Black";
+  ctx.font = "10pt Arial";
+  for (let i = 0; i < tickCount; i++){
+    let tickX = leftTickX + i*xPerTick;
+    drawTick(ctx, tickX);
+    drawTickLabel(ctx, tickX, i); 
+  }
+  // draw axis symbols 
+  for (n in axisSymbol){
+    let x = nToX(n);
+    drawSymbol[axisSymbol[n]](ctx, x, axY);
+  }
+
+  canvas.addEventListener('mousedown', function(event) {
+    const x = event.offsetX;
+    const y = event.offsetY;
+
+    // if cursor points to a box then update selectedSymbol
+    if ( Math.abs(y-boxY) < boxSize +1){
+      for (let i = 0; i < drawSymbol.length; i++){
+	let boxX = boxLeftX + i*boxSpacing;
+	if ( Math.abs(x - boxX) < boxSize + 1 ) { selectedSymbol = i; }
+      }
+    }
+    // if cursor points to the axis then update axisSymbol
+    if ( selectedSymbol != null && Math.abs(y - axY) < 10 &&
+         axLeftX - 1 < x && x < axLeftX + axLengthX +1  
+    ){
+      const n = xToN(x);  // discrete coordinate on axis
+      if ( selectedSymbol == 4){   // "delete"
+	if (axisSymbol[n] != undefined){ delete axisSymbol[n]; }
+      }
+      else {
+	axisSymbol[n] = selectedSymbol;
+      }
+    }
+    
+    // redraw  
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.font = "10pt Arial";
+    for (let i = 0; i < drawSymbol.length; i++){
+      let x = boxLeftX + i*boxSpacing;
+      ctx.fillStyle = "Black";
+      ctx.fillText(legend[i], x+legendOffset[i], legendY); 
+      // update box color
+      if ( selectedSymbol == i ){ ctx.fillStyle = "White"; }
+      else { ctx.fillStyle = "LightGrey";}
+      drawBox(ctx, x ,boxY);
+      drawSymbol[i](ctx, x + symbolOffset[i], boxY);
+    }
+    drawAxis(ctx);
+    ctx.fillStyle="Black";
+    ctx.font = "10pt Arial";
+    for (let i = 0; i < tickCount; i++){
+      let tickX = leftTickX + i*xPerTick;
+      drawTick(ctx, tickX);
+      drawTickLabel(ctx, tickX, i);
+    }
+    // draw axis symbols 
+    for (n in axisSymbol){
+      let x = nToX(n);
+      drawSymbol[axisSymbol[n]](ctx, x, axY);
+    }
+    // insert axisSymbol into answer blank
+    document.getElementById('answerBox').value = axisSymbolToAnswer();
+  });
+});
+
+    </script>
+END_JAVASCRIPT
+
+################################################
+######## end of javascript #####################
+################################################
+
+MODES (
+  TeX => '',
+  HTML => HEADER_TEXT($javascript),
+  PTX => ''
 );
 
 TEXT(beginproblem());
-
-#############################
-#  Setup
-#############################
-
-Context("Numeric");
-
-$a = random(1,4,1);
-$asqr = Compute("$a*$a");
-
-$xmin = Compute("-2*$a");
-$xmax = Compute("2*$a");
-$mesh = Compute("$a*0.4");
-
-$showSolution = false;
-if(time>$dueDate){
-  $showSolution=true;
-}
-
-$arrow1 = Compute("($xmin-$a)/2");
-$arrow2 = Compute("0");
-$arrow3 = Compute("($xmax+$a)/2");
-$arrow1dir = "r";
-$arrow2dir = "l";
-$arrow3dir = "r";
-
-Context()->strings->add(sink=>{},source=>{},node=>{},inc=>{},dec=>{},all=>{},usource=>{},usink=>{});
-$anslist = List("sink",Compute("-$a"),"source",Compute("{$a}"));
-
-###################################
-# Create  link to applet 
-###################################
-    $appletName = "phaseLine";
-    $applet =  FlashApplet(
-       codebase              => findAppletCodebase("$appletName.swf"),
-       appletName            => $appletName,
-       appletId              => $appletName,
-       setStateAlias         => 'setXML',
-       getStateAlias         => 'getXML',
-       setConfigAlias        => 'setConfig',
-       maxInitializationAttempts => 5,   # number of attempts to initialize applet
-       answerBoxAlias        => 'answerBox',
-       height                => '400',
-       width                 => '550',
-       bgcolor               => '#e8e8e8',
-       debugMode             =>  0,
-       submitActionScript  =>  
-  qq{getQE("answerBox").value=getApplet("$appletName").getAnswer() },
-     );
-###################################
-# Configure applet
-###################################
-$config_string = <<"ENDCONFIG";
-<XML>
-    <leng>400</leng>
-    <xmin>$xmin</xmin>
-    <xmax>$xmax</xmax>
-    <showSolution>$showSolution</showSolution>
-    <solutionPts>
-        <aPicon lrn='$arrow1dir' loc='$arrow1'></aPicon>
-        <aPicon lrn='n' loc='-$a'></aPicon>
-        <aPicon lrn='$arrow2dir' loc='$arrow2'></aPicon>
-        <aPicon lrn='n' loc='$a'></aPicon>
-        <aPicon lrn='$arrow3dir' loc='$arrow3'></aPicon>
-    </solutionPts>
-</XML>
-ENDCONFIG
-
-$applet->configuration($config_string);
-$applet->initialState($config_string);
-
-TEXT(MODES(TeX=>"", HTML=><<'END_TEXT'));
-<script>
-if (navigator.appVersion.indexOf("MSIE") > 0) {
-	document.write("<div width='3in' align='center' style='background:yellow'>You seem to be using Internet Explorer.<br/>It is recommended that another browser be used to view this page.</div>");
-}
-</script>
-END_TEXT
-
-#############################
-#  Main text
-
 Context()->texStrings;
 BEGIN_TEXT
-Use the applet provided to draw a phase portrait for 
-\( \displaystyle \frac{dy}{dx} = y^2-$asqr \).
-$BR
-$BR
-$BR
-END_TEXT
-
-# Insert applet
-
-TEXT( MODES(TeX=>'A graph appears here in the html version.', 
-  HTML=>$applet->insertAll(debug=>0,includeAnswerBox=>1)));
-
-BEGIN_TEXT
-$BR
-
+Use the symbols provided below to sketch the phase line for the differential equation $BR
+\[  \frac{dy}{dx} = $dy .\] 
+$PAR
+To place a symbol on the line click a symbol button then click a point on the line. $BR 
+To remove a symbol from the line click the "delete" button then click the symbol on the line. $PAR
+\{printCanvas()\} 
+\{printAnswerBox\}
 END_TEXT
 Context()->normalStrings;
 
-############################
-#  Answers
+## grade the answer
+## "answer" is a string encoding axisState so we'll need to decode it
 
-$showPartialCorrectAnswers = 1;
-Context()->{error}{msg}{"'one' is not defined in this context"} = "You have not placed equilibrium points and arrows on the phase line.";
-Context()->{error}{msg}{"'two' is not defined in this context"} = "You must have an arrow before the first equililbrium point.";
-Context()->{error}{msg}{"'three' is not defined in this context"} = "You must have an arrow after the last equilibrium point.";
-Context()->{error}{msg}{"'four' is not defined in this context"} = "Two consecutive arrows must point in the same direction.";
-Context()->{error}{msg}{"'five' is not defined in this context"} = "There must be an arrow between equilibrium points.";
-Context()->{error}{msg}{"'six' is not defined in this context"} = "There must be an arrow between an equilibrium point and derivative undefined point.";
-Context()->{error}{msg}{"'seven' is not defined in this context"} = "There must be an arrow between an equilibrium point and derivative undefined point.";
-Context()->{error}{msg}{"'eight' is not defined in this context"} = "There must be an arrow between derivative undefined points.";
+# answer code: symbol codes are listed left to right, separated by commas.  
+# Symbol codes are: 0=left arrow, 1=right arrow, (2,t)=dot at coordinate t,
+# (3,t)=vertical bar ("undefined") at coordinate t.   
+# Arrows are not given coordinates.
 
-NAMED_ANS( 'answerBox'=>$anslist->cmp(ordered=>1));
+$ans = List("1,(2,-$a),0,(2,$a),1");
 
-COMMENT('This problem requires that Flash be enabled on your device.
-Click try it to see what students will see.  MathObject version.');
+sub nToT{  
+  my $n = shift;
+  return $leftTickT + $n*$tPerTick/$nPerTick;
+}
+
+NAMED_ANS( 'answerBox' => $ans->cmp( 
+list_checker => sub { 
+  my ($correct, $student, $ansHash, $value) = @_;
+  my $corrN = scalar(@$correct);
+  my $studN = scalar(@$student);
+  my $score = 0;
+  my @errors = ();
+  # copy student answers into a sortable doubly-indexed array
+  my @arr = ();
+  for ($i=0; $i<$studN; $i++){
+    push(@arr, [$student->[$i]->value]);
+  }
+  # sort the array so the n's are in increasing order
+  my @arrSort = PGsort( sub { return $_[0][0] < $_[1][0] }, @arr);
+  # drop redundant consecutive duplicate arrow symbols (s=0,1) 
+  # and drop n from arrows that remain 
+  my @studClean=(); ## for grading
+  my @display=(); ## for display
+  my @toSymbol = ("-<<-","->>-","dot","undef");
+  my $t;
+  for ($i=0; $i<scalar(@arrSort); $i++){
+    my ($n,$s) = @{$arrSort[$i]};
+    # if s is not an arrow convert position to t-coordinates
+    if ($s>1) { 
+      $t = nToT($n);
+      push(@studClean, "($s,$t)" ); 
+      push(@display, "(".$toSymbol[$s]." at $t)" );
+    }
+    # otherwise s is an arrow so eliminate redundancies and drop position 
+    elsif ( $i==0 or $s != $arrSort[$i-1][1] ){ 
+      push( @studClean, "$s" );
+      push( @display, $toSymbol[$s] );
+    } 
+  }
+  # answer is converted to display to make it easier to read
+  $ansHash->{student_ans}=join("",@display);
+  $ansHash->{preview_latex_string}="\text{".join("",@display)."}";
+  my $decodedStudAns = List(join(",",@studClean));
+  my $correctAns = List($correct);
+  if ($decodedStudAns == $correctAns){ return ($studN,@errors); }
+  else { return (0,@errors); }
+}
+));
+
+COMMENT("To show graphics in Library Browser click 'eye' icon (on upper right).");
 
 ENDDOCUMENT();

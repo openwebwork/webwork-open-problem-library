@@ -8,177 +8,371 @@
 ## DBsection(Applications)
 ## Date(10/25/2012)
 ## Institution(Cleveland State University)
-## Author(Barbara Margolius)
+## Author(Filipe Martins)
 ## MLT(spring_mass_dfield)
 ## Level(5)
+## MO(1);
 ## TitleText1('Differential Equations')
 ## AuthorText1('Blanchard, Devaney, Hall')
 ## EditionText1('4')
 ## Section1('.')
 ## Problem1('2 3')
-## KEYWORDS('harmonic oscillator', 'damping')
 ## Chapter('2')
+## KEYWORDS('harmonic oscillator', 'damping')
+## Language(en)
+## 
+## Javascript & html5 canvas replace original Flash app. -- G. Jennings, Jan. 2021 
 
-########################################################################
 
-DOCUMENT();      
-
+DOCUMENT();
 loadMacros(
   "PGstandard.pl",
-  "AppletObjects.pl",
   "MathObjects.pl",
-  "PGasu.pl",
   "PGessaymacros.pl",
   "PGcourse.pl"
 );
 
-# Print problem number and point value (weight) for the problem
-TEXT(beginproblem());
-
-# Show which answers are correct and which ones are incorrect
-$showPartialCorrectAnswers = 1;
-
-##############################################################
-#
-#  Applet object definition
-#
-#
-$appletName = "WWPluggableODESystem";
-$applet =  FlashApplet(
-   codebase                  => findAppletCodebase("$appletName.swf"),
-   appletName                => $appletName,
-   appletId                  => $appletName,
-   setStateAlias             => 'setXML',
-   getStateAlias             => 'getXML',
-   setConfigAlias            => 'setConfig',
-   maxInitializationAttempts => 10,   
-   #answerBoxAlias           => 'answerBox',
-   height                    => '500',
-   width                     => '650',
-   bgcolor                   => '#99CCFF',
-   debugMode                 =>  0,
-   submitActionScript        =>  '',
-);
-
-##############################################################
-#
-#  Applet configuration
-#
-#
-$config_string = <<'ENDCONFIG';
-<XML>
-    <options>
-        <geometry x="5" y="5" width="490" height="490" />
-        <bounds xmin="-5" xmax="5" ymin="-5" ymax="5" tmin="-10" tmax="10" />
-        <ticks xstep="0.5" ystep="0.5" xsize="5" ysize="5" />
-        <grid xstep="0.5" ystep="0.5" />
-        <field xstep="0.5" ystep="0.5" xmin="-4.5" xmax="4.5" ymin="-4.5" ymax="4.5" 
-               color="0x8FBCDB" backgroundcolor="0x153450" />
-        <solutionstyle thickness="4" color="0xFFCC00" alpha="0.8" />
-    </options>
-    <system>
-        <variable name="t" />
-        <variable name="y" derivative="v" />
-        <variable name="v" derivative="-(k/m)*y-(b/m)*v" />
-        <parameter name="m" value="-3" />
-        <parameter name="b" value="2"  />
-        <parameter name="k" value="5" />
-    </system>
-</XML>
-ENDCONFIG
-
-$applet->configuration($config_string);
-
-##############################################################
-#
-#  Setup
-#
-#
 Context("Numeric");
 
+## initialize parameters
+
 @params_array = (
-[2,5,2,3],
-[3,5,3,3],
-[5,5,4,3],
-[2,6,3,5],
-[3,6,3,5],
-[5,6,3,5],
-[5,4,4,2],
-[5,5,4,2],
-[5,6,4,2],
-[5,4,4,2]);
+[2,5,2],
+[3,5,3],
+[5,5,4],
+[2,6,3],
+[3,6,3],
+[5,6,3],
+[5,4,4],
+[5,5,4],
+[5,6,4],
+[5,4,4]);
 
 SRAND($psvn);
 $choice = random(0,9,1);
-$m = $params_array[$choice][0];
-$k = $params_array[$choice][1];
-$b = $params_array[$choice][2];
-$alpha = $params_array[$choice][3];
+$m = Real($params_array[$choice][0]);
+$k = Real($params_array[$choice][1]);
+$b = Real($params_array[$choice][2]);
 
-##############################################################
-#
-#  Text
-#
-#
+
+## initialize bounds on t
+
+$min=-10; $max=10;
+
+## text boxes for re-setting parameters and bounds
+
+sub inputElement {
+  my ($id,$value) = @_;
+  return MODES (
+    TEX => '___',
+    HTML => '<input id="harmOsc_'.$id.'" type="text" size="5" value='.$value.'></input>',
+    PTX => ''
+  );
+}
+
+## buttons for updating solutions
+
+sub buttonElement { 
+  my ($id,$label) = @_;
+  return MODES (
+    TEX => "[ $label ]",
+    HTML => '<button id="harmOsc_'.$id.'"type="button">'.$label.'</button>',
+    PTX => ''
+  );
+}
+
+## the canvas 
+
+sub canvasElement {
+  return MODES (
+    TeX => image("harmOsc02.png"),
+    HTML => '<canvas id="harmOsc_canvas" width="540" height="500"></canvas>',
+    PTX => ''
+  );
+}
+
+####################################################################
+##### Begin javascript (this will go in html header) ###############
+####################################################################
+
+$javascript = <<"END_JAVASCRIPT";
+    <script>
+const edgePad = 64;  // to leave space for tick labels
+const canPerTick=24;    // divisible by 2.  canvas coords per tick  
+const tickCount = 19;
+const canvasSide = edgePad + tickCount*canPerTick; // 480 
+const initTick = -9;  // initial tick
+const tickInitX = edgePad+canPerTick/2;
+const tickInitY = canvasSide-(tickInitX);
+
+// This ode is easy to solve by hand but other problems 
+// require a numerical solver. I'll use a program for a simple
+// Runge-Kutta 4th order solver (rk4) copied from Numerical 
+// Mathematics and Computing (2nd ed.) by W. Cheney and D. Kincaid
+// (1980) pp. 394.
+
+// differential equation object DE contains everything that 
+// depends on the parameters m,b,k
+
+function DE(ctx,m,b,k,min,max){
+  ds = function (s,t){ return t; }
+  dt = function (s,t){ return -b/m*t -k/m*s; }
+  // Runge-Kutta 4 numerical ODE solver. X = [s,t]
+  function F(X) {
+    return [ this.ds(X[0],X[1]), this.dt(X[0],X[1]) ]; 
+  }
+  function rk4step (X,h) {
+    let F1 = F(X);
+    let F2 = F([X[0]+(1/2)*h*F1[0], X[1]+(1/2)*h*F1[1]]);
+    let F3 = F([X[0]+(1/2)*h*F2[0], X[1]+(1/2)*h*F2[1]]);
+    let F4 = F([X[0]+h*F3[0], X[1]+h*F3[1]]);
+    return [ X[0]+h/6*(F1[0]+2*F2[0]+2*F3[0]+F4[0]), X[1]+h/6*(F1[1]+2*F2[1]+2*F3[1]+F4[1]) ];
+  }
+  drawArrow = function (ctx,x,y,len){
+    let s = xToS(x);
+    let t = yToT(y);
+    let deltaSq = ds(s,t)**2 + dt(s,t)**2;
+    // if deltaSq is very small compared with len**2
+    // then draw a point at (x,y).  Otherwise 
+    // draw an arrow of length len pointing from 
+    // (s,t) toward (s+ds,t+dt)
+    if ( deltaSq < len**2/1000 ){
+      ctx.beginPath();
+      ctx.arc(x,y,2,0,2*Math.PI);
+      ctx.stroke(); ctx.fill();
+    }
+    else {
+      let delta = Math.sqrt(deltaSq);
+      // len = 1 makes a unit vector in tick coordinates
+      let dx = len*this.ds(s,t)/delta*canPerTick;  // chain rule.  
+      let dy = len*this.dt(s,t)/delta*(-canPerTick); // chain rule
+      // arrowhead 
+      let head = new Path2D();
+      head.moveTo(x+2*dx/3+dy/6,y+2*dy/3-dx/6);
+      head.lineTo(x+dx,y+dy);
+      head.lineTo(x+2*dx/3-dy/6,y+2*dy/3+dx/6);
+      head.closePath();
+      ctx.fill(head);
+      ctx.beginPath();
+      ctx.moveTo(x,y);
+      ctx.lineTo(x+2*dx/3,y+2*dy/3);
+      ctx.stroke();
+    }
+  }
+  this.drawVecField = function (){
+    ctx.lineWidth=2;
+    ctx.strokeStyle="black";
+    for (let i=0; i<tickCount; i++){
+      for (let j=0;j<tickCount; j++){
+	drawArrow(ctx,tickInitX+i*canPerTick,tickInitY-j*canPerTick,0.8);
+      }
+    }
+  }
+  this.drawSolutionCurve = function (s,t,h,min,max) {
+    let X = [s,t];
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "blue";
+    // forward 
+    ctx.beginPath()
+    ctx.moveTo(sToX(X[0]),tToY(X[1]));
+    for (let i=0; i < max/h+1; i++){
+      Y = rk4step(X,h);
+      ctx.lineTo(sToX(Y[0]),tToY(Y[1]));
+      X=Y;
+    }
+    ctx.stroke();
+    // backward
+    X = [s,t];
+    ctx.beginPath()
+    ctx.moveTo(sToX(X[0]),tToY(X[1]));
+    for (let i=0; i > min/h+1; i--){
+      Y = rk4step(X,-h);
+      ctx.lineTo(sToX(Y[0]),tToY(Y[1]));
+      X=Y;
+    }
+    ctx.stroke();
+  }
+}
+
+// coordinate changes: (s,t)=tick coords, (x,y)= canvas coords
+
+function xToS(x){
+  return (x-tickInitX)/canPerTick + initTick;
+}
+
+function yToT(y){
+  return (tickInitY-y)/canPerTick + initTick;
+}
+
+function sToX(s){
+  return (s-initTick)*canPerTick + tickInitX;
+}
+
+function tToY(t){
+  return tickInitY-(t-initTick)*canPerTick;
+}
+
+function drawGrid(ctx){
+  // draw grid
+  ctx.strokeStyle="#ADD8E6";
+  ctx.beginPath();
+  for (let i=0; i<tickCount; i++){
+    ctx.moveTo(tickInitX+i*canPerTick,0);
+    ctx.lineTo(tickInitX+i*canPerTick,canvasSide-edgePad);
+    ctx.moveTo(edgePad, tickInitY-i*canPerTick);
+    ctx.lineTo(canvasSide,tickInitY-i*canPerTick);
+  }
+  ctx.stroke()
+}
+
+function drawAxes(ctx) {
+  ctx.font="14px Arial";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  for (let i = -8; i < 9; i += 2 ){
+    ctx.fillText(String(i),sToX(i),468);
+    ctx.fillText(String(i),edgePad-12,tToY(i));
+  }
+  ctx.font="20px Arial";
+  ctx.fillText("v",edgePad-40,tToY(0));
+  ctx.fillText("y",sToX(0),490);
+  ctx.lineWidth=1;
+  ctx.strokeRect(edgePad,0,456,456);
+}
+
+///////////////////////////////////
+////  Draw initial screen /////////
+///////////////////////////////////
+
+document.addEventListener("DOMContentLoaded", function() {
+  const canvas = document.getElementById("harmOsc_canvas");
+  const ctx = canvas.getContext('2d');
+  const h = 0.1;
+  
+  let m=$m;
+  let b=$b;
+  let k=$k; 
+  let min, max, deq;
+  let init_conds = [];
+
+  function getData(){
+    min = Math.min( document.getElementById("harmOsc_min").value, 0);
+    max = Math.max( document.getElementById("harmOsc_max").value, 0);
+  }
+
+  const redraw_button = document.getElementById("harmOsc_redraw");
+  const clear_button = document.getElementById("harmOsc_clear");
+ 
+  getData(); 
+  drawGrid(ctx);
+  drawAxes(ctx);
+  deq = new DE(ctx,m,b,k,min,max);
+  deq.drawVecField();
+
+  canvas.addEventListener('mousedown', function(e) {
+    const x = e.offsetX;
+    const y = e.offsetY;
+    if (-1<x && x < canvas.width+1 && -1 < y && y < canvas.height+1){
+      init_conds.push([x,y]);
+    }
+    deq.drawSolutionCurve(xToS(x),yToT(y),h,min,max);
+  });
+
+  redraw_button.addEventListener('click', function(e) {
+    getData();
+    ctx.clearRect(0,0,canvas.width,canvas.height); 
+    drawGrid(ctx);
+    drawAxes(ctx);
+    deq = new DE(ctx,m,b,k,min,max);
+    deq.drawVecField();
+    console.log(init_conds.length);
+    for (let i=0; i< init_conds.length; i++){
+      let x = init_conds[i][0];
+      let y = init_conds[i][1];
+      deq.drawSolutionCurve(xToS(x),yToT(y),h,min,max)
+    }
+  });
+
+  clear_button.addEventListener('click', function(e) {
+    ctx.clearRect(0,0,canvas.width,canvas.height); 
+    drawGrid(ctx);
+    drawAxes(ctx);
+    deq = new DE(ctx,m,b,k,min,max);
+    deq.drawVecField();
+    init_conds = [];
+  });
+});
+
+    </script>
+END_JAVASCRIPT
+
+####################################################################
+############## END javascript  #####################################
+####################################################################
+
+MODES (
+  TeX => '',
+  HTML => HEADER_TEXT($javascript),
+  PTX => ''
+);
+
+
+TEXT(beginproblem());
 Context()->texStrings;
 BEGIN_TEXT
-Consider the equation
-\[m\frac{d^2y}{dt^2}+b\frac{dy}{dt}+ky=0\]
-assuming \(m=$m\), \(b=$b\) and \(k=$k\); that is, use the equation:
-\[$m\frac{d^2y}{dt^2}+$b\frac{dy}{dt}+$k y=0\]
-$BR$BR
-END_TEXT
+Consider the differential equation
+\[m\frac{d^2y}{dt^2}+b\frac{dy}{dt}+ky=0.\]
+Assume \(m=$m\), \(b=$b\) and \(k=$k\); that is, we'll focus on the equation:
+\[$m\frac{d^2y}{dt^2}+$b\frac{dy}{dt}+$k y=0,\]
+a second-order, homogeneous, linear, ordinary differential equation with constant coefficients.
+$PAR
+Below is a phase-plane plot of the vector field \(\big(y'(t),v'(t)\big)\) in the \(y,v\)-plane, where \(v\) is defined by the equation 
+\[y'(t) = v(t)\] 
+and therefore, according to the formula for the differential equation, 
+\[v'(t) = y''(t) = -\frac{$k}{$m}y-\frac{$b}{$m}v. \]
+If \(y(t)\) is a solution to the differential equation then the curve \(\big(y(t),y'(t)\big) = \big(y(t),v(t)\big)\) is tangent to the vector field, so one can find solutions by looking for curves that are tangent to the vector field.  
+$PAR
+Examine solutions using the phase plane below. Click on the phase plane to 
+graph solutions \( \big(y(t),v(t)\big)\); the clicked point is the initial point \( \big(y(0),v(0)\big) \).  You may change the range of \(t\) that you wish to plot, then push the ${LQ}Redraw ...$RQ button to implement the change. 
+$PAR
+Then answer the questions below by writing your answers in the boxes below the questions.  Remember to click the ${LQ}Submit answers$RQ button when you are done!
+$PAR
+Set new bounds for \(t\):  min =  \{ inputElement('min',$min) \},  max = \{ inputElement('max',$max) \} with min \(\leq\) 0 \(\leq\) max.$PAR
 
-TEXT( MODES(TeX=>'A graph appears here in the html version.', HTML=>$applet->insertAll(
-  debug=>0,
-  includeAnswerBox=>0,
-# reinitialize_button=>$permissionLevel>=10,
-)));
-
-BEGIN_TEXT
-$BR
-$BR
+\{buttonElement('redraw','Redraw using the new bounds') \} \{ buttonElement('clear','Clear the solution curves') \} 
+$PAR
+\{ canvasElement() \}
+$PAR
+Questions:
+$PAR
 Are solutions to this system periodic? Explain your answer in terms of the phase plane plot.
-$BR
-$BR
-\{essay_box()\}
-$BR
-$BR
-if there are periodic solutions, choose a particular initial condition and estimate the period of the corresponding solution to two decimal places. Explain how you found this value.
-$BR
-$BR
-\{essay_box()\}
-$BR
-$BR
+$PAR
+\{ essay_box(8,72) \}
+$PAR
+If there are periodic solutions, choose a particular initial condition and estimate the period of the corresponding solution to two decimal places. Explain how you found this value.
+$PAR
+\{ essay_box(8,72) \}
+$PAR
 Do all solutions have the same period? How can you decide that using solutions plotted in the phase plane?
-$BR
-$BR
-\{essay_box()\}
-$BR
-$BR
+$PAR
+\{ essay_box(8,72) \}
+$PAR
 Write a paragraph summarizing the observations you made. Your summary should include a description of the behavior of the solutions for this system for different initial conditions, and compare similarities and differences between distinct solutions.
-$BR
-$BR
-\{essay_box()\}
-$BR
-$BR
-
-Adapted from $BITALIC Differential Equations, 4th Ed., $EITALIC Blanchard, Devaney, Hall, 2012.
+$PAR
+\{ essay_box(8,72) \}
+$PAR
+Adapted from $BITALIC Differential Equations, 4th Ed.,$EITALIC Blanchard, Devaney, Hall, 2012.
 
 END_TEXT
 Context()->normalStrings;
 
-##############################################################
-#
-#  Answers
-#
-#
+ANS(essay_cmp());
+ANS(essay_cmp());
+ANS(essay_cmp());
+ANS(essay_cmp());
+ 
 
-ANS(essay_cmp());
-ANS(essay_cmp());
-ANS(essay_cmp());
-ANS(essay_cmp());
-
-COMMENT('This problem requires that Flash be enabled on your device.  Click try it to see what students will see.  This is part 2 of a four part problem.  This problem uses essay questions which must be graded by the instructor.');
-
+COMMENT("To show graphics in Library Browser click 'eye' icon (on upper right). This problem uses essay questions which must be graded by the instructor.");
 ENDDOCUMENT();
+
+

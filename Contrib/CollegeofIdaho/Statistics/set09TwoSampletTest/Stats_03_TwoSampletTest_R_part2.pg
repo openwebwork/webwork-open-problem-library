@@ -1,0 +1,148 @@
+## DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(Independent samples - t)
+## Date(2015-01-18)
+## Institution(The College of Idaho)
+## Author(R Cruz)
+## Level(2)
+## KEYWORDS('statistics', 'two sample', 'inference', 't score')
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "niceTables.pl",
+  "RserveClient.pl"
+);
+
+COMMENT("This problem uses R to calculate the test statistic. Put the 2 parts back together when multipart problems can have different number of attempts per part.");
+
+TEXT(beginproblem());
+
+######################################
+#  Setup
+
+SRAND($psvn); #This makes the connected problems have the same seed
+
+$n1 = random(7,8,1);
+$n2 = $n1 + random(-1,1,2);
+$tableCol = $n1;
+if ($n2>$n1) {$tableCol = $n2;}
+
+@d1[ 0..($n1-1) ] = map { 0 } ( 0..($n1-1) );
+@d2[ 0..($n2-1) ] = map { 0 } ( 0..($n2-1) );
+
+$alpha = 0.10;
+
+rserve_start();  ##START R SESSION
+
+rserve_eval("D1 <- c()");
+rserve_eval("D2 <- c()");
+
+for($i=0; $i<$n1; $i++){
+   $d1[$i] = random(10,21,1);
+   rserve_eval("D1 <- c(D1, $d1[$i])");
+}
+for($i=0; $i<$n2; $i++){
+   $d2[$i] = random(7,18,1);
+   rserve_eval("D2 <- c(D2, $d2[$i])");
+}
+
+rserve_eval("result <- t.test(D1,D2, conf.level=0.90)"); 
+$CI1 = join ", ", rserve_eval('round(result$conf.int[1],6)'); 
+$CI2 = join ", ", rserve_eval('round(result$conf.int[2],6)'); 
+$pval = join ", ", rserve_eval('round(result$p.value,4)'); 
+$stat = join ", ", rserve_eval('round(result$statistic,4)');
+$df   = join ", ", rserve_eval('round(result$parameter,3)');
+
+rserve_finish();  # END R SESSION
+
+if ( $alpha<$pval ) { $tag = 0; } else { $tag = 1; }
+
+@Explain = ("The p-value, $pval, is larger than \(\alpha=$alpha\).",
+            "The p-value, $pval, is less than \(\alpha=$alpha\).");
+
+@ans = ("There is not sufficient evidence to indicate that there is a difference in the mean distance between fishermen at the two sites.",
+"There is evidence to indicate that there is a difference in the mean distance between fishermen at the two sites.");
+
+$mc1 = new_multiple_choice();
+$mc1 -> qa ('the conclusion is:', $ans[$tag]);
+$mc1 -> extra ($ans[1-$tag]); 
+
+$lowerCI = Real("$CI1")->with(tolType=>'absolute',tolerance=>.001);
+$upperCI = Real("$CI2")->with(tolType=>'absolute',tolerance=>.001);
+
+$mc2 = new_multiple_choice();
+$mc2 -> qa ('What is the problem with using the normal (\(z\)) statistic to find a confidence interval for the target parameter?', 'We do not know the population standard deviation.');
+$mc2 -> extra ('There is nothing wrong with using a \(z\) statistic.',
+        'The samples are not the same size.');
+$mc2 -> makeLast('All of the above.'); 
+
+######################################
+#  Main text
+
+BEGIN_TEXT
+$BBOLD This question has two parts.  Please refer to the previous problem for Part 1.$EBOLD
+$BR $BR
+PART 2:
+$BR
+During the steelhead fishing season in north central Idaho, fishing enthusiasts flock to the Salmon river.  The fish and game department recorded the distance between fishermen, in yards, on several stretches of river with similar conditions (parking areas, river access, etc).
+$BR
+\{
+LayoutTable(
+  [
+    [['Site 1:',b=>1,noencase=>1],@d1],
+    [['Site 2:',b=>1,noencase=>1],@d2],
+  ], 
+  midrules => 1,
+  encase => ['\(','\)'],
+  allcellcss => 'padding:6px; '
+);
+\}
+$BR
+For this problem, we are interested in comparing the mean distance between fishermen at the two sites.  In Part 1, you used ${BBOLD}R$EBOLD to find the test statistic.  Use this information to answer the following:
+$BR
+${BITALIC}${BBOLD}Note: You only have TWO attempts on this question and BOTH answers must be correct to receive credit -- it is not possible to earn partial credit.$EITALIC$EBOLD
+
+$PAR
+(a) For \(\alpha = $alpha\), \{$mc1->print_q()\}
+$BR
+\{$mc1->print_a()\}
+
+$PAR
+(b) \{$mc2->print_q()\}
+$BR
+\{$mc2->print_a()\}
+END_TEXT
+
+######################################
+#  Answers
+
+# no credit until all answers are correct
+install_problem_grader(~~&std_problem_grader);
+$showPartialCorrectAnswers = 0;
+
+ANS(radio_cmp($mc1->correct_ans));
+ANS(radio_cmp($mc2->correct_ans));
+
+######################################
+#  Solution
+
+BEGIN_SOLUTION
+$PAR SOLUTION $PAR
+$BR
+Note: \(t = $stat,\) \(df = $df\) and the 
+\(90\)$PERCENT CI is: \($CI1\) to \($CI2\)
+$BR
+$BR
+(a) ${BBOLD}\{$mc1->correct_ans\}${EBOLD}. $ans[$tag]
+$Explain[$tag]
+$BR $BR
+(b) ${BBOLD}\{$mc2->correct_ans\}${EBOLD}. We do not know the population standard deviation so the \(z\) statistic is
+not appropriate for this situation.
+END_SOLUTION
+
+ENDDOCUMENT(); # This should be the last executable line in the problem.

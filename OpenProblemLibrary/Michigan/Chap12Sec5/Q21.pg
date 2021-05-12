@@ -7,7 +7,7 @@ DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
+#  "PGchoicemacros.pl",
   "MathObjects.pl",
   "PGcourse.pl"
 );
@@ -46,7 +46,7 @@ loadMacros(
 
 Context("Numeric");
 Context()->variables->add( y=>'Real', z=>'Real' );
-Context::Value::Function->{cmpDefaults} = {upToConstant => 1};
+
 $showPartialCorrectAnswers = 1;
 
 $a = random(2,8,1);
@@ -54,7 +54,6 @@ $b = random(2,8,1);
 $c = random(2,8,1);
 $p = Compute( "$a*x + $b*y - $c" )->reduce();
 $p2 = Compute( "$a*x + $b*y - z" )->reduce();
-$g1 = Compute( "z - $a*x - $b*y" );
 $g2 = Compute( "$a*x + $b*y - z" );
 
 # $f1 = Compute("x");
@@ -71,14 +70,22 @@ $PAR
 END_TEXT
 Context()->normalStrings;
 
-ANS($g1->cmp( checker=>sub { my ( $c, $s, $self ) = @_;
-			      my $context = Context()->copy();
-			      $context->flags->set( no_parameters=>0 );
-			      $context->variables->add( 'C0'=>'Parameter' );
-			      my $c0 = Formula($context,'C0');
-			      $s = Formula($context, $s);
-			      return $c0 + $g1 == $s || $c0 + $g2 == $s; } ) );
-## for some reason checking $s == $c0 + $g1 || $s == $c0 + $g2 fails
+ANS($p2->cmp(checker=>sub {
+  my($correct,$student,$ansHash)=@_;
+  my @corrGrad = ($correct->D('x'),$correct->D('y'),$correct->D('z'));
+  my @stuGrad = ($student->D('x'),$student->D('y'),$student->D('z'));
+  if ($stuGrad[0]==0 and $stuGrad[1]==0 and $stuGrad[2]==0){ 
+    Value->Error("Level SURFACE of a constant function?");
+  }
+  if ( ($stuGrad[0]*$corrGrad[1]-$stuGrad[1]*$corrGrad[0])==0 &&
+       ($stuGrad[0]*$corrGrad[2]-$stuGrad[2]*$corrGrad[0])==0 &&
+       ($stuGrad[1]*$corrGrad[2]-$stuGrad[2]*$corrGrad[1])==0 ){
+     return 1;
+  }
+  else {
+    return 0;
+  }
+}));
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));

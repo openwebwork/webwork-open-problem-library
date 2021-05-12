@@ -16,94 +16,52 @@ DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
-  "Parser.pl",
+  "MathObjects.pl",
+  "parserPopUp.pl",
   "freemanMacros.pl",
-  "PGchoicemacros.pl",
   "PGcourse.pl"
 );
 
 
 # This is our macro file that provides the textbook_ref_exact() and
 
-# loadMacros("PGauxiliaryFunctions.pl");
-# loadMacros("PGgraphmacros.pl");
-
 TEXT(beginproblem());
-
-
-@label_concave = ("?", "Concave Down", "Concave Up");
-@label_positive_negative = ("?", "Positive", "Negative");
-@label_increase_decrease = ("?", "Increasing", "Decreasing");
-@label_max_min = ("?", "Local Max", "Local Min", "Neither");
 
 ################# Setting up the problem goes here.
 ### Book
-#$c = 8;
 
-#$c = random(1,10,1);
-$c = random(3,10,1);
+Context("Numeric");
+Context()->flags->set( reduceConstants => 0);
+
+$c = random(1,10,1);
+#$c = random(3,10,1);
 
 $f = Formula("x*(x - $c*sqrt(x))");
 $fprime = $f->D('x')->reduce;
 $fdoubleprime = $fprime->D('x')->reduce;
 
-$cp = Compute("(9*$c^2)/64");
-# 9c^2/64 >= 1
-# 9c^2 >= 64
-# c^2 >= 64/9
-# c^2 >= 7
-# c >= sqrt(7)
+$cp = Formula("(9*$c^2)/64");  # inflection point
+$cpApprox = Real(9*$c**2/64);
 
-$left_fdoubleprime = $fdoubleprime->eval(x=>non_zero_random(0,$cp->eval()));
-$right_fdoubleprime = $fdoubleprime->eval(x=>$cp->eval()+1);
-
-$inflection_test = Real(sgn($left_fdoubleprime) + sgn($right_fdoubleprime));
-
-$a = 'doesnt work';
-if($inflection_test == 0){
-  $inflection = Compute("(9*$c^2)/64");
-$a = 'works';
-}
-else{ $inflection = String('None'); }
-
-$int1 = Interval('(',0,$cp,')');
-$int2 = Interval('(',$cp,infinity,')');
-
-$int1_sign = Real(sgn($left_fdoubleprime));
-$int2_sign = Real(sgn($right_fdoubleprime));
-
-if($int1_sign > 0){
-  $int1_concave = "Concave Up";
-  $int1_fsign = "$GTS 0";
-}
-else{
-  $int1_concave = "Concave Down";
-  $int1_fsign = "$LTS 0";
-}
-
-if($int2_sign > 0){
-  $int2_concave = "Concave Up";
-  $int2_fsign = "$GTS 0";
-
-}
-else{
-  $int2_concave = "Concave Down";
-  $int2_fsign = "$LTS 0";
-}
-
+$leftInterval = Interval("(0,$cp)");
+$leftConcavity = PopUp(["??", "Concave Up","Concave Down"],"Concave Down");
+$rightInterval = Interval("($cp,infinity)");
+$rightConcavity = PopUp(["??","Concave Up","Concave Down"],"Concave Up");
 
 Context()->texStrings;
 
 BEGIN_TEXT
 \{ textbook_ref_exact("Rogawski ET 2e", "4.4","9") \}
 $PAR
-Determine the intervals on which the given function is concave up or down and find the point of inflection.
-Let \[f(x) = \{$f->reduce->TeX\} \]
+Let \[f(x) = $f \]
+Determine the intervals on which the given function is concave up or down and find the point of inflection. (Help with \{ helpLink("interval notation")\}.)
 $PAR
 The x-coordinate of the point of inflection is \{ans_rule()\}
 $PAR
-The interval on the left of the inflection point is \{ans_rule()\}, and on this interval \(f\) is \{pop_up_list([@label_concave])\}. $BR
-The interval on the right is \{ans_rule()\}, and on this interval \(f\) is \{pop_up_list([@label_concave])\}. $BR
+In the next two questions give the ${BITALIC}largest$EITALIC interval in the domain of \(f\) that fits the description. 
+$PAR
+The interval on the left of the inflection point is \{ans_rule()\}.  On this interval \(f\) is \{$leftConcavity->menu()\}. $BR
+The interval on the right of the inflection point is \{ans_rule()\}. On this interval \(f\) is \{$rightConcavity->menu()\}. $BR
 
 
 END_TEXT
@@ -112,29 +70,29 @@ END_TEXT
 
 Context()->normalStrings;
 
-ANS($inflection->cmp);
+ANS($cp->cmp());
 
+ANS($leftInterval->cmp());
+ANS($leftConcavity->cmp());
 
-ANS($int1->cmp);
-ANS(str_cmp($int1_concave));
-
-ANS($int2->cmp);
-ANS(str_cmp($int2_concave));
+ANS($rightInterval->cmp());
+ANS($rightConcavity->cmp());
 
 
 Context()->texStrings;
 
-SOLUTION(EV3(<<'END_SOLUTION'));
+BEGIN_SOLUTION;
 $PAR
 $SOL
 $BR
 One can compute \(f'\) using the product rule, but it is easier to re-write $BR
-\( f(x)=\{$f->reduce->TeX\}=x^2-$c x^{3/2}\)$BR
-Then \(f'(x)=2x-$c\cdot \frac{3}{2}x^{1/2}\) and \(f''(x)=2-$c\cdot \frac{3}{4}x^{-1/2}=2-\frac{$c\cdot 3}{4\sqrt{x}}\).
+\( f(x)=$f =x^2-$c x^{3/2}\)$BR
+Then \(f'(x)=2x-$c\cdot \frac{3}{2}x^{1/2}\) and $BR\(f''(x)=2-$c\cdot \frac{3}{4}x^{-1/2} = 2-\frac{$c\cdot 3}{4\sqrt{x}}\) $BR
+so \(f''(x)=0\) when \(x = $cp \approx $cpApprox\).
 $PAR
-Now, \(f\) is $int1_concave for \(0 < x < $cp\) since \(f''(x) $int1_fsign\) there.  Moreover, \(f\) is $int2_concave for \(x > $cp\) since \(f''(x) $int2_fsign\) there.  
+\((0,\infty)\) is the domain of \(f\).  Inside its domain, \(f\) is concave down when \(0 < x < $cp\) because \(f''(x) <0 \) there.  \(f\) is concave up when \(x > $cp\) because \(f''(x) > 0 \) there.  
 
-Finally, because \(f''(x)\) changes sign at \(x = $cp\), \(f(x)\) has a point of inflection at \(x = 9\).
+Thus \(f\) has a point of inflection at \(x=$cp\) because \(f''(x)\) changes sign at \(x = $cp\).
 END_SOLUTION
 
 ENDDOCUMENT();

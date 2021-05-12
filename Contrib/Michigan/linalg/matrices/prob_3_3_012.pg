@@ -1,0 +1,308 @@
+# DESCRIPTION
+# Problem from Holt Linear Algebra, 1st ed.
+# WeBWorK problem written by Gavin LaRose,
+# <glarose(at)umich(dot)edu>
+# ENDDESCRIPTION
+
+## DBsubject('Linear Algebra')
+## DBchapter('Matrices')
+## DBsection('The Inverse of a Matrix')
+## KEYWORDS('inverse matrix')
+## TitleText1('Linear Algebra')
+## EditionText1('1')
+## AuthorText1('Holt')
+## Section1('3.3')
+## Problem1('12')
+## Author('Gavin LaRose')
+## Institution('UMich')
+
+DOCUMENT();
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PGunion.pl",
+);
+
+# make sure we're in the context we want
+Context("Matrix");
+
+@a = ( [ ], [ ], [ ] );
+$a[0]->[0] = random(2,4,1);
+$a[0]->[1] = list_random(-1,1);
+$a[0]->[2] = random(4,9,1);
+$a[1]->[0] = list_random(-1,1)*$a[0]->[0];
+$a[1]->[1] = list_random(-2,2);
+$a[1]->[2] = random(4,9,1);
+$a[2]->[0] = list_random(-2,2)*$a[0]->[0];
+$a[2]->[1] = random(3,4,1);
+$a[2]->[2] = $a[0]->[2] + 1;
+$amat = Matrix( [ @a ] );
+if ( $amat->det() == 0 ) {
+    $a[2]->[2]++;
+    $amat = Matrix( [ @a ] );
+}
+
+@aug1 = ( [ $a[0]->[0], $a[0]->[1], $a[0]->[2], 1, 0, 0 ],
+	  [ $a[1]->[0], $a[1]->[1], $a[1]->[2], 0, 1, 0 ],
+	  [ $a[2]->[0], $a[2]->[1], $a[2]->[2], 0, 0, 1 ] );
+$augmat1 = Matrix( [ @aug1 ] );
+
+# row reduction; first zero first column elements 2,1 and 3,1
+my @ind = ( 0..5 );
+@aug2 = ( $aug1[0],
+	  [ map { $aug1[1]->[$_] -
+		    $aug1[1]->[0]*$aug1[0]->[$_]/$aug1[0]->[0] } @ind ],
+	  [ map { $aug1[2]->[$_] -
+		    $aug1[2]->[0]*$aug1[0]->[$_]/$aug1[0]->[0] } @ind ] );
+$augmat2 = Matrix( [ @aug2 ] );
+
+# then element 3,2
+@aug3 = ( $aug2[0], $aug2[1],
+	  [ map { $aug2[2]->[$_] -
+		    $aug2[2]->[1]*$aug2[1]->[$_]/$aug2[1]->[1] } @ind ] );
+$augmat3 = Matrix( [ @aug3 ] );
+
+# now back eliminate elements 1,3 and 2,3
+@aug4 = ( [ map { $aug3[0]->[$_] -
+		    $aug3[0]->[2]*$aug3[2]->[$_]/$aug3[2]->[2] } @ind ],
+	  [ map { $aug3[1]->[$_] -
+		    $aug3[1]->[2]*$aug3[2]->[$_]/$aug3[2]->[2] } @ind ],
+	  $aug3[2] );
+$augmat4 = Matrix( [ @aug4 ] );
+
+# and finally, element 1,2
+@aug5 = ( [ map { $aug4[0]->[$_] -
+		    $aug4[0]->[1]*$aug4[1]->[$_]/$aug4[1]->[1] } @ind ],
+	  $aug4[1], $aug4[2] );
+$augmat5 = Matrix( [ @aug5 ] );
+
+# and our inverse
+$ainv = $amat->inverse();
+
+# the answer checkers
+$achk2 = MultiAnswer( Compute($aug2[0]->[1]), Compute($aug2[0]->[2]),
+		      Compute($aug2[0]->[3]), Compute($aug2[0]->[4]),
+		      Compute($aug2[0]->[5]), Compute($aug2[1]->[2]),
+		      Compute($aug2[1]->[3]), Compute($aug2[1]->[4]),
+		      Compute($aug2[1]->[5]), Compute($aug2[2]->[2]),
+		      Compute($aug2[2]->[3]), Compute($aug2[2]->[4]),
+		      Compute($aug2[2]->[5]) )->with(
+    singleResult=>1,
+    checker=>sub {
+	my ( $cor, $stu, $self ) = @_;
+	my @c = @{$cor};
+	foreach my $i ( 0..$#c ) {
+	    return 0 if $cor->[$i] != $stu->[$i];
+	}
+	return 1;
+    }
+);
+$achk2 = MultiAnswer( Compute($aug2[0]->[2]),
+		      Compute($aug2[0]->[3]), Compute($aug2[0]->[4]),
+		      Compute($aug2[0]->[5]), Compute($aug2[1]->[2]),
+		      Compute($aug2[1]->[3]), Compute($aug2[1]->[4]),
+		      Compute($aug2[1]->[5]), Compute($aug2[2]->[2]),
+		      Compute($aug2[2]->[3]), Compute($aug2[2]->[4]),
+		      Compute($aug2[2]->[5]) )->with(
+    singleResult=>1,
+    checker=>sub {
+	my ( $cor, $stu, $self ) = @_;
+	my @c = @{$cor};
+	foreach my $i ( 0..$#c ) {
+	    return 0 if $cor->[$i] != $stu->[$i];
+	}
+	return 1;
+    }
+);
+$achk3 = MultiAnswer( Compute($aug3[0]->[2]),
+		      Compute($aug3[0]->[3]), Compute($aug3[0]->[4]),
+		      Compute($aug3[0]->[5]), Compute($aug3[1]->[2]),
+		      Compute($aug3[1]->[3]), Compute($aug3[1]->[4]),
+		      Compute($aug3[1]->[5]),
+		      Compute($aug3[2]->[3]), Compute($aug3[2]->[4]),
+		      Compute($aug3[2]->[5]) )->with(
+    singleResult=>1,
+    checker=>sub {
+	my ( $cor, $stu, $self ) = @_;
+	my @c = @{$cor};
+	foreach my $i ( 0..$#c ) {
+	    return 0 if $cor->[$i] != $stu->[$i];
+	}
+	return 1;
+    }
+);
+$achk4 = MultiAnswer( Compute($aug4[0]->[3]), Compute($aug4[0]->[4]),
+		      Compute($aug4[0]->[5]), Compute($aug4[1]->[3]),
+		      Compute($aug4[1]->[4]), Compute($aug4[1]->[5]),
+		      Compute($aug4[2]->[3]), Compute($aug4[2]->[4]),
+		      Compute($aug4[2]->[5]) )->with(
+    singleResult=>1,
+    checker=>sub {
+	my ( $cor, $stu, $self ) = @_;
+	my @c = @{$cor};
+	foreach my $i ( 0..$#c ) {
+	    return 0 if $cor->[$i] != $stu->[$i];
+	}
+	return 1;
+    }
+);
+$achk5 = MultiAnswer( Compute($aug5[0]->[3]), Compute($aug5[0]->[4]),
+		      Compute($aug5[0]->[5]), Compute($aug5[1]->[3]),
+		      Compute($aug5[1]->[4]), Compute($aug5[1]->[5]),
+		      Compute($aug5[2]->[3]), Compute($aug5[2]->[4]),
+		      Compute($aug5[2]->[5]) )->with(
+    singleResult=>1,
+    checker=>sub {
+	my ( $cor, $stu, $self ) = @_;
+	my @c = @{$cor};
+	foreach my $i ( 0..$#c ) {
+	    return 0 if $cor->[$i] != $stu->[$i];
+	}
+	return 1;
+    }
+);
+
+# we redefine unionTables BeginTable and EndTable to avoid hardcopy
+#    errors with embedded \par and \medskip macros in horizontal mode
+sub myBeginTable {
+  my %options = (
+    border => 0, padding => 0, spacing => 0, center => 1,
+    tex_spacing => "1em", tex_border => "0pt", @_
+  );
+  my ($bd,$pd,$sp) = ($options{border},$options{padding},$options{spacing});
+  my ($tsp,$tbd) = ($options{tex_spacing},$options{tex_border});
+  my ($center,$tcenter) = (' ALIGN="CENTER"','\centerline');
+     ($center,$tcenter) = ('','') if (!$options{center});
+  my $table =
+    qq{<TABLE BORDER="$bd" CELLPADDING="$pd" CELLSPACING="$sp"$center>};
+
+  MODES(
+    TeX => '{\kern '.$tbd.
+           '\vbox{\hsize=.5\hsize\halign{#\hfil&&\kern '.$tsp.' #\hfil',
+    HTML => $table."~~n",
+  );
+}
+
+sub myEndTable {
+  my %options = (tex_border => "0pt", @_);
+  my $tbd = $options{tex_border};
+  MODES(
+    TeX => '\cr}}\kern '.$tbd.'}'."~~n",
+    HTML => '</TABLE>'."~~n",
+  );
+}
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+
+Let the invertible matrix \(A\) be
+\[ A = $amat. \]
+Fill in the blanks for the augmented matrix and row reduction in
+the calculation below to find the inverse of \(A\).
+$PAR
+\{ $augmat1->ans_array() \} $BR
+\{ myBeginTable(border=>0, tex_border=>"0pt", spacing=>0, padding=>4) .
+   AlignedRow( [ "\(\qquad\sim \Bigg[\)",
+		 myBeginTable( border=>0, tex_border=>"0pt", spacing=>0,
+			     padding=>4 ) .
+		 AlignedRow( [ $aug2[0]->[0], $aug2[0]->[1],
+			       $achk2->ans_rule(5), $achk2->ans_rule(5),
+			       $achk2->ans_rule(5), $achk2->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, $aug2[1]->[1], $achk2->ans_rule(5),
+			       $achk2->ans_rule(5), $achk2->ans_rule(5),
+			       $achk2->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, $aug2[2]->[1], $achk2->ans_rule(5),
+			       $achk2->ans_rule(5), $achk2->ans_rule(5),
+			       $achk2->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 myEndTable(), "\(\Bigg]\)" ],
+	       align=>'CENTER', valign=>'MIDDLE', separation=>0 ) .
+   myEndTable() \}
+$BR
+\{ myBeginTable(border=>0, tex_border=>"0pt", spacing=>0, padding=>4) .
+   AlignedRow( [ "\(\qquad\sim \Bigg[\)",
+		 myBeginTable( border=>0, tex_border=>"0pt", spacing=>0,
+			     padding=>4) .
+		 AlignedRow( [ $aug3[0]->[0], $aug3[0]->[1],
+			       $achk3->ans_rule(5), $achk3->ans_rule(5),
+			       $achk3->ans_rule(5), $achk3->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, $aug3[1]->[1], $achk3->ans_rule(5),
+			       $achk3->ans_rule(5), $achk3->ans_rule(5),
+			       $achk3->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, 0, $aug3[2]->[2], $achk3->ans_rule(5),
+			       $achk3->ans_rule(5), $achk3->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 myEndTable(), "\(\Bigg]\)" ],
+	       align=>'CENTER', valign=>'MIDDLE', separation=>0 ) .
+   myEndTable() \}
+$BR
+\{ myBeginTable(border=>0, tex_border=>"0pt", spacing=>0, padding=>4) .
+   AlignedRow( [ "\(\qquad\sim \Bigg[\)",
+		 myBeginTable( border=>0, tex_border=>"0pt", spacing=>0,
+			     padding=>4) .
+		 AlignedRow( [ $aug4[0]->[0], $aug4[0]->[1], 0,
+			       $achk4->ans_rule(5), $achk4->ans_rule(5),
+			       $achk4->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, $aug4[1]->[1], 0, $achk4->ans_rule(5),
+			       $achk4->ans_rule(5), $achk4->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, 0, $aug4[2]->[2], $achk4->ans_rule(5),
+			       $achk4->ans_rule(5), $achk4->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 myEndTable(), "\(\Bigg]\)" ],
+	       align=>'CENTER', valign=>'MIDDLE', separation=>0 ) .
+   myEndTable() \}
+$BR
+\{ myBeginTable(border=>0, tex_border=>"0pt", spacing=>0, padding=>4) .
+   AlignedRow( [ "\(\qquad\sim \Bigg[\)",
+		 myBeginTable( border=>0, tex_border=>"0pt", spacing=>0,
+			     padding=>4) .
+		 AlignedRow( [ $aug5[0]->[0], 0, 0,
+			       $achk5->ans_rule(5), $achk5->ans_rule(5),
+			       $achk5->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, $aug5[1]->[1], 0, $achk5->ans_rule(5),
+			       $achk5->ans_rule(5), $achk5->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 AlignedRow( [ 0, 0, $aug5[2]->[2], $achk5->ans_rule(5),
+			       $achk5->ans_rule(5), $achk5->ans_rule(5) ],
+			     align=>'CENTER', separation=>0 ) .
+		 myEndTable(), "\(\Bigg]\)" ],
+	       align=>'CENTER', valign=>'MIDDLE', separation=>0 ) .
+   myEndTable() \}
+$BR
+so that
+\(A^{-1} = \) \{ $ainv->ans_array() \}
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $augmat1->cmp() );
+ANS( $achk2->cmp() );
+ANS( $achk3->cmp() );
+ANS( $achk4->cmp() );
+ANS( $achk5->cmp() );
+ANS( $ainv->cmp() );
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+We have
+\[ \begin{aligned} $augmat1 &\sim $augmat2 \\
+   &\sim $augmat3 \\
+   &\sim $augmat4 \\
+   &\sim $augmat5, \end{aligned} \]
+so that
+\[ A^{-1} = $ainv. \]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();

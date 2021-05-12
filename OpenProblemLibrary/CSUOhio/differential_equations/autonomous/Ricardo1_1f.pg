@@ -9,9 +9,8 @@
 ## DBsection(Equilibrium points and phase lines)
 ## Date(8/8/2013)
 ## Institution(Cleveland State University)
-## Author(Barbara Margolius)
+## Author(Filipe Martins)
 ## MLT(eq_pt_02)
-## MLTleader(1)
 ## Level(4)
 ## MO(1)
 ## TitleText1('Differential Equations')
@@ -20,6 +19,11 @@
 ## Section1('.')
 ## Problem1('1 1')
 ## KEYWORDS('logistic', 'population')
+### Language(en)
+## 
+## Javascript & html5 canvas replace original Flash app. -- G. Jennings, Jan. 2021 
+
+
 
 ########################################################################
 
@@ -28,31 +32,464 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "PGessaymacros.pl",
   "parserPopUp.pl",
-  "AppletObjects.pl",
-  "AnswerFormatHelp.pl",
-  "PGasu.pl",
   "PGcourse.pl"
 );
 
-sub BPINK { 
-  MODES(TeX => '{\\color{pink} ', HTML => '<span style="color:pink">'); 
-};
-sub EPINK { 
-  MODES( TeX => '}', HTML => '</span>'); 
-};
-sub BBLUE { 
-  MODES(TeX => '{\\color{blue} ', HTML => '<span style="color:blue">'); 
-};
-sub EBLUE { 
-  MODES( TeX => '}', HTML => '</span>'); 
-};
-sub BYELLOW { 
-  MODES(TeX => '{\\color{yellow} ', HTML => '<span style="color:yellow">'); 
-};
-sub EYELLOW { 
-  MODES( TeX => '}', HTML => '</span>'); 
-};
+
+#  Setup
+#
+#
+Context("Numeric");
+Context()->variables->add(y=>"Real");
+
+# (x,y) refer to canvas coordinates, (T,Y) refer to coordinates on the axes in the graphic.
+$debug = 0; 
+$a = random(3,5,1);
+$b = random(3,5,1);
+$tickDeltaY=1;
+$tickDelta_y=15;
+$axis_x = 250;
+$axis_y = 165;
+$canvasWidth=500;
+$canvasHeight=330;
+
+# right-hand side of differential equation
+$expr = Compute("(y-$a)^2*(y+$b)")->reduce();
+
+$inflection = Compute("($a-2*$b)/3");  
+
+#initial conditions
+$blueICy = Compute("-$b-2");  
+$redICy = Compute("$a+2");  
+$greenICy = Compute("-$b+2");  
+
+# answers
+Context("Interval");
+$inc = Compute("(-$b,$a)U($a,infinity)");
+$cup = Compute("(-$b,$inflection)U($a,infinity)");
+$cdown = Compute("(-infinity,-$b)U($inflection,$a)");
+
+Context("Numeric");
+$lim1 = Compute("-infinity");
+$popup1 = PopUp(["?", "extinction", "equilibrium/tends to equilibrium", "explosive growth","cannot represent population"], "cannot represent population");
+$popup2 = PopUp(["?", "extinction", "equilibrium/tends to equilibrium", "explosive growth","cannot represent population"], "explosive growth");
+$popup3 = PopUp(["?", "extinction", "equilibrium/tends to equilibrium", "explosive growth","cannot represent population"], "equilibrium/tends to equilibrium");
+
+
+$lim2 = Compute("infinity");
+
+#####################################################################
+####### Begin javascript: controls canvas, goes in HTML header ######
+#####################################################################
+
+$javascript = <<"END_JAVASCRIPT";
+<script>
+
+const a = $a;
+
+// which curve shows tangents?
+let selectedCurve = null; 
+let selectedPoint = null;
+
+document.addEventListener("DOMContentLoaded", function() {
+  const canvas = document.getElementById("canvasRicardo1");
+  const ctx = canvas.getContext('2d');
+
+  // ticks
+
+  const tickFirstY = -10;
+  const tickFirst_y = canvas.height-15; 
+  const tickDelta_y = $tickDelta_y;
+  const tickDeltaY = $tickDeltaY;
+  const tickCount = 21;
+  const axis_x = $axis_x;  // x-coord of Y axis
+  const axis_y = $axis_y; // y-coordinate of T axis
+
+  // canvas coordinates are (x,y) ;  coordinates displayed on the axes are (T,Y)
+  
+  // convert axes coordinates to canvas coordinates
+
+  function Ytoy(y){
+    return axis_y - (tickDelta_y/tickDeltaY)*y;
+  }
+
+  // draw axes, mesh, ticks, tick labels
+
+  function drawAxes() {
+    // draw tick labels and mesh lines   
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let i=0; i<tickCount; i++){  
+      if (i!=10) {
+	tickY = tickFirst_y-i*tickDelta_y;
+	ctx.strokeStyle="lightblue";
+	ctx.beginPath();
+	ctx.moveTo(0,tickY);
+	ctx.lineTo(canvas.width,tickY);  // mesh line
+	ctx.stroke();
+        ctx.fillStyle="black";
+	if (i%2 == 0){
+          // label
+          ctx.fillText(String(tickFirstY+i*tickDeltaY),axis_x-20,tickY);
+        } 
+      }
+    } 
+    // draw ticks
+    for (let i=0; i<tickCount; i++){
+	if (i != 10){ 
+	  tickY = tickFirst_y-i*tickDelta_y;
+	  ctx.strokeStyle="black";
+	  ctx.beginPath();
+	  ctx.moveTo(axis_x-10,tickY);
+	  ctx.lineTo(axis_x,tickY);
+	  ctx.stroke();
+	}
+    }
+    // draw vertical axis (Y-axis)
+    ctx.beginPath();
+    ctx.moveTo(axis_x,0);
+    ctx.lineTo(axis_x,canvas.height);
+    ctx.stroke();
+    // draw horizontal axis (T-axis)
+    ctx.beginPath();
+    ctx.moveTo(0,axis_y);
+    ctx.lineTo(canvas.width,axis_y);
+    ctx.stroke();
+    // axes labels
+    ctx.font="15px Arial";
+    ctx.fillText("y",axis_x+10,10);
+    ctx.fillText("t",canvas.width-10,axis_y+10);
+  }
+
+  // Point object
+
+  function Point(x,y,type,color){  // type = "end" or "control"
+    this.x = x;
+    this.y = y;
+    const radius = 5;
+    this.isMouseTarget = function (mx,my){
+      return ( (this.x - mx)**2 + (this.y - my)**2 < radius**2 + 1 )
+    }
+    if (type === "end"){
+      this.draw = function(){
+	ctx.beginPath();
+	ctx.fillStyle = color;
+	ctx.arc(this.x,this.y,radius,0,2*Math.PI);
+	ctx.fill();
+      }
+    }
+    else {
+      this.draw = function(){
+	ctx.beginPath();
+	ctx.arc(this.x,this.y,radius,0,2*Math.PI);
+	ctx.fillStyle = "white";
+	ctx.fill();
+	ctx.beginPath();
+	ctx.lineWidth = 2;
+	ctx.strokeStyle = color;
+	ctx.arc(this.x,this.y,radius,0,2*Math.PI);
+	ctx.stroke();
+      }
+    }
+  }
+  
+  // color list
+  const color = ["red","green","blue"];
+
+  // initialize points.  Even points are endpoints, odd points are control points
+  // pt[0] contains red points, pt[1] contains green points, pt[2] contains blue points
+
+  let pt = [];
+  pt[0] = []; pt[1] = []; pt[2] = [];
+
+  // red points (default)
+  pt[0][0] = new Point(5,5,"end",color[0]);
+  pt[0][1] = new Point(axis_x/2, Ytoy(6),"control",color[0]);
+  pt[0][2] = new Point(axis_x,Ytoy(6),"end",color[0]);
+  pt[0][3] = new Point(3*axis_x/2,Ytoy(6),"control",color[0]);
+  pt[0][4] = new Point(canvas.width-5,5,"end",color[0]);
+
+  // green points (default)  
+  pt[1][0] = new Point(5,Ytoy(8),"end",color[1]);
+  pt[1][1] = new Point(axis_x/2, Ytoy(-6),"control",color[1]);
+  pt[1][2] = new Point(axis_x,Ytoy(-1),"end",color[1]);
+  pt[1][3] = new Point(3*axis_x/2,Ytoy(4),"control",color[1]);
+  pt[1][4] = new Point(canvas.width-5,Ytoy(-8),"end",color[1]);
+
+  // blue points (default)
+  pt[2][0] = new Point(5,canvas.height-5,"end",color[2]);
+  pt[2][1] = new Point(axis_x/2,Ytoy(-7),"control",color[2]);
+  pt[2][2] = new Point(axis_x,Ytoy(-7),"end",color[2]);  
+  pt[2][3] = new Point(3*axis_x/2,Ytoy(-7),"control",color[2]);  
+  pt[2][4] = new Point(canvas.width-5,canvas.height-5,"end",color[2]);
+
+  // if there are previous answers use them instead of the defaults
+
+  let lastRedAns = document.getElementById("redAnswer").value;
+  if (lastRedAns !== ''){
+    // convert five pairs to a 5x2 array
+    let str = lastRedAns.slice(1,-1);
+    let arr = str.split( '),(' ).map( pair => pair.split(',') );
+    for (let j=0; j<5; j++){
+      pt[0][j].x = Number(arr[j][0]);
+      pt[0][j].y = Number(arr[j][1]);
+    }
+  }
+
+  let lastGreenAns = document.getElementById("greenAnswer").value;
+  if (lastGreenAns !== ''){
+    // convert five pairs to a 5x2 array
+    let str = lastGreenAns.slice(1,-1);
+    let arr = str.split( '),(' ).map( pair => pair.split(',') );
+    for (let j=0; j<5; j++){
+      pt[1][j].x = Number(arr[j][0]);
+      pt[1][j].y = Number(arr[j][1]);
+    }
+  }
+
+  let lastBlueAns = document.getElementById("blueAnswer").value;
+  if (lastBlueAns !== ''){
+    // convert five pairs to a 5x2 array
+    let str = lastBlueAns.slice(1,-1);
+    let arr = str.split( '),(' ).map( pair => pair.split(',') );
+    for (let j=0; j<5; j++){
+      pt[2][j].x = Number(arr[j][0]);
+      pt[2][j].y = Number(arr[j][1]);
+    }
+  }
+
+  // draw double quadratic Bezier curve 
+
+  function drawCurve(i) {
+    ctx.beginPath();
+    ctx.moveTo(pt[i][0].x, pt[i][0].y);
+    ctx.quadraticCurveTo(pt[i][1].x, pt[i][1].y, pt[i][2].x, pt[i][2].y);
+    ctx.quadraticCurveTo(pt[i][3].x, pt[i][3].y, pt[i][4].x, pt[i][4].y);
+    ctx.strokeStyle = color[i];
+    ctx.lineWidth = 2;
+    ctx.stroke()
+  }
+
+  // draw points and tangents 
+
+  function drawTangents(i){
+    ctx.beginPath();
+    ctx.moveTo(pt[i][0].x, pt[i][0].y);
+    ctx.lineTo(pt[i][1].x, pt[i][1].y);
+    ctx.lineTo(pt[i][2].x, pt[i][2].y);
+    ctx.lineTo(pt[i][3].x, pt[i][3].y);
+    ctx.lineTo(pt[i][4].x, pt[i][4].y);
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = color[i];
+    ctx.lineWidth = 2;
+    ctx.stroke()
+    ctx.setLineDash([]);
+    for (let j=0; j<5; j++){
+      pt[i][j].draw()
+    }
+  }
+
+  // draw everything 
+
+  function drawAll() {
+    drawAxes();
+    for (let i=0; i<3; i++){
+      drawCurve(i);
+      if (i == selectedCurve){ 
+        drawTangents(i);
+      }
+    }
+  }
+
+  drawAll();
+
+  // update selected curve with buttons
+
+  const redButton = document.getElementById("showRedTangents");
+  redButton.addEventListener("click", function(e){
+    e.preventDefault();
+    if (selectedCurve != 0){
+      selectedCurve = 0;
+      selectedPoint = null;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawAll(ctx);
+    }
+  });
+
+  const greenButton = document.getElementById("showGreenTangents");
+  greenButton.addEventListener("click", function(e){
+    e.preventDefault();
+    if (selectedCurve != 1){
+      selectedCurve = 1;
+      selectedPoint = null;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawAll(ctx);
+    }
+  });
+
+  const blueButton = document.getElementById("showBlueTangents");
+  blueButton.addEventListener("click", function(e){
+    e.preventDefault();
+    if (selectedCurve != 2){
+      selectedCurve = 2;
+      selectedPoint = null;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawAll(ctx);
+    }
+  });
+
+  const noCurveButton = document.getElementById("showNoTangents");
+  noCurveButton.addEventListener("click", function(e){
+    e.preventDefault();
+    if (selectedCurve != null){
+      selectedCurve = null;
+      selectedPoint = null;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawAll(ctx);
+    }
+  });
+
+  // select a point to move 
+  // in the following i=selectedCurve, j=selectedPoint
+
+  canvas.addEventListener('mousedown', function(e){
+    if (selectedCurve != null){
+      let mx = e.offsetX;
+      let my = e.offsetY;
+      for (let j=0; j < 5; j++){
+	if (pt[selectedCurve][j].isMouseTarget(mx,my)){
+	  selectedPoint = j;
+	  break;
+	}
+      }
+    }
+  });
+
+  // move the point   
+
+  canvas.addEventListener('mousemove', function(e){
+    if ( selectedPoint != null) {
+      let i = selectedCurve;
+      let j = selectedPoint;
+      let mx = e.offsetX;  
+      let my = e.offsetY;
+      let dx=mx-pt[i][j].x; let dy=my-pt[i][j].y;
+      // update the position of the selected point
+      // but keep left endpoint on the left, right endpoint on the right
+      // and don't let tangents get too short
+      // if an endpoint is selected and moving it won't collide with a control point
+      if ( (j==0 && mx < 245 && ( (mx-pt[i][1].x)**2 + (my-pt[i][1].y)**2 > 25 ) ) ||
+	   (j==4 && mx > 255 && ( (mx-pt[i][3].x)**2 + (my-pt[i][3].y)**2 > 25 ) )
+	 ){ pt[i][j].x = mx; pt[i][j].y = my; }
+      // if the midpoint is selected and moving it and its adjacent points 
+      // won't collide with endpoints
+      if ( j==2 && ( (pt[i][0].x - pt[i][1].x - dx)**2 + (pt[i][0].y - pt[i][1].y - dy)**2 > 25 ) 
+		&& ( (pt[i][4].x - pt[i][3].x - dx)**2 + (pt[i][4].y - pt[i][3].y - dy)**2 > 25 )
+      ){
+	pt[i][1].x += dx; pt[i][1].y += dy;
+	pt[i][2].x += dx; pt[i][2].y += dy;
+	pt[i][3].x += dx; pt[i][3].y += dy;
+      }
+      // if a control point (tangent point) is selected and moving it won't collapse a tangent
+      // then move it, keeping the two control points and the midpoint in line
+      // by moving the other control point perpendicular to this line, around a circle centered at pt[i][2]
+      if ( (j==1 || j==3) && 
+	   (pt[i][j-1].x - mx)**2 + (pt[i][j-1].y - my)**2 > 25  && 
+	   (pt[i][j+1].x - mx)**2 + (pt[i][j+1].y - my)**2 > 25  &&
+	   (mx-pt[i][2].x)*(pt[i][j].x-pt[i][2].x) + (my-pt[i][2].y)*(pt[i][j].y-pt[i][2].y) > 0
+      ){
+	let k = 4-j;  // the other control point
+	let s = ( (pt[i][k].x-pt[i][2].x)*(pt[i][j].x-pt[i][2].x) + (pt[i][k].y-pt[i][2].y)*(pt[i][j].y-pt[i][2].y) )/
+		( (mx-pt[i][2].x)*(pt[i][j].x-pt[i][2].x) +(my-pt[i][2].y)*(pt[i][j].y-pt[i][2].y) );
+	pt[i][k].x = (1-s)*pt[i][2].x + s*mx;
+	pt[i][k].y = (1-s)*pt[i][2].y + s*my;
+	pt[i][j].x = mx;
+	pt[i][j].y = my;
+      }
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawAll(ctx);
+    }
+  });
+
+  canvas.addEventListener('mouseup', function(e){
+    // save the positions of the points as a list in the answer box
+    let i = selectedCurve;
+    let ans = [];
+    for (let j=0; j<5; j++){
+      ans.push("(" + pt[i][j].x + "," + pt[i][j].y + ")" );
+    }
+    if (i == 0){
+      document.getElementById("redAnswer").value = ans.join(","); 
+    }
+    else if (i == 1){
+      document.getElementById("greenAnswer").value = ans.join(","); 
+    } 
+    else {
+      document.getElementById("blueAnswer").value = ans.join(","); 
+    }
+    selectedPoint = null;
+  });
+});
+
+</script>
+END_JAVASCRIPT
+
+####################################################################
+####### End javascript #############################################
+####################################################################
+
+MODES (
+  TeX => '',
+  HTML => HEADER_TEXT($javascript),
+  PTX => ''
+);
+
+## the canvas element
+
+sub printCanvas {   
+  MODES( 
+    TeX => image("Ricardo1_1fFig.png"), 
+    HTML => qq!<canvas id="canvasRicardo1" width="$canvasWidth" height="$canvasHeight"></canvas>!,
+    PTX => " HTML5 canvas element "
+  );
+}
+
+## buttons
+
+sub printButtons {
+  MODES(
+    TeX => '[blue curve][red curve][green curve][no curve]',
+    HTML => '<button id="showBlueTangents">blue curve</button> <button id="showRedTangents">red curve</button> <button id="showGreenTangents">green curve</button> <button id="showNoTangents">no curve</button>',
+    PTX => ''
+  );
+}
+
+##  the answer box.  It holds the canvas state: four control 
+##  points for the associated Bezier curve in canvas coordinates.  It is filled 
+##  automatically by javascript and normally  
+##  normally it's hidden (displayed only if $debug = 1).   
+
+sub printAnswerBox {
+  $name = shift;
+  if ($debug) { MODES(
+    TeX => '',
+    HTML => NAMED_ANS_RULE( $name, "50" ),
+    PTX => ''
+  );}
+  else { MODES (
+    TEX => '',
+    HTML => NAMED_HIDDEN_ANS_RULE( $name, "50" ),
+    PTX => ''
+  );}
+} 
+
+
+##############################################################
+#
+#  Text
+#
 
 # Print problem number and point value (weight) for the problem
 TEXT(beginproblem());
@@ -60,216 +497,67 @@ TEXT(beginproblem());
 # Show which answers are correct and which ones are incorrect
 $showPartialCorrectAnswers = 1;
 
-##############################################################
-#
-#  Setup
-#
-#
-Context("Numeric");
-Context()->variables->add(y=>"Real");
-$a = random(3,5,1);
-$b = random(3,5,1);
-$ymin = Compute("-4-$b");
-$ymax = Compute("$a+4");
-$expr = Formula("(y-$a)^2*(y+$b)");
-$inflection = Compute("(2*$b-$a)/3");
-
-Context("Interval");
-$I1=Compute("(-infinity,0)");
-$I2=Compute("($a,infinity)");
-$I3=Compute("(-$b,$inflection)");
-$inc = Compute("(-$b,$a)U($a,infinity)");
-
-$cup = Compute("(-$b,$inflection)U($a,infinity)");
-$cdown = Compute("(-infinity,-$b)U($inflection,$a)");
-
-Context("Numeric");
-$lim1 = Compute("-infinity");
-$popup1 = PopUp(["?", "extinction", "equilibrium/tends to equilibrium", "explosive growth","cannot represent population"],  "cannot represent population");
-$popup2 = PopUp(["?", "extinction", "equilibrium/tends to equilibrium", "explosive growth","cannot represent population"],  "explosive growth");
-$popup3 = PopUp(["?", "extinction", "equilibrium/tends to equilibrium", "explosive growth","cannot represent population"], "equilibrium/tends to equilibrium");
-
-
-$lim2 = Compute("infinity");
-
-$boardMessage = "Sketch three solutions to this differential equation using the information given in the problem.";
-
-#temporary until scoring implemented ***
-$ans = Compute("0");
-
-#+++++++++++++++++++++++++++++++++++++++++++++
-# Designate characteristics of pink curve
-# min is IC, max is ymax; concave up on ($IC,ymax); increasing on ($IC,ymax)
-# note intervals are in y not t
-$pinkICy = Compute("$a+1");
-$pinkIntervalsIncLow = $pinkICy;
-$pinkIntervalsIncHigh = $ymax;
-$pinkIntervalsCupLow = $pinkICy;
-$pinkIntervalsCupHigh = $ymax;
-$pinkMax = $ymax;
-$pinkMin = $pinkICy;
-#+++++++++++++++++++++++++++++++++++++++++++++
-# Designate characteristics of blue curve
-# min is IC, max is ymax; concave down on (0,$IC); decreasing on (0,$IC) 
-# note intervals are in y not t
-$blueICy = Compute("-$b-1");
-$blueIntervalsDecLow = $blueICy;
-$blueIntervalsDecHigh = $ymin;
-$blueIntervalsCdownLow = $blueICy;
-$blueIntervalsCdownHigh = $ymin;
-$blueMax = $blueICy;
-$blueMin = $ymin;
-#+++++++++++++++++++++++++++++++++++++++++++++
-# Designate characteristics of blue curve
-# min is IC, max is IC; horizontal line
-# note intervals are in y not t
-$yellowICy = Compute("-$b+1");
-$yellowIntervalsIncLow = $yellowICy;
-$yellowIntervalsIncHigh = $a;
-$yellowIntervalsCdownLow = $inflection;
-$yellowIntervalsCdownHigh = $a;
-$yellowIntervalsCupLow = $yellowICy;
-$yellowIntervalsCupHigh = $inflection;
-$yellowMax = $a;
-$yellowMin = $yellowICy;
-
-###################################
-# Create  link to applet 
-###################################
-    $appletName = "sketch_3";
-    $applet =  FlashApplet(
-       codebase              => findAppletCodebase("$appletName.swf"),
-       appletName            => $appletName,
-       appletId              => $appletName,
-       setStateAlias         => 'setXML',
-       getStateAlias         => 'getXML',
-       setConfigAlias        => 'setConfig',
-       getConfigAlias        => 'getConfig',
-       maxInitializationAttempts => 5,   # number of attempts to initialize applet
-       answerBoxAlias        => 'answerBox',
-       height                => '500',
-       width                 => '650',
-       bgcolor               => '#ededed',
-       debugMode             =>  0,
-       submitActionScript  =>  
-  qq{getQE("answerBox").value=getApplet("$appletName").getAnswer() },
-     );
-###################################
-# Configure applet
-###################################
-
-$config_string = <<"ENDCONFIG";
-<XML>
-    <boardMessage>$boardMessage</boardMessage>
-    <xmin>0</xmin><xmax>13</xmax><ymin>$ymin</ymin><ymax>$ymax</ymax>
-    <depVar>y</depVar><indVar>t</indVar>
-    <showSolution>false</showSolution>
-    <blueIntervalsCdown>
-      <interval left='$blueIntervalsCdownLow' right='$blueIntervalsCdownHigh'></interval></blueIntervalsCdown>
-    <blueIntervalsDec>
-      <interval left='$blueIntervalsDecLow' right='$blueIntervalsDecHigh'></interval>
-    </blueIntervalsDec>
-    <pinkIntervalsInc>
-      <interval left='$pinkIntervalsIncLow' right='$pinkIntervalsIncHigh'></interval>
-    </pinkIntervalsInc>
-    <pinkIntervalsCup>
-      <interval left='$pinkIntervalsIncLow' right='$pinkIntervalsIncHigh'></interval>
-    </pinkIntervalsCup>
-<yellowIntervalsCup>
-      <interval left='$yellowIntervalsCupLow' right='$yellowIntervalsCupHigh'></interval>
-    </yellowIntervalsCup>
-<yellowIntervalsCdown>
-      <interval left='$yellowIntervalsCdownLow' right='$yellowIntervalsCdownHigh'></interval>
-    </yellowIntervalsCdown>
-<yellowIntervalsInc>
-      <interval left='$yellowIntervalsIncLow' right='$yellowIntervalsIncHigh'></interval>
-    </yellowIntervalsInc>
-    <blueMax>$blueMax</blueMax>
-    <blueMin>$blueMin</blueMin>
-    <pinkMin>$pinkMin</pinkMin>
-    <pinkMax>$pinkMax</pinkMax>
-    <yellowMin>$yellowMin</yellowMin>
-    <yellowMax>$yellowMax</yellowMax>
-    <pinkICy>$pinkICy</pinkICy>
-    <blueICy>$blueICy</blueICy>
-    <yellowICy>$yellowICy</yellowICy>
-    <pinkMaxX>0.2</pinkMaxX>
-    <blueMaxX>0.2</blueMaxX>
-</XML>
-ENDCONFIG
-
-
-$applet->configuration($config_string);
-$applet->initialState($config_string);
- 
-TEXT(MODES(TeX=>"", HTML=><<'END_TEXT'));
-<script>
-if (navigator.appVersion.indexOf("MSIE") > 0) {
-	document.write("<div width='3in' align='center' style='background:yellow'>You seem to be using Internet Explorer.<br/>It is recommended that another browser be used to view this page.</div>");
-}
-</script>
-END_TEXT
-
-
-##############################################################
-#
-#  Text
-#
-#
 
 Context()->texStrings;
 BEGIN_TEXT
-Even before you learn techniques for solving differential equations, you may be able to analyze equations $BITALIC qualitatively$EITALIC.  As an example, look at the nonlinear equation \(\frac{dy}{dt}=$expr.\)  You are going to analyze the solutions, \(y\), of this equation without actually finding them.  You will be asked to sketch three solutions of the differential equation on the graph below based on qualitative information from the differential equation.
+Even before you learn techniques for solving differential equations, you may be able to analyze equations $BITALIC qualitatively $EITALIC.  As an example, look at the nonlinear equation 
+\[\frac{dy}{dt}=$expr \] 
+You are going to analyze the solutions, \(y\), of this equation without actually finding them.  You will be asked to sketch three solutions of the differential equation on the graph below based on qualitative information from the differential equation.
 
-$BR
-$BR
-In what follows, picture the \(t-\)axis running horizontally and the \(y-\)axis running vertically.
-$BR$BR
+$PAR In what follows, picture the \(t\)-axis running horizontally and the \(y\) axis running vertically.  There is no scale on the \(t\) axis but imagine it is large enough to display the behavior of the solutions as \(t\) approaches \(\pm \infty\).  $PAR
 
-a) For what values of \(y\) is the graph of \(y\) as a function of \(t\) increasing? Use interval notation for your answer.  \{ AnswerFormatHelp("intervals") \} \{ ans_rule(20) \}$BR
-$BR
-$BR
+a) For what values of \(y\) is the graph of \(y\) as a function of \(t\) increasing? Use \{ helpLink("intervals","interval notation") \} for your answer.   \{ ans_rule(20) \}
+$PAR
 
-b) For what values of \(y\) is the graph of \(y\) concave up? \{ ans_rule(20) \} \{AnswerFormatHelp("intervals") \}   $BR 
-For what values of \(y\) is it concave down? \{ ans_rule(20) \} \{AnswerFormatHelp("intervals") \} 
+b) For what values of \(y\) is the graph of \(y\) concave up? \{ ans_rule(20) \}  $BR 
+For what values of \(y\) is it concave down? \{ ans_rule(20) \} (Help with \{helpLink("intervals","interval notation") \}.) 
 $BR
-What information do you need to answer a question about concavity?  Remember that \(y\) is an implicit function of \(t\).  $BR
-$BR
-$BR
+What information do you need to answer a question about concavity?  Remember that \(y\) is an implicit function of \(t\). $BR 
+\{ essay_box(1,50) \} \{ knowlLink("[How to enter answer]",value=>essay_help())\} 
+$PAR
 
-c) Say you are given the initial condition  \(y(0)=$blueICy\).  Use the information found in parts (a) and (b) to sketch the graph of \(y\) in the applet provided.  Draw the curve in $BBOLD\{ BBLUE() \} blue\{ EBLUE() \}$EBOLD.  What is the $BITALIC long-term$EITALIC behavior of \(y(t)\)?  That is, what is \(\lim_{t\to\infty}y(t)\)?  \{ ans_rule(10) \}$BR
-$BR
-END_TEXT
-TEXT( MODES(TeX=>'object code', HTML=>$applet->insertAll(
-  debug=>0,
-  includeAnswerBox=>1,
-#   reinitialize_button=>$permissionLevel>=10,
-   )));
+Parts c),d),e) of this question ask you to modify the blue, red, and green curves in the plot below to make them represent graphs 
+of particular solutions of the differential equation.  $PAR 
 
-BEGIN_TEXT
-$BR$BR
+To modify the blue curve, click the "blue curve" button below the plot to expose blue points and tangents.  Solid blue points lie on the curve. With your mouse click and hold each solid blue point, and move it into a better position.  If the solution curve crosses an edge of the viewing region then the corresponting solid point should be very near the edge, left or right, top or bottom. Improve the shape of the curve between the solid points by moving the open points that lie on the dashed tangents.  Experiment to see how the shape changes.  $PAR
 
-d) Say you are given the initial condition  \(y(0)=$pinkICy\).  Use the information found in parts (a) and (b) to sketch the graph of \(y\). Draw the curve on the applet used in part (c).  Draw the curve in $BBOLD\{ BPINK() \}pink\{ EPINK() \}$EBOLD(pink).  What is the $BITALIC long-term$EITALIC behavior of \(y(t)\)?  That is, what is \(\lim_{t\to\infty}y(t)\)?  \{ ans_rule(10) \}$BR
-$BR
-$BR
+Modify the red or green curve in a similar way, after clicking the corresponding button to expose its points and tangents.   I recommend moving solid points into good positions first, then move the open points to improve the shape between the solid points.
+$PAR
+\[\frac{dy}{dt}=$expr.\]  
+$PAR
+\{ printCanvas() \}$BR
 
-e) Sketch the graph of \(y\) if \(y(0)=$yellowICy\).  (Look at the original equation.)  Sketch this curve in $BBOLD\{ BYELLOW() \}yellow\{ EYELLOW() \}$EBOLD(yellow).  $BR
-$BR
-$BR
+Display points and tangents on:$BR
+\{ printButtons() \}
 
+
+$PAR
+
+c) $BBOLD BLUE: $EBOLD Use the information found in parts (a) and (b) to modify the $BBOLD blue $EBOLD curve to make it represent the graph of a solution \(y=y(t)\) with initial condition \(y(0)=$blueICy\). \{printAnswerBox("blueAnswer")\}  $BR
+What is the $BITALIC long-term$EITALIC behavior of this solution \(y(t)\)?  That is, what is \(\lim_{t\to\infty}y(t)\)?  \{ ans_rule(10) \}
+$PAR
+d) $BBOLD RED: $EBOLD Next, use the information found in parts (a) and (b) to modify the $BBOLD red $EBOLD curve to make it represent the graph of a solution \(y=y(t)\) with initial condition \(y(0)=$redICy\). \{printAnswerBox("redAnswer")\}   $BR
+With this initial condition, what is the $BITALIC long-term$EITALIC behavior of \(y(t)\)?  That is, what is \(\lim_{t\to\infty}y(t)\)?  \{ ans_rule(10) \}
+$PAR
+
+e) $BBOLD GREEN: $EBOLD Finally, use the information found in parts (a) and (b) to modify the $BBOLD green $EBOLD curve to make it represent the graph of a solution \(y=y(t)\) with initial condition \(y(0)=$greenICy\).  \{printAnswerBox("greenAnswer")\}
+$BR With this initial condition, what is \(\lim_{t\to\infty} y(t)\)? \{ans_rule(10)\}
+$PAR
 f) If \(y(t)\) represents the population of some animal species, and if units on the \(y-\)axis are in thousands, interpret the results of (c), (d) and (e).  
 $BR
-The solution to part (c) (sketched in $BBOLD\{ BBLUE() \} blue\{ EBLUE() \}$EBOLD) represents: \{ $popup1->menu() \}$BR
-$BR
-The solution to part (d) (sketched in $BBOLD\{ BPINK() \}pink\{ EPINK() \}$EBOLD)(pink) represents: \{ $popup2->menu() \}$BR
-$BR
-The solution to part (e) (sketched in $BBOLD\{ BYELLOW() \}yellow\{ EYELLOW() \}$EBOLD(yellow)) represents: \{ $popup3->menu() \}$BR
-$BR
+The solution to part (c) (sketched in $BBOLD blue $EBOLD) represents: \{ $popup1->menu() \}
+$PAR
+
+The solution to part (d) (sketched in $BBOLD red $EBOLD) represents: \{ $popup2->menu() \}
+$PAR
+The solution to part (e) (sketched in $BBOLD green $EBOLD) represents: \{ $popup3->menu() \}
+$PAR
 
 Adapted from $BITALIC A Modern Introduction to Differential Equations, 2nd Ed., $EITALIC Henry J. Ricardo, 2009.
 
 END_TEXT
 Context()->normalStrings;
+
 
 ##############################################################
 #
@@ -281,15 +569,420 @@ ANS($inc->cmp);
 ANS($cup->cmp);
 ANS($cdown->cmp);
 
-ANS($lim1->cmp);
-NAMED_ANS('answerBox'=>$ans->cmp());
+ANS(essay_cmp());
 
+# convert canvas (x,y) coordinates to the coordinates (T,Y) 
+# displayed on the plot using scale -5 < T < 5 
+ 
+sub xToT {
+  my $x = shift;
+  return ($x-250)/50;
+}
+
+sub yToY {
+  my $y=shift;
+  return $tickDeltaY/$tickDelta_y*($axis_y-$y);
+}
+
+# convert (T,Y) to (x,y)
+
+sub Ttox {
+  my $T=shift;
+  return 50*$T+250;
+}
+
+sub Ytoy {
+  my $Y=shift;
+  return $axis_y - $Y*$tickDelta_y/$tickDeltaY;
+}
+
+# the numbers here don't matter; only the form is important
+$blueAns = List("(0,0),(0,0),(0,0),(0,0),(0,0)"); 
+
+NAMED_ANS('blueAnswer'=>$blueAns->cmp(  
+  list_checker => sub {
+    my ($correct,$student,$ansHash,$value)=@_;
+    my $score = 0;
+    my @errors = (); 
+    my $i, $j;  # indices
+    if (scalar(@{$student})==0){return 0;} # no points have been clicked
+
+    # read student's points
+    # canvas coordinates are too confusing (y increases going down)
+    # so convert them to the coordinates (T,Y) displayed on the axes
+    # where -5 < T < 5 is the horizontal coordinate.
+    # We'll use s as the parameter in the Bezier curves
+
+    my ($x,$y,@T,@Y);
+    for ($i=0; $i<5; $i++){
+      ($x,$y) = $student->[$i]->value;
+      $T[$i]=xToT($x);
+      $Y[$i]=yToY($y);
+    }
+
+    # coordinate functions T(s),Y(s) of student's Bezier curve
+    sub bzT {
+      my $s = shift(@_);
+      my @T = @_;
+      if ($s < 1/2){
+        $s = 2*$s;
+        return (1-$s)**2*$T[0] + 2*(1-$s)*$s*$T[1] + $s**2*$T[2];
+      }
+      else {
+        $s = 2*$s - 1;
+        return (1-$s)**2*$T[2] + 2*(1-$s)*$s*$T[3] + $s**2*$T[4];
+      }
+    }
+
+    sub bzY {
+      my $s = shift(@_);
+      my @Y = @_;
+      if ($s < 1/2){
+        $s = 2*$s;
+        return (1-$s)**2*$Y[0] + 2*(1-$s)*$s*$Y[1] + $s**2*$Y[2];
+      }
+      else {
+        $s = 2*$s - 1;
+        return (1-$s)**2*$Y[2] + 2*(1-$s)*$s*$Y[3] + $s**2*$Y[4];
+      }
+    }
+    
+    ## check the domain of student's function  
+    ## and that there are no vertical tangents
+    if ( $T[0] > -4.8  ){ 
+      push(@errors,"Check left end: what's the domain?");
+    }
+    if ( $T[0] > $T[1] or $T[1] > $T[2] or $T[2] > $T[3] or $T[3] > $T[4] ){ 
+      push(@errors,"Check tangent slopes. Is graph of a function?");
+    }
+    elsif ( $T[0]==$T[1] or $T[1] == $T[2] or 
+            $T[2] == $T[3] or $T[3] ==$T[4] 
+    ){ push(@errors, "Vertical tangent?"); }
+    if ( scalar(@errors) ){ return(0,@errors);}
+
+    # if it gets this far $T[0]<$T[1]<$T[2]<$T[3]<$T[4]
+    
+    ## check the initial condition: solve bzX(s)=0 for s with bisection method
+    ## (slow but bullet-proof) then find bzY(s).
+    my $Lo=0,$Hi=1,$Mid;
+    for ($i=0; $i<10; $i++){
+      $Mid = ($Lo+$Hi)/2;
+      if (bzT($Mid,@T) < 0) {$Lo=$Mid;}
+      else {$Hi=$Mid;}
+    }
+    if ( abs( bzY($Mid,@Y) - $blueICy) > 0.2 ){
+      push(@errors, "Check initial condition.");
+    }
+    else { $score++; }
+
+    ## next check the ends of the curve
+    if ( ($Y[0] > -$b + 0.3) or ($Y[0] < -$b - 0.2) ){
+      push(@errors,"Check \(y\) as \(t \to -\infty\).");
+    }
+    else { $score++; }
+
+    if (  ($Y[4] > -10.3) ){
+      push(@errors,"Check \(y\) at as \(t \to \infty\). Does it blow up?");
+    }
+    else { $score++; }
+
+    # check the slopes at the ends
+    if ( abs( ($Y[0]-$Y[1])/($T[0]-$T[1]) ) > 0.15 ){
+      push(@errors,"Check slope as \(t \to -\infty\).  Asymptote?");
+    }
+    else { $score++; }
+
+ 
+    if ( ($Y[3]-$Y[4])/($T[3]-$T[4])   > -4 ){
+      push(@errors,"Check slope as \(t\) gets large. Is it steep?");
+    }
+    else { $score++; }
+
+    ## check concavity; should be negative everywhere
+    my $concavOK = 1;
+    if ( ($Y[1]-$Y[0])/($T[1]-$T[0]) <= ($Y[2]-$Y[0])/($T[2]-$T[0]) 
+    ){ 
+      push(@errors,"Check concavity on the left.");
+      $concavOK = 0;
+    }
+    if ( ($Y[3]-$Y[2])/($T[3]-$T[2]) <= ($Y[4]-$Y[2])/($T[4]-$T[2]) 
+    ){
+      push(@errors,"Check concavity on the right.");
+      $concavOK = 0;
+    }
+    $score += $concavOK; 
+    
+    $ansHash->{student_ans}="See graph.";
+    $ansHash->{preview_latex_string}="\text{See graph.}";
+    $ansHash->{correct_ans_latex_string}="\text{Blue curve decreases from \(y=-$b\) to \(-\infty\)}\\ \text{with horizonal asymptote at left end.}";
+
+    return ($score*5/6,@errors);  
+  }
+));
+
+# blue limit
+ANS($lim1->cmp);
+
+# the numbers here don't matter; only the form is important
+$redAns = List("(0,0),(0,0),(0,0),(0,0),(0,0)"); 
+
+NAMED_ANS('redAnswer'=>$redAns->cmp(  
+  list_checker => sub {
+    my ($correct,$student,$ansHash,$value)=@_;
+    my $score = 0;
+    my @errors = (); 
+    my $i, $j;  # indices
+    if (scalar(@{$student})==0){return 0;} # no points have been clicked
+
+    # read student's points
+    # canvas coordinates are too confusing (y increases going down)
+    # so convert them to the coordinates (T,Y) displayed on the axes
+    # where -5 < T < 5 is the horizontal coordinate.
+    # We'll use s as the parameter in the Bezier curves
+
+    my ($x,$y,@T,@Y);
+    for ($i=0; $i<5; $i++){
+      ($x,$y) = $student->[$i]->value;
+      $T[$i]=xToT($x);
+      $Y[$i]=yToY($y);
+    }
+
+    # coordinate functions T(s),Y(s) of student's Bezier curve
+    sub bzT {
+      my $s = shift(@_);
+      my @T = @_;
+      if ($s < 1/2){
+        $s = 2*$s;
+        return (1-$s)**2*$T[0] + 2*(1-$s)*$s*$T[1] + $s**2*$T[2];
+      }
+      else {
+        $s = 2*$s - 1;
+        return (1-$s)**2*$T[2] + 2*(1-$s)*$s*$T[3] + $s**2*$T[4];
+      }
+    }
+
+    sub bzY {
+      my $s = shift(@_);
+      my @Y = @_;
+      if ($s < 1/2){
+        $s = 2*$s;
+        return (1-$s)**2*$Y[0] + 2*(1-$s)*$s*$Y[1] + $s**2*$Y[2];
+      }
+      else {
+        $s = 2*$s - 1;
+        return (1-$s)**2*$Y[2] + 2*(1-$s)*$s*$Y[3] + $s**2*$Y[4];
+      }
+    }
+    
+    ## check the domain of student's function  
+    ## and that there are no vertical tangents
+    if ( $T[0] > -4.8  ){ 
+      push(@errors,"Check left end: what's the domain?");
+    }
+    if ( $T[0] > $T[1] or $T[1] > $T[2] or $T[2] > $T[3] or $T[3] > $T[4] ){ 
+      push(@errors,"Check tangent slopes. Is graph of a function?");
+    }
+    elsif ( $T[0]==$T[1] or $T[1] == $T[2] or 
+            $T[2] == $T[3] or $T[3] ==$T[4] 
+    ){ push(@errors, "Vertical tangent?"); }
+    if ( scalar(@errors) ){ return(0,@errors);}
+
+    # if it gets this far then $T[0]<$T[1]<$T[2]<$T[3]<$T[4]
+    
+    ## check the initial condition: solve bzX(s)=0 for s with bisection method
+    ## (slow but bullet-proof) then find bzY(s).
+    my $Lo=0,$Hi=1,$Mid;
+    for ($i=0; $i<10; $i++){
+      $Mid = ($Lo+$Hi)/2;
+      if (bzT($Mid,@T) < 0) {$Lo=$Mid;}
+      else {$Hi=$Mid;}
+    }
+    if ( abs( bzY($Mid,@Y) - $redICy) > 0.2 ){
+      push(@errors, "Check initial condition.");
+    }
+    else { $score++; }
+
+    ## next check the ends of the curve
+    if ( ($Y[0] > $a + 0.3) or ($Y[0] < $a - 0.2) ){
+      push(@errors,"Check \(y\) as \(t \to -\infty\).");
+    }
+    else { $score++; }
+
+    if (  ($Y[4] < 10.3) ){
+      push(@errors,"Check \(y\) at as \(t\) gets large. Does it blow up?");
+    }
+    else { $score++; }
+
+    # check the slopes at the ends
+    if ( abs( ($Y[0]-$Y[1])/($T[0]-$T[1]) ) > 0.15 ){
+      push(@errors,"Check slope as \(t \to -\infty\).  Asymptote?");
+    }
+    else { $score++; }
+
+    if ( ($Y[3]-$Y[4])/($T[3]-$T[4])   < 4 ){
+      push(@errors,"Check slope as \(t\) gets large. Is it steep?");
+    }
+    else { $score++; }
+
+    ## check concavity; should be positive everywhere
+    my $concav=1;
+    if ( ($Y[1]-$Y[0])/($T[1]-$T[0]) >= ($Y[2]-$Y[0])/($T[2]-$T[0]) 
+    ){
+      push(@errors,"Check concavity on the left.");
+      $concav = 0;
+    }
+    if ( ($Y[3]-$Y[2])/($T[3]-$T[2]) >= ($Y[4]-$Y[2])/($T[4]-$T[2]) 
+    ){
+      push(@errors,"Check concavity on the right.");
+      $concav = 0;
+    }
+    $score += $concav; 
+    
+    $ansHash->{student_ans}="See graph.";
+    $ansHash->{preview_latex_string}="\text{See graph.}";
+    $ansHash->{correct_ans_latex_string}="\text{Red curve increases from \(y=$a\) to \(\infty\)}\\ \text{with horizonal asymptote at left end.}";
+
+    return ($score*5/6,@errors);  
+  }
+));
+
+# red limit
 ANS($lim2->cmp);
+
+# the numbers here don't matter; only the form is important
+$greenAns = List("(0,0),(0,0),(0,0),(0,0),(0,0)"); 
+
+NAMED_ANS('greenAnswer'=>$greenAns->cmp(   
+  list_checker => sub {
+    my ($correct,$student,$ansHash,$value)=@_;
+    my $score = 0;
+    my @errors = (); 
+    my $i, $j;  # indices
+    if (scalar(@{$student})==0){return 0;} # no points have been clicked
+    # read student's points
+    # canvas coordinates are too confusing (y increases going down)
+    # so convert them to the coordinates (T,Y) displayed on the axes
+    # where -5 < T < 5 is the horizontal coordinate.
+    # We'll use s as the parameter in the Bezier curves
+    my ($x,$y,@T,@Y);
+    for ($i=0; $i<5; $i++){
+      ($x,$y) = $student->[$i]->value;
+      $T[$i]=xToT($x);
+      $Y[$i]=yToY($y);
+    }
+    # coordinate functions T(s),Y(s) of student's Bezier curve
+    sub bzT {
+      my $s = shift(@_);
+      my @T = @_;
+      if ($s < 1/2){
+        $s = 2*$s;
+        return (1-$s)**2*$T[0] + 2*(1-$s)*$s*$T[1] + $s**2*$T[2];
+      }
+      else {
+        $s = 2*$s - 1;
+        return (1-$s)**2*$T[2] + 2*(1-$s)*$s*$T[3] + $s**2*$T[4];
+      }
+    }
+    sub bzY {
+      my $s = shift(@_);
+      my @Y = @_;
+      if ($s < 1/2){
+        $s = 2*$s;
+        return (1-$s)**2*$Y[0] + 2*(1-$s)*$s*$Y[1] + $s**2*$Y[2];
+      }
+      else {
+        $s = 2*$s - 1;
+        return (1-$s)**2*$Y[2] + 2*(1-$s)*$s*$Y[3] + $s**2*$Y[4];
+      }
+    }
+    
+    ## check the domain of student's function  
+    ## and that there are no vertical tangents
+    if ( $T[0] > -4.8  ){ 
+      push(@errors,"Check left end: what's the domain?");
+    }
+    if ($T[4] < 4.8 ){
+      push(@errors,"Check right end: what's the domain?");
+    }
+    if ( $T[0] > $T[1] or $T[1] > $T[2] or $T[2] > $T[3] or $T[3] > $T[4] ){ 
+      push(@errors,"Check tangent slopes. Is graph of a function?");
+    }
+    elsif ( $T[0]==$T[1] or $T[1] == $T[2] or 
+            $T[2] == $T[3] or $T[3] ==$T[4] 
+    ){ push(@errors, "Vertical tangent?");}
+    if ( scalar(@errors) ){ return(0,@errors);}
+
+    # if it gets this far then $T[0]<$T[1]<$T[2]<$T[3]<$T[4]
+    
+    ## check the initial condition: solve bzX(s)=0 for s with bisection method
+    ## (slow but bullet-proof) then find bzY(s).
+    my $Lo=0,$Hi=1,$Mid;
+    for ($i=0; $i<10; $i++){
+      $Mid = ($Lo+$Hi)/2;
+      if (bzT($Mid,@T) < 0) {$Lo=$Mid;}
+      else {$Hi=$Mid;}
+    }
+    if ( abs( bzY($Mid,@Y) - $greenICy ) > 0.1 ){
+      push(@errors, "Check initial condition.");
+    }
+    else { $score++; }
+
+    ## next check the ends of the curve
+    if ( ($Y[0] > -$b + 0.3) or ($Y[0] < -$b - 0.2) ){
+      push(@errors,"Check \(y\) as \(t \to -\infty\).");
+    }
+    else { $score++; }
+
+    if (  ($Y[4] > $a + 0.2) or ($Y[4] < $a-0.3) ){
+      push(@errors,"Check \(y\) at as \(t \to \infty \).");
+    }
+    else { $score++; }
+
+    # check the slopes at the ends
+    if ( abs( ($Y[0]-$Y[1])/($T[0]-$T[1]) ) > 0.15 ){
+      push(@errors,"Check slope as \(t \to -\infty\).  Asymptote?");
+    }
+    else { $score++; }
+    if ( abs( ($Y[3]-$Y[4])/($T[3]-$T[4]) ) > 1/10 ){
+      push(@errors,"Check slope as \(t \to \infty\).  Asymptote?");
+    }
+    else { $score++; }
+
+    ## check concavity; should be positive on left, negative on right
+    ## check inflection point 
+    my $concavOK=1;   
+    if ( ($Y[1]-$Y[0])/($T[1]-$T[0]) >= ($Y[2]-$Y[0])/($T[2]-$T[0]) 
+    ){
+      push(@errors,"Check concavity on the left.");
+      $concavOK=0;
+    }
+    if ( ($Y[3]-$Y[2])/($T[3]-$T[2]) <= ($Y[4]-$Y[2])/($T[4]-$T[2]) 
+    ){
+      push(@errors,"Check concavity on the right.");
+      $concavOK=0;
+    }
+    if ( $concavOK && abs($Y[2] - $inflection) > 0.2 ){
+      my $TT = round($T[2]*10)/10; my $YY = round($Y[2]*10)/10;
+      push(@errors,"Inflection at ($TT,$YY)?");
+      $concavOK=0;
+    }
+    $score += $concavOK;
+ 
+    $ansHash->{student_ans}="See graph.";
+    $ansHash->{preview_latex_string}="\text{See graph.}";
+    $ansHash->{correct_ans_latex_string}="\text{Green curve increases from \(y=-$b\) to \(y = $a\)}\\ \text{with horizonal asymptotes at both ends.}";
+
+    return ($score*5/6,@errors);  
+  }
+));
+
+## green limit
+ANS( Real($a)->cmp());
+
 ANS( $popup1->cmp() );
 ANS( $popup2->cmp() );
 ANS( $popup3->cmp() );
 
-
-COMMENT('This problem requires that Flash be enabled on your device.  Click try it to see what students will see.');
+COMMENT("To show graphics in Library Browser click 'eye' icon (on upper right). One part requires grading by hand.");
 
 ENDDOCUMENT();        

@@ -1,0 +1,194 @@
+## DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(Independent samples - t)
+## Date(2015-01-18)
+## Institution(The College of Idaho)
+## Author(R Cruz)
+## Level(2)
+## KEYWORDS('statistics', 'two sample', 'inference', 't score')
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "answerHints.pl",
+  "parserMultiAnswer.pl",
+  "niceTables.pl",
+  "RserveClient.pl"
+);
+
+COMMENT("This problem uses R to calculate the test statistic. Put the 2 parts back together when multipart problems can have different number of attempts per part.");
+
+TEXT(beginproblem());
+
+######################################
+#  Setup
+
+SRAND($psvn); #This makes the connected problems have the same seed
+
+$n1 = random(7,8,1);
+$n2 = $n1 + random(-1,1,2);
+$tableCol = $n1;
+if ($n2>$n1) {$tableCol = $n2;}
+
+@d1[ 0..($n1-1) ] = map { 0 } ( 0..($n1-1) );
+@d2[ 0..($n2-1) ] = map { 0 } ( 0..($n2-1) );
+
+$alpha = 0.10;
+
+rserve_start();  ##START R SESSION
+
+rserve_eval("D1 <- c()");
+rserve_eval("D2 <- c()");
+
+for($i=0; $i<$n1; $i++){
+   $d1[$i] = random(10,21,1);
+   rserve_eval("D1 <- c(D1, $d1[$i])");
+}
+for($i=0; $i<$n2; $i++){
+   $d2[$i] = random(7,18,1);
+   rserve_eval("D2 <- c(D2, $d2[$i])");
+}
+
+rserve_eval("ave1 <- mean(D1)");
+rserve_eval("s1 <- sd(D1)");
+rserve_eval("ave2 <- mean(D2)");
+rserve_eval("s2 <- sd(D2)");
+rserve_eval("result <- t.test(D1,D2, conf.level=0.90)"); 
+$CI1 = join ", ", rserve_eval('round(result$conf.int[1],6)'); 
+$CI2 = join ", ", rserve_eval('round(result$conf.int[2],6)'); 
+$pval = join ", ", rserve_eval('round(result$p.value,4)'); 
+$stat = join ", ", rserve_eval('round(result$statistic,4)');
+
+## For the Solution section:
+$ave1 = join ", ", rserve_eval('round(ave1,2)');
+$s1   = join ", ", rserve_eval('round(s1,2)');
+$ave2 = join ", ", rserve_eval('round(ave2,2)');
+$s2   = join ", ", rserve_eval('round(s2,2)');
+$df   = join ", ", rserve_eval('round(result$parameter,3)');
+$ME   = ($CI2-$CI1)/2;
+### Need single quotes here for the dollar sign to function in R 
+### or perl thinks it is a variable
+
+rserve_finish();  # END R SESSION
+
+$lowerCI = Real("$CI1");
+$upperCI = Real("$CI2");
+#NOTE: SET THE ABSOLUTE TOLERANCE HERE
+$tolerance = 0.001;
+
+$CIcheck = MultiAnswer($lowerCI, $upperCI)->with(
+  singleResult => 0,
+  checker => sub {
+    my ( $correct, $student, $self ) = @_;
+    my ( $Lstu, $Ustu ) = @{$student};
+    my ( $L, $U ) = @{$correct};
+    my @ret = (0,0);  
+#    if ($Lstu eq "" || $Ustu eq "") {
+#       $self->setMessage(1,"Enter an answer in both answer boxes.");
+#       $self->setMessage(2,"Enter an answer in both answer boxes.");
+#       return [ @ret ];
+#    }
+   if ($Lstu>$Ustu) {
+       $self->setMessage(2,"Intervals are described with starting and ending values. The second value should be larger than the first.");
+       return [ @ret ];
+   }
+   if ( (abs($Lstu-$L)<$tolerance && abs($Ustu-$U)<$tolerance) ||
+        (abs($Lstu+$U)<$tolerance && abs($Ustu+$L)<$tolerance) ) {
+       @ret = (1,1);
+   } else { 
+       if (abs($Ustu-$U)<$tolerance || abs($Ustu+$L)<$tolerance) {
+          @ret = (0,1);
+          if ((abs($Ustu-$U)<$tolerance && abs($Lstu-$L)<.09) ||
+              (abs($Ustu+$L)<$tolerance && abs($Lstu+$U)<.09)) {
+            $self->setMessage(1,"Your answer is close to the correct response.");
+          }
+       }
+       if (abs($Lstu-$L)<$tolerance || abs($Lstu+$U)<$tolerance) {
+          @ret = (1,0);
+          if ((abs($Lstu-$L)<$tolerance && abs($Ustu-$U)<.09) ||
+              (abs($Lstu+$U)<$tolerance && abs($Ustu+$L)<.09)) {
+            $self->setMessage(2,"Your answer is close to the correct response.");
+          }
+        }
+   }
+      return [ @ret ];
+  }
+);
+
+######################################
+#  Main text
+
+BEGIN_TEXT
+$BBOLD This question has two parts.  Part 2 follows this problem.
+$BR $BR
+PART 1:$EBOLD
+$BR
+During the steelhead fishing season in north central Idaho, fishing enthusiasts flock to the Salmon river.  The fish and game department recorded the distance between fishermen, in yards, on several stretches of river with similar conditions (parking areas, river access, etc).
+$BR
+\{
+LayoutTable(
+  [
+    [['Site 1:',b=>1,noencase=>1],@d1],
+    [['Site 2:',b=>1,noencase=>1],@d2],
+  ], 
+  midrules => 1,
+  encase => ['\(','\)'],
+  allcellcss => 'padding:6px; '
+);
+\}
+$BR
+For this problem, we are interested in comparing the mean distance between fishermen at the two sites.  Use ${BBOLD}R$EBOLD to find the following:
+$PAR
+(a) The test statistic for a test to determine if there is a significant difference in mean distance between fishermen at the two sites. 
+$BR $SPACE $SPACE
+Test statistic:  \{ans_rule(27)\}
+$PAR
+(b) Form a \(90\)$PERCENT confidence interval for the difference between the mean distance between fishermen at each site.
+$BR $SPACE $SPACE
+Answer: \{$CIcheck->ans_rule(15)\} to \{$CIcheck->ans_rule(15)\}
+$BR  $SPACE $SPACE
+${BITALIC}NOTE: You must have values entered in both answer boxes above for WeBWorK to accept your answer. $EITALIC
+END_TEXT
+
+######################################
+#  Answers
+
+$showPartialCorrectAnswers = 1;
+
+$ans_a = Real("$stat")->with(tolType=>'absolute',tolerance=>.01);
+ANS($ans_a->cmp->withPostFilter(AnswerHints(
+sub{
+     my ($correct,$student,$ans)=@_;
+     return abs($student - $correct) <= .05;
+} => ["Your answer is close to the correct response."]
+)));
+
+ANS( $CIcheck->cmp() );
+
+######################################
+#  Solution
+
+BEGIN_SOLUTION
+$PAR SOLUTION $PAR
+$BR
+(a) \(t = $stat\) with \(df = $df\)
+$BR $BR
+(b) There are \($n1\) values from Site 1 and \($n2\) values from Site 2. The following information may be helpful.
+$BR $BR $SPACE $SPACE $SPACE
+Mean distance at Site 1: \($ave1\)
+$BR  $SPACE $SPACE $SPACE
+Standard deviation for Site 1: \($s1\)
+$BR $BR  $SPACE $SPACE $SPACE
+Mean distance at Site 2: \($ave2\)
+$BR  $SPACE $SPACE $SPACE
+Standard deviation for Site 2: \($s2\)
+$BR $BR  $SPACE $SPACE $SPACE
+The margin of error is \($ME\)
+$BR $BR  $SPACE $SPACE $SPACE
+\(90\)$PERCENT CI: \($lowerCI\) to \($upperCI\)
+END_SOLUTION
+
+ENDDOCUMENT(); # This should be the last executable line in the problem.

@@ -1,0 +1,232 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS('calculus', '', '')
+
+## DBsubject('Calculus - single variable')
+## DBchapter('')
+## DBsection('')
+## Date('6/15/2019')
+## Author('K. Andrew Parker')
+## Institution('CityTech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "PGchoicemacros.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+
+@opt = ();
+$opt[0] = "\(f(x)\) is continuous at x = $a[$i].";
+$opt[1] = "\(f(x)\) is not continuous at x = $a[$i] because \(f($a[$i])\) is undefined.";
+$opt[2] = "\(f(x)\) is not continuous at x = $a[$i] because \(\displaystyle \lim_{x \to $a[$i]} f(x)\) does not exist.";
+$opt[3] = "\(f(x)\) is not continuous at x = $a[$i] because \(f($a[$i])\) and \(\displaystyle \lim_{x \to $a[$i]} f(x)\) exist, but are not equal.";
+
+@mc = (); @a = ();
+@left = (); @mLeft = ();
+@right = (); @mRight = ();
+@limit = (); @y = ();
+@fTeX = ();
+$xMin = -5; $xMax = 5; $yMin = -5; $yMax = 5;
+
+for my $i (0..3) {
+  $a[$i] = non_zero_random(-3,3,1);
+  $opt[0] = "\(f(x)\) is continuous at \(x = $a[$i]\).";
+  $opt[1] = "\(f(x)\) is not continuous at \(x = $a[$i]\) because \(f($a[$i])\) is undefined.";
+  $opt[2] = "\(f(x)\) is not continuous at \(x = $a[$i]\) because \(\displaystyle \lim_{x \to $a[$i]} f(x)\) does not exist.";
+  $opt[3] = "\(f(x)\) is not continuous at \(x = $a[$i]\) because \(f($a[$i])\) and \(\displaystyle \lim_{x \to $a[$i]} f(x)\) exist, but are not equal.";
+  # slopes for left and right sides of x = a
+  $mLeft[$i] = non_zero_random(-2,2,0.2);
+  $mRight[$i] = non_zero_random(-2,2,0.2);
+  # limit from the left
+  $left[$i] = Real(non_zero_random(-3,3,1));
+  # limit exists for all but opt[2]
+  if ( $i != 2 ) {
+    $right[$i] = $left[$i];
+    $limit[$i] = $left[$i];
+  } else {
+    # and doesn't exist for opt[2]
+    do { $right[$i] = Real(non_zero_random(-3,3,1)); } until ( $right[$i] != $left[$i] );
+    $limit[$i] = String('DNE')->with(typeMatch=>$left[$i]);
+  }
+  if ($i == 0 || $i == 2) {
+    $y[$i] = random(0,1,1) ? $left[$i] : $right[$i];
+  } else {
+    do { $y[$i] = Real(random(-4,4,1)); } until ($y[$i] != $left[$i] && $y[$i] != $right[$i]); # which we wont use in opt[1]
+  }
+  my $bLeft = $left[$i] - $mLeft[$i]*$a[$i];
+  my $fLeft = Formula("$mLeft[$i] x + $bLeft")->reduce->TeX;
+  my $bRight = $right[$i] - $mRight[$i]*$a[$i];
+  my $fRight = Formula("$mRight[$i] x + $bRight")->reduce->TeX;
+  if ($i == 1) {
+    $fTeX[$i] = "\[f(x) = \left\{
+        \begin{array}{ll}
+            $fLeft,  & \, x < $a[$i] \\
+            $fRight,  & \, x > $a[$i]
+        \end{array}
+    \right.\]";
+  } else {
+    $fTeX[$i] = "\[f(x) = \left\{
+        \begin{array}{ll}
+            $fLeft,  & \, x < $a[$i] \\
+            $y[$i],  & \, x = $a[$i] \\
+            $fRight,  & \, x > $a[$i]
+        \end{array}
+    \right.\]";
+  } 
+  $mc[$i] = new_checkbox_multiple_choice();
+  $mc[$i]->qa($fTeX[$i], $opt[$i]); 
+  $mc[$i]->makeLast($opt[0],$opt[1],$opt[2],$opt[3]);
+}
+
+@shuffle = NchooseK(4,4);
+@mc = @mc[@shuffle];
+
+
+$table = LayoutTable(
+  [
+    [$mc[0]->print_q(),[$mc[1]->print_q(),rowcss=>'text-align:center;']],
+    [$mc[0]->print_a(),$mc[1]->print_a()],
+    [$mc[2]->print_q(),[$mc[3]->print_q(),rowcss=>'text-align:center;']],
+    [$mc[2]->print_a(),$mc[3]->print_a()],
+  ],
+  align=>'p{275px} p{275px}'
+);
+
+### FOR GUIDING TEXT ###
+@discon = ();
+@example = ();
+for my $i (0..2) {
+  $discon[$i] = init_graph(-5,-5,5,5,size=>[300,300],axes=>[0,0],grid=>[10,10]);
+}
+
+# first discontinuity is f(a) DNE
+add_functions($discon[0], "x-1 for x in <-5,-2> using color:blue and weight:2");
+add_functions($discon[0], "x-1 for x in <-2,5> using color:blue and weight:2");
+$discon[0] -> stamps( open_circle(-2,-3,'blue') );
+$example[0] = "f(x) = (x-1)\left(\frac{x+2}{x+2}\right)";
+
+# second discontinuity is left != right
+add_functions($discon[1], "x-1 for x in <-5,-2> using color:blue and weight:2");
+add_functions($discon[1], "x+1 for x in <-2,5> using color:blue and weight:2");
+$discon[1] -> stamps( open_circle(-2,-3,'blue') );
+$discon[1] -> stamps( closed_circle(-2,-1,'blue') );
+$example[1] = "f(x) = \left\{
+        \begin{array}{ll}
+            x-1,  & \, x < -2 \\
+            x+1,  & \, x \geq -2
+        \end{array}
+    \right.";
+
+
+# third discontinuity is limit != f(a)
+add_functions($discon[2], "x-1 for x in <-5,-2> using color:blue and weight:2");
+add_functions($discon[2], "x-1 for x in <-2,5> using color:blue and weight:2");
+$discon[2] -> stamps( open_circle(-2,-3,'blue') );
+$discon[2] -> stamps( closed_circle(-2,-1,'blue') );
+$example[2] = "f(x) = \left\{
+        \begin{array}{ll}
+            (x-1)\left(\dfrac{x+2}{x+2}\right), & \, x \neq -2 \\
+            -1, & \, x = -2
+        \end{array}
+    \right.";
+
+
+for my $i (0..2) {
+  $fig[$i] = image(insertGraph($discon[$i]),width=>200,height=>200,tex_size=>400);
+}
+
+$exampleTable = DataTable(
+  [
+    [["Reasons why \(f(x)\) might fail to be continuous:",colspan=>3,cellcss=>'font-size:large;']],
+    ["\(f(a)\) does not exist",
+      "\(\displaystyle \lim_{x\to a}f(x)\) doesn't exist",
+      "or both exist, but don't match"],
+    [$fig[0],$fig[1],$fig[2]],
+    ["\[$example[0]\]","\[$example[1]\]","\[$example[2]\]"],
+  ],
+  align=>'c c c',
+  
+);
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> ### Continuous Functions ### <<
+
+A function [`f(x)`] is *continuous* at [`x=a`] if:
+
+* [`a`] is in the domain of [`f(x)`], i.e. [`\color{red}{f(a)}`] exists
+* [`\color{blue}{\displaystyle\lim_{x\to a} f(x)}`] exists, i.e. both one-sided limits exist and are equal
+* [`\color{blue}{\displaystyle\lim_{x\to a} f(x)} = \color{red}{f(a)}`]
+
+
+
+
+[@ $exampleTable @]***
+
+>> ### Practice ### <<
+
+Determine the most accurate statement for each of the following functions:
+
+[@ $table @]***
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+install_problem_grader(~~&std_problem_grader);
+
+$showPartialCorrectAnswers = 0;
+
+ANS(checkbox_cmp($mc[0]->correct_ans));
+ANS(checkbox_cmp($mc[1]->correct_ans));
+ANS(checkbox_cmp($mc[2]->correct_ans));
+ANS(checkbox_cmp($mc[3]->correct_ans));
+
+BEGIN_PGML_HINT
+For [`f(x)`] to be continuous at [`x=a`]:
+
+* check that [`a`] is in the domain of [`f(x)`]. Is [`\color{red}{f(a)}`]  defined?
+* find [`\color{blue}{\displaystyle\lim_{x\to a} f(x)}`] by analyzing  what the one-sided limits, [`\color{green}{\displaystyle\lim_{x\to a^-} f(x)}`] and [`\color{green}{\displaystyle\lim_{x\to a^+} f(x)}`], are. 
+* for the left-hand limit,  [`x`] approaches [`a`] from the left and so [`x<a`]. In this case, what is [`f(x)`]? 
+* for the right-hand limit,  [`x`] approaches [`a`] from the right and so [`x>a`]. In this case, what is [`f(x)`]? 
+* If the one-sided limits are the same, say, equal to [`\color{green}{L}`],  then [`\color{blue}{\displaystyle\lim_{x\to a} f(x)}=\color{green}{L}`]. 
+* compare [`\color{blue}{\displaystyle\lim_{x\to a} f(x)}`]  and  [`\color{red}{f(a)}`]. Are they the same?
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

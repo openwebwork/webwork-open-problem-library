@@ -1,0 +1,186 @@
+# DESCRIPTION
+# Piedmont College
+# MATH 2100 Online Final Exam
+# Hypothesis Test - Two Proportions (Multiple Choice)
+# ENDDESCRIPTION
+
+## DBsubject(Probability)
+## DBchapter(Hypothesis tests)
+## DBsection(Two sample proportion)
+## Institution(Piedmont)
+## Author(Doug Torrance)
+## Level(2)
+## MO(1)
+## KEYWORDS('hypothesis testing')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "PGnumericalmacros.pl",
+  "PGstatisticsmacros.pl",
+);
+
+# add randomly generated options to multiple choice problems
+sub add_options {
+    my ($n, $min, $max, $step, @options) = @_;
+    while (@options < $n) {
+        push(@options, Compute(random($min, $max, $step)));
+        @options = uniq(@options);
+    }
+    return num_sort(@options);
+}
+
+# spit out critical values which agree with table
+sub get_crit {
+    my $sig = shift;
+    my $crit = Round(udistr($sig), 3);
+    if ($crit == 2.576) {
+        return 2.575;
+    } elsif ($crit == 1.645) {
+        return 1.645;
+    } else {
+        return Round($crit, 2);
+    }
+}
+
+@possible_fruits = ('apples', 'pears', 'oranges', 'tangerines', 'plums',
+    'bananas', 'apricots', 'lemons', 'limes', 'mangos');
+($fruits1, $fruits2) = @possible_fruits[NchooseK(10, 2)];
+
+$n1 = random(30, 100);
+$n2 = random(30, 100);
+$p2 = random(Round(5/$n2,2), Round(($n2-5)/$n2,2), 0.01);
+
+# we need p1 to figure out the se, but we'd like the se to choose p1,
+# so let's first approximate se using p * q = 1/6 (the average value --
+# thanks calculus!)
+$tmp_se = sqrt(1/6 * (1 / $n1 + 1 / $n2));
+
+$LEFT = 0;
+$RIGHT = 1;
+$TWO = 2;
+$tailedness = random(0, 2);
+
+$sig = list_random(0.01, 0.05, 0.10);
+
+do {
+    if ($tailedness == $LEFT) {
+        $p1 = random(Round($p2 - 3.5 * $tmp_se, 2), $p2 - 0.01, 0.01);
+        $claim_string = "less than";
+        $alternate_hypothesis = '\(p_1 - p_2 < 0\)';
+        $crit = -get_crit($sig);
+        $crit_string = $crit;
+    } elsif ($tailedness == $RIGHT) {
+        $p1 = random($p2 + 0.01, Round($p2 + 3.5 * $tmp_se, 2), 0.01);
+        $alternate_hypothesis = '\(p_1 - p_2 > 0\)';
+        $claim_string = "more than";
+        $crit = get_crit($sig);
+        $crit_string = $crit;
+    } elsif ($tailedness = $TWO) {
+        $p1 = random(Round($p2 - 3.5 * $tmp_se, 2),
+            Round($p2 + 3.5 * $tmp_se, 2), 0.01);
+        $alternate_hypothesis = '\(p_1 - p_2 \neq 0\)';
+        $claim_string = "different than";
+        $crit = get_crit($sig / 2);
+        $crit_string = "&plusmn;$crit";
+    }
+
+    $p_bar = ($p1 * $n1 + $p2 * $n2) / ($n1 + $n2);
+    $q_bar = 1 - $p_bar;
+    $se = Round(sqrt($p_bar * $q_bar * (1 / $n1 + 1 / $n2)), 5);
+
+    $z = Round(($p1 - $p2) / $se, 2);
+} until (abs($z) < 3.5 and $p1 > 0 and $p1 < 1);
+
+if ($tailedness == $LEFT) {
+    $p_value = Round(normal_prob(-infty, $z), 4);
+} elsif ($tailedness == $RIGHT) {
+    $p_value = Round(normal_prob($z, infty), 4);
+} elsif ($tailedness = $TWO) {
+    $p_value = 2*Round(normal_prob(abs($z), infty), 4);
+}
+
+@hypothesis_string = ('\(p_1 - p_2 = 0\)', '\(p_1 - p_2 < 0\)',
+    '\(p_1 - p_2 > 0\)', '\(p_1 - p_2 \neq 0\)');
+
+$a = RadioButtons([@hypothesis_string], '\(p_1 - p_2 = 0\)');
+$b = RadioButtons([@hypothesis_string], $alternate_hypothesis);
+$c = RadioButtons([add_options(4, -3.5, 3.5, 0.01, $z)], $z, noindex=>1);
+
+@crits = (-1.28, -1.645, -2.33, 1.28, 1.645, 2.33, '&plusmn;1.645',
+    '&plusmn;1.96', '&plusmn;2.575');
+$d = RadioButtons([@crits], $crit_string);
+
+$e = RadioButtons([add_options(4, 0, 1, 0.0001, $p_value)], $p_value,
+    noindex=>1);
+    
+if ($p_value < $sig) {
+    $sufficient = 'Yes';
+} else {
+    $sufficient = 'No';
+}
+
+$f = RadioButtons(['Yes', 'No'], $sufficient);
+
+TEXT(beginproblem());
+
+BEGIN_TEXT
+
+Suppose that of $n1 customers at a fruit stand, \{$p1 * 100\}$PERCENT
+purchase $fruits1.  In another sample of $n2 customers from the fruit stand,
+\{$p2 * 100\}$PERCENT purchase $fruits2.
+$PAR
+
+Test the claim that the proportion of all customers who purchase $fruits1
+(\(p_1\)) is $claim_string the proportion who purchase $fruits2 (\(p_2\))
+at the \(\alpha = \{sprintf("%0.2f", $sig)\}\) significance level.
+(3.333 points each)
+$PAR
+
+$BITALIC Note:$EITALIC Use SE = $se.
+$PAR
+
+(a) Identify the null hypothesis.
+$BR
+\{$a->buttons()\}
+$PAR
+
+(b) Identify the alternate hypothesis.
+$BR
+\{$b->buttons()\}
+$PAR
+
+(c) Find the test statistic.
+$BR
+\{$c->buttons()\}
+$PAR
+
+(d) Determine the critical value(s).
+$BR
+\{$d->buttons()\}
+$PAR
+
+(e) Determine the P-value.
+$BR
+\{$e->buttons()\}
+$PAR
+
+(f) Is there sufficient data to reject the null hypothesis and support the
+    claim?
+$BR
+\{$f->buttons()\}
+
+END_TEXT
+
+ANS($a->cmp);
+ANS($b->cmp);
+ANS($c->cmp);
+ANS($d->cmp);
+ANS($e->cmp);
+ANS($f->cmp);
+
+ENDDOCUMENT();

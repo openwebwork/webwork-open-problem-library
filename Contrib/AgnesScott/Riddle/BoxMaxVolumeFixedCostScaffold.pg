@@ -1,0 +1,329 @@
+##DESCRIPTION
+##  Optimization - maximize volume of a box with closed top and fixed 
+##  cost. Uses GeoGebra HTML5 applet to display graph of volume
+##  function and an animation of the box as the base length is changed.
+##  Embedding of Geogebra applet uses https://github.com/Edfinity/ww_ggb_applet.
+##  Uses scaffolding to first set up the problem in terms of length and height,
+##  then to give a function for volume in terms of the base length, and find its derivative,
+##  then finally to use the derivative to find the optimal dimensions.
+##ENDDESCRIPTION
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Applications of differentiation)
+## DBsection(Optimization - general)
+## Date(12/2020)
+## Institution(Agnes Scott College)
+## Author(Larry Riddle)
+## MO(1)
+## KEYWORDS('optimization', 'applications', 'derivative', 'Geogebra')
+
+############################################################## 
+#  Initialization
+##############################################################
+
+DOCUMENT();      
+
+loadMacros(
+    "PGstandard.pl",
+    "MathObjects.pl",
+    "scaffold.pl",
+    "PGML.pl",
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+$showHint = 0;
+
+##############################################################
+#  Problem Setup
+##############################################################
+
+Context("Numeric");
+Context()->variables->add(h=>"Real");
+Context()->flags->set(
+   tolerance => 0.0005, tolType => "absolute",
+   Context()->{format}{number} = "%.6f#",
+#   formatStudentAnswer => "parsed"
+);
+#C1 cost of top
+#C2 cost of bottom
+#C3 cost of sides
+#C total cost in cents
+$C1 = random(1.25,4,0.25);
+do {$C2 = random(1.25,4,0.25);} until ($C2 != $C1);
+do {$C3 = random(1,4,0.25);} until ($C3 != $C1+$C2);
+$C = random(800,2000,50);
+$Cdollars = sprintf("%0.2f",$C/100);
+$domain = sprintf("%0.2f",sqrt($C/($C1+$C2)));
+
+$costForm = Formula("$C1*x**2 +$C2*x**2+ 4*$C3*x*h");
+$volForm = Formula("x^2*h");
+$volFunc = Formula("($C*x-($C1+$C2)*x**3)/(4*$C3)");
+$volDeriv = Formula("($C - 3*($C1+$C2)*x**2)/(4*$C3)");
+$optimalLength = Real("sqrt($C/(3*($C1+$C2)))");
+$optimalHeight = Real("sqrt(3*$C*($C1+$C2))/(6*$C3)");
+$maxVolume = Real("$C**2*sqrt(3)/(18*$C3*sqrt($C*($C1+$C2)))");
+
+# Possible errors in setting up the cost formula
+# area, not cost
+$AreaForm = Formula("2x**2 + 4*x*h");
+# open top
+$openTop = Formula("$C2*x**2 + 4*$C3*x*h");
+# doesn't take into account 4 sides
+$sideCostError1 = Formula("$C1*x**2+$C2*x**2 + $C3*x*h");
+# uses only 2 sides rather than 4
+$sideCostError2 = Formula("$C1*x**2+$C2*x**2 + 2*$C3**x*h");
+# doesn't include the cost with the 4 sides
+$sideCostError3 = Formula("$C1*x**2+$C2*x**2 + 4*x*h");
+# doesn't take into account side costs
+$noSideCost = Formula("$C1*x**2+$C2*x**2");
+# doesn't include top and bottom
+$noTopBottom = Formula("4*$C3*x*h");
+# doesn't include the cost with the top and bottom
+$noTopBottomCost = Formula("2x**2+4*$C3*x*h");
+# mixed units in volume function
+$mixed = Formula("($C/100*x-($C1+$C2)*x**3)/(4*$C3)");
+
+$CostChecker = sub {
+     my ($correct,$student,$ansHash) = @_;
+     if ($student == $AreaForm) {
+         Value->Error("This appears to be the surface area of the box, not the cost. See the Hint.");
+     } elsif ($student == $mixed) {
+         Value->Error("Your answer is close, but it appears that you may have mixed units with the budget cost in dollars and the box costs in cents."); 
+     } elsif ($student == $correct/100) {
+         Value->Error("Your answer is close, but it appears that you may have expressed the cost of the box in dollars, not cents."); 
+     } elsif ($student == $openTop) {
+         Value->Error("It appears that you may not have included the top of the box. See the Hint.");         
+     } elsif ($student == $sideCostError1) {
+         Value->Error("It appears that you may not have used the correct number of sides of the box. See the Hint.");
+     } elsif ($student == $sideCostError2) {
+         Value->Error("It appears that you may not have used the correct number of sides of the box. See the Hint.");
+     } elsif ($student == $sideCostError3) {
+         Value->Error("It appears that you may not have included the cost of the sides of the box. See the Hint.");
+     } elsif ($student == $noTopBottomCost) {
+         Value->Error("It appears that you may not have included the cost of the top and bottom. See the Hint.");
+     } elsif ($student == $noTopBottom) {
+         Value->Error("It appears that you may not have included the top and bottom of the box. See the Hint.");
+     } elsif ($student == $noSideCost) {
+         Value->Error("It appears that you may not have included the sides of the box. See the Hint.");
+     } elsif ($student != $correct) {
+         Value->Error("See the Hint.");
+     }
+     return 1; 
+};
+
+$VolumeChecker = sub {
+     my ($correct,$student,$ansHash) = @_;    
+     if ($student != $correct) {
+         Value->Error("See the Hint.");
+     }
+     return 1; 
+};
+
+$maxVolumeChecker = sub {
+     my ($correct,$student,$ansHash) = @_;
+     if ((abs($student - $maxVolume) > 0.0005) && (abs($student-$maxVolume) < 0.05)) {
+         Value->Error("You may need to use 5 or more decimal places in x and h to get V accurate to 3 decimal places. See the Hint.");
+     } elsif ($student != $correct) {
+         Value->Error("See the Hint");
+     }
+     return 1;
+};
+
+HEADER_TEXT('<script type="text/javascript" src="https://cdn.geogebra.org/apps/deployggb.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/ww_ggb_applet/lib/ww_ggb_applet.js"></script>');
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+
+<div id="applet2" class="ww-ggb"></div>
+
+<script>
+  var onUpdate = function(obj) {
+  }
+
+  var onLoad = function(applet) {
+     applet.evalCommand("C1 = $C1");
+     applet.evalCommand("C2= $C2");
+     applet.evalCommand("C3 = $C3");
+     applet.evalCommand("A = $C");
+  }
+  
+  encodedApp = "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"
+  new WwGgbApplet('applet2', {
+    width: 716,
+    height: 362,
+    ggbBase64: encodedApp,
+    appletOnLoad: onLoad,
+    appletOnUpdate: onUpdate,
+    hideAnswers: false, 
+    enableShiftDragZoom: false,
+    showResetIcon: true
+    }); 
+</script>
+
+END_SCRIPT
+
+
+##############################################################
+#  Text
+##############################################################
+BEGIN_TEXT
+$PAR
+$BBOLD Note: $EBOLD This problem uses an interactive GeoGebra applet. It may take a few seconds for the figures to appear.
+\{ knowlLink(" Instructions ", value=>'Click and hold the mouse on the point to move it, or use your finger on a touchscreen. You can also click the point and use the left/right arrow keys on a keyboard to move the point. Click or touch the small icon in the upper right corner to reset the app.') \}
+$PAR
+END_TEXT
+
+BEGIN_PGML
+## ##
+
+You have a budget of $[$Cdollars] to construct a box with a square bottom and with a closed top.  
+The cost of the top of the box is [$C1] cents per square inch.  
+The cost of the bottom of the box is [$C2] cents per square inch.  
+The cost of the sides of the box is [$C3] cents per square inch.
+
+In this problem you will find the size of the box that will maximize its volume when you use all of the budget of $[$Cdollars]. The graph above shows a plot of the volume as a function of the base length. Move the indicated point along the graph to visualize how the volume changes for different lengths of the square base, and use this to estimate the optimal size of the bottom square.
+
+Click on Part 1 to open the section. Enter your answers for the two questions in Part 1, then click on Submit Answers. Once your answers are both correct, you will be able to open Part 2. When your answers to Part 2 are both correct, continue to Part 3 to find the optimal width and height for the box with maximum volume.  
+
+END_PGML
+
+#  The scaffold
+Scaffold::Begin(open_first_section => 0);
+
+Section::Begin("Part 1: The Setup",
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Let [`x`] be the width of the square base in inches and let [`h`] be the height of the box in inches.
+
+What is the cost of the box *in cents* in terms of [`x`] and [`h`]?
+
+[`C`] = [_________________________]{$costForm->cmp(checker=>$CostChecker)} cents
+
+What is the volume of the box in terms of [`x`] and [`h`]?
+
+[`V`] = [_________________________]{$volForm->cmp(checker=>$VolumeChecker)} cubic inches  
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+The cost of a closed box is the sum of the cost of the square top, the cost of the square bottom, and the cost of the four sides of the box. The costs should be given in cents. The volume of the box is the area of the base times the height. 
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+The cost of a closed box is the sum of the cost of the square top, the cost of the square bottom, and the cost of the four sides of the box.  The top and bottom each has area [`x^2`]. Each side of the box has area [`xh`]. The cost of a closed box in cents is therefore [`C = [$C1]*x^2 + [$C2]*x^2 + ([$C3])(4xh) = [$C1*$C2]*x^2 + [$C3*4]xh`]. The volume of the box is [`V = x^2 h`].  
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 2: The Calculus Part: Function and Derivative",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Use the fact that the total cost is $[$Cdollars] to determine a function [`V(x)`] that gives the volume of the box in terms of the width [`x`] of the base (this is the function plotted above).
+
+[`V(x)`] = [________________________]{$volFunc->cmp(checker=>$CostChecker)}
+
+What is the derivative of [`V(x)`]?
+
+[`V'(x)`] = [________________________]{$volDeriv}
+
+END_PGML
+
+BEGIN_PGML_HINT
+
+Be careful of units! The cost expression in Part 1 is the cost in cents, but the budget amount is given in dollars.
+
+Solve the cost equation for [`h`] and substitute into the volume formula to get a function for the surface area only in terms of [`x`], then simplify as much as possible before taking the derivative.
+
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+The cost of the box in cents is [``[$C1]*x^2 + [$C2]*x^2 + 4([$C3])xh = [$C1*$C2]*x^2 + [$C3*4]xh = [$C]``] where the budget $[$Cdollars] has been coverted from dollars to cents.
+Solving this equation for [`h`] gives
+
+>>[``
+\begin{aligned}
+[$C1*$C2]*x^2 + [$C3*4]xh = [$C] \\ \\
+[$C3*4]xh = [$C] - [$C1*$C2]*x^2 \\ \\
+h = \frac{[$C] - [$C1*$C2]*x^2}{[$C3*4]x}
+\end{aligned}
+``]<<
+
+Now substitute into [`V = x^2h`] to get a function just in terms of [`x`].
+
+>>[``V(x) = x^2 \left( \frac{[$C] - [$C1+$C2]x^2}{[$C3*4]x} \right) = \frac{1}{[$C3*4]}\left( [$C]x - [$C1+$C2]x^3 \right)``]<<
+
+The domain of this function is [`0 \le x \le \sqrt{\frac{[$C]}{[$C1+$C2]}} \approx [$domain]`] since the you want [`V(x) \ge 0`] with [`x \ge 0.`]
+
+>>[``V'(x) = \frac{1}{[$C3*4]}\left( [$C] - [$C1*3+$C2*3]x^2\right)``]<<
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 3: The Calculus Part: Maximizing the Volume",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+Give your answers rounded to 3 decimal places.
+
+Use the derivative to find the width [`x`] that maximizes the volume.
+
+[`x`] = [_________]{$optimalLength}
+
+What is the height of the box of maximum volume?
+
+[`h`] = [_________]{$optimalHeight}  
+
+What is the volume of the box?
+
+[`V`] = [_________]{$maxVolume->cmp(checker=>$maxVolumeChecker)}
+
+END_PGML
+
+BEGIN_PGML_HINT
+While you may enter your answer to [`x`] rounded to 3 decimal places, you might need to use *more* than 3 decimal places in [`x`] when computing the value of [`h`] to have it correctly rounded to 3 decimal places. And you may need to use even more decimal places in [`x`] and [`h`] when computing the value of [`V`] correctly rounded to 3 decimal places.
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+To maximize [`V`], take the derivative and set it equal to 0.
+
+>>[``
+\begin{aligned}
+V'(x) = \frac{1}{[$C3*4]}\left( [$C] - [$C1*3+$C2*3]x^2\right) = 0 \\ \\
+[$C] - [$C1*3+$C2*3]x^2 = 0 \\ \\
+x^2 = \frac{[$C]}{[$C1*3+$C2*3]} \\ \\
+x = \sqrt{ \frac{[$C]}{[$C1*3+$C2*3]}} \approx [$optimalLength]
+\end{aligned}
+``]<<
+
+To three decimal places rounded, [`x \approx [@sprintf("%.3f", $optimalLength)@]`].
+
+The graph shows that this is the global maximum on the domain [`0 \le x \le [$domain]`] of [`V`]. Calculus can verify this. Note that [``V'' = -\frac{[$C1*6+$C2*6]}{[$C3*4]}x \lt 0``]
+and therefore the critical point is a local maximum by the second derivative test. But since [`V`] is a continuous function and there is only one critical point in the interval [`0 \le x \le [$domain]`], this must actually be the global maximum on this interval.
+
+The optimal height is [``\ h =\frac{[$C] - [$C1+$C2]x^2}{[$C3*4]x} \approx [$optimalHeight]``] with the value of [`x`] found above. To three decimal places rounded, [`h \approx [@sprintf("%.3f", $optimalHeight)@]`].
+
+The volume can be found using [`V = x^2h \approx [$maxVolume]`] with the optimal values of [`x`] and [`h`]. To three decimal places rounded, [`V \approx [@sprintf("%.3f", $maxVolume)@]`].
+
+Note that to get [`h`] and [`V`] accurate to 3 decimal places, it may be necessary to use more decimal places for the intermediate calculations.
+
+END_PGML_SOLUTION
+
+Section::End();
+Scaffold::End();
+
+COMMENT(' Note: Uses GeoGebra which might not be executed in the Library Browser. Uses scaffolding.');
+
+ENDDOCUMENT();

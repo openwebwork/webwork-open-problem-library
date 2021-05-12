@@ -28,13 +28,13 @@
 
 ##############################################
 DOCUMENT();
+
 loadMacros(
-     "PGstandard.pl",
-     "MathObjects.pl",
-     "parserAssignment.pl",
-     "answerHints.pl",
-     "PGML.pl",
-     "contextFraction.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "contextFiniteSolutionSets.pl",
   "PCCmacros.pl",
   "PGcourse.pl",
 );
@@ -42,24 +42,6 @@ loadMacros(
 ##############################################
 
 Context("LimitedFraction")->flags->set(reduceFractions => 0,showMixedNumbers=>0,showExtraParens=>0);
-parser::Assignment->Allow;
-Context()->operators->redefine(',',using=>',',from=>'Numeric');
-Context()->operators->redefine('or',using=>',',from=>'Numeric');
-Context()->operators->set(
-  ','=>{string=>' or ',TeX=>'\hbox{ or }'},
-  'or'=>{string=>' or ',TeX=>'\hbox{ or }'}
-);
-Context()->lists->set(List => {separator => " or "});
-Context()->{error}{msg}{"Function 'sqrt' is not allowed in this context"} 
-  = "Please simplify your answer further";
-
-# add solution strings to context- this means that if
-# students enter these (and they are not correct), then 
-# WW will not give a Context warning
-Context()->strings->add("no real solutions"=>{},
-  "no real solution"=>{alias=>'no real solutions'}, 
-  "none"=>{alias=>'no real solutions'}, 
-  );
 
 $var = "x";
 
@@ -85,7 +67,9 @@ else
 }
 $soln1 = Fraction(-$c-$b,$a);
 $soln2 = Fraction($c-$b,$a);
-$ans = Compute("$var = $soln1, $var = $soln2");
+
+Context("FiniteSolutionSets");
+$ans = Formula("{$soln1, $soln2}");
 
 ##############################################
 
@@ -95,50 +79,14 @@ Solve the equation.
 
     [` \left([$a][$var]+[$b]\right)^2 = [$c**2] `]
 
-    [______________________]
+    [______________________]{$ans}
 
-[@KeyboardInstructions("Enter multiple answers separated by commas, as in [|x=1, x=-1|]*. If you need to use the square root symbol, as in [`x=\\sqrt{17}`], type it as [|x=sqrt(17)|]*. If there are no real solutions, enter [|no real solutions|]*.")@]**
+[@KeyboardInstructions("If you need to use the square root symbol, as in [`x=\\sqrt{17}`], type it as [|x=sqrt(17)|]*. If there are no real solutions, enter [|no real solutions|]*.")@]**
 END_PGML
 
 ##############################################
 
 $showPartialCorrectAnswers = 1;
-ANS($ans->cmp(
-  entry_type => "a solution",
-  checker => sub {
-    my ($correct,$student,$ans,$nth,$value) = @_;
-    if ($correct->type eq "Assignment") {
-      my ($svar,$sfrac) = $student->value; # get the variable and fraction
-      return 0 unless Value::classMatch($sfrac,'Fraction') && $sfrac->isReduced;
-    }
-    return $correct == $student;
-  },
-  extra => sub {
-    my ($student,$ansHash,$nth,$value) = @_;
-    if($student eq "no real solutions")
-    {
-         $student->context->setError("This equation does have some solutions- try using the square root method","",undef,undef,$Value::CMP_WARNING)
-         unless $ans->{isPreview};
-         return;
-    }
-    if ($student->type ne "Assignment" && $ansHash->{student_formula}->type ne "Assignment") {
-      $student->context->setError("Your $nth solution should be written $var = $US$US$US","",undef,undef,$Value::CMP_WARNING)
-         unless $ans->{isPreview};
-      return;
-    }
-    my ($svar,$sfrac) = $student->value; # get the variable and fraction
-    if (Value::classMatch($sfrac,'Fraction') && !$sfrac->isReduced) {
-      $student->context->setError("Your $nth $value is not reduced","",undef,undef,$Value::CMP_WARNING)
-         unless $ans->{isPreview};
-      return;
-    }
-    return Value::Real->typeMatch($student);
-  }
-)->withPostFilter(AnswerHints(
-  ["$var=$soln1","$var=$soln2"] => "Are you sure you have all the solutions?",
-  [$soln1,$soln2] => ["Your solution is a correct one, but you should write $var = $US$US$US<br>Are you sure you have all the solutions?",replaceMessage=>1],
-  ["$soln1,$soln2","$soln1,$soln2"] => ["Your solutions are correct, but you should write $var = $US$US$US",replaceMessage=>1],
-)));
 
 ##############################################
 

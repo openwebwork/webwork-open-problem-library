@@ -7,4 +7,6 @@ Contributors (github):
 * adentremont
 * gohsc
 * jverrett
-* tleonzio
+* xinglong-li
+* jamescharbonneau
+* grrhendra

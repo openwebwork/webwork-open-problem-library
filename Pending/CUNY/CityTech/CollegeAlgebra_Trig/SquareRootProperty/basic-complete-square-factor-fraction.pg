@@ -1,0 +1,148 @@
+##DESCRIPTION
+##  Algebra problem: Complete the square and factor
+##ENDDESCRIPTION
+
+
+## DBsubject(Algebra)
+## DBchapter(Quadratic equations and functions)
+## DBsection(Completing the square)
+## Institution(CUNY City Tech)
+## Author(K. Andrew Parker)
+## Level(2)
+## Language(en)
+## MO(1)
+## KEYWORDS('algebra', 'quadratic equation', 'completing the square', 'quadratic algebra completing the square')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "contextFraction.pl",
+   "contextLimitedFactor.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+$context = Context("Numeric")->variables->are(w=>Real);
+
+$A = random(-1,1,2)*random(3,9,2);
+
+$expr = Formula("w^2 + $A w")->reduce;
+
+Context("LimitedFactor")->variables->are(w=>Real);
+Parser::Number::NoDecimals();
+
+$ans2 = Compute("(w + ($A/2))^2");
+
+$factorCheck = sub {
+    my ($correct,$student,$ans) = @_;
+    return 0 if $ans->{isPreview} || $correct != $student;
+    $student = $ans->{student_formula};
+    $correct = $correct->{original_formula} if defined $correct->{original_formula};
+    # check for equivalence when bizarro arithmetic is enforced
+    Context()->flags->set(bizarroSub=> 1,bizarroAdd=> 1);
+    delete $correct->{test_values}, $student->{test_values};
+    my $OK = ($correct == $student); # check if equal when arithmetic is replace by bizarro arithmetic
+    Context()->flags->set(bizarroSub=> 0,bizarroAdd=> 0);
+    $factorableObject = Context()->flag("factorableObject");
+    Value::Error("Your answer is equivalent to the $factorableObject in the correct answer, but not completely factored or simplified") unless $OK;
+    return $OK;
+  };
+
+Context("LimitedFraction")->flags->set(showMixedNumbers=>0, allowMixedNumbers=>0);
+
+$A2 = $A**2;
+$ans1 = Fraction($A2,4)->reduce;
+$R = Fraction($A,2);
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Fill in the missing value so that the expression is a perfect square trinomial.
+
+    [` \large{ [$expr] + } `] [_____]
+
+    Factored: [______________]
+
+* If your answer contains non-integer values, use fractions, not decimals.
+* If you need to use the square root symbol as in [`\sqrt{5}`], type it using *sqrt(5)*.
+* If there are no solutions, enter *no solutions*.
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+ANS(
+   $ans1->cmp->withPostFilter( sub {
+       my $ans = shift; 
+       $ans->{ans_message} = "Use fractions instead of decimals." 
+       if $ans->{ans_message} eq "You are not allowed to type decimal numbers in this problem";
+       return $ans;
+    }),
+   $ans2->cmp(checker=>$factorCheck)->withPostFilter( sub {
+       my $ans = shift; 
+       $ans->{ans_message} = "Use fractions instead of decimals." 
+       if $ans->{ans_message} eq "You are not allowed to type decimal numbers in this problem";
+       return $ans;
+    })
+);
+
+BEGIN_PGML_HINT
+
+When you square a binomial such as [` (w+A)^2 `],  
+you will get [` w^2 + 2Aw + A^2 `].
+
+You've only been given the first two terms: [` [$expr] `]
+
+Obviously the [` w^2 `] is there... but instead of [` 2Aw `], we have [` [$A]w `].
+
+What is the value of [` A `]? And then what should the third term be?
+
+END_PGML_HINT
+BEGIN_PGML_SOLUTION
+
+Perfect square binomials look like:  
+[` (x+A)^2 = x^2 + 2Ax + A^2 `]
+
+But we've only been given [` [$expr] `].
+
+This is enough to determine the value of [`A`],  
+because instead of [`2Aw`], we have [`[$A]w`].
+
+We can see that in order for [` [$expr] `] to be a perfect square,  
+[`2A`] must be [`[$A]`], or [` A = \frac{[$A]}{2} `]. 
+
+In order to complete the square, we need the third term:  
+[` w^2 + 2Aw + A^2 `]
+
+Because [` A `] is [`\frac{[$A]}{2}`], then the [`A^2`] must be [`\frac{[$A2]}{4}`].
+
+This gives us the perfect square:  
+[` \displaystyle [$expr] + \frac{[$A2]}{4} = \left( w + [@Fraction($A,2)->TeX@] \right)^2 `]
+
+END_PGML_SOLUTION
+
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
+
+ENDDOCUMENT();        

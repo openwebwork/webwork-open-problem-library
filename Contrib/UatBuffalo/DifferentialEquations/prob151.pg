@@ -1,0 +1,215 @@
+## DBsubject(Differential equations)
+## DBchapter(Higher order differential equations)
+## DBsection(Undetermined coefficients)
+## Level(2)
+## Institution(University at Buffalo)
+## Author(Connor Wilson)
+## KEYWORDS('complementary', 'particular', 'linear', 'undetermined')
+## Language(en)
+
+#################################################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "AnswerFormatHelp.pl",
+  "parserFormulaUpToConstant.pl",
+  "PGcourse.pl",
+  "PGML.pl"
+);
+
+Context("Numeric")->variables->add(
+  'C1'=>"Real", 'C2'=>"Real", 'C3'=>"Real", 'A'=>"Real",    
+  'B'=>"Real", 'C'=>"Real", 'D'=>"Real", 'E'=>"Real", 'F'=>"Real",
+  'G'=>"Real", 'H'=>"Real", 'C4'=>"Real", 'C5'=>"Real"
+);
+$showPartialCorrectAnswers = 1;
+@letters = ('A','B','C','D','E','F','G','H');
+@consts = ('C1','C2','C3','C4','C5');
+
+#
+# isConstant will check if a Formula object passed in as a string is
+# actually a constant function, e.g. "(12x^2)/(x^2)".
+#
+# Using Formula differentiation will not detect constant functions in this
+# case. $f->D("x") == 0 will not work, it will invoke the quotient rule
+# instead and fail to reduce the result.
+#
+sub isConstant {
+    my $f = Formula(@_);
+    for (0..5){
+        if ($f->eval(x=>random(-19.9,19.9,0.2)) != 
+            $f->eval(x=>random(-19.9,19.9,0.2))){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+#
+# How to use the CreateCmp method:
+#
+# CreateCmp will return a comparator object you can pass into the correct
+# answer box at the PGML section. Specify the following parameters, in the
+# order listed below, when calling CreateCmp:
+#
+#   1) The correct answer, as a string
+#   2) Each term that forms the correct answer (without constant factors),
+#      as strings
+#   3) If this is for a particular solution, the terms which are solutions
+#      to the homogeneous equation (ignore this step otherwise), as strings
+#   4) The number of particular solution terms, if the particular solution
+#      is correct, or the number of homogeneous solution terms, if the
+#      homogeneous solution is correct, as a string
+#
+# Examples are below the method definition.
+#
+sub CreateCmp {
+    my $n = scalar(@_) - 2;
+    my @inputs = @_;
+    my $splitter = int($inputs[-1]);
+    my $actual = Formula($inputs[0]);
+    my $particular = 1;     # 1 if actual is particular solution, 0 if homogeneous
+    my @terms1 = @inputs[1..$splitter];
+    my @terms2 = ();    # Contains homogeneous terms if this is for the particular solution, otherwise empty
+    if ($n == $splitter){
+        $particular = 0;
+    }else{
+        @terms2 = @inputs[$splitter+1..$n];
+    }
+    
+    return $actual->cmp(
+        checker => sub {
+            my ($corr,$stu,$ansHash) = @_;
+            
+            my @correct_terms = (0) x scalar(@terms1);
+            
+            if ($particular){
+            for my $i (@letters){
+                $dstu = $stu->D($i);
+                if ($dstu != Formula(0)){
+                    $validstu = 0; # Validity of student's i-term. Considered to be valid if the term is a particular or homogeneous solution
+                    for my $k (0..$#terms1){
+                        if (isConstant($dstu . " / (" . $terms1[$k] . ")")){
+                            $correct_terms[$k] += 1;
+                            $validstu = 1;
+                        }
+                    }
+                    for my $k (0..$#terms2){
+                        if (isConstant($dstu . " / (" . $terms2[$k] . ")")){
+                            Value->Error("Your answer should not contain solutions to the homogeneous equation.");
+                        }
+                    }
+                    Value->Error("Your answer is not efficient due to the " . $dstu . " term.")
+                    if ($validstu == 0);
+                }
+            }
+            }else{
+            for my $i (@consts){
+                $dstu = $stu->D($i);
+                if ($dstu != Formula(0)){
+                    $validstu = 0; # Validity of student's i-term. Considered to be valid if the term is a homogeneous solution
+                    for my $k (0..$#terms1){
+                        if (isConstant($dstu . " / (" . $terms1[$k] . ")")){
+                            $correct_terms[$k] += 1;
+                            $validstu = 1;
+                        }
+                    }
+                    
+                    Value->Error("Your answer is not efficient due to the " . $dstu . " term.")
+                    if ($validstu == 0);
+                }
+            }}
+
+            for my $i (0..$#correct_terms){ 
+                if ($correct_terms[$i] > 1){
+                    $wrong = $terms1[$i];
+                    if ($wrong == "1"){
+                        Value->Error("Your answer is not the most efficient, too many constant terms.");
+                    }
+                    Value->Error("Your answer is not the most efficient, too many " . $wrong . " terms.");
+                }
+                if ($correct_terms[$i] == 0){
+                    $wrong = $terms1[$i];
+                    if ($wrong == "1"){
+                        Value->Error("Terms are missing, try adding a constant term.");
+                    }
+                    Value->Error("Terms are missing, try adding an " . $wrong . " term.");
+                }
+            }
+        
+            return 1;
+        }
+    )
+}
+
+
+$cmp1 = CreateCmp("C1+C2 e^(2x)cos(x)+C3 e^(2x)sin(x)",
+    "1", "e^(2x)cos(x)", "e^(2x)sin(x)", "3");
+
+$cmp2 = CreateCmp("Ax^2 + Bx + C x e^(2x)sinx + D x e^(2x)cosx",
+    "x^2", "x", "x e^(2x)sinx", "x e^(2x)cosx",
+    "1", "e^(2x)cos(x)", "e^(2x)sin(x)", "4");
+
+$cmp3 = CreateCmp("C1+C2 e^(-2x)+C3 e^(2x)",
+    "1", "e^(-2x)", "e^(2x)", "3");
+
+$cmp4 = CreateCmp("Ax^3 + Bx^2 + C x + D x e^(2x) + E e^(3x)",
+    "x^3", "x^2", "x", "x e^(2x)", "e^(3x)",
+    "1", "e^(-2x)", "e^(2x)", "5");
+    
+$cmp5 = CreateCmp("C1 + C2 e^(-2x)cos(3x) + C3 e^(-2x)sin(3x)",
+    "1", "e^(-2x)cos(3x)", "e^(-2x)sin(3x)", "3");
+    
+$cmp6 = CreateCmp("Ax^3 + Bx^2 + C x + D x e^(-2x)cos(3x) + E x e^(-2x)sin(3x)",
+    "x^3", "x^2", "x", "x e^(-2x)cos(3x)", "x e^(-2x)sin(3x)",
+    "1", "e^(-2x)cos(3x)", "e^(-2x)sin(3x)", "5");
+
+$cmp7 = CreateCmp("C1 + C2 x + C3 x^2 + C4 e^(-x)cos(x) + C5 e^(-x)sin(x)",
+    "1", "x", "x^2", "e^(-x)cos(x)", "e^(-x)sin(x)", "5");
+    
+$cmp8 = CreateCmp("Ax^6 + Bx^5 + C x^4 + D x^3 + E x e^(-x)sin(x) + F x e^(-x)cos(x)",
+    "x^6", "x^5", "x^4", "x^3", "x e^(-x)sin(x)", "x e^(-x)cos(x)",
+    "1", "x", "x^2", "e^(-x)cos(x)", "e^(-x)sin(x)", "6");
+
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+Apply the method of undetermined coefficients to find the form of the  complementary solution and particular solution to the following DEs. You do not need to determine the coefficients.
+
+
+a) [` \mathbf{y''' - 4y'' + 5y' = 3x + 5e^{2x}sin(x)} `]
+
+    [` y_c = `][_____________________________________]{$cmp1}[`\qquad`]Use C1, C2, and C3 as your constants.
+
+    [` y_p = `][_____________________________________]{$cmp2}[`\qquad`]Use [`A, B, C, \ldots, H`] as your constants, as necessary.
+
+
+b) [` \mathbf{y''' - 4y' = x^2 + 3e^{2x} - e^{3x}} `]
+
+    [` y_c = `][_____________________________________]{$cmp3}[`\qquad`]Use C1, C2, and C3 as your constants.
+
+    [` y_p = `][_____________________________________]{$cmp4}[`\qquad`]Use [`A, B, C, \ldots, H`] as your constants, as necessary.
+
+
+c) [` \mathbf{y''' + 4y'' + 13y' = 3x^2 + 5 - 6e^{-2x}cos(3x)} `]
+
+    [` y_c = `][_____________________________________]{$cmp5}[`\qquad`]Use C1, C2, and C3 as your constants.
+
+    [` y_p = `][_____________________________________]{$cmp6}[`\qquad`]Use [`A, B, C, \ldots, H`] as your constants, as necessary.
+
+
+d) [` \mathbf{y^{(5)} + 2y^{(4)} + 2y''' = 4x^3 - x^2 + 5e^{-x}sin(x)} `]
+
+    [` y_c = `][_____________________________________]{$cmp7}[`\qquad`]Use C1, C2, C3, C4, and C5 as your constants.
+
+    [` y_p = `][_____________________________________]{$cmp8}[`\qquad`]Use [`A, B, C, \ldots, H`] as your constants, as necessary.
+
+
+END_PGML
+
+ENDDOCUMENT();

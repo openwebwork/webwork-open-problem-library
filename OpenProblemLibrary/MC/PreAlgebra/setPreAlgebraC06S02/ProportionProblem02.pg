@@ -28,16 +28,11 @@ loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
   "problemRandomize.pl",
-  "parserAssignment.pl",
-  "unionTables.pl",
-  "parserImplicitEquation.pl",
-  "PGchoicemacros.pl",
+  "parserMultiAnswer.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
-
-$refreshCachedImages = 1;
 
 #  Allow for the user to try another version of the problem once they get it correct.
 ProblemRandomize(when=>"Correct",onlyAfterDue=>0);
@@ -51,19 +46,35 @@ $showPartialCorrectAnswers = 1;
 #
 #
 
-@r = NchooseK(6,1);
-@badchips_text = ('four','five','six','seven','eight','nine');
-@badchips = ('4','5','6','7','8','9');
+Context("Numeric");
+Context()->flags->set(
+  tolerance => 0.01,
+  tolType => "absolute",
+);
 
-$a = $badchips[$r[0]];
-$b = random(300,900,100);
-$d = random(10000,30000,5000);
+#@r = NchooseK(6,1);
+$r = random(0,5,1);
+@badchips_text = ('four','five','six','seven','eight','nine');
+@badchips = (4,5,6,7,8,9);
+
+$a = Real($badchips[$r]);
+$b = Real(random(300,900,100));
+$d = Real(random(10000,30000,5000));
 $bads = $a*$d/$b; 
 
-Context("Numeric")->variables->are(x=>"Real");
-parser::Assignment->Allow;
+#parser::Assignment->Allow;
 
-$expression ="$a/$b=x/$d";
+$multians = MultiAnswer($a,$b,Compute("x"),$d)->with(
+  singleResult=>1,
+  checker => sub {
+    my ($correct, $student, $self) = @_;
+    my ($astu,$bstu,$xstu,$dstu) = @{$student};
+    my ($acor,$bcor,$xcor,$dcor) = @{$correct};
+    if ( ($acor == $astu && $bcor == $bstu && $xcor == $xstu && $dcor == $dstu) or 
+         ($dcor == $astu && $bcor == $bstu && $xcor == $xstu && $acor == $dstu) ){ return 1; }
+    else {return 0;}
+  }
+);
 
 ##############################################################
 #
@@ -71,31 +82,17 @@ $expression ="$a/$b=x/$d";
 #
 #
 
-Context("Numeric");
-Context()->flags->set(
-  tolerance => 0.01,
-  tolType => "absolute",
-);
-
+Context()->texStrings;
 BEGIN_TEXT
+A microchip inspector found $badchips_text[$r] defective chips in a batch containing \($b\) chips.  At that rate, determine the number of defective chips in a batch of \($d\) chips.
 $PAR
-A microchip inspector found $badchips_text[$s[0]] defective chips in a batch containing \($b\) chips.  At that rate, determine the number of defective chips in a batch of \($d\) chips.
+Write a proportion describing this problem in the form \( \frac{a}{b} = \frac{x}{d} \) where \(x\) represents the 
+number that you are asked to find.$PAR
 $BCENTER
-$PAR
-Proportion describing this problem in the form \( \frac{a}{b} = \frac{x}{d} \) \{ans_rule(20)\} 
-$PAR
-The number defective chips expected in the larger batch is \( x = \) \{ans_rule(5)\} 
+\{$multians->ans_rule(6)\}/\{$multians->ans_rule(6)\} = \{$multians->ans_rule(6)\}/\{$multians->ans_rule(6)\}
 $ECENTER
 $PAR
-$BITALIC
-Write a proportion for the phrase.  Then, solve.  
-When necessary, round to the nearest hundredth.
-$BR
-Don't use spaces when typing in your proportion.
-
-$EITALIC
-
-
+The number defective chips expected in the larger batch is \( x = \) \{ans_rule(10)\} 
 END_TEXT
 Context()->normalStrings;
 
@@ -106,7 +103,7 @@ Context()->normalStrings;
 #
 #
 
-ANS( str_cmp($expression) );
+ANS( $multians->cmp());
 ANS( Compute("$bads")->cmp( ) );
 
 ENDDOCUMENT();

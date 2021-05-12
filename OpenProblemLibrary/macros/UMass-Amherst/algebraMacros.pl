@@ -149,11 +149,13 @@ sub disjointCycles
 	{
 		$result = List( map { List( join( ',', @$_ ) ) } ( @cycles ) );
 	}
-	else
+	elsif (scalar @cycles > 0 )
 	{
 		$result = List( map { List( '(' . join( ',', @$_ ) . ')' ) } @cycles );
+	} else {
+                Context()->strings->add(id => {alias => "identity"});          
+                $result = List( ( id ) );
 	}
-	
 	return $result;
 };
 
@@ -343,7 +345,7 @@ sub isEven
 		}
 
 		# read the two hashes to make sure they're the same. if not, the answer is wrong
-		return scalar ( grep{ $studentPerm{ $_ } != $correctPerm{ $_ } } ( 1 .. @x ) ) ? 0 : 1;
+		return scalar ( grep{ $studentPerm{ $_ } != $correctPerm{ $_ } } ( 1 .. @x ) ) ? (0) : (scalar(@$student));
 
 		# an alternative way to do this would be to compute the permutation represented by the correct list of transpositions, then do the inverse of the student's list of transpositions (work left-to-right instead of right-to-left) on the same list, and see if it results in the identity.	
 	};

@@ -1,0 +1,212 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS('calculus', '', '')
+
+## DBsubject('Calculus - single variable')
+## DBchapter('')
+## DBsection('')
+## Date('6/15/2019')
+## Author('K. Andrew Parker')
+## Institution('CityTech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "niceTables.pl",
+   "PGchoicemacros.pl",
+   "parserMultiAnswer.pl",
+   "contextFraction.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Fraction");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0,
+  tolerance=>10**(-25), 
+  tolType=>'absolute');
+
+Context()->strings->add(undefined=>{alias=>"DNE"},undef=>{alias=>"DNE"});
+Context()->variables->add(M=>[Real,limits=>[-10,10]], B=>[Real,limits=>[-10,10]]);
+
+Context()->noreduce('(-x)-y','(-x)+y');
+
+Parser::Number::NoDecimals();
+Context()->{error}{msg}{"You are not allowed to type decimal numbers in this problem"} 
+  = "Decimals are not allowed for this problem, please use exact forms (such as fractions) instead of decimal approximations.";
+
+# this is where our piecewise function "splits"
+$a = non_zero_random(-9,-2,1);
+$b = non_zero_random(2,9,1);
+
+# enable choice of left- or right- continuity
+# usage: $ineq{l/r/n}{lo/hi}
+%ineq = (
+  l=>{lo=>'\leq',mlo=>'\geq',hi=>'>',mhi=>'<'},
+  r=>{lo=>'<',mlo=>'>',hi=>'\geq',mhi=>'\leq'},
+  n=>{lo=>'<',hi=>'>'}
+);
+
+# any combination could happen - analyze ;)
+# randomly include f(a) on the left or right
+$LRa = random(0,1,1) ? "l" : "r";
+$LRb = random(0,1,1) ? "r" : "l";
+# FORCE THE LIMIT TO EXIST - SO WE CREATE THE DESIRED PARAMETER
+$limExistsa = 1;
+$limExistsb = 1;
+
+# start with the middle segment $a < x < $b
+# keep the intercept nice
+$bMid = non_zero_random(-3,3,1);
+$bMidAbs = abs($bMid);
+if (gcf(abs($a),abs($b))==1) {
+  $mMid = random(-1,1,2)*random(2,4,1);
+} else {
+  $mMidDen = gcf(abs($a),abs($b));
+  do { $mMidNum = random(-1,1,2)*random(1,2*$mMidDen-1,1); } until ($mMidNum != $mMidDen);
+  $mMid = Fraction($mMidNum,$mMidDen)->reduce;
+}
+
+$fMid = ($bMid > 0) ? Formula("$mMid x + $bMidAbs") : Formula("$mMid x - $bMidAbs");
+$fMidTeX = $fMid->TeX;
+
+$aLimRight = $fMid->eval(x=>$a);
+$bLimLeft = $fMid->eval(x=>$b);
+
+# move on to the outer rays - left one first
+# start with the endpoint and build around that
+if ($limExistsa) {
+  $aLimLeft = $aLim = $aLimRight;
+} else {
+  do { $aLimLeft = non_zero_random(-5,5,1); } until ($aLimLeft != $aLimRight);
+  $aLim = String("DNE")->with(matchType=>$aLimLeft);
+}
+$mLeftDen = abs($a);
+if ($mLeftDen == 1) {
+  $mLeft = $mLeftNum = non_zero_random(-3,3,1);
+} else {
+  do { $mLeftNum = random(-1,1,2)*random(1,2*$mLeftDen-1,1); } until ( $mLeftNum != $mLeftDen);
+  $mLeft = Fraction($mLeftNum,$mLeftDen)->reduce;
+}
+# now we have m and (a, aLim) so aLim - m*a : but fractions croak
+# but if we did it right, this is integer
+$bLeft = $aLimLeft - $mLeftNum*$a/$mLeftDen;
+$bLeftAbs = abs($bLeft);
+$fLeft = ($bLeft>0) ? Formula("M x + $bLeft") : Formula("M x - $bLeftAbs");
+$fLeftTeX = $fLeft->TeX;
+
+# now the right ray
+if ($limExistsb) {
+  $bLimRight = $bLim = $bLimLeft;
+} else {
+  do { $bLimRight = non_zero_random(-5,5,1); } until ($bLimLeft != $bLimRight);
+  $bLim = String("DNE")->with(matchType=>$bLimLeft);
+}
+$mRightDen = abs($b);
+if ($mRightDen == 1) {
+  $mRight = $mRightNum = non_zero_random(-3,3,1);
+} else {
+  do { $mRightNum = random(-1,1,2)*random(1,2*$mRightDen-1,1); } until ($mRightNum != $mRightDen);
+  $mRight = Fraction($mRightNum,$mRightDen)->reduce;
+}
+# now we have m and (a, aLim) so aLim - m*a : but fractions croak
+# but if we did it right, this is integer
+$bRight = $bLimRight - $mRightNum*$b/$mRightDen;
+$bRightAbs = abs($bRight);
+$fRight = Formula("$mRight x + B");
+$fRightTeX = $fRight->TeX;
+
+# choose an f(a||b) to match left or right - randomized earlier: $LRa||b
+$ya = ($LRa eq "l") ? $aLimLeft : $aLimRight;
+$yb = ($LRb eq "l") ? $bLimLeft : $bLimRight;
+
+$fTex = "\left\{
+        \begin{array}{ll}
+            $fLeftTeX,  & \quad x $ineq{$LRa}{lo} $a \\
+            $fMidTeX,   & \quad $a $ineq{$LRa}{mhi} x $ineq{$LRb}{lo} $b \\
+            $fRightTeX, & \quad x $ineq{$LRb}{hi} $b
+        \end{array}
+    \right.";
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Determine the values for [`M`] and [`B`]:
+
+[``` f(x) = [$fTex] ```]
+
+1. The limit: [``\lim_{x \to [$a]} f(x)``] exists when [`M = `] [_____]{$mLeft}; in which case, [``\lim_{x \to [$a]} f(x) = ``][_____]{$ya}.  
+1. The limit: [``\lim_{x \to [$b]} f(x)``] exists when [`B = `] [_____]{$bRight}; in which case, [``\lim_{x \to [$b]} f(x) = ``][_____]{$yb}.  
+
+* all answers should be given as numbers
+* if a result does not exist, respond with "DNE" or "undefined"
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+#ANS($multiAnsa->cmp);
+#ANS($multiAnsb->cmp);
+
+BEGIN_PGML_HINT
+
+* The function [`f(x)`] is piecewise.  There are three formulas that define 
+[`f(x)`] depending on whether [`\color{brown}{x [$ineq{$LRa}{lo}] [$a]}`] or [`\color{orange}{[$a] [$ineq{$LRa}{mhi}] x [$ineq{$LRb}{lo}] [$b]}`] or [`\color{purple}{x [$ineq{$LRb}{hi}] [$b]}`]. 
+
+ [`\qquad\qquad \star`] If [`\color{brown}{x [$ineq{$LRa}{lo}] [$a]}`], then [`\color{brown}{f(x) = [$fLeftTeX]}`].
+ 
+ [`\qquad\qquad \star`] If [`\color{orange}{[$a] [$ineq{$LRa}{mhi}] x [$ineq{$LRb}{lo}] [$b]}`], then [`\color{orange}{f(x) = [$fMidTeX]}`]. 
+ 
+  [`\qquad\qquad\star`] If [`\color{purple}{x [$ineq{$LRb}{hi}] [$b]}`], then [`\color{purple}{f(x) = [$fRightTeX]}`].
+  
+* The limit, [`\color{blue}{\displaystyle\lim_{x\to [$a]} f(x)}`], exists if the one-sided limits, [`\color{red}{\displaystyle\lim_{x\to [$a]^-} f(x)}`] and [`\color{green}{\displaystyle\lim_{x\to [$a]^+} f(x)}`] exist and are equal.
+
+* To find the left-hand limit, [`\color{red}{\displaystyle\lim_{x\to [$a]^-} f(x)}`], [`x`] approaches [`[$a]`] from the left and so [`x<[$a]`]. In this case, what is [`f(x)`]? 
+
+* To find  the right-hand limit, [`\color{green}{\displaystyle\lim_{x\to [$a]^+} f(x)}`],  [`x`] approaches [`[$a]`] from the right and so [`x>[$a]`]. In this case, what is [`f(x)`]? 
+
+* Now set the equation
+
+>>[` \color{red}{\displaystyle\lim_{x\to [$a]^-} f(x)} = \color{green}{\displaystyle\lim_{x\to [$a]^+} f(x)} `], <<
+
+and solve for [`M`].
+
+
+END_PGML_HINT
+
+# note: the graphs have been shuffled, so the parameters won't match the problems (unless you apply shuffle to them also)
+# example (there is not really an array called @parameter):
+# @parameter = @parameter[@shuffle];
+
+BEGIN_PGML_SOLUTION
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

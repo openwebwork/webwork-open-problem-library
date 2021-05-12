@@ -1,0 +1,196 @@
+# DESCRIPTION
+# Piedmont College
+# MATH 2100 Online Midterm Exam
+# Relative Frequencies/Histograms (Multiple Choice)
+# ENDDESCRIPTION
+
+## DBsubject(Statistics)
+## DBchapter(Exploratory data analysis/descriptive statistics)
+## DBsection(Description of distributions)
+## Institution(Piedmont)
+## Author(Doug Torrance)
+## Level(2)
+## MO(1)
+## KEYWORDS('relative frequency','histogram')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "niceTables.pl",
+  "PGstatisticsmacros.pl",
+  "PGgraphmacros.pl",
+  "PGstatisticsGraphMacros.pl"
+);
+
+# add randomly generated options to multiple choice problems
+sub add_options {
+    my ($n, $min, $max, $step, @options) = @_;
+    while (@options < $n) {
+        push(@options, Compute(random($min, $max, $step)));
+        @options = uniq(@options);
+    }
+    return num_sort(@options);
+}
+
+$n = random(100, 200);
+$mean = random(70, 80);
+$sd = random(5, 15);
+
+do {
+    @grades = urand($mean, $sd, $n, 0);
+    foreach $grade (@grades) {
+        $frequency{floor($grade/5)*5}++;
+    }
+    $min = min(keys %frequency);
+    $max = max(keys %frequency);
+    $num_bins = ($max - $min)/5 + 1;
+} until ($num_bins > 3);
+
+for ($i = $min; $i <= $max; $i += 5) {
+    push(@bins, $i);
+    if (!$frequency{$i}) {
+        $frequency{$i} = 0;
+    }
+}
+
+@missing = num_sort(@bins[NchooseK($num_bins, 3)]);
+foreach $bin (@missing) {
+    $skip_rel_freq{$bin} = 1;
+}
+
+foreach $bin (@bins) {
+    if ($skip_rel_freq{$bin}) {
+        $rel_freq = "?";
+    } else {
+        $rel_freq = Round($frequency{$bin}/$n, 3);
+    }
+    push(@table, ["$bin - " . ($bin + 4), $frequency{$bin}, $rel_freq]);
+    if ($frequency{$bin} > $max_freq) {
+        $max_freq = $frequency{$bin};
+    }
+}
+
+@rel_freqs = map(Round($frequency{$_} / $n,3), @missing);
+
+@a_options = add_options(4, 0, $max_freq / $n, 0.001, $rel_freqs[0]);
+@b_options = add_options(4, 0, $max_freq / $n, 0.001, $rel_freqs[1]);
+@c_options = add_options(4, 0, $max_freq / $n, 0.001, $rel_freqs[2]);
+
+$a = RadioButtons([@a_options], $rel_freqs[0], noindex=>1);
+$b = RadioButtons([@b_options], $rel_freqs[1], noindex=>1);
+$c = RadioButtons([@c_options], $rel_freqs[2], noindex=>1);
+
+sub draw_histogram {
+    my (%freqs) = @_;
+    my $graph = init_graph($min - 10, -5, $max + 10,
+        ceil($max_freq/5)*5 + 5, 'axes'=>[$min-5,0], 'size'=>[600,600]);
+    for (my $bin = $min; $bin <= $max + 5; $bin += 5) {
+        if ($freqs{$bin} > 0) {
+            $graph->moveTo($bin, 0);
+            $graph->lineTo($bin + 5, 0, blue);
+            $graph->lineTo($bin + 5, $freqs{$bin}, blue);
+            $graph->lineTo($bin, $freqs{$bin}, blue);
+            $graph->lineTo($bin, 0, blue);
+            $graph->fillRegion([$bin + 2.5, $freqs{$bin}/2, blue]);
+            $graph->lineTo($bin + 5, 0);
+            $graph->lineTo($bin + 5, $freqs{$bin});
+            $graph->lineTo($bin, $freqs{$bin});
+            $graph->lineTo($bin, 0);
+        }
+        $graph->moveTo($bin, 0);
+        $graph->lineTo($bin, 1);
+        $graph->lb(new Label($bin, 0, $bin,'black','center','top'));
+    }
+    for (my $y = 5; $y <= ceil($max_freq/5)*5; $y += 5) {
+        $graph->moveTo($min-5, $y);
+        $graph->lineTo($min-4, $y);
+        $graph->lb(new Label($min-5, $y, $y,'black','right','middle'));
+    }
+    return $graph;
+}
+
+@graphs = (draw_histogram(%frequency));
+for ($i = 0; $i < 3; $i++) {
+    push(@graphs, draw_histogram(map {$_ => random(0, $max_freq)} @bins));
+}
+
+@histogram_order = NchooseK(4,4);
+@graphs = @graphs[@histogram_order];
+@correct_histogram = grep { $histogram_order[$_] == 0 } 0..3;
+@histogram_choices = ('i','ii','iii','iv');
+
+$d = RadioButtons([@histogram_choices], $correct_histogram[0]);
+$e = RadioButtons(['normal', 'skewed left', 'skewed right',
+    'none of the above'], 'normal');
+    
+TEXT(beginproblem());
+
+BEGIN_TEXT
+
+Suppose that there are $n students enrolled in all the sections of
+statistics at a college.  Their grades on the first test are given in the
+frequency table below.  (4 points each) $correct_histogram
+$PAR
+\{
+DataTable(
+    [
+        [['Grade',midrule=>1], 'Frequency', 'Relative Frequency'],
+        @table
+    ]
+);
+\}
+$PAR
+
+Compute the missing relative frequencies.
+$PAR
+
+(a) $missing[0] - \{$missing[0] + 4\}
+$BR
+\{$a->buttons()\}
+$PAR
+
+(b) $missing[1] - \{$missing[1] + 4\}
+$BR
+\{$b->buttons()\}
+$PAR
+
+(c) $missing[2] - \{$missing[2] + 4\}
+$BR
+\{$c->buttons()\}
+$PAR
+
+(d) Select the histogram which corresponds to the test grades.
+$PAR
+
+i. \{image(insertGraph($graphs[0]), width=>300, height=>300)\}
+$PAR
+
+ii. \{image(insertGraph($graphs[1]), width=>300, height=>300)\}
+$PAR
+
+iii. \{image(insertGraph($graphs[2]), width=>300, height=>300)\}
+$PAR
+
+iv.  \{image(insertGraph($graphs[3]), width=>300, height=>300)\}
+$PAR
+
+\{$d->buttons()\}
+$PAR
+
+(e) Describe the distribution of the test grades.
+$BR
+\{$e->buttons()\}
+
+END_TEXT
+
+ANS($a->cmp);
+ANS($b->cmp);
+ANS($c->cmp);
+ANS($d->cmp);
+ANS($e->cmp);
+
+ENDDOCUMENT();

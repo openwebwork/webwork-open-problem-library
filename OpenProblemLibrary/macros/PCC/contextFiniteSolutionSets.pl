@@ -1,6 +1,6 @@
 ################################################################################
 # WeBWorK Online Homework Delivery System
-# Copyright © 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
+# Copyright &copy; 2000-2018 The WeBWorK Project, http://openwebwork.sf.net/
 # $CVSHeader$
 # 
 # This program is free software; you can redistribute it and/or modify it under
@@ -72,12 +72,12 @@ sub _contextFiniteSolutionSets_init {
     formatStudentAnswer => "parsed",
     checkSqrt => 0,
     checkRoot => 0,
+    useBizarro => 1,    
     setSqrt => exp(1)/main::ln(2),
     setRoot => exp(2)/main::ln(3),
     wrongFormMessage => 'Your answer is numerically correct, but not in the expected form',
     preferSetNotation => 1,
     #tolerance => 0.00001,
-    
   );
   $context->noreduce('(-x)+y','(-x)-y');
   $context->operators->set(
@@ -105,6 +105,11 @@ sub _contextFiniteSolutionSets_init {
     "none"=>{alias=>'no real solutions'},
     "no solution"=>{alias=>'no real solutions'},
     "no solutions"=>{alias=>'no real solutions'},
+    #Hack. Investigate making all of this be a constant.
+    "{}" =>{alias=>'no real solutions'},
+    "{ }" =>{alias=>'no real solutions'},
+    "{  }" =>{alias=>'no real solutions'},
+    "{   }" =>{alias=>'no real solutions'},
     "infinitely many solutions"=>{},
     "infinitely many"=>{alias=>'infinitely many solutions'},
     "infinite solutions"=>{alias=>'infinitely many solutions'},
@@ -114,6 +119,7 @@ sub _contextFiniteSolutionSets_init {
   $context->functions->add(identity => {class => 'finiteSolutionSets::Function::numeric'});
   parser::Root->Enable($context);
   $context->functions->set(root=>{class=>'finiteSolutionSets::Function::numeric2'}); # override root()
+  $context->lists->set(List => {open => "{", close => "}"});
   $context->{cmpDefaults}{Formula}{checker} = sub {
     my ($correct,$student,$ans) = @_;
     return 0 if $ans->{isPreview} || $correct != $student;
@@ -122,7 +128,10 @@ sub _contextFiniteSolutionSets_init {
     $student = Formula("identity($student)");  #ensure student is parsed as Formula object
     my $setSqrt = Context()->flag("setSqrt");
     my $setRoot = Context()->flag("setRoot");
-    Context()->flags->set(checkSqrt => $setSqrt, checkRoot => $setRoot, bizarroAdd => 1, bizarroSub => 1, bizarroMul => 1, bizarroDiv => 1); 
+    my $useBizarro = (Context()->flag("useBizarro")) ? 1 : 0;
+    Context()->flags->set(checkSqrt => $setSqrt, checkRoot => $setRoot, bizarroAdd => $useBizarro, bizarroSub => $useBizarro, bizarroMul => $useBizarro, bizarroDiv => $useBizarro); 
+    delete $correct->{test_points};
+    delete $student->{test_points};
     delete $correct->{test_values};
     delete $student->{test_values};
     my $OK = ($correct == $student); 
@@ -247,7 +256,8 @@ sub _contextFiniteSolutionSets_init {
      #
      #  Express a preference for formatting
      #
-     if ($studentFormula->type ne 'Set' and $m == $score and Context()->flags->get('preferSetNotation') == 1 ) {push(@errors,"The preferred notation for the solution set is${BR}{" . join(',',@correctanswers) . '}' )};
+     if ($studentFormula->type ne 'Set' and $m == $score and Context()->flags->get('preferSetNotation') == 1 )
+       {push(@errors,"The preferred notation for the solution set is${BR}\\(\\left\\{" . join(',',map{$_->TeX}(@correctanswers)) . "\\right\\}\\)" )};
      return ($score,@errors);
   };
 }

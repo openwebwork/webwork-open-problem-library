@@ -1,0 +1,189 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS('calculus', '', '')
+
+## DBsubject('Calculus - single variable')
+## DBchapter('')
+## DBsection('')
+## Date('6/15/2019')
+## Author('K. Andrew Parker')
+## Institution('CityTech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "niceTables.pl",
+   "PGchoicemacros.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0,
+  tolerance=>10**(-25), 
+  tolType=>'absolute');
+
+Context()->strings->add(undefined=>{alias=>"DNE"},undef=>{alias=>"DNE"});
+
+$a = non_zero_random(-3,3,1);
+
+@left = (); @mLeft = ();
+@right = (); @mRight = ();
+@limit = ();
+
+for my $i (0..3) {
+  # slopes for left and right sides of x = a
+  $mLeft[$i] = non_zero_random(-2,2,0.2);
+  $mRight[$i] = non_zero_random(-2,2,0.2);
+  # limit from the left
+  $left[$i] = Real(non_zero_random(-3,3,1));
+  # limit exists for 2 
+  if ($i%2 == 0) {
+    $right[$i] = $left[$i];
+    $limit[$i] = $left[$i];
+  } else {
+    # and doesn't exist for the other two
+    do { $right[$i] = Real(non_zero_random(-3,3,1)); } until ( $right[$i] != $left[$i] );
+    $limit[$i] = String('DNE')->with(typeMatch=>$left[$i]);
+  }
+}
+
+@gr = ();
+@fig = ();
+$xMin = -5; $xMax = 5; $yMin = -5; $yMax = 5;
+
+for my $i (0..3) {
+ $gr[$i] = init_graph($xMin, $yMin, $xMax, $yMax, size=>[300,300], axes=>[0,0], grid=>[$xMax-$xMin,$yMax-$yMin]);
+# $gr[$i]->lb('reset');
+ my $fLeft = "$mLeft[$i]*(x - $a) + $left[$i]";
+ my $fRight = "$mRight[$i]*(x - $a) + $right[$i]";
+ add_functions($gr[$i], "$fLeft for x in <$xMin,$a> using color:blue and weight:2");
+ add_functions($gr[$i], "$fRight for x in <$a,$xMax> using color:blue and weight:2");
+ $gr[$i] -> stamps( open_circle($a,$left[$i],'blue') );
+ $gr[$i] -> stamps( open_circle($a,$right[$i],'blue') );
+ #($gr->fn)[0]->steps(50);
+ $fig[$i] = image(insertGraph($gr[$i]),width=>200,height=>200,tex_size=>400);
+};
+
+# shuffle the images (and limits)
+@shuffle = NchooseK(4,4);
+@fig = @fig[@shuffle];
+@limit = @limit[@shuffle];
+@left = @left[@shuffle];
+@right = @right[@shuffle];
+
+$table = LayoutTable(
+  [
+    ['Graph A',['Graph B',rowcss=>"padding-bottom:1pt;"]],
+    [$fig[0], [$fig[1], rowcss=>"padding-bottom:2pt; padding-top:2pt"]],
+    ["\(\displaystyle \lim_{x \to $a} f(x) =\)".ans_rule(5),
+      ["\(\displaystyle \lim_{x \to $a} f(x) =\)".ans_rule(5),
+        rowcss=>"padding-top:2pt;"]],
+    ['Graph C',['Graph D',rowcss=>"padding-bottom:1pt;"]],
+    [$fig[2], [$fig[3], rowcss=>"padding-bottom:2pt; padding-top:2pt"]],
+    ["\(\displaystyle \lim_{x \to $a} f(x) =\)".ans_rule(5),
+      ["\(\displaystyle \lim_{x \to $a} f(x) =\)".ans_rule(5),
+        rowcss=>"padding-top:2pt;"]],
+  ],
+  align => 'c c',
+  center => 1,
+);
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+>> #### Finding the limit graphically #### <<
+
+Limits may not exist:  
+* if the values near [`x=a`] cannot 'agree' on a common [`y`]-value, the limit might not exist
+* consider approaching along [`f`] from the left
+* and then consider approaching from the right
+* do our two approaches "come together"?
+* if they come together, then we say the limit equals the matching output as we approach from each side
+* if they do not come together, we say the limit "does not exist" (DNE)
+
+>> #### Practice #### <<
+
+[$table]***
+
+END_PGML
+
+##############################################################
+#
+#  Answers
+#
+#
+
+##############################################################
+#
+#  Hint
+#
+#
+
+BEGIN_PGML_HINT
+
+* Imagine a vertical line passing through [`x =[$a]`] dividing the graph into two parts.
+* Approach the graph from the left until you hit the vertical line. At this point, what is the [`y`]-value?
+* Do the same approaching the graph from the right. 
+* Now compare the [`y`]-values.
+
+
+END_PGML_HINT
+
+##############################################################
+#
+#  Solution
+#
+#
+
+ANS($limit[0]->cmp);
+ANS($limit[1]->cmp);
+ANS($limit[2]->cmp);
+ANS($limit[3]->cmp);
+
+
+
+# note: the graphs have been shuffled, so the parameters won't match the problems (unless you apply shuffle to them also)
+# example (there is not really an array called @parameter):
+# @parameter = @parameter[@shuffle];
+BEGIN_PGML_SOLUTION
+
+* Graph A: [` \displaystyle \lim_{x \to [$a]} f(x) = [$limit[0]]`]
+[@ ($limt[0] = String('DNE'))? "as `f(x)` approaches $left[0] from the left and $right[0] from the right." : "as `f(x)` approaches $left[0] both from the left and from the right. " @]
+
+* Graph B: [`\displaystyle \lim_{x \to [$a]} f(x) =  [$limit[1]]`]
+[@ ($limt[1] = 'DNE')? "as `f(x)` approaches $left[1] from the left and $right[1] from the right." : "as `f(x)` approaches $left[1] both from the left and from the right. " @]
+
+* Graph C: [`\displaystyle \lim_{x \to [$a]} f(x) =  [$limit[2]]`]
+[@ ($limt[2] = String('DNE'))? "as `f(x)` approaches $left[2] from the left and $right[2] from the right." : "as `f(x)` approaches $left[2] both from the left and from the right. " @]
+
+* Graph D: [`\displaystyle \lim_{x \to [$a]} f(x) =  [$limit[3]]`]
+[@ ($limt[3] = String('DNE'))? "as `f(x)` approaches $left[3] from the left and $right[3] from the right." : "as `f(x)` approaches $left[3] both from the left and from the right. " @]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        

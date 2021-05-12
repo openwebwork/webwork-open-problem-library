@@ -1,0 +1,220 @@
+##DESCRIPTION
+##   
+##ENDDESCRIPTION
+
+##KEYWORDS('calculus', '', '')
+
+## DBsubject('Calculus - single variable')
+## DBchapter('')
+## DBsection('')
+## Date('6/15/2019')
+## Author('K. Andrew Parker')
+## Institution('CityTech')
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   "PGgraphmacros.pl",
+   "niceTables.pl",
+   "contextFraction.pl",
+   "scaffold.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Fraction");
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->variables->add(h=>'Real');
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0,
+  tolerance=>5*10**(-10),
+  tolType=>'absolute'
+);
+
+$va = non_zero_random(-5,5,1);
+$a = $va + random(-1,1,2)*random(1,4,1);
+$n = non_zero_random(-3,3,1);
+
+$factor = Formula("x-$va")->reduce;
+$f = Formula("$n/$factor");
+$fah = $f->substitute(x=>Formula("$a + h"));
+$fahctor = $factor->substitute(x=>Formula("$a + h"));
+$faDen = $a - $va;
+# compute and reduce f(a)
+$fa = Fraction($n,$faDen)->reduce;
+$faTeX = $fa->TeX;
+$nRed = ($fa->value)[0];
+$faDenRed = ($fa->value)[1];
+
+$dx = Formula("h")->reduce;
+# calculate dy: (n/a+h-va) - (n/faden)
+# (n*faden - n a - n h + n va ) / (faden (a+h) - faden va)
+# (n*a ~~- n*va~~ - n a - n h ~~+ n va~~ ) / ((a-va) x - (a-va) va)
+# (- n h) / (faden*(a+h-va))
+# (-nRed h) / (fadenred h + fadenred*(a-va))
+$na = $nRed*$a;
+$faDenaVa = $faDenRed*($a-$va);
+$dyMid = Formula("($n($faDenRed) - $nRed($fahctor))/($faDenRed($fahctor))")->reduce;
+$dy = Formula("(-$nRed h)/($faDenRed h + $faDenaVa)")->reduce;
+
+$dydx = Formula("$dy/$dx")->with(test_at=>[[0,$a],[1,$a],[0,1.5]],checkUndefinedPoints=>1);
+$dydxRed = Formula("-$nRed/($faDenRed h + $faDenaVa)")->reduce->with(test_at=>[[0,$a],[1,$a],[0,1.5]],checkUndefinedPoints=>1);
+
+$slope = Fraction($dydxRed->eval(h=>0));
+
+# graph f(x) and label (a,f(a)) & vertex
+$xMin = -10;
+$xMax = 10;
+$yMin = -10;
+$yMax = 10;
+$gr = init_graph($xMin,$yMin,$xMax,$yMax,
+  size=>[500,500],
+  grid=>[20,20],
+  axes=>[0,0]);
+add_functions($gr, "$f for x in <$xMin,$xMax> using color:blue and weight:2");
+($gr->fn)[0]->steps(300);
+$gr->stamps(closed_circle($a,$fa,'black'));
+$gr->stamps(closed_circle($h,$k,'black'));
+$hAlign = ($a>0)?'left':'right';
+$gr->lb(new Label($a,$fa,"($a,$fa)",'black',$hAlign,'bottom'));
+$vAlign = ($A>0)?'top':'bottom';
+$gr->lb(new Label($h,$k,"($h,$k)",'black','center',$vAlign));
+
+
+$approxTable = DataTable(
+[
+  [[image(insertGraph($gr), width=>300, height=>300, tex_size=>300), noencase=>1]],
+  [['f(x) = '.$f->TeX,cellcss=>'padding-bottom:10pt;']],
+  [["compute the instantaneous slope at: \(($a,$faTeX)\)",noencase=>1]],
+],
+allcellcss=>'padding: 1pt;',
+align=>'c',
+encase=>['\(','\)']);
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+guiding text:  
+* slope requires two points, one of which is always the point where we want to find the instantaneous slope.
+    * [`A: \left(a,f(a)\right)`] where [`a`] is a specific real number (the [`x`]-coordinate where we want to find the instantaneous slope)
+
+* the second point varies, and we look at the slope as this point "gets close" to [`A`].
+    * [`B: \left(x,f(x)\right)`] where [`x`] "approaches" to [`a`] (symbolically: [`x \to a`])
+
+* [`\Delta x`] is the _signed_ distance between [`a`] and [`x`]: [`\Delta x = x - a`]
+    * _signed_ distance just means that [`\Delta x`] is negative when [`x`] approaches [`a`] from the left [`x \to a^-`], and [`\Delta x`] is positive when [`x`] approaches [`a`] from the right [`x \to a^+`]
+    * as [`x`] approaches [`a`], this distance gets closer and closer to 0
+    * in other words, [`x \to a`] has the same meaning as [`\Delta x \to 0`]
+
+* Flip the script: [`\Delta x = x - a`] is the same as [` x = a + \Delta x`]
+    * replacing [`x`] with [`a + \Delta x`], our point [`B`] is instead: [`\left(a+\Delta x, f(a+\Delta x)\right)`]
+    * and [`\Delta y = f(x) - f(a)`] becomes [`\Delta y = f(a + \Delta x) - f(a)`].
+    * also, instead of [`x \to a`], we have [`\Delta x \to 0`] representing the same idea
+    * this means [``\lim_{x \to a} \left(\frac{\Delta y}{\Delta x}\right)``] will instead be written as: [``\lim_{\Delta x \to 0} \left(\frac{\Delta y}{\Delta x}\right)``]
+    
+* This adjustment will make our calculations easier in some cases.
+    * [`\Delta x`] is cumbersome to write, so we frequently use [`h`] instead of [`\Delta x`].
+    * so [``\lim_{\Delta x \to 0} \left(\frac{f(a+\Delta x) - f(a)}{\Delta x}\right)``] is written more simply: [``\lim_{h \to 0} \left(\frac{f(a+h)-f(a)}{h}\right)``]
+    * the benefit of this approach is that our denominator is now a monomial, which tends to be easier to reduce.
+
+>> ### The instantaneous slope of [`f(x)`] ### <<
+>> #### when [`f(x)`] is rational #### <<
+
+[$approxTable]***
+
+END_PGML
+Scaffold::Begin();
+Section::Begin("Start with two points");
+BEGIN_PGML
+
+[`` A: ([$a], [$fa]) ``] and [`` B: \left([$a] + h, ? \right) ``]
+
+What is the [`y`]-coordinate of [`B`]? [____________]{$fah}
+
+END_PGML
+Section::End();
+Section::Begin("Compute \(\Delta x\) and \(\Delta y\)");
+BEGIN_PGML
+
+Now that we have:
+    [`` A: ([$a], [$fa]) ``] and [`` B: \left([$a] + h, [$fah] \right) ``]
+
+Compute [`\Delta x = `][__________]{$dx}
+
+Compute [`\Delta y = `][__________]{$dy}
+
+END_PGML
+Section::End();
+Section::Begin("Compute and Reduce \(\Delta x/\Delta y\)");
+BEGIN_PGML
+
+So then, if [``\Delta x = [$dx]``] and [``\Delta y = [$fah] - [$fa] = [$dyMid] = [$dy] ``]:
+
+Compute and reduce [``\frac{\Delta y }{\Delta x}``]: [____________]{$dydxRed}
+
+END_PGML
+Section::End();
+Section::Begin("Finding the limit");
+BEGIN_PGML
+
+Now that we have [``\frac{\Delta y }{\Delta x} = \left([$dydxRed]\right)\left(\frac{[$dx]}{[$dx]}\right)``].
+
+And because [``\lim_{h \to 0} \left( \frac{[$dx]}{[$dx]}\right) = 1``], we know that [``\lim_{h \to 0} \left([$dydxRed]\right)\left(\frac{[$dx]}{[$dx]}\right) = \lim_{h \to 0} \left([$dydxRed]\right)``].
+
+Compute [``\lim_{h \to 0}\left([$dydxRed]\right)``] to find [``\lim_{h \to 0} \left( \frac{\Delta y}{\Delta x} \right) = ``][__________]{$slope}
+
+END_PGML
+Section::End();
+Scaffold::End();
+##############################################################
+#
+#  Answers
+#
+#
+
+
+
+
+BEGIN_PGML_HINT
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+[`` \frac{\Delta y}{\Delta x} = \dfrac{\left([$fah]\right) - ([$fa])}{[$dx]} = \dfrac{[$dy]}{[$dx]} ``]
+
+[`` \dfrac{[$dy]}{[$dx]} = \dfrac{\left([$dydxRed]\right)\left([$dx]\right)}{[$dx]}``]
+
+[`` \dfrac{\left([$dydxRed]\right)\left([$dx]\right)}{[$dx]} = \left([$dydxRed]\right)\left(\dfrac{[$dx]}{[$dx]}\right) ``]
+
+*separately:*  
+    [`` \lim_{h \to 0} \left([$dydxRed]\right) = [$slope] ``]  
+    [`` \lim_{h \to 0} \left(\dfrac{[$dx]}{[$dx]}\right) = 1``]
+
+so [`` \lim_{h \to 0} \left(\left([$dydxRed]\right)\left(\dfrac{[$dx]}{[$dx]}\right)\right) = ([$slope])(1) = [$slope] ``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();        
+

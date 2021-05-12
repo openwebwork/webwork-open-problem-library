@@ -1,0 +1,276 @@
+#################################################################
+## DESCRIPTION
+## Linear models, multiple regression; fit a multiple regression with quadratic term; model comparison and selection; 
+## point estimate and prediction interval at a set of given value of expalnatory variables;
+## find the optimal value of explanatory variables.
+##
+## This question is based on qeustion 4 in the final exam of Stat 306, 2016 term 2.
+## Original Author: Harry Joe
+##
+## ENDDESCRIPTION 
+## ENDDESCRIPTION 
+#################################################################
+
+#################################################################
+## DBsubject(Statistics)
+## DBchapter(Multiple regression)
+## DBsection(Model Selection)
+## Date(2020/01/20)
+## Author(Bruce Dunham)
+## Institution(UBC)
+## Level(3)
+#################################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+);
+
+#################################################################
+## Setup: this is where we use Perl and PG objects (Required)
+Context("Numeric");
+
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+rserve_eval("set.seed($seed)");
+
+## fix the name of the downloadable data files 
+rserve_eval("filename <- file.path(tempdir(), 'helicopter_${studentLogin}.txt')");
+
+my @remote_file = rserve_eval('
+  len <- c(5.6, 6.1, 6.6, 6.1, 5.6, 6.1, 6.6, 6.6, 6.1, 6.6, 5.6, 5.6, 5.6, 6.6, 6.1, 6.1, 6.1, 6.6, 5.6, 6.6, 6.1, 6.6, 5.6, 6.6, 6.1, 5.6, 5.6);
+  wid <- c(1.4, 1.4, 2.1, 0.7, 1.4, 0.7, 0.7, 1.4, 1.4, 2.1, 0.7, 2.1, 2.1, 1.4, 2.1, 0.7, 1.4, 0.7, 1.4, 1.4, 2.1, 2.1, 0.7, 0.7, 2.1, 0.7, 2.1);
+  flighttime <- c(1.98, 1.89, 2.08, 1.41, 1.87, 1.30, 0.93, 1.85, 1.87, 1.86, 1.10, 1.69, 1.69, 1.94, 1.82, 1.43, 1.73, 0.93, 1.83, 1.98, 1.94, 2.00, 1.25, 1.00, 1.85, 1.21, 1.61);
+  n <- length(len);
+  len <- round(len+rnorm(n, mean=0, sd=0.05), 1);
+  wid <- round(wid+rnorm(n, mean=0, sd=0.05), 1);
+  flighttime <- round(flighttime+rnorm(n, mean=0, sd=0.03), 2);
+  D <- matrix(c(flighttime, len, wid), ncol=3, byrow=FALSE);
+  write.table(D, file=filename, append=FALSE, quote = TRUE, sep = " ", row.names=F, col.names = c("flighttime", "len", "wid"));
+  filename
+');
+
+my $local_file = rserve_get_file($remote_file[0]);
+
+$local_url = $local_file;
+$local_url =~ s|$tempDirectory|$tempURL|;
+
+@results = rserve_eval('
+  reg <- lm(flighttime~len+wid+I(len^2)+I(wid^2)+I(len*wid));
+  b <- summary(reg)$coefficients;
+  new_len <- round(runif(1, min=5, max=7), 1);
+  new_wid <- round(runif(1, min=1, max=2.5), 1);
+  new_time <- b[1] + b[2]*new_len + b[3]*new_wid + b[4]*new_len^2 + b[5]*new_wid^2 + b[6]*new_len*new_wid;
+  sig <- summary(reg)$sigma;
+  X <- matrix(c(rep(1, n), len, wid, len^2, wid^2, len*wid), nrow=n, ncol=6, byrow=FALSE);
+  x <- c(1, new_len, new_wid, new_len^2, new_wid^2, new_len*new_wid);
+  hat <- sum(x*solve(t(X)%*%X, x));
+  se_time <- sig*sqrt(1+hat);
+  l <- new_time - qt(p=0.975, df=n-6)*se_time;
+  u <- new_time + qt(p=0.975, df=n-6)*se_time;
+  opt <- solve(matrix(c(2*b[4], b[6], b[6], 2*b[5]), nrow=2, ncol=2, byrow=TRUE), -c(b[2], b[3]));
+  opt_l <- opt[1];
+  opt_w <- opt[2];
+
+  c(round(b[1], 3), round(b[2], 3), round(b[3], 3), round(b[4], 3), round(b[5], 3), round(b[6], 3), new_len, new_wid, round(new_time, 2), round(sig, 3), round(hat, 3), round(se_time, 2), round(l, 2), round(u, 2), round(opt_l, 2), round(opt_w, 2))
+');
+
+$b0 = $results[0];
+$blen = $results[1];
+$bwid = $results[2];
+$bl2 = $results[3];
+$bw2 = $results[4];
+$blw = $results[5];
+$newlen = $results[6];
+$newwid = $results[7];
+$newtime = $results[8];
+$sig = $results[9];
+$hat = $results[10];
+$setime = $results[11];
+$lower = $results[12];
+$upper = $results[13];
+$optl = $results[14];
+$optw = $results[15];
+
+# Part (a)
+
+$mca = new_checkbox_multiple_choice();
+@ansa = ("Smaller residual standard deviation", "Much larger adjusted R\(^2\)", "Significant coefficients for quadratic terms", "Larger R\(^2\)");
+$mca->qa("Compare the summaries of these three models. What are things in the regression summaries that indicate that the quadratic function fit is better than the linear function?", $ansa[0], $ansa[1], $ansa[2]);
+$mca->extra($ansa[3]);
+
+# Part (b)
+
+$mcb = new_checkbox_multiple_choice();
+$mcquesb = "For the quadratic model, which coefficients are invariant, to three decimal places at least, to the shifting of length and width by constants?";
+$mcb->qa($mcquesb, "len\(^2\)", "wid\(^2\)", "len\(\times\)wid");
+$mcb->extra("intercept", "len", "wid");
+
+#################################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+A paper helicopter experiment (http://www.paperhelicopterexperiment.com/) was run to find some optimal dimensions. Explanatory variables are body length and body width (both in cm) of a piece of paper before the folding/cutting is done to produce the helicopter. The response variable \(Y\) is the flight time (time taken from launch to landing on the floor, in seconds) after release from a height of \(2.5 m\). Suppose that experimental data are available and can be downloaded from this link (\{ htmlLink($local_url, "Download the data here") \}), with variables abbreviated as \(len\) and \(wid\). 
+$BR
+Fit a linear regression model for \(Y\) on the two explanatory variables, a quadratic regression model with original variables and a quadratic regression with the explanatory variables centred. 
+
+$BR
+$BR
+$BBOLD Part (a) $EBOLD
+$BR
+\{$mca->print_q()\}
+\{$mca->print_a()\}
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+\{$mcb->print_q()\}
+\{$mcb->print_a()\}
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+Using the quadratic model including interaction, obtain a point estimate, prediction SE and a prediction interval when length = $newlen cm, width = $newwid cm. Provide answers to the following to two decimal places. 
+$BR
+point estimate: \{ans_rule(8) \}
+$BR
+prediction SE: \{ans_rule(8) \}
+$BR
+prediction interval: (\{ans_rule(8)\}, \{ans_rule(8)\})
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR 
+What are the estimated optimal length and width to maximize flight time?  Provide answers to two decimal places.
+$BR
+optimal length: \{ans_rule(8) \}
+$BR
+optimal width: \{ans_rule(8) \}
+$BR
+
+
+END_TEXT
+
+#################################################################
+## Answers evaluation (Required)
+
+$showPartialCorrectAnswers = 1;
+
+ANS(checkbox_cmp($mca->correct_ans()));
+ANS(checkbox_cmp($mcb->correct_ans()));
+ANS(num_cmp($newtime, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($setime, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($lower, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($upper, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($optl, tol=>0.02, tolType=>"absolute") );
+ANS(num_cmp($optw, tol=>0.02, tolType=>"absolute") );
+
+#################################################################
+## Solution (Optional but recommended)
+Context()->texStrings;
+BEGIN_SOLUTION
+
+$BBOLD Part (a) $EBOLD
+$BR
+Significant coefficients of quadratic terms, smaller residual standard deviation and larger adjusted R\(^2\) all indicate that the quadratic regression model fits the observed data better. 
+$BR
+Larger R\(^2\) does not indicate any advantage of the quadratic regression model, since R\(^2\) always prefers larger models.
+$BR
+
+
+$BR
+$BBOLD Part (b) $EBOLD
+$BR
+By comparing the summary of the regression model with centered and uncentered explanatory variables, it can be seen that the coefficients of quadratic terms are invariant to shifting of length and width by constants. 
+$BR
+
+$BR
+$BBOLD Part (c) $EBOLD
+$BR
+The point estimate of flight time can be obtained by substituting the estimated coefficients into the regression model with quadratic terms (with either centered or uncentered variables) as follows:
+$BR
+\[
+\begin{align*}
+\mu_Y(x) &= \beta_0 + \beta_1 len + \beta_2 wid + \beta_3 len^2 + \beta_4 wid^2 + \beta_5 len*wid \\
+&= $b0 + $blen\times $newlen + $bwid\times$newwid + $bl2\times($newlen)^2 + $bw2\times($newwid)^2 + $blw\times$newlen\times$newwid \\
+&= $newtime.
+\end{align*} 
+\]
+The prediction standard error at a given set of explanatory variables \(x^{\star}\), say, length = $newlen cm, width = $newwid cm, is 
+\[
+se(Y^{\star}(x^{\star})) = \hat{\sigma}\sqrt{1 + x^{\star T} (X^{T}X)^{-1}x^{\star}} = $sig \times\sqrt{1 + $hat} = $setime,
+\]
+where \(X \) is the design matrix and \(\hat{\sigma} \) is the residual standard deviation.
+$BR
+Using the point estimate and the standard error obtained above, we can obtain the 95% prediction interval
+\[
+(\hat{\mu}_Y - t_{n-6, 0.975}\times se(Y),\quad \hat{\mu}_Y + t_{n-6, 0.975}\times se(Y)) = ($lower,\quad $upper).
+\]
+$BR
+
+$BR
+$BBOLD Part (d) $EBOLD
+$BR
+The relationship between the flight time and length and width of the paper is given by the fitted quadratic regression model.
+\[
+Y = \hat{\beta}_0 + \hat{\beta}_1 len + \hat{\beta}_2 wid + \hat{\beta}_3 len^2 + \hat{\beta}_4 wid^2 + \hat{\beta}_5 len*wid.
+\]
+The optimal length and width that maximize the flight time can be obtained by deriving the partial derivatives of \(Y \) with respect to \(len \) and \(wid\) and setting them to 0. That is, the optimal values according to the model fitted, \(len_{opt}\) and \(wid_{opt}\) say, satisfy
+\[
+\hat{\beta}_1 + 2\hat{\beta}_3 len_{opt} + \hat{\beta}_5 wid_{opt} = 0 \\
+\hat{\beta}_2 + 2\hat{\beta}_4 wid_{opt} + \hat{\beta}_5 len_{opt} = 0.
+\]
+Or equivalently, 
+\[
+\begin{bmatrix}
+    2\hat{\beta}_3 & \hat{\beta}_5 \\
+    \hat{\beta}_5  & 2\hat{\beta}_4
+\end{bmatrix} 
+\begin{bmatrix}
+len_{opt} \\
+wid_{opt}
+\end{bmatrix}
+= -
+\begin{bmatrix}
+   \hat{\beta}_1 \\
+   \hat{\beta}_2
+\end{bmatrix}.
+\]
+The optimal value of length and width therefore are
+\[
+\begin{bmatrix}
+len_{opt} \\
+wid_{opt}
+\end{bmatrix}
+= -
+\begin{bmatrix}
+    2\hat{\beta}_3 & \hat{\beta}_5 \\
+    \hat{\beta}_5  & 2\hat{\beta}_4
+\end{bmatrix}^{-1}
+\begin{bmatrix}
+   \hat{\beta}_1 \\
+   \hat{\beta}_2
+\end{bmatrix}.
+\]
+$BR
+
+END_SOLUTION
+
+ENDDOCUMENT();

@@ -22,18 +22,16 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
+  "MathObjects.pl",
   "PGmatrixmacros.pl",
-  "PGnumericalmacros.pl",
-  "PGmorematrixmacros.pl",
   "parserMultiAnswer.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
 
-$a = new Matrix(3,3);
+Context("Matrix");
+
 $a11 = random(-1,1,1);
 $a21 = random(-1,1,2);
 $a31 = random(-1,1,2);
@@ -48,106 +46,49 @@ $n = random(-1,1,2);
 $a13 = $c * $a11 + $d * $a12 + $n;
 $a23 = $c * $a21 + $d * $a22;
 $a33 = $c * $a31 + $d * $a32;
-$det = - $a31 * $m * $n;
-$a->assign(1,1, $a11 );
-$a->assign(1,2, $a12 );
-$a->assign(1,3, $a13 );
-$a->assign(2,1, $a21 );
-$a->assign(2,2, $a22 );
-$a->assign(2,3, $a23 );
-$a->assign(3,1, $a31 );
-$a->assign(3,2, $a32 );
-$a->assign(3,3, $a33 );
-$a_lr = $a->decompose_LR();
-$a_det = $a_lr->det_LR();
-$b = $a_lr->invert_LR();
+
+$a = Matrix([[$a11,$a12,$a13],[$a21,$a22,$a23],[$a31,$a32,$a33]]);
+$b = $a->inverse();
+
 # b has integer entries since det($a) = +/-1
-for $j (1..3) {
-  for $k (1..3) {
-    $b->assign($j, $k, round($b->element($j, $k)));
-  }
-}
-$e = new Matrix(3,3);
 
-$e11=random(-5,-2,1);
-$e22=random(-1,1,1);
-$e33=random(2,5,1);
+$e11=Real(random(-5,-2,1));
+$e22=Real(random(-1,1,1));
+$e33=Real(random(2,5,1));
 
-$e->one();
-$e->assign(1,1, $e11);
-$e->assign(2,2, $e22);
-$e->assign(3,3, $e33);
-
-$e1 = new Matrix(3,1);
-$e1->one();
-$e1->assign(1,1, $e11);
-$e1->assign(2,1, $e22);
-$e1->assign(3,1, $e33);
-
+$e = Matrix([[$e11,0,0],[0,$e22,0],[0,0,$e33]]);
 
 $matrix = $a * $e *$b;
-# $matrix_lr = $matrix->decompose_LR();
-# $matrix_det = $matrix_lr->det_LR();
-
-my $id3   = new Matrix(3,3);
-$id3->zero();
-$id3->assign(1,1,1);
-$id3->assign(2,2,1);
-$id3->assign(3,3,1);
 
 ## to check that we have a correct answer, just verify that
 ##    the appropriate matrix multiplication works
-$mm = MultiAnswer( @{ra_flatten_matrix($a)}, @{ra_flatten_matrix($e1)},
-		   )->with(
-    singleResult => 1,
-    checkTypes => 1,
-    format => "S=(%s, %s, %s)$BR (%s, %s, %s)$BR (%s, %s, %s)$BR D=(%s, 0, 0)$BR (0, %s, 0)$BR (0, 0, %s)",
-    tex_format => "S= (%s, %s, %s ;%s, %s, %s; %s, %s, %s),  D= (%s, 0, 0; 0, %s, 0; 0, 0, %s)",
-    checker => sub {
-	my ( $correct, $student, $self ) = @_;
-	my @corS1  = @{$correct}[0..8];
-	my @corD1  = @{$correct}[9..11];
-	
-	my @stuS1  = @{$student}[0..8];
-	my @stuD1  = @{$student}[9..11];
-	
-	my $stuS  = new Matrix(3,3);
-	my $stuD  = new Matrix(3,3);
-#	my $stuSI = new Matrix(3,3);
-	my $corD  = new Matrix(3,3);
-	my $i=0;
-	for ( my $j=1; $j<=3; $j++ ) {
-	    for ( my $k=1; $k<=3; $k++ ) {
-		$stuS->assign($j,$k, $stuS1[$i]);
-                $i++;		
-	    }
-            $stuD->assign($j,$j,$stuD1[$j-1 ]);
-	    $corD->assign($j,$j,$corD1[$j-1 ]);
-	}
-        $det_S = $stuS1[0]* $stuS1[4] * $stuS1[8] + $stuS1[1]* $stuS1[5] * $stuS1[6] + $stuS1[2]* $stuS1[3] * $stuS1[7] - $stuS1[0]* $stuS1[5] * $stuS1[7] - $stuS1[1]* $stuS1[3] * $stuS1[8] - $stuS1[2]* $stuS1[4] * $stuS1[6];
 
-
-  	return( $matrix * $stuS == $stuS * $stuD  && $det_S!=0 );
-    }
+$mm = MultiAnswer($a,$e11,$e22,$e33)->with(
+   singleResult => 1,
+   checker => sub {
+     my ($correct, $student, $self ) = @_;
+     my ( $corr_a, $corr_e11, $corr_e22, $corr_e33) = @{$correct};
+     my ( $stu_a, $stu_e11, $stu_e22, $stu_e33) = @{$student};
+     my $stu_b = $stu_a->inverse();
+     my $stu_e = Matrix([[$stu_e11,0,0],[0,$stu_e22,0],[0,0,$stu_e33]]);
+     $matrix == $stu_a*$stu_e*$stu_b ? return(1) : return(0); 
+   }
 );
 
+
+Context()->texStrings;
 BEGIN_TEXT
-Let \(A =   \{ display_matrix_mm($matrix)\} \) .
-$BR
-$BR
+Let \(A = $matrix\).
+$PAR
 Find \(S\) and \(D\) such that \(A=SDS^{-1}\).
-\{ mbox( '\(S=\)',
-	 display_matrix(
-		[[ $mm->ans_rule(4), $mm->ans_rule(4), $mm->ans_rule(4) ],
-                 [ $mm->ans_rule(4), $mm->ans_rule(4), $mm->ans_rule(4) ],
-                 [ $mm->ans_rule(4), $mm->ans_rule(4), $mm->ans_rule(4) ]]),
-	 ', \(D=\)',
-	 display_matrix(
-		[[ $mm->ans_rule(4), 0, 0 ],
-                 [ 0, $mm->ans_rule(4), 0 ],
-                 [ 0, 0, $mm->ans_rule(4) ]]), '.' 
-) \}
+\{ mbox( '\(S=\)', $mm->ans_array, ', \( D=\)',
+   display_matrix(
+	[[ $mm->ans_rule(4), 0, 0 ],
+         [ 0, $mm->ans_rule(4), 0 ],
+         [ 0, 0, $mm->ans_rule(4) ]]), '.')
+\}
 END_TEXT
+Context()->normalStrings;
 
 ANS($mm->cmp() );
 

@@ -13,7 +13,6 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "PGchoicemacros.pl",
   "algebraMacros.pl",
   "PGcourse.pl"
 );
@@ -22,62 +21,103 @@ loadMacros(
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 0;
 
+Context("Numeric");
+
+# create g = gcd( modulus, c )
 
 @chooseG = ( 8, 10, 12, 15, 16, 18, 20 );
+$i = random(0, scalar(@chooseG)-1, 1);
+$g = $chooseG[$i];
 
 @chooseNumbers = ( 4, 5, 7, 9 );
 fyshuffle( ~~@chooseNumbers );
 
-# create g = gcd( modulus, c )
-$g = splice( @chooseG, random( 0, @chooseG - 1, 1 ), 1 );
+# two coprime numbers chosen at random from @chooseNumbers;
+($a,$b) = @chooseNumbers;
 
-# multiply g by two coprime numbers to get modulus and c with gcd = g
+$modulus = $a*$g;
 
-$mOverG = pop( @chooseNumbers ); # modulus/g
-$modulus = $g * pop( @chooseNumbers );
+$c = $b*$g;
 
-$c = $g * pop( @chooseNumbers ) % $modulus;
-
+# so $g = gcd($c, $modulus)
 
 
-$ans[ 0 ] = List( 0, $g, map { $_ * $g } grep{ gcd( $_, $mOverG ) != 1 } ( 2 .. $mOverG - 1 ) );
-$ans[ 1 ] = List( grep { $g % $_ == 0 } ( 1 .. $g ) );
+$ans0 = List( map { $_ * $g } (0..$a-1) );
+
+$ans1 = List( grep { $g % $_ == 0 } ( 1 .. $g ) );
 	
+$customGrader = sub {
+  my($correct,$student,$ansHash,$value)=@_;
+  my $studN = scalar(@$student);
+  my $corrN = scalar(@$correct);
+  my $score = 0; 
+  my @errors = ();
+  my $i,$j;
+  # check that student's answers are integers and they 
+  # match distinct correct answers
+  my $matched;
+  for ($i=0; $i<$studN; $i++){
+    my $ith = Value::List->NameForNumber($i+1);
+    if ( $student->[$i]->type ne "Number" or 
+         ($student->[$i]) !=  floor($student->[$i]) 
+    ){
+      push(@errors, "Your $ith entry is not an integer");
+      return (0,@errors);
+    }
+    if ($student->[$i] < 0 or $student->[$i] > $modulus -1){
+       push(@errors,"Represent elements \(b\in \mathbb{Z}_{$modulus}\) by integers \(0\leq b < $modulus\)");
+       return (0,@errors);
+    }
+    for ($j=0; $j<$i; $j++){
+      if ( (($student->[$i])-($student->[$j])) % $modulus == 0 ){
+        my $jth = Value::List->NameForNumber($j+1);
+        push(@errors, "Your $ith and $jth answers are equivalent mod $modulus") unless $ansHash->{isPreview};
+        return (0,@errors);
+      }
+    }
+    $matched = 0;
+    for ($j=0; $j<$corrN; $j++){
+      if ( ( gcd($student->[$i], $modulus) - ($correct->[$j]) ) % $modulus == 0 ){
+        $matched = 1;
+        $score++;
+        last;
+      }
+    }
+    if ( ! $matched ){
+      push(@errors, "Your $ith answer is wrong") unless $ansHash->{isPreview};
+    }
+  }
+  if ( $studN < $corrN ){ push(@errors, "Your list of answers should be longer") unless $ansHash->{isPreview}; }
+  if ( $studN > $corrN ){ push(@errors, "Your list of answers is too long") unless $ansHash->{isPreview}; }
+  return ($score, @errors);
+};
 
-TEXT(EV3(<<'EOT'));
+Context()->texStrings;
+BEGIN_TEXT
+It is a fact that every ideal of \( \{ cyclic( $modulus ) \} \) is of the form \( ( b ) \) for some element \( b \) of \( \{ cyclic( $modulus ) \} \). $PAR
 
-It is a fact that every ideal of \( \{ cyclic( $modulus ) \} \) is of the form \( ( b ) \) for some element \( b \) of \( \{ cyclic( $modulus ) \} \). $BR $BR
+(a) Find all the ideals \(I\) of \(\{ cyclic( $modulus ) \} \) that are contained in the ideal \( ( $c ) \): 
+\[($c) \subseteq I \subseteq \{cyclic( $modulus)\}.\] 
+In the answer blank below list one generator for each ideal.  Separate the generators by commas.$BR
+\{ ans_rule( 20 ) \} $PAR
 
-(a) Determine all ideals of \( \{ cyclic( $modulus ) \} \) contained in the ideal \( ( $c ) \). Enter a generator for each of these ideals. That is, if you think the ideals \( ( a ) \) and \( ( b ) \) are contained in \( ( $c ) \), enter \( a, b \).$BR
-\{ ans_rule( 20 ) \} $BR $BR
-
-(b) Determine all ideals of \( \{ cyclic( $modulus ) \} \) containing the ideal \( ( $c ) \). As in part (a), enter a generator for each ideal. $BR
-\{ ans_rule( 20 ) \} $BR
+(b) Find all the ideals \(J\) of \( \{ cyclic( $modulus ) \} \) that contain the ideal \( ( $c ) \): 
+\[ J \subseteq ($c) \subseteq \{ cyclic( $modulus )\}.\] 
+As in part (a), list one generator for each ideal, separated by commas. $BR
+\{ ans_rule( 20 ) \} $PAR
 
 Remember that an ideal contains, and is contained in, itself!
+END_TEXT
+Context()->normalStrings;
 
-EOT
+# special answer checker -- accept any generator g for a given ideal
+# if  gcd( g, $modulus) = correct generator 
 
-# special answer checker -- accept any generator for a given ideal
-# (p) is the same as (k) for any k such that gcd( k, modulus ) = p
-# (a) = (b) for any a = b ( mod modulus )
-ANS( $ans[ 0 ]->cmp(
-	checker => sub {
-		my( $correct, $student, $ansHash ) = @_;
-		return ( gcd( $student, $modulus ) == gcd( $correct, $modulus ) ? 1 : 0 );
-	}
-) );
+# need special answer checkers: (c) contains (x) in Z_m if and only
+## if gcd(c,m) | gcd(x,m).
 
-# special answer checker -- accept any generator for a given ideal
-# (p) is the same as (k) for any k such that gcd( k, modulus ) = p
-# (a) = (b) for any a = b ( mod modulus )
-ANS( $ans[ 1 ]->cmp(
-	checker => sub {
-		my( $correct, $student, $ansHash ) = @_;
-		return ( gcd( $student, $modulus ) == gcd( $correct, $modulus ) ? 1 : 0 );
-	}
-) );
-
+ANS($ans0->cmp( list_checker => $customGrader ));
+ANS($ans1->cmp( list_checker => $customGrader ));
 
 COMMENT( "" );
 
