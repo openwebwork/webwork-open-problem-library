@@ -1,0 +1,350 @@
+# DESCRIPTION
+# Gives the graph of a polynomial function
+# Asks to find the zeros and their multiplicities, degree (even/odd), and
+# leading coeff (pos/neg)
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Polynomial equations and functions)
+## DBsection(Graphs of polynomials)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## Level(3)
+## KEYWORDS('functions', 'polynomials', 'graphs')
+
+
+###########################################################################
+# initialization 
+###########################################################################
+DOCUMENT();
+loadMacros(
+  "AnswerFormatHelp.pl",
+  "MathObjects.pl",
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "parserPopUp.pl",
+  "PGcourse.pl",
+  "PGML.pl",
+  "scaffold.pl",
+);
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+$showPartialCorrectAnswers = 1;
+
+
+###########################################################################
+# setup contexts and variables 
+###########################################################################
+Context("Numeric");
+Context()->strings->add("even"=>{}, "e"=>{alias=>"even"},
+"odd"=>{}, "o"=>{alias=>"odd"},
+"positive"=>{}, "pos"=>{alias=>"positive"}, "p"=>{alias=>"positive"},
+"negative"=>{}, "neg"=>{alias=>"negative"}, "n"=>{alias=>"negative"});
+Context()->{error}{msg}{"Operands of '*' can't be words"} = " ";
+$numzeros = random(2,5);
+do {
+  @posszeros = (-10..10);
+  @zeros = (1..$numzeros);
+  for ($i = 0; $i < $numzeros; $i++) {
+    $zeros[$i] = list_random(@posszeros);
+    if ($numzeros == 2 || $numzeros == 3) {
+      $powers[$i] = random(2,3);
+    } else {
+      $powers[$i] = random(1,2);
+    } 
+    $removed = 0;
+    $count = 0;
+    do { # Remove the selected zero
+      if ($posszeros[$count] == $zeros[$i]) {
+        $tmp = $posszeros[$count];
+        $posszeros[$count] = $posszeros[scalar(@posszeros)-1];
+        $posszeros[scalar(@posszeros)-1] = $tmp;
+        pop(@posszeros);
+        $removed = 1;
+      }
+      $count++;
+    } until ($removed || $count == scalar(@posszeros));
+    $removed = 0;
+    $count = 0;
+    do { # Remove the selected zero - 1 so zeros are not too close to each other
+      if ($posszeros[$count] == $zeros[$i]-1) {
+        $tmp = $posszeros[$count];
+        $posszeros[$count] = $posszeros[scalar(@posszeros)-1];
+        $posszeros[scalar(@posszeros)-1] = $tmp;
+        pop(@posszeros);
+        $removed = 1;
+      }
+      $count++;
+    } until ($removed || $count == scalar(@posszeros));
+    $removed = 0;
+    $count = 0;
+    do { # Remove the selected zero + 1 so zeros are not too close to each other
+      if ($posszeros[$count] == $zeros[$i]+1) {
+        $tmp = $posszeros[$count];
+        $posszeros[$count] = $posszeros[scalar(@posszeros)-1];
+        $posszeros[scalar(@posszeros)-1] = $tmp;
+        pop(@posszeros);
+        $removed = 1;
+      }
+      $count++;
+    } until ($removed || $count == scalar(@posszeros));
+  }
+
+  $yint = 1; # y-intercept (is it needed for anything?)
+  for ($i = 0; $i < $numzeros; $i++) {
+    $yint = $yint*((-$zeros[$i])**$powers[$i]);
+  }
+
+  # this sub routine represents what is to be the graphed polynomial (before
+  # scaling)
+  sub poly {
+    my $x = shift();  
+    $prod = 1;
+    for ($i = 0; $i < $numzeros; $i++) {
+      $prod = $prod*(($x - $zeros[$i])**$powers[$i]);
+    }
+    return $prod;
+  };
+
+  # sort zeros from low to high;  (Webwork has a sorting function)
+  $swapped = 1;
+  $count = 0;
+  while ($swapped) {
+    $swapped = 0;
+    $count++;
+    for ($i = 0; $i < $numzeros - $count; $i++) {
+      if ($zeros[$i] > $zeros[$i+1]) {
+        $tmp = $zeros[$i];
+        $zeros[$i] = $zeros[$i+1];
+        $zeros[$i+1] = $tmp;
+        $swapped = 1;
+      }
+    }
+  }
+
+  # this next bit is to be sure that the gap between the low or high point 
+  # between zeros and the x-axis is not too small
+  for ($i = 0; $i < $numzeros-1; $i++) {
+    $maxs[$i] = 0;
+  }
+
+  for ($j = 0; $j < $numzeros-1; $j++) {
+    $steps = 100;
+    $stepsize = ($zeros[$j+1] - $zeros[$j])/$steps;
+    for ($k = 0; $k < $steps; $k++) {
+      $tmp = abs(poly($zeros[$j]+$k*$stepsize));
+      if ($tmp > $maxs[$j]) {
+        $maxs[$j] = $tmp; 
+      } 
+    }
+  }
+
+  $min = min(@maxs);
+  $max = max(@maxs);
+  $scale = random(5,9);
+  $a = random(-1,1,2)*$scale/max($max);
+  $tmp1 = abs($min*$a);
+  $tmp2 = abs($max*$a);
+} until (abs($tmp2/$tmp1) < 3*$scale/2);
+
+# The resulting scaled polynomial
+$expn = sub {
+  my $x = shift();  
+  $prod = $a;
+  for ($i = 0; $i < $numzeros; $i++) {
+    $prod = $prod*(($x - $zeros[$i])**$powers[$i]);
+  }
+  return $prod;
+};
+
+# graph window:
+$minx = min($zeros[0],0)-3;
+$miny = -10;
+$maxx = max($zeros[$numzeros-1],0)+3;
+$maxy = 10;
+$gsize = 400;
+
+$graph = init_graph($minx, $miny, $maxx, $maxy, size=>[$gsize,$gsize]);
+for ($i = $minx; $i <= $maxx; $i++) {
+  $graph->moveTo($i,$miny);
+  $graph->lineTo($i,$maxy,'gray',1);
+}
+for ($i = $miny; $i <= $maxy; $i++) {
+  $graph->moveTo($minx,$i);
+  $graph->lineTo($maxx,$i,'gray',1);
+}
+$graph->moveTo($minx, 0);
+$graph->arrowTo($maxx, 0, 'black', 2);
+$graph->arrowTo($minx, 0, 'black', 2);
+$graph->moveTo(0, $miny);
+$graph->arrowTo(0, $maxy, 'black', 2);
+$graph->arrowTo(0, $miny, 'black', 2);
+$graph->lb(new Label($maxx-0.1, 0.4, 'x', 'black', 'bottom', 'right'));
+$graph->lb(new Label(0.4, $maxy-0.1, 'y', 'black', 'top', 'left'));
+
+for ($i = $minx+1; $i < $maxx; $i++) {
+  if ($i != 0 && $i % 5 == 0 || $i == 1) {
+    $graph->lb(new Label($i,-0.1,$i, 'black', 'top','center'));
+  }
+}
+
+for ($i = $miny+1; $i < $maxy; $i++) {
+  if ($i != 0 && $i % 5 == 0 || $i == 1) {
+    $graph->lb(new Label(-0.1,$i,$i, 'black', 'middle', 'right'));
+  }
+}
+
+# Stamp zeros
+for ($i = 0; $i < $numzeros; $i++) {
+  $graph->stamps(closed_circle($zeros[$i],0,'blue'));
+}
+
+# Graph the polynomial
+$fun = new Fun($expn, $graph);
+$fun->steps(1500);
+$fun->domain($minx,$maxx);
+
+$zerosans = List(@zeros);
+
+for ($i = 0; $i < $numzeros; $i++) {
+  if ($powers[$i] % 2 == 0) {
+    $mltpy[$i] = "even";
+  } else {
+    $mltpy[$i] = "odd";
+  }
+}
+
+@even_odd = ["choose", "even", "odd"];
+
+# Create popups
+for ($i = 0; $i < $numzeros; $i++) {
+  $mult_popup[$i] = PopUp(@even_odd, $mltpy[$i]);
+}
+
+$mult_pgml = "~~n~~n";
+for ($i = 0; $i < $numzeros; $i++) {
+  $mult_pgml = ($mult_pgml) . "*   The zero [:[~~$zeros[$i]]:] has [__]{~~$mult_popup[$i]} multiplicity.~~n~~n";
+}
+
+$mult_pgml_sol = "~~n~~n";
+for ($i = 0; $i < $numzeros; $i++) {
+  $mult_pgml_sol = ($mult_pgml_sol) . "*   The zero [:[~~$zeros[$i]]:] has [~~$mltpy[$i]] multiplicity.~~n~~n";
+}
+
+$degree = $powers[0];
+for ($i = 1; $i < $numzeros; $i++) {
+  $degree = $degree + $powers[$i];
+}
+if ($degree % 2 == 0) {
+  $degreeans = "even";
+} else {
+  $degreeans = "odd";
+}
+
+$degree_popup = PopUp(@even_odd, $degreeans);
+
+if ($a < 0) {
+  $leadcoeffans = "negative";
+} else {
+  $leadcoeffans = "positive";
+}
+
+$leading_popup = PopUp(["choose", "negative", "positive"], $leadcoeffans);
+
+$dispzeros = "$zeros[0]";
+$dispmults = "$mltpy[0]";
+for ($i = 1; $i < $numzeros; $i++) {
+  $dispzeros = ($dispzeros).", ".($zeros[$i]);
+  $dispmults = ($dispmults).", ".($mltpy[$i]);
+}
+
+BEGIN_PGML
+>>[@ image(insertGraph($graph), width=>$gsize, height=>$gsize, tex_size=>500 ) @]*<<
+
+Find the following information pertaining to the polynomial, [:p(x):], graphed above. 
+
+END_PGML
+
+Scaffold::Begin(
+    can_open => "when_previous_correct",
+    is_open => "correct_or_first_incorrect",
+);
+Section::Begin("Step 1: Find zeros of the polynomial.");
+
+BEGIN_PGML
+
+The real zeros of [:p(x):] are [:x = :] [________________________]{$zerosans} (separated by commas).
+
+END_PGML
+
+#Hint for step 1:
+$showHint = 2;
+
+BEGIN_PGML_HINT
+Real zeros of a polynomial are the [:x:]-coordinates of the [:x:]-intercepts.
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+The polynomial intersect the [:x:]-axis at [:[$dispzeros]:].
+END_PGML_SOLUTION
+
+Section::End();
+
+######################## Section 2:
+
+Section::Begin("Step 2: Find the multiplicity of each zero.");
+
+BEGIN_PGML
+
+[$mult_pgml]**
+
+END_PGML
+
+#Hint for step 2:
+$showHint = 2;
+
+BEGIN_PGML_HINT
+How do the zeros of [:y = x:] or [:y = -x:] look like?  How does the zero of [:y = x^2:] looks like?
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+If the graph crosses the [:x:]-axis, the multiplicity is odd. If the graph stays on the same side, the multiplicity is even.
+[$mult_pgml_sol]**
+END_PGML_SOLUTION
+
+Section::End();
+
+######################## Section 3:
+
+Section::Begin("Step 3: Find the degree and sign of leading coefficient.");
+
+BEGIN_PGML
+
+1.  The degree of [:p(x):] is [__]{$degree_popup}.
+
+1.  The leading coefficient of [:p(x):] is [__]{$leading_popup}.
+
+END_PGML
+
+#Hint for step 3:
+$showHint = 2;
+
+BEGIN_PGML_HINT
+Look at the end behavior of the polynomial, and count its zeros.
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+If both end behaviors are the same, the polynomial has an even degree.  If the
+ends of the graph go in opposite directions, the polynomial has an odd degree.
+If the right end points up, the leading coefficient is positive.  If the right
+end points down, the leading coefficient is negative.
+
+This polynomial has an [@ $degree_popup->correct_ans() @]* degree and 
+[@ $leading_popup->correct_ans() @]* leading coefficient.
+END_PGML_SOLUTION
+
+Section::End();
+Scaffold::End();
+
+ENDDOCUMENT();
