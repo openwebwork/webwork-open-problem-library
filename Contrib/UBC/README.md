@@ -10,3 +10,8 @@ Contributors (github):
 * xinglong-li
 * jamescharbonneau
 * grrhendra
+* kirkeyj
+* GraemeDockrill
+* IvyaThalenmourn
+* msekatchev
+* capacapac
