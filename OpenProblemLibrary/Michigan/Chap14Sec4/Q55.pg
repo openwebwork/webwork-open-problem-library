@@ -37,7 +37,6 @@ DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
   "MathObjects.pl",
   "PGgraphmacros.pl",
   "PGcourse.pl"
@@ -52,8 +51,12 @@ $numLabeled = 0;
 @labels = ( 1, 2, 3, 4, 5 );
 $i0 = random(-1,0);
 $del = $i0 ? -1 : 1;
+$fcenter = $i0 ? 6 : 0;
 
-$gr = init_graph( -1,-1,6,4, axes=>[0,0], grid=>[7,5], size=>[375,250] );
+# level sets of f(x,y) = 
+# -6*$i0 + $del*(1/3)[(x-3)^2 + 2(y-2)^2 ]
+
+$gr = init_graph( -1,-1,6,5, axes=>[0,0], grid=>[7,6], size=>[375,250] );
 foreach my $rs ( @contours ) {
     $xf = sub { return sqrt($rs)*cos(shift())+2; };
     $yf = sub { return sqrt($rs/2)*sin(shift())+2; };
@@ -71,6 +74,8 @@ foreach my $rs ( @contours ) {
         $numLabeled++;
     }
 }
+$gr->stamps( closed_circle( 2, 2, 'blue' ) );
+$gr->lb( new Label( 1.85, 2, $fcenter , 'black', 'right', 'center') );
 
 $x0 = 3;
 $y0 = list_random(1,3);
@@ -79,38 +84,19 @@ if ( $y0 == 1 ) {
     $vec = Vector( ( $vx, -1*$vx ) );
     $x1 = $x0 + $vx;
     $y1 = $y0 - $vx;
-    if ( $vx > 0 ) {
-	$x2 = $x1;
-	$y2 = $y1;
-    } else {
-	$x2 = $x0 - $vx;
-	$y2 = $y0 + $vx;
-    }
+    $x2 = $x0 - $vx;
+    $y2 = $y0 + $vx;
 } else {
     $vec = Vector( ( $vx, $vx ) );
     $x1 = $x0 + $vx;
     $y1 = $y0 + $vx;
-    if ( $vx > 0 ) {
-	$x2 = $x1;
-	$y2 = $y1;
-    } else {
-	$x2 = $x0 - $vx;
-	$y2 = $y0 - $vx;
-    }
+    $x2 = $x0 - $vx;
+    $y2 = $y0 - $vx;
 }
-if ( $vx > 0 ) {
-    $reverse = '';
-    $neg = '';
-    $der = Compute( "($fend - $fstart)/sqrt(2)" )->with( tolType=>'absolute',
-							 tolerance=>'.05' );
-} else {
-    $reverse = '(Because there are no contours in the direction that ' .
-        'we are taking the derivative, we can use a point in the reverse ' .
-	'direction and take the negative of the derivative we obtain.)';
-    $neg = '-';
-    $der = Compute( "($fstart - $fend)/sqrt(2)" )->with( tolType=>'absolute',
-							 tolerance=>'.05' );
-}
+$der = Compute("$vx*($fend-$fcenter)/(2*sqrt(2))");
+
+# which equals exact directional derivative $vx*$del*sqrt(2)
+
 
 $gr->stamps( closed_circle( $x0, $y0, 'blue' ) );
 
@@ -131,27 +117,31 @@ $BR
 
 $PAR
 \( f_{\vec u}($x0,$y0) \approx \) \{ ans_rule(35) \}
+$PAR 
+(Hint: to obtain the best estimate, find the average rate of change over equal increments in the \(\vec u\) and \(-\vec u\) directions, then find the mean of these two estimates.) 
 
 END_TEXT
 Context()->normalStrings;
 
-ANS($der->cmp() );
+ANS($der->cmp(tolerance=>0.05,tolType=>"absolute") );
+
+$forward = $i0 ? $fend : $fcenter;
+$backward = $i0 ? $fcenter : $fend;
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR SOLUTION $PAR
 
-Since \(\vec u= ($vec)/\sqrt{2}\), we head away from the point
-\(($x0,$y0)\) toward the point \(($x1,$y1)\).
-$BR
-From the graph, we see that \(f($x0,$y0)=$fstart\) and
-\(f($x2,$y2)=$fend\). $reverse
-Since the points \(($x0,$y0)\) and \(($x2,$y2)\) are a distance
-\(\sqrt{2}\) apart, we have
-\[ f_{\vec u}($x0,$y0) \approx
-    $neg\frac{f($x2,$y2)-f($x0,$y0)}{\sqrt{2}}
-    = $neg\frac{$fend - $fstart}{\sqrt{2}} = $der. \]
-
+The line through \(($x0,$y0)\) in the  \(\vec u= ($vec)/\sqrt{2}\) direction passes through \(($x2,$y2)\) then \(($x0,$y0)\) then \(($x1,$y1)\).  One can use these points to estimate \( f_{\vec u}($x0,$y0) \) in two ways,$BR
+${BBOLD} forward estimate:$EBOLD 
+\[  f_{\vec u}($x0,$y0) \approx \frac{f($x1,$y1)-f($x0,$y0)}{\lvert($x1,$y1)-($x0,$y0)\rvert} \]
+${BBOLD} backward estimate:$EBOLD 
+\[f_{\vec u}($x0,$y0) \approx \frac{f($x0,$y0)-f($x2,$y2)}{\lvert($x0,$y0)-($x2,$y2)\rvert} \]
+$PAR
+Usually the average of these two is a better estimate than either one: 
+\[ \begin{aligned} \text{better estimate} &= \frac{1}{2}\left((\text{forward estimate})+(\text{backward estimate})\right) \\
+&=\frac{1}{2} \left( \frac{$forward-$fstart}{\sqrt{2}} + \frac{$fstart-$backward}{\sqrt{2}}\right) \\
+&=$der \end{aligned}\] 
 
 END_SOLUTION
 Context()->normalStrings;
