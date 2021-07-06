@@ -1,20 +1,15 @@
 ##DESCRIPTION
-##  Algebra problem: true or false for inequality 
+##  Algebra problem: Reduce a given rational expression
 ##ENDDESCRIPTION
 
-##KEYWORDS('algebra', 'inequality', 'fraction')
-
-## DBsubject('Algebra')
-## DBchapter('Fundamentals')
-## DBsection('Real Numbers')
-## Date('6/3/2002')
-## Author('')
-## Institution('')
-## TitleText1('Precalculus')
-## EditionText1('3')
-## AuthorText1('Stewart, Redlin, Watson')
-## Section1('1.1')
-## Problem1('22')
+##KEYWORDS('algebra', 'algebra, operations with rational expressions', 'algebra, simplifying rational expression', 'rational expressions', 'rational expression', 'factoring')
+## DBsubject(Algebra)
+## DBchapter(Operations on polynomial and rational expressions)
+## DBsection(Simplify rational expressions)
+## Level(2)
+## Author(K. Andrew Parker)
+## Institution(CUNY City Tech)
+## Language(en)
 
 ########################################################################
 
@@ -23,6 +18,7 @@ DOCUMENT();
 loadMacros(
    "PGstandard.pl",     # Standard macros for PG language
    "MathObjects.pl",
+   "CofIdaho_macros.pl",
    "contextRationalFunction.pl"
 );
 
@@ -34,13 +30,19 @@ $showPartialCorrectAnswers = 1;
 
 $rationalChecker = sub {
      my ($correct,$student,$ansHash) = @_; 
-     Value->Error("Make sure you're placing parenthesis around your numerator and denominator") unless $student->{tree}->class eq "BOP" && $student->{tree}{bop} eq "/";
-     return 0 unless $correct == $student;
+     my $negated = 1; #-1 for negated=TRUE
+     Value->Error("Your answer doesn't contain any variables. <BR> Perhaps you oversimplified?") unless $student->class eq "Formula";
+     if ($student->{tree}->class eq "UOP" && $student->{tree}{uop} eq 'u-') {
+          $student = Formula($student->{tree}->{op});
+          $negated = -1;
+     }
+     Value->Error("Check the answer preview box. Maybe you forgot parenthesis around your numerator or denominator?") unless $student->{tree}->class eq "BOP" && $student->{tree}{bop} =~ m!/!;
+     return 0 unless $correct == $student*$negated;
      my $cnum = Formula($correct->{tree}{lop});
      my $snum = Formula($student->{tree}{lop});
      my $cden = Formula($correct->{tree}{rop});
      my $sden = Formula($student->{tree}{rop});
-     Value->Error("Your answer can be reduced further") unless ($cnum == $snum && $cden == $sden);
+     Value->Error("Your answer can be reduced further") unless ($cnum == $snum*$negated || $cden == $sden*$negated);
      return 1;
 };
 
@@ -49,7 +51,7 @@ $rationalChecker = sub {
 #  Setup
 #
 #
-Context("RationalFunction");
+Context("Numeric");
 
 $nCoeff = random(2,9,1);
 do { $dCoeff = random(2,9,1); } until ( gcf($nCoeff,$dCoeff) == 1 );
@@ -57,18 +59,19 @@ do { $dCoeff = random(2,9,1); } until ( gcf($nCoeff,$dCoeff) == 1 );
 $common = random(2,6,1);
 
 $nRoot = non_zero_random(-9,9,1);
-$dRoot = $nRoot;
 
 $nA = $common*$nCoeff;
 $nB = $common*$nCoeff*$nRoot;
 $dB = $common*$dCoeff;
-$dC = $common*$dCoeff*$dRoot;
 
 $numer = Formula("$nA*x^2 - $nB*x")->reduce;
-$denom = Formula("$dB*x-$dC")->reduce;
+$denom = Formula("$dB*x")->reduce;
 
 $rationalExp = Formula("$numer/$denom")->reduce;
-$answer = Formula("$nCoeff*x/$dCoeff")->with(test_at=>[[0]]);
+$answer = Formula("$nCoeff*(x-$nRoot)/$dCoeff")->with(test_at=>[[0]]);
+
+$numerFactor = Formula("$nA*x*(x-$nRoot)")->reduce;
+$commonFactor = Formula("$common*x")->reduce;
 
 ##############################################################
 #
@@ -83,7 +86,22 @@ $PAR
 Reduce the following rational expression:
 \[ $rationalExp \]
 $PAR
+$BBOLD Part 1: $EBOLD Factor the numerator, \( $numer \)
+$BR
+\{ ans_rule(20) \}
+$PAR
+$BBOLD Part 2: $EBOLD Factor the denominator, \( $denom \)
+$BR
+$BITALIC This denominator is a monomial, so there's no factoring to be done. $EITALIC
+$PAR
+$BBOLD Part 3: $EBOLD Identify the greatest common factor between the numerator and denominator.
+$BR
+\{ ans_rule(20) \}
+$PAR
+$BBOLD Part 4: $EBOLD Reduce any common factors between the numerator and denominator. $BR (Write what's left after you cancel the greatest common factor from both.)
+$BR
 \{ans_rule(20)\}
+
 END_TEXT
 Context()->normalStrings;
 
@@ -93,7 +111,10 @@ Context()->normalStrings;
 #
 #
 
+ANS(FactoringEvaluator($numerFactor, ["x"]) );
+ANS($commonFactor->cmp);
 ANS($answer->cmp(showDomainErrors=>0, checker=>$rationalChecker));
 
+COMMENT("Funded by US DoE Title V: Opening Gateways grant.");
 
 ENDDOCUMENT();        
