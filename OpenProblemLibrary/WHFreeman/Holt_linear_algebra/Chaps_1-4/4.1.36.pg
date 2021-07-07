@@ -9,6 +9,7 @@
 ## Institution(Saint Louis University)
 ## Author(Mike May)
 ## Level(3)
+## MO(1)
 ## TitleText1('Linear Algebra')
 ## AuthorText1('Holt')
 ## EditionText1('')
@@ -19,15 +20,15 @@
 DOCUMENT();
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "parserPopUp.pl",
   "MathObjects.pl",
+  "parserPopUp.pl",
+  "MatrixReduce.pl",
   "freemanMacros.pl",
   "PGcourse.pl"
 );
 
 # make sure we're in the context we want
-Context("Numeric");
+Context("Matrix");
 
 $a11 = random(1,5,1);
 $a12 = random(-7,7,1);
@@ -43,24 +44,31 @@ $a13=-$b1*$a11-$b2*$a12;
 $a23=-$b1*$a21-$b2*$a22;
 $a33=-$b1*$a31-$b2*$a32;
 
+$A=Matrix([[$a11,$a12,$a13],[$a21,$a22,$a23],[$a31,$a32,$a33]]);
+
 $c1 = $a12;
 $c2 = $a22;
 $c3 = $a32;
 
+$b = ColumnVector([$b1,$b2,$b3]);
+$c = ColumnVector([$c1,$c2,$c3]);
 
+$flip = random(0,1,1);  # flip a coin
+if ( $flip ){
+  $v0 = "\bf{b}";
+  $set0 = "kernel";
+  $v1 = "\bf{c}";
+  $set1 = "range";
+}
+else {   # opposite labeling
+  $v1 = "\bf{b}";
+  $set1 = "kernel";
+  $v0 = "\bf{c}";
+  $set0 = "range";
+}
 
-# the arguments of PopUp are [list of answers], 
-#    correct answer
-  $popup = new_select_list();
-  $popup->rf_print_q(~~&pop_up_list_print_q);
-  $popup->ra_pop_up_list( [ No_answer => "",
-    True => "True", False => "False" ] );
-
-  $popup->qa("The vector \({\bf b}\) is in the kernel of \( T\)", "True",
-    "The vector \({\bf c}\) is in the range of \( T\)", "True",
-    );
-
-  $popup->choose(2);
+$popup0 = PopUp(["???","True","False"],"True");
+$popup1 = PopUp(["???","True","False"],"True");
 
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 0;
@@ -68,43 +76,49 @@ Context()->texStrings;
 BEGIN_TEXT
 \{ textbook_ref_exact("Holt Linear Algebra", "4.1","36") \} 
 $PAR
-Let \( T({\bf x})=A{\bf x} \) for the matrix \( A \).
-$BR
-\( A=\left[\begin{matrix} 
-$a11 & $a12 & $a13 \cr $a21 & $a22 & $a23 \cr $a31 & $a32 & $a33 \cr
-\end{matrix}\right] \),
-\( {\bf b}=\left[\begin{matrix} $b1 \cr $b2 \cr $b3 \cr \end{matrix}\right] \), and
-\( {\bf c}=\left[\begin{matrix} $c1 \cr $c2 \cr $c3 \cr \end{matrix}\right] \).
-
+Let \( T({\bf x})=A{\bf x} \) for the matrix \( A \) and 
+$PAR
+\( A=$A \),
+\( {\bf b}=$b \), and
+\( {\bf c}=$c \).
 $PAR
 Select true or false for each statement.
-$BR
-\{ $popup->print_q() \}
+$PAR
+The vector \($v0\) is in the $set0 of \(T\). $SPACE \{ $popup0->menu() \}
+$PAR
+The vector \($v1\) is in the $set1 of \(T\). $SPACE \{ $popup1->menu() \}
 
 END_TEXT
 Context()->normalStrings;
 
-ANS(str_cmp( $popup->ra_correct_ans() )) ;
+ANS($popup0->cmp());
+ANS($popup1->cmp());
 
+$zero = ColumnVector([0,0,0]); 
+$aug = Matrix( 
+  [$a11,$a12,$a13,$c1],
+  [$a21,$a22,$a23,$c2],
+  [$a31,$a32,$a33,$c3]);
+$augred = rref($aug);
+$jvec = ColumnVector([0,1,0]);
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR SOLUTION $PAR
-\( A{\bf b}=\left[\begin{matrix} 
-$a11 & $a12 & $a13 \cr $a21 & $a22 & $a23 \cr $a31 & $a32 & $a33 \cr \end{matrix}\right]
-\left[\begin{matrix} $b1 \cr $b2 \cr $b3 \cr \end{matrix}\right]=
-\left[\begin{matrix} 0 \cr 0 \cr 0 \cr \end{matrix}\right]={\bf 0}\), 
+\( A{\bf b}=$A $b= $zero ={\bf 0}\), 
 so \({\bf b}\in \ker(T)\).
 $PAR
-We row-reduce to determine a solution of \(A{\bf x}={\bf c}\).
-$BR
-\( \left[\begin{matrix} 
-$a11 & $a12 & $a13 & $a12 \cr $a21 & $a22 & $a23 & $a22 \cr $a31 & $a32 & $a33 & $a32 \cr \end{matrix}\right]\sim
-\left[\begin{matrix} 
-1 & 0 & 0 & 0 \cr 0 & 1 & 0 & 1 \cr 0 & 0 & 1 & 0 \cr \end{matrix}\right]. \)
-$BR
-Thus \(A \left[\begin{matrix} 0 \cr 1 \cr 0 \cr \end{matrix}\right] = {\bf c}\), 
-so \({\bf c}\in\) range\((T)\).
+Row-reduce to determine a solution of \(A{\bf x}={\bf c}\).
+$PAR
+\( $aug \sim $augred \).
+$PAR
+or simply notice that \(\bf{c}\) is the second column of \(\bf{A}\).  
+Row reduction shows that the equation \(\bf{A}\bf{x}=\bf{c}\) has infinitely
+many solutions: $PAR
+\(\bf{x} = $jvec + t $b\) for arbitrary \(t \in \mathbb{R}\), $BR
+and both approaches lead to the conclusion that $PAR
+\(A $jvec = {\bf c}\).  $PAR
+Thus \({\bf c}\in\) range\((T)\).
 
 END_SOLUTION
 Context()->normalStrings;
