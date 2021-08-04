@@ -9,3 +9,11 @@ Contributors (github):
 * jverrett
 * xinglong-li
 * jamescharbonneau
+* grrhendra
+* kirkeyj
+* GraemeDockrill
+* IvyaThalenmourn
+* msekatchev
+* capacapac
+* robynnewell
+* monabe

@@ -1,0 +1,198 @@
+## DESCRIPTION
+## Piedmont University
+## MATH 1113 Online Final Exam
+## Projectile motion
+## ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Quadratic equations and functions)
+## DBsection(Applications and models)
+## Level(2)
+## KEYWORDS('motion')
+## Author(Doug Torrance)
+## Institution(Piedmont)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserRadioButtons.pl",
+  "PGgraphmacros.pl"
+);
+
+    
+TEXT(beginproblem());
+
+@trig_functions = ("\sin", "\cos", "\sec", "\csc", "\tan", "\cot");
+@trig_values = (
+# sin/cos
+    "0", "\dfrac{1}{2}", "\dfrac{\sqrt 2}{2}", "\dfrac{\sqrt 3}{2}", "1",
+# sec/csc
+    "1", "\dfrac{2\sqrt 3}{3}", "\sqrt 2", "2", "\text{undefined}",
+# tan/cot
+    "0", "\dfrac{\sqrt 3}{3}", "1", "\sqrt 3", "\text{undefined}");
+
+sub pretty_radians {
+    my $a = shift;
+    my $b = abs($a / gcd($a, 12));
+    my $c = 12 / gcd($a, 12);
+    if ($a < 0) {
+        $sign = "-";
+    } else {
+        $sign = "";
+    }
+    if ($b == 0) {
+        return "0";
+    } elsif ($b == 1) {
+        $num = "\pi";
+    } else {
+        $num = "$b\pi";
+    }
+    if ($c > 1) {
+        return "$sign\dfrac{$num}{$c}";
+    } else {
+        return "$sign$num";
+    }
+}
+
+# angle is theta * pi / 12
+sub get_nice_angle {
+    my $theta;
+    do {
+        $theta = non_zero_random(-48, 48);
+    } while ($theta % 6 == 1 || $theta % 6 == 5);
+    return $theta;
+}
+
+# get +/- from quadrant
+sub get_sign {
+    my $theta = shift;
+    my $which = shift;
+    my $sign;
+    
+    $theta %= 24;
+    if ($which == 1 || $which == 2) { # cos/sec
+        if ($theta > 6 && $theta < 18) {
+            $sign = "-";
+        } else {
+            $sign = "";
+        }
+    } elsif ($which == 0 || $which == 3) { # sin/csc
+        if ($theta > 12) {
+            $sign = "-";
+        } else {
+            $sign = "";
+        }
+    } else { # tan/cot
+        if ($theta % 12 > 6) {
+            $sign = "-";
+        } else {
+            $sign = "";
+        }
+    }
+    return $sign;
+}
+
+sub get_trig_value {
+    my $theta = shift;
+    my $which = shift;
+    $theta %= 24;
+
+    # get index corresponding to reference angle
+    my @factors = (12, 6, 4, 3, 2);
+    my $reference = 0;
+
+    while ($theta % $factors[$reference] != 0) {
+        $reference++;
+    }
+
+    if ($which % 2 == 1) { # sin/sec/tan (i.e., increasing in 1st quadrant)
+        $value_index = 5 * floor($which / 2) + ($reference - 1) % 5;
+    } else { # cos/csc/cot (decreasing in 1st quadarant)
+        $value_index = 5 * floor($which / 2) + (-$reference % 5);
+    }
+    return $trig_values[$value_index];
+}
+
+sub get_value_string {
+    my $theta = shift;
+    my $which = shift;
+    my $sign = get_sign($theta, $which);
+    my $value = get_trig_value($theta, $which);
+    return "\($sign$value\)";
+}
+
+sub add_options {
+    my @options = shift;
+    while (@options < 4) {
+        push(@options, get_value_string(get_nice_angle(), random(0, 5)));
+        @options = uniq(@options);
+    }
+    return lex_sort(@options);
+}
+
+sub get_problem_string {
+    my $theta = shift;
+    my $which = shift;
+
+    my $to_find = "\(" . $trig_functions[$which];
+    if ($theta < 0) {
+        $to_find .= "\left(" . pretty_radians($theta) . "\right)";
+    } else {
+        $to_find .= pretty_radians($theta);
+    }
+    $to_find .= "\)";
+    return $to_find;
+}
+
+
+@problem_strings = ();
+@buttons = ();
+for ($i = 0; $i < 5; $i++) {
+    my $theta = get_nice_angle();
+    my $which = random(0, 5);
+    
+    push(@problem_strings, get_problem_string($theta, $which));
+    my $answer = get_value_string($theta, $which);
+    push(@buttons, RadioButtons([add_options($answer)], $answer,
+        separator => $PAR));
+}
+
+BEGIN_TEXT
+
+Evalute the given trigonometric functions.
+$PAR
+
+(a) $problem_strings[0]
+$PAR
+\{$buttons[0]->buttons\}
+$PAR
+
+(b) $problem_strings[1]
+$PAR
+\{$buttons[1]->buttons\}
+$PAR
+
+(c) $problem_strings[2]
+$PAR
+\{$buttons[2]->buttons\}
+$PAR
+
+(d) $problem_strings[3]
+$PAR
+\{$buttons[3]->buttons\}
+$PAR
+
+(e) $problem_strings[4]
+$PAR
+\{$buttons[4]->buttons\}
+$PAR
+
+END_TEXT
+
+for ($i = 0; $i < 5; $i++) {
+    ANS($buttons[$i]->cmp);
+}
+
+ENDDOCUMENT();

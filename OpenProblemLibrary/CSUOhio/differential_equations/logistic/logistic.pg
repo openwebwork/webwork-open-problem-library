@@ -4,7 +4,7 @@
 ## DBsection(Applications - logistic)
 ## Date(8/16/2013)
 ## Institution(Cleveland State University)
-## Author(Barbara Margolius)
+## Author(Felipe Martins)
 ## Level(5)
 ## MO(1)
 ## TitleText1('')
@@ -13,6 +13,8 @@
 ## Section1('.')
 ## Problem1('')
 ## KEYWORDS('Differential Equations','Flash applets','Flash applets','NSF-0941388')
+#
+## Feb. 2021: G. Jennings replaced Flash applet with html5 canvas.
 ########################################################################
 # This work is supported in part by the National Science Foundation 
 # under the grant DUE-0941388.
@@ -31,7 +33,7 @@ loadMacros(
 );
 TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
-Context("Numeric");
+Context("Interval");
 
 ###################################
 # Setup
@@ -48,115 +50,303 @@ Context("Numeric");
 [0.25,4,0.21],
 [0.50,2,0.09]);
 
-SRAND($psvn);
+#SRAND($psvn);
 $choice = random(0,9,1);
+$choice = 9;
+
 $k = $params_array[$choice][0];
 $N = $params_array[$choice][1];
 $a = $params_array[$choice][2];
-$disc = $k*$N*($k*$N-4*$a);
 
-if ($disc>0) {
-   $aux = sqrt($disc);
-   $ans1 = Compute("($k*$N-$aux)/(2*$k)");
-   $ans2 = Compute("($k*$N+$aux)/(2*$k)");
-   $ans3 = Compute("[0,$ans1)");
-} else {
-   $ans1 = Compute("DNE");
-   $ans2 = Compute("DNE");
-   $ans3 = Compute("{}");
+# the diffeq is P' = kP(1-P/N)-a which is zero when
+# P = N/2*(1 +/- sqrt(1-4a/(Nk))).  For the above 
+# values 4a<Nk in every case.
+
+# to keep the max positive slope reasonable  
+# in the display use aspect ratio 1.6 let P and t 
+# run from 0 to 
+
+$Pmax = $N*1.1;
+$Tmax = 1/($k*$N/4-$a)*$N*1.5 ;
+
+$canvasHeight = 330;
+$canvasWidth = 480;
+
+#answers
+
+$ans1 = Real( $N/2*(1 - sqrt(1-4*$a/($N*$k) ) ) );
+$ans2 = Real( $N/2*(1 + sqrt(1-4*$a/($N*$k) ) ) );
+$ans3 = Interval("[0,$ans1)");
+
+
+## button for updating solutions
+
+sub buttonElement { 
+  my ($id,$label) = @_;
+  return MODES (
+    TEX => "[ $label ]",
+    HTML => '<button id="logistic_'.$id.'"type="button">'.$label.'</button>',
+    PTX => ''
+  );
 }
 
-##############################################################
-#
-#  Applet object definition
-#
-#
-$appletName = "WWPluggableODE";
-$applet =  FlashApplet(
-   codebase                  => findAppletCodebase("$appletName.swf"),
-   appletName                => $appletName,
-   appletId                  => $appletName,
-   setStateAlias             => 'setXML',
-   getStateAlias             => 'getXML',
-   setConfigAlias            => 'setConfig',
-   maxInitializationAttempts => 10,   
-   #answerBoxAlias           => 'answerBox',
-   height                    => '500',
-   width                     => '600',
-   bgcolor                   => '#ededed',
-   debugMode                 =>  0,
-   submitActionScript        =>  '',
+## the canvas 
+
+# FIXME add image("somefile.png")
+sub canvasElement {
+  return MODES (
+    TeX => image("logistic.png"),
+    HTML => '<canvas id="logistic_canvas" width="$canvasWidth" height="$canvasHeight"></canvas>',
+    PTX => ''
+  );
+}
+
+####################################################################
+##### Begin javascript (this will go in html header) ###############
+####################################################################
+
+$javascript = <<"END_JAVASCRIPT";
+    <script>
+const k = $k;
+const N = $N;
+const a = $a;
+
+const canvasWidth = $canvasWidth;
+const canvasHeight = $canvasHeight;
+const margin = 10;  
+const Pmax = $Pmax;  
+const Tmax = $Tmax;
+const PmaxY = 2*margin;  // from top edge
+const TmaxX = canvasWidth-2*margin;  // from right edge
+const PaxisX = 3*margin; // x-coord of P axis 
+const TaxisY = canvasHeight-6*margin; // y-coord of T axis 
+
+// rates of change: axis (T,P) to canvas (x,y)
+const YperP = (PmaxY-TaxisY)/Pmax;  // negative!
+const XperT = (TmaxX-PaxisX)/Tmax;  // positive
+
+// functions for converting between axes coordinates T,P and canvas coordinates x,y
+
+function PtoY(P){
+  return TaxisY + P*YperP;
+}
+function TtoX(T){
+  return PaxisX + T*XperT;
+}
+function YtoP(Y){
+  return (Y-TaxisY)/YperP;
+}
+function XtoT(X){
+  return (X - PaxisX)/XperT;
+}
+
+// ticks on P axis are at 0.2 intervals 
+
+function drawPAxis(ctx){
+ ctx.textAlign="center";
+ ctx.textBaseline="middle";
+ ctx.beginPath();
+ ctx.moveTo(PaxisX, canvasHeight-2*margin);
+ ctx.lineTo(PaxisX, margin);
+ ctx.stroke();
+ ctx.font="14px Arial";
+ ctx.fillText("P", PaxisX-2*margin, PtoY(Pmax));
+ // P axis ticks
+ let y; 
+ for (let i=Math.ceil(YtoP(TaxisY+4*margin)/0.2); i*0.2 < Pmax; i++){
+   //if (i==0){ continue; }
+   ctx.beginPath();
+   y = PtoY(i*0.2);
+   ctx.moveTo(PaxisX-margin, y);
+   ctx.lineTo(PaxisX, y);
+   ctx.stroke();
+   if (i % 5 == 0){ ctx.fillText(String(i*0.2), PaxisX-2*margin,y); }
+   }
+}
+
+// ticks on T axis are at 0.2*tstep intervals.  
+// if Tmax = A*10^n with 1<=A<10 then tstep = 10^n
+
+const tstep = Math.round(10**Math.floor(Math.log(Tmax)/Math.log(10)));  // for T-labels
+
+function drawTAxis(ctx){
+ ctx.textAlign="center";
+ ctx.textBaseline="middle";
+ ctx.beginPath();
+ ctx.moveTo(PaxisX-margin, TaxisY);
+ ctx.lineTo(TmaxX, TaxisY);
+ ctx.stroke();
+ ctx.font="14px Arial";
+ ctx.fillText("t", TmaxX+margin, TaxisY);
+ // T axis ticks
+ let x; 
+ for (let i=Math.ceil(XtoT(PaxisX-margin)/(tstep*0.2)); i*0.2*tstep < Tmax; i++){
+   if (i==0){ continue;}
+   ctx.beginPath();
+   x = TtoX(i*0.2*tstep);
+   ctx.moveTo(x, TaxisY+margin);
+   ctx.lineTo(x, TaxisY);
+   ctx.stroke();
+   if (i % 5 == 0){ ctx.fillText(String(i*0.2*tstep), x,TaxisY+2*margin);}
+ }
+}
+
+
+// To plot solutions I'll use a program for a simple
+// Runge-Kutta 4th order solver (rk4) copied from Numerical 
+// Mathematics and Computing (2nd ed.) by W. Cheney and D. Kincaid
+// (1980) pp. 394.
+
+dT = function (T,P){ return 1; }
+dP = function (T,P){ return k*P*(1-P/N)-a; }
+
+// Runge-Kutta 4 numerical ODE solver. X = [t,P]
+
+function F(X) {
+  return [ dT(X[0],X[1]), dP(X[0],X[1]) ]; 
+}
+
+function rk4step (X,h) {
+  let F1 = F(X);
+  let F2 = F([X[0]+(1/2)*h*F1[0], X[1]+(1/2)*h*F1[1]]);
+  let F3 = F([X[0]+(1/2)*h*F2[0], X[1]+(1/2)*h*F2[1]]);
+  let F4 = F([X[0]+h*F3[0], X[1]+h*F3[1]]);
+  return [ X[0]+h/6*(F1[0]+2*F2[0]+2*F3[0]+F4[0]), X[1]+h/6*(F1[1]+2*F2[1]+2*F3[1]+F4[1]) ];
+}
+
+// min, max refer to the parameter, which is T in this case because dT=1
+
+drawSolutionCurve = function (ctx,T,P,h,min,max) {  
+  let X = [T,P];  // initial value
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "blue";
+  // forward 
+  ctx.beginPath()
+  ctx.moveTo(TtoX(X[0]),PtoY(X[1]));
+  for (let i=0; i < (Tmax-T)/h+1; i++){
+    Y = rk4step(X,h);
+    if (Y[1] < -1 ){break;}  // sanity check 
+    ctx.lineTo(TtoX(Y[0]),PtoY(Y[1]));
+    X=Y;
+  }
+  ctx.stroke();
+  // backward
+  X = [T,P];
+  ctx.beginPath()
+  ctx.moveTo(TtoX(X[0]),PtoY(X[1]));
+  for (let i=0; i > -T/h-1; i--){
+    Y = rk4step(X,-h);
+    if (Y[1] > Pmax +1){break;}
+    ctx.lineTo(TtoX(Y[0]),PtoY(Y[1]));
+    X=Y;
+  }
+  ctx.stroke();
+}
+
+drawArrow = function (ctx,T,P,scale){
+  // scale the vectors to canvas coordinates
+  let dx = dT(T,P)*XperT;
+  let dy = dP(T,P)*YperP;
+  // scale them all to the same apparent length in pixels
+  // in our case dT=1 so there's no need to worry about zero length vectors
+  let delta = Math.sqrt(dx**2 + dy**2);
+  dx = dx/delta*scale;
+  dy = dy/delta*scale;
+  let x = TtoX(T);
+  let y = PtoY(P);
+  // draw vector:
+  // arrowhead 
+  let head = new Path2D();
+  head.moveTo(x+2*dx/3+dy/6,y+2*dy/3-dx/6);
+  head.lineTo(x+dx,y+dy);
+  head.lineTo(x+2*dx/3-dy/6,y+2*dy/3+dx/6);
+  head.closePath();
+  ctx.fill(head);
+  // tail
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+  ctx.lineTo(x+2*dx/3,y+2*dy/3);
+  ctx.stroke();
+}
+
+drawVecField = function (ctx){
+  ctx.lineWidth=2;
+  ctx.strokeStyle="black";
+  let Tmesh = Tmax/16;
+  let Pmesh = Pmax/10;
+  for (let i=Math.ceil(XtoT(PaxisX-margin)/Tmesh); i<16; i++){
+    for (let j=Math.ceil(YtoP(TaxisY+4*margin)/Pmesh); j < 11; j++){
+      drawArrow(ctx, i*Tmesh, j*Pmesh, 15);
+    }
+  }
+}
+
+///////////////////////////////////
+////  Draw initial screen /////////
+///////////////////////////////////
+
+document.addEventListener("DOMContentLoaded", function() {
+  const canvas = document.getElementById("logistic_canvas");
+  const ctx = canvas.getContext('2d');
+  const h = 1;
+  const min = XtoT(2*margin);
+  const max = XtoT(canvasWidth-margin);
+  
+  const clear_button = document.getElementById("logistic_clear");
+ 
+  drawPAxis(ctx);
+  drawTAxis(ctx);
+  drawVecField(ctx);
+
+  canvas.addEventListener('mousedown', function(e) {
+    const x = e.offsetX;
+    const y = e.offsetY;
+    drawSolutionCurve(ctx,XtoT(x),YtoP(y),h,min,max);
+  });
+
+  clear_button.addEventListener('click', function(e) {
+    e.preventDefault();
+    ctx.clearRect(0,0,canvas.width,canvas.height); 
+    ctx.strokeStyle="black";
+    drawPAxis(ctx);
+    drawTAxis(ctx);
+    drawVecField(ctx);
+  });
+});
+
+    </script>
+END_JAVASCRIPT
+
+####################################################################
+############## END javascript  #####################################
+####################################################################
+
+MODES (
+  TeX => '',
+  HTML => HEADER_TEXT($javascript),
+  PTX => ''
 );
 
-##############################################################
-#
-#  Applet configuration
-#
-#
-$config_string = <<'ENDCONFIG';
-<XML>
-    <options>
-        <geometry x="20" y="20" width="490" height="490" />
-	<bounds tmin="-1" tmax="10" ymin="-1" ymax="10" showbounds="1"/>
-	<ticks tstep="0.5" ystep="0.5" tsize="5" ysize="5" />
-	<grid tstep="0.5" ystep="0.5" />
-	<field tstep="0.5" ystep="0.5" 
-		  tmin="-0.5" tmax="9.5" 
-		  ymin="-0.5" ymax="9.5" 
-		  color="0xccff99" backgroundcolor="0x0033cc" />
-        <solutionstyle thickness="3" color="0xFFcc00" alpha="1" />
-    </options>
-    <equation showeditbox="1">
-        <variable name="t" />
-	<variable name="P" derivative="P"/>
-    </equation>
-</XML>
-ENDCONFIG
-#<XML>
-#  <options>
-#      <geometry x="5" y="5" width="490" height="490" />
-#      <bounds xmin="-1" xmax="10" ymin="-1" ymax="10" tmin="0" tmax="10" />
-#      <ticks xstep="0.5" ystep="0.5" xsize="5" ysize="5" />
-#      <grid xstep="1.0" ystep="1.0" />
-#      <field xstep="1.0" ystep="1.0" 
-#             xmin="-10" xmax="10" 
-#             ymin="-10" ymax="10" 
-#	     color="0x8FBCDB" backgroundcolor="0x153450" />
-#      <solutionstyle thickness="4" color="0xFFCC00" alpha="0.8" />
-#   </options>
-#   <equation showeditbox="1">
-#      <variable name="t" />
-#      <variable name="p" derivative="p"/>
-#   </equation>
-#</XML>
 
-$applet->configuration($config_string);
 
 Context()->texStrings;
 BEGIN_TEXT
-In this assignment, we consider logistic models of population growth that have been modified 
-to include terms that account for "harvesting".  
-$BR
-$BR
-In particular, consider a fish population subject to various degrees and types of fishing.  
-The differential equation models are given below.  In your report, you should include a discussion of the meaning of each variable and parameter and an explanation of why the equation is written the way it is.
-We adopt a qualitative point of view, in which we experiment with parameters and initial conditions and try to make inferences about the behavior of the equation.
-$BR
-$BR
-We start considering a model in which a fixed number of fish are harvested each day. The differential equation for this case is:
+In this assignment, we consider a logistic model of population growth that has been modified 
+to include a term that accounts for "harvesting".  
+$PAR
+We consider a model in which a fixed number of fish are harvested each day. The differential equation for this case is:
 \[\frac{dp}{dt}=kp\left(1-\frac{p}{N}\right)-a,\]
-which represents a logistic model of population growth with constant harvesting at a rate \(a\).  For this example, consider the case particular case \(k=$k\),  \(N=$N\) and \(a=$a\), that is, the equation is: 
-$BR$BR
+a logistic model of the rate of change of population \(P(t)\) in an environment with carrying capacity \(N\) and constant harvesting at a rate \(a\).  For this example, consider the case particular case \(k=$k\),  \(N=$N\) and \(a=$a\), that is, the equation is: 
 \[\frac{dp}{dt}=$k p\left(1-\frac{p}{$N}\right)-$a\]
-In the applet below, you can click on specific initial conditions to draw solution curves for the equation.
-$BR
-END_TEXT
+(Of course in real life \(P\), \(t\), \(N\), and \(a\) would be measured on some appropriate scales, for example \(P\), \(N\), and \(a\) might represent hundreds of tons and \(t\) might represent months or years, but we'll ignore that.)
+$PAR  
 
-
-TEXT( MODES(TeX=>'A graph appears here in the html version.', 
-            HTML=>$applet->insertAll(debug=>0,includeAnswerBox=>0)));
-
-BEGIN_TEXT
+In the applet below you may click on specific initial conditions to draw solution curves for the differential equation.
+ 
+$PAR
+\{ canvasElement() \}
+$BR \{ buttonElement('clear','Clear the solution curves') \}
+$PAR
 We want to know what will happen to the fish population for various initial conditions. Answer the following questions after experimenting with the applet:
 
 What are, approximately, the equilibrium points for this equation? Enter the values in the boxes below. If there is only one equilibrium, enter DNE in the second box. If there are no equilibria, enter DNE in both boxes.
@@ -168,7 +358,7 @@ $BR
 Largest equilibrium point: \{ ans_rule(20) \}
 $BR
 $BR
-Are there any initial values that lead will cause the fish population to go extinct? How would you characterize such values? Use interval notation for your answer.  Enter "{}" if there is no correct interval.   \{ AnswerFormatHelp("intervals") \} \{ ans_rule(20) \}$BR
+Are there any initial values that lead will cause the fish population to go extinct? How would you characterize such values? Use interval notation for your answer.  Enter "{}" if there is no correct interval.   (\{ helpLink("intervals","help with intervals") \}) \{ ans_rule(20) \}$BR
 $BR
 $BR
 END_TEXT
@@ -178,10 +368,8 @@ Context()->flags->set(ignoreEndpointTypes => 1);
 ANS($ans1->cmp);
 ANS($ans2->cmp);
 ANS($ans3->cmp);
-#ANS(auto_right("All answers are marked correct.  Your instructor will grade your work after the due date."));
 
-COMMENT('This problem requires that Flash be enabled on your device.
-Click try it to see what students will see.  MathObject version.');
+COMMENT("To display graphics press the 'eye' icon to open in a new window if using the library browser or homework sets editor.");
 
 ENDDOCUMENT();
 
