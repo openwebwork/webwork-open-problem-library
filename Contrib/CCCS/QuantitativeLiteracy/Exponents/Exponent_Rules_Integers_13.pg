@@ -24,15 +24,23 @@ loadMacros(
   "PGML.pl",
   "PGgraphmacros.pl",
   "PGcourse.pl",
-  "contextRationalFunction.pl",
+  "bizarroArithmetic.pl",
  
 );
 
 ##############################################
 
 #Integer exponents two variables
+#The answer checker does not require the fraction to be reduced... still #working on that... Lines about bizarro division can be added, but then it #forces the solution to be written as ()/() rather than 1/2 x^n etc...
 
 Context("Numeric");
+Context()->variables->add(y=>"Real");
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(limits=>[1,10]);
+Context()->operators->set(
+'**' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+'^' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+);
 
 $a = random(2,9);
 do {$b = random(-8,-1)} until abs($a) > abs($b);
@@ -45,9 +53,6 @@ $e = random(2,4);
 $f = random(2,4);
 $ef = $e*$f;
 
-Context("RationalFunction-Strict");
-Context()->variables->add(y => 'Real');
-
 $ans = Formula("x^$cd*y^$ab/$f");
 
 
@@ -59,17 +64,42 @@ BEGIN_PGML
 
 Simplify. Use only positive exponents in your answer.
 
-[` \dfrac{[$e]x^{[$c]}y^{[$a]}}{[$ef]x^{[$d]}y^{[$b]}} = `]  [________]{$ans} 
+[` \dfrac{[$e]x^{[$c]}y^{[$a]}}{[$ef]x^{[$d]}y^{[$b]}} = `]  [________]
 
  
 END_PGML
 
 ##############################################
+ANS($ans -> cmp(
+checker=>sub{
+my ( $correct, $student, $ansHash ) = @_;
+return 0 if $ansHash->{isPreview} || $correct != $student;
+$student = $ansHash->{student_formula};
+$correct = $correct->{original_formula} if defined $correct->{original_formula};
+$student = Formula("$student"); $correct = Formula("$correct");
+return 0 unless ($correct == $student);
+Context()->flags->set(bizarroDiv=>1,bizarroPow=>1);
+delete $correct->{test_values};
+delete $student->{test_values};
+my $OK = (($correct == $student) or ($student == $correct));
+Context()->flags->set(bizarroPow=>0);
+Value::Error("Your answer is equivalent, but please use the proper format") unless $OK;
+return $OK;
+}));
 
-
-
+#############################################
 BEGIN_PGML_SOLUTION
+The quotient rule is:
 
+[``\frac{x^n}{x^m} = x^{n-m}``]
+
+To simplify, subtract the exponents.  Notice that subtracting a negative number is addition.
+
+[``\frac{[$e]x^{[$c]}y^{[$a]}}{[$ef]x^{[$d]}y^{[$b]}} = \frac{[$e]}{[$ef]}x^{[$c]-[$d]}y^{[$a] - [$b]}``]
+
+We can reduce the fraction to get:
+
+[``\frac{1}{[$f]}x^{[$cd]}y^{[$ab]} = [$ans]``]
 END_PGML_SOLUTION
 
 ENDDOCUMENT();
