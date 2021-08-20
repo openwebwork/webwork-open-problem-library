@@ -1,0 +1,273 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## Tagged by glr 07/05/10
+
+
+## DBsubject(Calculus - multivariable)
+## DBchapter(Calculus of vector fields)
+## DBsection(Line integrals)
+## Institution(University of Michigan)
+## Author(Gavin LaRose)
+## Level(4)
+## MO(1)
+## TitleText1('Calculus')
+## AuthorText1('Hughes-Hallett')
+## EditionText1('5')
+## Section1('18.1')
+## Problem1('21')
+## TitleText2('Calculus')
+## AuthorText2('Hughes-Hallett')
+## EditionText2('6')
+## Section2('18.1')
+## Problem2('27')
+## TitleText3('Calculus')
+## AuthorText3('Hughes-Hallett')
+## EditionText3('4')
+## Section3('18.1')
+## Problem3('21')
+## KEYWORDS('line integral', 'integral', 'multivariable', 'calculus','Line integrals','Path integrals')
+
+## Textbook tags
+## HHChapter1('Line Integrals')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"parserPopUp.pl",
+"VectorField2D.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Numeric")->variables->are(x=>"Real",y=>"Real");
+$showPartialCorrectAnswers = 0;
+
+$refreshCachedImages=1;
+
+$gr = init_graph(0,0,4,4, size=>[250,250]);
+# $fn = new VectorField( sub { 1; }, sub { 0; }, $gr );
+# $fn->dot_radius(2);
+# $fn->dot_color('blue');
+# $fn->rf_arrow_length( sub{
+#  my($dx,$dy)=@_;
+#  return 2;
+# } );
+
+  VectorField2D(
+  graphobject => $gr,
+  Fx => Formula("1"),
+  Fy => Formula("0"),
+  xvar => "x",
+  yvar => "y",
+  xmin => 0,
+  xmax =>  4,
+  ymin => 0,
+  ymax =>  4,
+  xsamples => 7,
+  ysamples => 9,
+  vectorcolor => "red",
+  vectorscale => .4,
+  vectorthickness => 1.5,
+  );
+
+$desc = "Graph of a constant vector field pointing horizontally to the " .
+    "right.  ";
+
+## we pick from six curves; these are defined by
+##    [ startpt, endpt, labelloc, descr ]; in the array @curves, they appear
+##    in increasing magnitude of line integral.
+@curves = ( [ [ 3.75, 0.5 ], [ 2.5, 0.5 ], [ 3, 0.65, 'left', 'bottom' ],
+	      'a horizontal line segment with a length 1.5, ' .
+	      'extending along the bottom of the graph from right to left' ],
+	    [ [ 2, 3.5 ], [ 1.25, 2 ], [ 1.75, 2.85, 'left', 'top' ],
+	      'a diagonal line with a length 1.67 extending from the top ' .
+	      'center of the graph down to the left, moving down about 1.5 ' .
+	      'units and to the left 0.75 units' ],
+	    [ [ 3.5, 3.5 ], [ 3.5, 2 ], [ 3.65, 2.75, 'left','middle' ],
+	      'a vertical line extending from a point at the top right of ' .
+	      'the graph downwards 1.5 units' ],
+	    [ [ 3, 1.5 ], [ 3, 3 ], [ 2.85, 2.25, 'right', 'middle' ],
+	      'a vertical line extending from a point to the right side ' .
+	      'of the graph upwards 1.5 units' ],
+	    [ [ 0.5, 2 ], [ 1.25, 3.5 ], [ 0.85, 2.9, 'right', 'bottom' ],
+	      'a diagonal line with length 1.67 extending from the left of ' .
+	      'of the graph near the midline up 1.5 units and to the ' .
+	      'right 0.75 units' ],
+	    [ [ 0.5, 0.5 ], [ 2, 0.5 ], [ 1.25, 0.65, 'left', 'bottom' ],
+	      'a horizontal line starting at the lower left of the graph ' .
+	      'and extending to the right 1.5 units.' ] );
+@pickem = NchooseK( scalar(@curves), 4 );
+## make sure we didn't get both of the curves with an integral of zero
+$foundzero = 0;
+for ( my $i=0; $i<3; $i++ ) {
+    if ( ( $pickem[$i] == 2 || $pickem[$i] == 3 ) && $foundzero ) {
+	$pickem[$i] = $pickem[3];
+	last;
+    } elsif ( $pickem[$i] == 2 || $pickem[$i] == 3 ) {
+	$foundzero++;
+    }
+}
+
+## the correct ordering of the integrals is that which takes the index
+##    pickem[i] from smallest to largest, so make an inverse mapping of
+##    pickem[i] => i
+%invMap = { };
+
+## add the curves to the graph
+for ( my $i=0; $i<3; $i++ ) {
+    $gr->moveTo( @{$curves[$pickem[$i]]->[0]} );
+    $gr->lineTo( $curves[$pickem[$i]]->[1]->[0], $curves[$pickem[$i]]->[1]->[1],
+	         'blue', 2 );
+    $gr->stamps( closed_circle(@{$curves[$pickem[$i]]->[0]}, 'blue') );
+    $gr->stamps( closed_circle(@{$curves[$pickem[$i]]->[1]}[0,1], 'blue') );
+    ## add the arrow
+    $midx = .5*($curves[$pickem[$i]]->[0]->[0]+$curves[$pickem[$i]]->[1]->[0]);
+    $midy = .5*($curves[$pickem[$i]]->[0]->[1]+$curves[$pickem[$i]]->[1]->[1]);
+    $gr->moveTo( @{$curves[$pickem[$i]]->[0]} );
+    $gr->arrowTo( $midx, $midy, 'blue', 2 );
+
+    ## and a label
+    $gr->lb( new Label( $curves[$pickem[$i]]->[2]->[0],
+			$curves[$pickem[$i]]->[2]->[1],
+			"C" . ($i+1), 'black',
+			$curves[$pickem[$i]]->[2]->[2],
+			$curves[$pickem[$i]]->[2]->[3] ) );
+
+    $invMap{$pickem[$i]} = $i;
+
+    $desc .= "Curve C" . ($i+1) . " is " . $curves[$pickem[$i]]->[3] . ".  ";
+}
+
+## then the popups are
+@picked = num_sort( ($pickem[0], $pickem[1], $pickem[2]) );
+@intdesc = ( "?", "integral on C1", "integral on C2", "integral on C3" );
+$int1 = PopUp( [ @intdesc ], $intdesc[$invMap{$picked[0]} + 1] );
+$int2 = PopUp( [ @intdesc ], $intdesc[$invMap{$picked[1]} + 1] );
+$int3 = PopUp( [ @intdesc ], $intdesc[$invMap{$picked[2]} + 1] );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Consider the vector field \( \vec{F} \) shown in the figure below
+together with the paths \( C_1 \), \( C_2 \), and \( C_3 \).
+$PAR
+$BCENTER
+\{ image( insertGraph( $gr ), tex_size=>250, height=>250, width=>250,
+	  extra_html_tags=>'alt="' . $desc . '"' ) \}
+$BR
+
+$ECENTER
+$PAR
+Arrange the line integrals \( \int_{C_1} \vec{F} \cdot d\vec{r} \),
+\( \int_{C_2} \vec{F} \cdot d\vec{r} \) and
+\( \int_{C_3} \vec{F} \cdot d\vec{r} \) in ascending
+order:
+$PAR
+\{ $int1->menu() \} \( < \)
+\{ $int2->menu() \} \( < \)
+\{ $int3->menu() \}.
+
+END_TEXT
+Context()->normalStrings;
+## ${BITALIC}(${BBOLD}Note:$EBOLD For the vector field, vectors are shown with a
+#dot at the ${BBOLD}tail$EBOLD of the vector.)$EITALIC
+
+ANS( $int1->cmp() );
+ANS( $int2->cmp() );
+ANS( $int3->cmp() );
+
+if ( $pickem[0] < 2 ) {
+    $expl1 = "\(\int_{C_1}\vec F\cdot d\vec r < 0\), because the " .
+        "curve moves from larger to smaller \(x\)-values, and the " .
+	"vector field points from right to left.";
+} elsif ( $pickem[0] == 2 || $pickem[0] == 3 ) {
+    $expl1 = "\(\int_{C_1}\vec F\cdot d\vec r = 0\), because the " .
+        "curve moves straight up and down, and the " .
+	"vector field points from right to left.";
+} else {
+    $expl1 = "\(\int_{C_1}\vec F\cdot d\vec r > 0\), because the " .
+        "curve moves from left to right, in the same direction as " .
+	"the vector field.";
+}
+@whichPos = ();
+@whichNeg = ();
+for ( my $i=0; $i<3; $i++ ) {
+    if ( $pickem[$i] < 2 ) {
+	push( @whichNeg, $i );
+    } elsif ( $pickem[$i] > 3 ) {
+	push( @whichPos, $i );
+    }
+}
+
+if ( @whichNeg > 1 ) {
+    if ( $pickem[$whichNeg[0]] > $pickem[$whichNeg[1]] ) {
+	$largercurve = "C_" . ($whichNeg[0]+1);
+        $smallercurve = "C_" . ($whichNeg[1]+1);
+    } else {
+        $largercurve = "C_" . ($whichNeg[1]+1);
+	$smallercurve = "C_" . ($whichNeg[0]+1);
+    }
+    $twosignexpl = "By similar logic, we note that both of " .
+        "\(\int_{C" . ($whichNeg[0]+1) . "}\vec F\cdot d\vec r\) and " .
+	"\(\int_{C" . ($whichNeg[1]+1) . "}\vec F\cdot d\vec r\) are " .
+	"negative.  However, because \($largercurve\) has a smaller " .
+	"component pointing in the opposite direction as the vector " .
+	"field, the integral on \($largercurve\) is larger than that " .
+	"on \($smallercurve\).$PAR";
+} elsif ( @whichPos > 1 ) {
+    if ( $pickem[$whichNeg[0]] > $pickem[$whichNeg[1]] ) {
+	$largercurve = "C_" . ($whichNeg[0]+1);
+        $smallercurve = "C_" . ($whichNeg[1]+1);
+    } else {
+        $largercurve = "C_" . ($whichNeg[1]+1);
+	$smallercurve = "C_" . ($whichNeg[0]+1);
+    }
+    $twosignexpl = "By similar logic, we note that both of " .
+        "\(\int_{C" . ($whichNeg[0]+1) . "}\vec F\cdot d\vec r\) and " .
+	"\(\int_{C" . ($whichNeg[1]+1) . "}\vec F\cdot d\vec r\) are " .
+	"positive.  However, because \($largercurve\) has a smaller " .
+	"component pointing in the same direction as the vector " .
+	"field, the integral on \($largercurve\) is larger than that " .
+	"on \($smallercurve\).$PAR";
+} else {
+    $twosignexpl = "";
+}
+
+$c1 = $invMap{$picked[0]} + 1;
+$c2 = $invMap{$picked[1]} + 1;
+$c3 = $invMap{$picked[2]} + 1;
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+We can work out the relative sizes of the line integrals by seeing
+which curves move in the same direction of the vectors, which move
+in the opposite direction, and which move perpendicular.  In the first
+case, the integral will be positive, in the second, negative, and in
+the third, zero.  Thus, we see that
+$expl1
+
+$PAR
+$twosignexpl
+
+Applying this logic to each of the curves, we find that
+\[ \int_{C_{$c1}}\vec F\cdot\vec r <
+   \int_{C_{$c2}}\vec F\cdot\vec r <
+   \int_{C_{$c3}}\vec F\cdot\vec r. \]
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
