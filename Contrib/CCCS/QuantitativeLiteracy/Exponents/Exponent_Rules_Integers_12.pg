@@ -24,7 +24,7 @@ loadMacros(
   "PGML.pl",
   "PGgraphmacros.pl",
   "PGcourse.pl",
-  "contextRationalFunction.pl",
+  "bizarroArithmetic.pl",
  
 );
 
@@ -33,16 +33,23 @@ loadMacros(
 #Integer exponents two variables
 
 Context("Numeric");
+Context()->variables->add(y=>"Real");
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(limits=>[1,10]);
+Context()->operators->set(
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'**' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+'^' => {class => 'bizarro::BOP::power', isCommand => 1, perl=>undef},
+);
 
-$a = random(-10,-2);
-do {$b = random(-8,-1)} until abs($a) > abs($b);
+$a = random(-10,-6);
+$ab = random(2, 5);
+$b = $ab + $a;
+
 $c = random(2,7);
 $d = random(-6,-1);
-$ab = $b-$a;
-$cd = $c - $d;
 
-Context("RationalFunction-Strict");
-Context()->variables->add(y => 'Real');
+$cd = $c-$d;
 
 $ans = Formula("x^$cd/y^$ab");
 
@@ -55,21 +62,42 @@ BEGIN_PGML
 
 Simplify. Use only positive exponents in your answer.
 
-[` \dfrac{x^{[$c]}y^{[$a]}}{x^{[$d]}y^{[$b]}} = `]  [________]{$ans} 
+[` \dfrac{x^{[$c]}y^{[$a]}}{x^{[$d]}y^{[$b]}} = `]  [________]
 
  
 END_PGML
 
 ##############################################
+ANS($ans -> cmp(
+checker=>sub{
+my ( $correct, $student, $ansHash ) = @_;
+return 0 if $ansHash->{isPreview} || $correct != $student;
+$student = $ansHash->{student_formula};
+$correct = $correct->{original_formula} if defined $correct->{original_formula};
+$student = Formula("$student"); $correct = Formula("$correct");
+return 0 unless ($correct == $student);
+Context()->flags->set(bizarroDiv=>1,bizarroPow=>1);
+delete $correct->{test_values};
+delete $student->{test_values};
+my $OK = (($correct == $student) or ($student == $correct));
+Context()->flags->set(bizarroDiv=>0,bizarroPow=>0);
+Value::Error("Your answer is equivalent, but please use the proper format") unless $OK;
+return $OK;
+}));
 
-
-
+#################################
 BEGIN_PGML_SOLUTION
+The quotient rule is:
 
+[``\frac{x^n}{x^m} = x^{n-m}``]
+
+To simplify, subtract the exponents.  Notice that subtracting a negative number is addition.
+
+[``\frac{x^{[$c]}y^{[$a]}}{x^{[$d]}y^{[$b]}} = x^{[$c]-[$d]}y^{[$a] - [$b]}``]
+
+Now we rewrite the answer using a positive exponent.
+
+[``x^{[$cd]}y^{-[$ab]} = [$ans]``]
 END_PGML_SOLUTION
 
 ENDDOCUMENT();
-
-
-
-
