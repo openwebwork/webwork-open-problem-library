@@ -1,0 +1,194 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('extrema', 'multivariable', 'functions', 'calculus', 'derivatives')
+## Tagged by glr 01/11/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Maximum and Minimum Values')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('15.1')
+## Problem1('14')
+
+## Textbook tags
+## HHChapter1('Optimization: Local and Global Extrema')
+## HHSection1('Local Extrema')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Point");
+Context()->strings->add( maximum=>{}, minimum=>{}, 'saddle point'=>{},
+			 none=>{} );
+$showPartialCorrectAnswers = 1;
+
+$m = list_random( 1, 4 );  # random(1,4,1)**2; #
+$sqrtm = Compute("sqrt($m)");
+
+$b = random(1,5,1);
+if ( $b == 2 ) {
+    $bcoef = "1/2";
+} elsif ( $b == 4 ) {
+    $bcoef = "1";
+} else {
+    $bcoef = "$b/4";
+}
+$a = $m*8*$b;
+
+$func = Compute( "$a*x*y - ($bcoef)*(x + y)^4" )->reduce();
+
+$critPts = List( Point("(0,0)"), Point("($sqrtm,$sqrtm)"),
+		 Point("(-$sqrtm,-$sqrtm)") );
+$classify = List( String("saddle point"), String("maximum"),
+		  String("maximum") );
+
+$anschek = MultiAnswer( $critPts, $classify )->with(
+    singleResult => 0,
+    allowBlankAnswers => 1,
+    checkTypes => 0,
+    checker => sub {
+	my ( $cor, $stu, $self ) = @_;
+	my ($corList, $corClass) = @$cor;
+	my ($stuList, $stuClass) = @$stu;
+	$stuList = List( $stuList ) if ( ref( $stuList ) ne 'Value::List' );
+	$stuClass = List( $stuClass ) if ( ref( $stuClass ) ne 'Value::List' );
+
+	## now $corList and $stuList should be lists of points,
+	##    and the class veriables lists of strings
+	my @corPts = $corList->value;
+	my @stuPts = $stuList->value;
+	my @corStr = $corClass->value;
+	my @stuStr = $stuClass->value;
+
+	if ( @corPts != @stuPts ) {
+	    $self->setMessage( 1, "You have given too " .
+			       ((@corPts > @stuPts) ? "few " : "many ") .
+			       "points." );
+	}
+
+	my @ret = ( 0, 0 );
+	my $numpts = ( @corPts > @stuPts ) ? @corPts : @stuPts;
+	my $retInc = 1/$numpts;
+
+	my $i = 0; my $j = 0;
+	my %matched = ();
+	foreach my $cpt ( @corPts ) {
+	    $j = 0;
+	    foreach my $spt ( @stuPts ) {
+		$matched{$j} = 0 if ( ! defined( $matched{$j} ) );
+		if ( $matched{$j} ) {
+		    $j++;
+		    next;
+		}
+
+		if ( ref($cpt) eq ref($spt) && $cpt == $spt  ) {
+		    $ret[0] += $retInc;
+		    $matched{$j} = 1;
+
+		    if ( $j < @stuStr ) {
+			if ( ref($corStr[$i]) eq ref($stuStr[$j]) &&
+			     $corStr[$i] == $stuStr[$j] ) {
+			    $ret[1] += $retInc;
+			}
+		    }
+		}
+		$j++;
+	    }
+	    $i++;
+	}
+	$ret[0] = sprintf("%.2f", $ret[0]);
+	$ret[1] = sprintf("%.2f", $ret[1]);
+	return [ @ret ];
+    } );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Find the critical points for the function
+\[ f(x,y) = $func \]
+and classify each as a local maximum, local minimum, saddle point, or
+none of these.
+$PAR
+critical points: \{ $anschek->ans_rule(55) \}
+$BR
+${BITALIC}(give your points as a comma separated list of (x,y)
+coordinates.)$EITALIC
+$PAR
+classifications: \{ $anschek->ans_rule(55) \}
+$BR
+${BITALIC}(give your answers in a comma separated list, specifying
+${BBOLD}maximum$EBOLD, ${BBOLD}minimum$EBOLD, ${BBOLD}saddle point$EBOLD,
+or ${BBOLD}none$EBOLD for each, in the same order as you entered your
+critical points)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+ANS($anschek->cmp() );
+
+$eightb = 8*$b;
+$threeb = 3*$b;
+$ninebsq = $threeb*$threeb;
+$d00 = -1*$a*$a;
+$d11 = $ninebsq*16*$m*$m - ($a - $threeb*4*$m)**2;
+$fxx11 = -1*$threeb*4*$m;
+
+$fval1 = $func->eval(x=>$sqrtm,y=>$sqrtm);
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+At a critical point, \(f_x(x, y)=0\), \(f_y(x, y)=0\).  Thus
+\[ f_{x}(x, y) = $a y - $b(x+y)^3 = 0\]
+and
+\[ f_{y}(x, y) = $a x - $b (x+y)^3 = 0. \]
+Thus
+\[ $a y = $b(x + y)^3 = $a x, \]
+and \(x = y\).  Thus \($a x - $eightb x^3 = 0 \quad => \quad $eightb x($m - x^2) = 0 \), and solving gives
+\(x = 0, \pm $sqrtm\).  Thus the critical points are
+\((0,0)\), \(($sqrtm,$sqrtm)\) and \((-$sqrtm,-$sqrtm)\).
+
+$PAR
+Next,
+\( f_{yy}(x, y) = f_{xx}(x, y) = -$threeb (x+y)^2\), and
+\( f_{xy}(x, y) = $a - $threeb(x+y)^2\).
+The discriminant is
+\( D(x,y) = f_{xx}(x, y)f_{yy}(x, y)- [f_{xy}(x, y)]^2\), so
+\[ D = $ninebsq(x+y)^4 - \left($a - $threeb(x + y)^2\right)^2. \]
+Thus
+\( D(0,0) = $d00 < 0\), so \((0,0)\) is a saddle point.
+$BR
+\( D($sqrtm,$sqrtm) = $d11 > 0\) and
+\(f_{xx}($sqrtm,$sqrtm) = $fxx11 < 0\), so \(f\) is concave down and has a relative maximum of  \($fval1\)  at \(($sqrtm,$sqrtm)\).
+$BR
+\( D(-$sqrtm,-$sqrtm) = $d11 > 0\) and
+\(f_{xx}(-$sqrtm,-$sqrtm) = $fxx11 < 0\), so \(f\) is concave down and has a relative maximum of  \($fval1\)  at \((-$sqrtm,-$sqrtm)\).
+
+END_SOLUTION
+Context()->normalStrings;
+
+
+COMMENT('MathObject version');
+ENDDOCUMENT();

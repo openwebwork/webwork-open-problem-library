@@ -1,0 +1,181 @@
+# DESCRIPTION
+# Problem from Calculus, multi-variable, Hughes-Hallett et al.,
+# originally from 5ed (with updates)
+# WeBWorK problem written by Gavin LaRose, <glarose@umich.edu>
+# ENDDESCRIPTION
+
+## KEYWORDS('extrema', 'multivariable', 'functions', 'calculus', 'derivatives')
+## Tagged by glr 01/11/10
+
+
+## DBsubject('Calculus')
+## DBchapter('Partial Derivatives')
+## DBsection('Maximum and Minimum Values')
+## Date('')
+## Author('Gavin LaRose')
+## Institution('University of Michigan')
+## TitleText1('Calculus')
+## EditionText1('5')
+## AuthorText1('Hughes-Hallett')
+## Section1('15.1')
+## Problem1('7')
+
+## Textbook tags
+## HHChapter1('Optimization: Local and Global Extrema')
+## HHSection1('Local Extrema')
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+# "parserNumberWithUnits.pl",
+# "parserFormulaWithUnits.pl", 
+# "parserFormulaUpToConstant.pl",
+# "PGcourse.pl",
+);
+
+Context("Point");
+Context()->strings->add( maximum=>{}, minimum=>{}, 'saddle point'=>{},
+			 none=>{} );
+$showPartialCorrectAnswers = 1;
+
+$a = random(1,5,1);
+$twoa = 2*$a;
+$b = $a + random(1,2,1);
+$twob = 2*$b;
+$bminusa = $b - a;
+$twobminusa = 2*$bminusa;
+$m = random(1,3,1);
+$c = 2*$m*($b - $a);
+
+$func = Compute( "$a*x^2 - $twoa*x*y + $b*y^2 - $c*y" )->reduce();
+## with this choice of function, we have
+$fx = "$twoa x - $twoa y";
+$fy = "-$twoa x + $twob y - $c";
+## so that x = y, and then
+$yval = $m;
+$xval = $m;
+
+$critPts = List( Point("($m,$m)") );
+## then
+$fxx= "$twoa";
+$fyy = "$twob";
+$fxy = "-$twoa";
+$disc = $twoa*$twob - $twoa*$twoa;
+
+## we know that disc > 0 and fxx > 0, so this is a minimum
+$classify = List( String("minimum") );
+
+$anschek = MultiAnswer( $critPts, $classify )->with(
+    singleResult => 0,
+    allowBlankAnswers => 1,
+    checkTypes => 0,
+    checker => sub {
+	my ( $cor, $stu, $self ) = @_;
+	my ($corList, $corClass) = @$cor;
+	my ($stuList, $stuClass) = @$stu;
+	$stuList = List( $stuList ) if ( ref( $stuList ) ne 'Value::List' );
+	$stuClass = List( $stuClass ) if ( ref( $stuClass ) ne 'Value::List' );
+
+	## now $corList and $stuList should be lists of points,
+	##    and the class veriables lists of strings
+	my @corPts = $corList->value;
+	my @stuPts = $stuList->value;
+	my @corStr = $corClass->value;
+	my @stuStr = $stuClass->value;
+
+	if ( @corPts != @stuPts ) {
+	    $self->setMessage( 1, "You have given too " .
+			       ((@corPts > @stuPts) ? "few " : "many ") .
+			       "points." );
+	}
+
+	my @ret = ( 0, 0 );
+	my $numpts = ( @corPts > @stuPts ) ? @corPts : @stuPts;
+	my $retInc = 1/$numpts;
+
+	my $i = 0; my $j = 0;
+	my %matched = ();
+	foreach my $cpt ( @corPts ) {
+	    $j = 0;
+	    foreach my $spt ( @stuPts ) {
+		$matched{$j} = 0 if ( ! defined( $matched{$j} ) );
+		if ( $matched{$j} ) {
+		    $j++;
+		    next;
+		}
+
+		if ( ref($cpt) eq ref($spt) && $cpt == $spt  ) {
+		    $ret[0] += $retInc;
+		    $matched{$j} = 1;
+		    if ( $j < @stuStr ) {
+			if ( ref($corStr[$i]) eq ref($stuStr[$j]) &&
+			     $corStr[$i] == $stuStr[$j] ) {
+			    $ret[1] += $retInc;
+			}
+		    }
+		}
+		$j++;
+	    }
+	    $i++;
+	}
+	$ret[0] = sprintf("%.2f", $ret[0]);
+	$ret[1] = sprintf("%.2f", $ret[1]);
+	return [ @ret ];
+    } );
+
+Context()->texStrings;
+TEXT(beginproblem());
+BEGIN_TEXT
+
+Find the critical points for the function
+\[ f(x,y) = $func \]
+and classify each as a local maximum, local minimum, saddle point, or
+none of these.
+$PAR
+critical points: \{ $anschek->ans_rule(55) \}
+$BR
+${BITALIC}(give your points as a comma separated list of (x,y)
+coordinates.)$EITALIC
+$PAR
+classifications: \{ $anschek->ans_rule(55) \}
+$BR
+${BITALIC}(give your answers in a comma separated list, specifying
+${BBOLD}maximum$EBOLD, ${BBOLD}minimum$EBOLD, ${BBOLD}saddle point$EBOLD,
+or ${BBOLD}none$EBOLD for each, in the same order as you entered your
+critical points)$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+# ANS($critPts->cmp() );
+# ANS($classify->cmp() );
+ANS($anschek->cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+To find the critical points, we solve \(f_x(x, y) = 0\) and
+\(f_y(x,y) = 0\) for \(x\) and \(y\). These equations are
+\[ f_x(x,y) = $twoa x - $twoa y = 0, \]
+and
+\[ f_y(x,y) = -$twoa x + $twob y - $c = 0.\]
+We see from the first
+equation that \(x = y\).  Substituting this into the second equation
+shows that \(y = $m\).  The only critical point is \(($m,$m)\).
+
+$PAR
+We then have
+\[ D($m,$m) = (f_{xx}($m,$m))(f_{yy}($m,$m)) - (f_{xy}($m,$m))^2 = ($fxx)($fyy) - ($fxy)^2 = $disc. \] $BR
+Since \(D > 0\) and \(f_{xx}($m,$m) = $fxx > 0\), the function \(f\) is concave up and has a local minimum at the point \(($m,$m)\).
+
+END_SOLUTION
+Context()->normalStrings;
+
+
+COMMENT('MathObject version');
+ENDDOCUMENT();

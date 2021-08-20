@@ -1,0 +1,177 @@
+#DESCRIPTION
+#  Series: limit comparison test
+#ENDDESCRIPTION
+
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Infinite sequences and series)
+## DBsection(Comparison tests)
+## Institution(Fort Lewis College)
+## Author(Paul Pearson)
+## MLT(LCT_bit_by_bit)
+## Level(3)
+## MO(1)
+## TitleText1('Calculus')
+## AuthorText1('')
+## EditionText1('')
+## Section1('.')
+## Problem1('')
+## KEYWORDS('series','limit comparison test')
+
+######################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"unionTables.pl",
+"parserPopUp.pl",
+"answerHints.pl",
+"PGgraders.pl",
+"parserMultiAnswer.pl",
+);
+
+TEXT(beginproblem());
+
+
+##################################
+#  Setup
+
+Context("Numeric")->variables->are(n=>"Real");
+
+do {	# Prevent a common factor 2, which a student may (correctly) cancel
+  $a = random(5,9,1);
+  $b = random(2,9,1);
+  $c = random(2,5,1);
+  $e = random(2,9,1);
+} until ($a % 2 || $b % 2 || $c % 2 || $e % 2);
+
+$d = random(3,9,1);
+$dm1 = $d - 1;
+$dm2 = $d - 2;
+
+
+# TeX
+$series = "\sum_{n=$c}^{\infty} \frac{$a n + $b}{$c n^{$d} + 2n^2 + $e}";
+$fraction = "\lim_{n \to \infty} \frac{ a_{n} }{ b_{n} } = \lim_{n \to \infty}";
+
+$num1 = Formula("$a n^$d + $b n^$dm1");
+$den1 = Formula("$c n^$d + 2 n^2 + $e");
+
+$num2 = Formula("$a + $b/n");
+$den2 = Formula("$c + 2/(n^$dm2) + $e/(n^$d)"); 
+
+$multians = MultiAnswer($num1, $den1)->with(
+  singleResult => 0,
+  checker => sub {
+      my ( $correct, $student, $ansHash ) = @_;
+      my ( $stu1, $stu2 ) = @{$student};    
+      
+      if (($num1 == $stu1 && $den1 == $stu2) ||
+          ($num2 == $stu1 && $den2 == $stu2) ) {
+          return [1,1];
+      } elsif (($num1 == $stu1 && $den2 == $stu2) || 
+               ($num2 == $stu1 && $den1 == $stu2)) {
+          $ansHash->setMessage(1,"Check your algebra");
+          $ansHash->setMessage(2,"Check your algebra");
+          return [0,0];
+      } elsif ($num1 == $stu1 || $num2 == $stu1) {
+          return [1,0];
+      } elsif ($den1 == $stu2 || $den2 == $stu2) {
+          return [0,1];
+      } else {
+          return [0,0];
+      }
+  }
+);
+
+
+$limit = Formula("$a/$c");
+$popup = PopUp(["Choose","Converges","Diverges","Inconclusive"],"Converges");
+
+
+
+# 
+#  Display the fraction and answer blanks nicely
+#
+Context()->texStrings;
+if ($displayMode eq 'TeX') {
+  $showfraction =
+  "\[ $fraction ".$multians->ans_rule(10).$multians->ans_rule(10)." \]";
+} else {
+  $showfraction =
+  ColumnTable(
+  "\( \displaystyle $fraction \)",
+  $multians->ans_rule(20).$BR.$HR.$multians->ans_rule(20),
+  indent => 0, separation => 10, valign => "MIDDLE"
+  );
+}
+Context()->normalStrings;
+
+
+#######################################
+#  Main text
+
+BEGIN_TEXT
+Use the limit comparison test to determine whether 
+\( \displaystyle \sum_{n=$c}^{\infty} a_n =  $series \) 
+converges or diverges.
+$BR
+$BR
+(a) Choose a series \( \displaystyle \sum_{n=$c}^\infty b_n \) 
+with terms of the form \( \displaystyle b_n = \frac{1}{n^p} \) 
+and apply the limit comparison test.
+$BBOLD Write your answer as a fully simplified fraction. $EBOLD
+For \( n \geq $c \), 
+$showfraction
+$BR
+(b) Evaluate the limit in the previous part.  Enter \( \infty \) 
+as ${BITALIC}infinity${EITALIC} and \( -\infty \) 
+as ${BITALIC}-infinity.${EITALIC}  If the limit does not exist, 
+enter ${BITALIC}DNE.${EITALIC}
+$BR
+\( \displaystyle \lim_{n\to\infty} \frac{a_{n}}{b_{n}} \, \) = 
+\{ ans_rule(20) \}
+$BR
+$BR
+(c) By the limit comparison test, does the series
+converge, diverge, or is the test inconclusive?
+\{ $popup->menu() \}
+END_TEXT
+
+BEGIN_HINT
+For part a), What p-series has the same magnitude as this one for each $BITALIC nth $EITALIC term (see textbook, p. 615).
+END_HINT
+#######################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers=1;
+install_problem_grader(~~&custom_problem_grader_fluid);
+$ENV{'grader_numright'} = [2,4];
+$ENV{'grader_scores'} = [0.4,1];
+$ENV{'grader_message'} = "You can earn " .
+"40% partial credit for 2 - 3 correct answers.";
+
+ANS( $multians->cmp() );
+
+ANS( $limit->cmp() );
+ANS( $popup->cmp() );
+
+
+ENDDOCUMENT();
+
+ANS( $num->cmp() 
+->withPostFilter(AnswerHints( 
+  Formula("$a n^$d + $b n^($d-1)") 
+  => "Simplify your answer further (factor and cancel)",
+))
+);
+
+ANS( $den->cmp() 
+->withPostFilter(AnswerHints( 
+  Formula("$c n^$d + 2 n^2 + $e")
+  => "Simplify your answer further (factor and cancel)",
+))
+);
