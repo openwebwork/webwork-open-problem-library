@@ -1,3 +1,9 @@
+![](https://img.shields.io/badge/license-CC%20BY--NC--SA%203.0-blue)
+![GitHub contributors](https://img.shields.io/github/contributors/openwebwork/webwork-open-problem-library)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/y/openwebwork/webwork-open-problem-library)
+![GitHub last commit](https://img.shields.io/github/last-commit/openwebwork/webwork-open-problem-library)
+![GitHub Sponsors](https://img.shields.io/github/sponsors/openwebwork)
+
 # WeBWorK Open Problem Library
 ==============================
 
