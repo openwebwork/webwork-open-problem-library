@@ -9,7 +9,7 @@ Report a new bug via [Bugzilla](https://bugs.webwork.maa.org/enter_bug.cgi).
 
 ## Suggesting Enhancements to the Library 
 
-Open a [GitHub isue](https://guides.github.com/features/issues/). 
+Open a [GitHub issue](https://guides.github.com/features/issues/). 
 
 ## Adding New Problems to the Library
 
