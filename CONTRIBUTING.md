@@ -9,10 +9,10 @@ Report a new bug via [Bugzilla](https://bugs.webwork.maa.org/enter_bug.cgi).
 
 ## Suggesting Enhancements to the Library 
 
-Open an [GitHub isue](https://guides.github.com/features/issues/). 
+Open a [GitHub issue](https://guides.github.com/features/issues/). 
 
 ## Adding New Problems to the Library
 
-New problems go into the `Contrib` folder. Propose your additions by creating a [pull request](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
+New problems go into the `Contrib` folder. Propose your additions by creating a [pull request](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request).
 
-See also the [WeBWorK-wiki](https://webwork.maa.org/wiki/Submitting_problems_to_the_OPL).
+See also the [WeBWorK Documentation Wiki](https://webwork.maa.org/wiki/Submitting_problems_to_the_OPL) for further information.
