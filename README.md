@@ -1,7 +1,7 @@
 [![](https://img.shields.io/badge/license-CC%20BY--NC--SA%203.0-blue)](https://creativecommons.org/licenses/by-nc-sa/3.0/)
 [![GitHub contributors](https://img.shields.io/github/contributors/openwebwork/webwork-open-problem-library)](https://github.com/openwebwork/webwork-open-problem-library/graphs/contributors)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/y/openwebwork/webwork-open-problem-library)
-![GitHub last commit](https://img.shields.io/github/last-commit/openwebwork/webwork-open-problem-library)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/y/openwebwork/webwork-open-problem-library)](https://github.com/openwebwork/webwork-open-problem-library/graphs/commit-activity)
+[![GitHub last commit](https://img.shields.io/github/last-commit/openwebwork/webwork-open-problem-library)](https://github.com/openwebwork/webwork-open-problem-library/commits/master)
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/openwebwork)](https://github.com/sponsors/openwebwork)
 
 # WeBWorK Open Problem Library
