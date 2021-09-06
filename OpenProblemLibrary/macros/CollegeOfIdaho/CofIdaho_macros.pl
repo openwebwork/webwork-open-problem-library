@@ -574,97 +574,89 @@ sub StrictFactoringEvaluator {
 
 sub RationalExpEvaluator {
 
-   Context()->strings->add("Does not simplify"=>());
-       
-   my $ans = shift;
-   my $ans_text = $ans;   #Mainly for string answers like "Does not simplify"
-   if ($ans=~/not/)
-      {
-      $ans = shift;
-      } 
-   my @vars = @_;
+	Context()->strings->add( "Does not simplify" => () );
 
-#---------Split off the numerator/denominator
-   my @factors = split(q[/], $ans); #my @factors = split(/[,]/, $format_ans);
-   my $num = Formula($factors[0]);
-   my $den = Formula("1");
-   if ($#factors>0) {$den = Formula($factors[1]);}
+	my $ans      = shift;
+	my $ans_text = $ans;    #Mainly for string answers like "Does not simplify"
+	if ( $ans =~ /not/ ) {
+		$ans = shift;
+	}
+	my @vars = @_;
 
-#   $ans = Formula($ans)->reduce;
+	#---------Split off the numerator/denominator
+	my @factors = split( q[/], $ans );
+	my $num = Formula( $factors[0] );
+	my $den = ($#factors > 0) ? Formula( $factors[1] ) : Formula("1");
 
-   my $old_evaluator = fun_cmp($ans,var=>@vars);
+	my $old_evaluator = fun_cmp( $ans, var => @vars );
 
-   my $new_evaluator = sub {
-      my $student_ans = shift;
-      my $student_ans_text = $student_ans;
-#      $student_ans = Formula($student_ans);
-       
-#---------For string answers----------------------------------------------  
-      if ($student_ans_text =~ /not/)
-         {  
-         my $old_eval_string = str_cmp($ans_text);
-         my $ans_hash = $old_eval_string->evaluate($student_ans_text);
-         $ans_hash->{correct_ans} = $ans_text;
-         $ans_hash->{student_ans} = $student_ans_text;
-         $ans_hash->{original_student_ans} = $student_ans_text;
-         return $ans_hash;
-         }
-#---------------------------------------------------------------------------
+	my $new_evaluator = sub {
+		my $student_ans      = shift;
+		my $student_ans_text = $student_ans;
 
-      my $ans_hash = $old_evaluator->evaluate($student_ans);
-       
-      if ($ans_hash->{score}==1)     #Check format 
-         {
-#--------Check for a scalar answer in case and the student entered a decimal 
-         if ($student_ans!~/[a-z,A-Z]/ && $ans!~/[a-z,A-Z]/) 
-            {
-            $ans_hash->{correct_ans} = $ans_text;
-            $ans_hash->{student_ans} = $student_ans_text;
-            $ans_hash->{original_student_ans} = $ans_hash->{student_ans};
-            return $ans_hash;
-            }           
-#--------------------------------------------------------------------
+		#---------For string answers----------------------------------------------
+		if ( $student_ans_text =~ /not/ ) {
+			my $old_eval_string = str_cmp($ans_text);
+			my $ans_hash        = $old_eval_string->evaluate($student_ans_text);
+			$ans_hash->{correct_ans}          = $ans_text;
+			$ans_hash->{student_ans}          = $student_ans_text;
+			$ans_hash->{original_student_ans} = $student_ans_text;
+			return $ans_hash;
+		}
+		#-------------------------------------------------------------------------
 
-#--------------Split off the numerator/denominator
-         my @student_factors = split(q[/], $student_ans_text);
-		 #map { s|^\(+|| } @student_factors;
-		 #map { s|\)+$|| } @student_factors;
-         my $student_num = Formula($student_factors[0]);  
-         my $student_den = Formula("1");
-         if ($#student_factors>0) {$student_den = Formula($student_factors[1]);}     
+		my $ans_hash = $old_evaluator->evaluate($student_ans);
 
-        if ($#factors!=$#student_factors) 
-           {
-           $ans_hash->{score}=0;
-           }
-        else
-           {
-           my $num_eval = fun_cmp($num,var=>@vars);
-           my $num_hash = $num_eval->evaluate($student_num);
-           $ans_hash->{score} = $num_hash->{score};
-           if ($#factors>0)
-              {
-              my $den_eval = fun_cmp($den,var=>@vars);
-              my $den_hash = $den_eval->evaluate($student_den);
-              $ans_hash->{score} = $den_hash->{score};
-              }
+		if ( $ans_hash->{score} == 1 ) {
+			#--------Check for a scalar answer in case and the student entered a decimal
+			if ( $student_ans !~ /[a-zA-Z]/ && $ans !~ /[a-zA-Z]/ ) {
+				$ans_hash->{correct_ans}          = $ans_text;
+				$ans_hash->{student_ans}          = $student_ans_text;
+				$ans_hash->{original_student_ans} = $ans_hash->{student_ans};
+				return $ans_hash;
+			}
+			#--------------------------------------------------------------------
 
-           } 
+			#--------Split off the numerator/denominator-------------------------
+			my $student_ans_mo = Formula( $student_ans_text );
+			my ( $student_num, $student_den );
+			my @student_factors;
 
-        if ($ans_hash->{score}==0) 
-           {
-           $ans_hash->setKeys( 'ans_message' =>"Simplify your answer.");
-           }
-        }
+			# use MO parse tree rather than regex split because of surrounding parens from mathquill
+			if ( $student_ans_mo->{tree}->class eq 'BOP' && $student_ans_mo->{tree}{bop} =~ m!/! ) {
+				$student_num = $student_ans_mo->{tree}{lop};
+				$student_den = $student_ans_mo->{tree}{rop};
+				@student_factors = ( $student_num->string, $student_den->string );
+			} else {
+				$student_num = $student_ans_mo;
+				$student_den = Formula('1');
+				@student_factors = ( $student_num->string );
+			}
+			#--------------------------------------------------------------------
 
-      if ($ans_text=~/not/) {$ans_hash->{correct_ans} = $ans_text;}	
-      return $ans_hash;
-   };
+			if ( $#factors != $#student_factors ) {
+				$ans_hash->{score} = 0;
+			} else {
+				my $num_eval = fun_cmp( $num, var => @vars );
+				my $num_hash = $num_eval->evaluate($student_num);
+				$ans_hash->{score} = $num_hash->{score};
+				
+				if ( $#factors > 0 ) {
+					my $den_eval = fun_cmp( $den, var => @vars );
+					my $den_hash = $den_eval->evaluate($student_den);
+					$ans_hash->{score} = $den_hash->{score};
+				}
+			}
 
-   Context()->strings->remove("Does not simplify"=>());
-   return $new_evaluator;
+			$ans_hash->{ans_message} = "Simplify your answer." if ( $ans_hash->{score} == 0 );
+		}
+
+		return $ans_hash;
+	};
+
+	Context()->strings->remove( "Does not simplify" => () );
+	return $new_evaluator;
 }
-
 
 ###################################################################
 #  9) Writes a fraction in reduced form.  
