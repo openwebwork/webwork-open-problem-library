@@ -1,0 +1,263 @@
+## BEGIN_DESCRIPTION
+## Complete Regression ANOVA tables and answer questions
+## about their values
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Statistics)
+## DBchapter(Simple linear regression)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(4)
+## Language(en)
+## MO(1)
+## KEYWORDS('ANOVA','Regression','Goodness of Fit','R')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "PGchoicemacros.pl",
+   "PGcourse.pl",
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "parserPopUp.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+
+#  Setup
+Context("Numeric");
+Context()->flags->set(
+  tolerance => 0.01,
+  tolType   => "relative"
+);
+Context()->{format}{number} = "%.4f#";
+
+$df_f = Real(1);
+$df_t = Real(random(30,50));
+$df_e = Real($df_t - $df_f);
+
+$ss_e = Real(random(2,10,0.1)*$df_e);
+$ms_e = Real($ss_e/$df_e);
+
+$a    = random(.006,.05,.002);
+
+$ss_f = Real(rserve_eval("round(qf(1-$a,$df_f,$df_e)*$ms_e*$df_f,1)"));
+$ms_f = Real($ss_f/$df_f);
+
+$ss_t = Real($ss_f + $ss_e);
+$ms_t = Real($ss_t/$df_t);
+
+$F    = Real($ms_f/$ms_e);
+
+$p    = Real(rserve_eval("1-pf($F,$df_f,$df_e)"));
+
+$br = "border-right: 3px double;";
+$bb = "border-bottom: 3px double;";
+
+$df_i = random(1,2);
+$ss_i = random(0,2);
+
+@df   = (ans_rule(5), "\($df_e\)", "\($df_t\)"); 
+@df_a = ($df_f, $df_e, $df_t); 
+$df[$df_i] = ans_rule(5);
+
+@ss   = ("\($ss_f\)", "\($ss_e\)", "\($ss_t\)"); 
+@ss_a = ($ss_f, $ss_e, $ss_t); 
+$ss[$ss_i] = ans_rule(5);
+
+# Goodness of Fit table
+
+$stderr = Real(sqrt($ms_e));
+$Rsq    = Real($ss_f/$ss_t);
+
+
+# Coefficients table
+
+$Sxx = Real(random(10,30,.1));
+$Sxy = Real(sqrt($ss_f*$Sxx));
+$B1  = Real($Sxy/$Sxx);
+$B0  = Real(random(1,4,.1));
+$sB1 = Real(sqrt($ms_e/$Sxx));
+$sB0 = Real(sqrt($ms_e/($df_t+1)));
+$tB1 = Real($B1/$sB1);
+$tB0 = Real($B0/$sB0);
+$pB1 = Real(rserve_eval("2*(1-pt($tB1,$df_e))"));  # Note: 2-sided t-test
+$pB0 = Real(rserve_eval("2*(1-pt($tB0,$df_e))"));  # Note: 2-sided t-test
+$tCI = Real(rserve_eval("-qt(.025,$df_e)"));
+$rB1 = Real($sB1*$tCI);
+$rB0 = Real($sB0*$tCI);
+
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+
+Complete the regression and ANOVA tables below and then answer questions about their values.
+All answers must be ${BBOLD}numerical${EBOLD} and accurate to 3 significant digits.
+
+$PAR
+\{
+DataTable(
+  [
+    [['Predictor',cellcss=>$br.$bb],
+        ['Coeff.',cellcss=>$bb],
+        ['Std.Error',cellcss=>$bb],
+        ['t',cellcss=>$bb],
+        ['p', cellcss=>$bb]],
+    [['Const',cellcss=>$br],
+         '\($B0\)', 
+         '\($sB0\)',
+         '\($tB0\)',
+         '\($pB0\)'],
+    [['\(x\)',cellcss=>$br],
+         '\($B1\)', 
+         '\($sB1\)',
+         '\($tB1\)',
+         '\($pB1\)'],
+  ], 
+  align => '| l | c | c | c | c  |',
+  midrules => 1, 
+  center => 0
+);
+\}
+
+$PAR
+
+\{
+DataTable(
+  [
+    [['Source',cellcss=>$br.$bb],
+        ['df',cellcss=>$bb],
+        ['SS',cellcss=>$bb],
+        ['MS',cellcss=>$bb],
+        ['F', cellcss=>$bb],
+        ['p', cellcss=>$bb]],
+    [['Regression',cellcss=>$br],
+         $df[0],  $ss[0],
+         $ms_f->ans_rule(10),
+            $F->ans_rule(5),
+            $p->ans_rule(5)],
+    [['Residual',cellcss=>$br],
+         $df[1], $ss[1],
+         $ms_e->ans_rule(10),
+         ],
+    [['Total',cellcss=>$br],
+         $df[2], $ss[2],
+         $ms_t->ans_rule(10),
+         ],
+  ], 
+  align => '| l | c | c | c | c  | c |',
+  midrules => 1, 
+  center => 0
+);
+\}
+
+$PAR
+
+\{
+DataTable(
+  [
+    [['',cellcss=>$bb],
+        ['Goodness of Fit', cellcss=>$bb]],
+    ['\(R^2\)',    $Rsq->ans_rule(10)],
+    ['Std.Error',   '\($stderr\)'  ],
+        
+  ], 
+  align => '| l  c |',
+  midrules => 1, 
+  center => 0
+);
+\}
+
+$PAR
+$HR
+$PAR
+
+The regression model is \(Y = \beta_0 + \beta_1 x + \varepsilon\). $BR
+\(\hspace{1cm} \hat \beta_0 = \) \{$B0->ans_rule(5)\} 
+  \(\hspace{1cm} \sigma_{\hat \beta_0} = \) \{$sB0->ans_rule(5)\} $BR
+\(\hspace{1cm} \hat \beta_1 = \) \{$B1->ans_rule(5)\} 
+  \(\hspace{1cm} \sigma_{\hat \beta_1} = \) \{$sB1->ans_rule(5)\} $BR
+\(\hspace{.3cm} \mathrm{Var}[\varepsilon] = \) \{$ms_e->ans_rule(5)\}
+  \(\hspace{1.2cm} \sigma_{\varepsilon} = \) \{$stderr->ans_rule(5)\} $BR
+
+$PAR
+
+The number of degrees of freedom for \(\beta_0\) and \(\beta_1\) are $BR
+\(\hspace{1cm} \text{df}(\beta_0) = \) \{ ans_rule(10) \} 
+\(\hspace{1cm} \text{df}(\beta_1) = \) \{ ans_rule(10) \}
+
+$PAR
+
+The \(95\%\) confidence intervals for \(\beta_0\) and \(\beta_1\) are $BR
+\(\hspace{1cm} \beta_0 = \hat \beta_0 \pm \) \{ ans_rule(10) \} 
+\(\hspace{1cm} \beta_1 = \hat \beta_1 \pm \) \{ ans_rule(10) \}
+
+$PAR
+
+What is the p-value for \(\mathrm{H}_0:\ \beta_1=0\)? $BR
+\(\hspace{1cm} \) \{ ans_rule(5) \}
+
+
+$PAR
+$HR
+$PAR
+You may use the embedded R window below to perform computations.$BR
+${BCENTER}
+$Rframe
+${ECENTER}
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+##########################
+# these answer blanks are randomly created during variable setup
+
+ANS( Real(1)->cmp() );
+ANS( $df_a[$df_i]->cmp() );  
+ANS( $ss_a[$ss_i]->cmp() );  
+
+##########################
+# these answer blanks are created by problem text
+
+### ANOVA table
+  ANS($ms_f->cmp() );  ANS($F->cmp() );     ANS($p->cmp() );
+  ANS($ms_e->cmp() );
+  ANS($ms_t->cmp() );
+
+### Goodness of Fit table
+  ANS( $Rsq->cmp() );
+
+##########################
+# short answer questions
+
+  ANS( $B0->cmp()   );  ANS( $sB0->cmp()  );
+  ANS( $B1->cmp()   );  ANS( $sB1->cmp()  );
+  ANS( $ms_e->cmp() );  ANS( $stderr->cmp());
+
+  ANS( $df_e->cmp() );  ANS( $df_e->cmp() );
+  ANS( $rB0->cmp()  );  ANS( $rB1->cmp()  );
+
+  ANS( $p->cmp() );
+
+ENDDOCUMENT();

@@ -1,0 +1,157 @@
+## BEGIN_DESCRIPTION
+## One-tailed Hypothesis Tests with Normal distribution in R
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One sample mean - z)
+## Level(4)
+## Author(Benjamin Walter)
+## Institution(METU-NCC)
+## Language(en)
+## MO(1)
+## Static(0)
+## KEYWORDS('1-tail', 'hypothesis test', 'beta', 'power', 'z-test', 'R')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "PGchoicemacros.pl",
+   "PGcourse.pl",
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "parserPopUp.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+
+#  Setup
+Context("Numeric");
+
+$n    = random(50,100,1);
+$mu_0 = random(20,40, 1);
+$sdev = random(6, 10,.1); 
+$a    = random(.01, .05, .002);
+$pm   = random(-1,1,2);  
+$mu   = Real(rserve_eval("round($mu_0 + ($pm)*qnorm($a)*$sdev/sqrt($n),1)"));
+$alpha= Real(random(.01,.05,.01));
+do { $beta = Real(random(.01,.05,.01)); } until ($alpha != $beta);
+
+
+Context("ArbitraryString");
+
+$pm_str  = (($pm==1) ? String("") : String("-"));
+$z_alpha = String("$pm_str qnorm($alpha)");
+$z_beta  = String("$pm_str qnorm($beta)");
+
+$n = String("ceiling(($sdev*($z_alpha + $z_beta)/($mu - $mu_0))^2)");
+
+Context("Numeric");
+
+
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+$BITALIC
+For the problems below, you may either enter a numeric answer
+(accurate to 3 significant digits), or the R code
+which generates the answer. $BR $SPACE (Your answer will be checked by R.)
+$EITALIC
+
+
+$PAR $HR $PAR
+
+Preliminary analysis of a random variable \(X\) 
+suggests that \(\mu_A = $mu\) and \(s = $sdev\).
+You wish to do a one-tailed hypothesis test against
+$BR \(\qquad \mathrm{H}_0:\ \ \mu = $mu_0\) 
+$BR with \(\alpha = $alpha\) and \(\beta = $beta\).
+
+$PAR
+The \(\alpha\) cutoff value is:
+$BR \(\qquad z_\alpha = \)  \{ $z_alpha->ans_rule(10) \}
+$BR
+$BITALIC
+(Don't worry about sign...)
+$EITALIC
+
+$PAR
+The \(\beta\) cutoff value is:
+$BR \(\qquad z_\beta = \)  \{ $z_beta->ans_rule(10) \}
+$BR
+$BITALIC
+(Don't worry about sign...)
+$EITALIC
+
+
+$PAR
+In this case the necessary number of samples is 
+$BR
+\(\qquad n = \) \{ $n->ans_rule(40) \} 
+$BR
+$BITALIC
+(Remember that \(n\) should be an integer!)
+$EITALIC
+
+
+
+$PAR
+$HR
+$PAR
+You may use the embedded R window below to check your code and perform computations.$BR
+${BCENTER}
+$Rframe
+${ECENTER}
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my @s_ans = rserve_eval($s->value);
+  my $c_ans = Real(rserve_eval($c->value));
+  if (String($s_ans[0]) == String("NaN")) {
+    Value->Error("Error in R-code!");
+  }
+  $s_ans = Real($s_ans[0]);
+  $s_ans = abs($s_ans);  $c_ans = abs($c_ans);
+  if (abs($c_ans) > .00001) {
+    return ( (abs($c_ans - $s_ans) < .005*abs($c_ans)) ? 1 : 0);
+  } else {
+    return ( (abs($c_ans - $s_ans) < .000001) ? 1 : 0);
+  }
+};
+
+
+ANS($z_alpha->cmp(checker=>$Rchecker) );
+
+ANS( $z_beta->cmp(checker=>$Rchecker) );
+
+ANS(      $n->cmp(checker=>$Rchecker) );
+
+
+ENDDOCUMENT();
