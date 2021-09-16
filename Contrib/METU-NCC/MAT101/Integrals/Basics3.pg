@@ -1,0 +1,149 @@
+## BEGIN_DESCRIPTION
+##  5 paired basic problems (integral and derivative)
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Calculus - single variable)
+## DBchapter(Integrals)
+## DBsection(Antiderivatives (without trigonometric functions))
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## MO(1)
+## Static(0)
+## Level(2)
+## Language(en)
+###############################################
+
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"niceTables.pl",
+"contextFraction.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Fraction-NoDecimals");
+Context()->variables->are(x=>'Real',C=>'Real',c=>'Real');
+Context()->flags->set(reduceConstantFunctions=>0);
+
+
+###########
+#
+# Dchecker checks answers by computing derivative
+#
+#  cmp( checker=>$Dchecker, deriv=>$f )
+#
+$Dchecker = sub {  
+  my ($c, $s, $ansHash) = @_;
+  my $deriv = $ansHash->{deriv};
+  $ansHash->{prev_ans}='';
+
+  $s = Formula($s);
+
+  if (!($s->usesOneOf("c","C"))) {
+    Value->Error("Don't forget the  + C !!!");
+    return 0;
+  }
+
+  return ($deriv == $s->D('x'));
+};
+
+
+###################
+#
+# my copy of shuffle
+#
+sub shuffle {
+  my $n = shift;
+  my @ar = 0..($n-1);
+  my @sh = ();
+  while (@sh<$n) {
+    push( @sh, splice(@ar, random(0,$#ar), 1) );
+  }
+  @sh;
+}
+
+my $a; my $b; my $p; 
+
+$a = non_zero_random(-6,6);
+$f[0]  = Formula("$a")->reduce;
+$df[0] = Formula("0");
+$int[0]= Formula("$a x")->reduce;
+
+$a = non_zero_random(-6,6);
+$f[1]  = Formula("$a x")->reduce; 
+$df[1] = Formula("$a")->reduce;
+$int[1]= Formula("($a/2)*x^2")->reduce;
+
+$a = non_zero_random(-6,6);
+$f[2]  = Formula("$a/x")->reduce;
+$df[2] = Formula("-$a/(x^2)")->reduce;
+$int[2]= Formula("$a*ln(x)")->reduce;
+
+$a = random(2,6); $p = 1+2*random(1,4);
+$f[3]  = Formula("$a sqrt(x^($p))")->reduce;
+$df[3] = Formula("$p*$a/2 sqrt(x^($p-2))")->reduce;
+$int[3]= Formula("2*$a/($p+2) sqrt(x^($p+2))")->reduce;
+
+#do { $a = non_zero_random(-4,4); $b = non_zero_random(-4,4); }
+#until (($a>0) || ($b>0));
+#$p = random(2,5);
+#$f[4]  = Formula("x($a+$b x^($p))")->reduce;
+#$df[4] = Formula("$a + $b*($p+1) x^($p)")->reduce;
+#$int[4]= Formula("$a/2 x^2 + $b/($p+2) x^($p+2)")->reduce;
+
+
+@p = (0..$#f);
+
+@L = ("A","B","C","D","E","F","G","H","I","J");
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Compute derivatives and anti-derivatives of the following. 
+$PAR
+
+END_TEXT
+
+for ($i=0; $i <= $#f; $i++) {
+
+BEGIN_TEXT
+$BBOLD $L[$i].$EBOLD  \(\displaystyle \quad f(x) = $f[$p[$i]]\)
+\{
+LayoutTable([[
+['\(\displaystyle \frac{d}{dx}\Bigl[ $f[$p[$i]] \Bigr] =\ \)' . ans_rule(7)],
+['\(\displaystyle \int\; $f[$p[$i]]\;dx  =\ \)' . ans_rule(10) ]]],
+tablecss=>"width:90%;",datacss=>"width:45%;",align=>"ll",center=>0,midrules=>0);
+\}
+
+$PAR$BR$PAR
+
+END_TEXT
+
+}
+
+
+Context()->normalStrings;
+
+my $C = Formula("C");
+
+foreach my $i (0..$#f) {
+  ANS( $df[$p[$i]]->cmp() ); 
+
+  my $int_ans = ($int[$p[$i]]+$C)->cmp(checker=>$Dchecker,deriv=>$f[$p[$i]]);
+  $int_ans->install_post_filter( sub{
+    my $msg = shift; 
+    $msg->{ans_message}="" if ($msg->{ans_message} eq "This answer is equivalent to the one you just submitted.");  
+    return $msg;
+  });
+  ANS( $int_ans );
+}
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.
