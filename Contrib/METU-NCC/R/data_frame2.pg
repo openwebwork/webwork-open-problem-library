@@ -1,0 +1,625 @@
+## BEGIN_DESCRIPTION
+##  R programming tutorial built in webwork
+##    3. More data frame manipulations 
+## END_DESCRIPTION
+
+##############################################
+## DBsubject()
+## DBchapter()
+## DBsection()
+## Level(2)
+## Author(Benjamin Walter)
+## Institution(METU-NCC)
+## Language(en)
+## Keywords('R','programming') 
+## MO(1)
+## Static(0)
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",       # Standard macros for PG language
+   "PGcourse.pl",
+   "PGchoicemacros.pl",   # Needed for randomization method
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl",
+   "scaffold.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Page 3 of R programming tutorial written in webwork');
+#
+########################
+# Embedded R-frame for student computations
+#
+$code = "Name%20%3C-%20c(%22Benjamin%22%2C%22Annabet%22%2C%22Charlie%22%2C%22Daddy%22)%0AAge%20%3C-%20c(15%2C11%2C7%2C41)%0AGender%20%3C-%20factor(c(%22M%22%2C%22F%22%2C%22M%22%2C%22M%22))%0AFamily%20%3C-%20data.frame(Name%2CAge%2CGender%2CstringsAsFactors%20%3D%20FALSE)%0Ashow(Family)%0A%0AwriteLines(%22%5Cn---%20Add%20Mama%20---%22)%0AFamily%20%3C-%20rbind(Family%2Clist(%22Mama%22%2C41%2C%22F%22))%0Ashow(Family)%0A%0AwriteLines(%22%5Cn---%20Order%20by%20Name%20---%22)%0AFamily%5Border(Family%24Name)%2C%5D%0A%0AwriteLines(%22%5Cn---%20Order%20by%20Age%20(Decr)%20then%20Name%20---%22)%0AFamily%5Border(-Family%24Age%2CFamily%24Name)%2C%5D%0A%0AwriteLines(%22%5Cn---%20Only%20big%20kids%20---%22)%0AFamily%5B10%20%3C%20Family%24Age%20%26%20Family%24Age%20%3C%2020%2C%5D%0A%0AwriteLines(%22%5Cn---%20Only%20the%20names%20and%20ages%20of%20girls%20---%22)%0AFamily%5BFamily%24Gender%3D%3D%22F%22%2Cc(%22Name%22%2C%22Age%22)%5D%0A%0AwriteLines(%22%5Cn---%20Correct%20Mama%27s%20age%20---%22)%0AFamily%5BFamily%24Name%3D%3D%22Mama%22%2C%22Age%22%5D%20%3C-%2040%0Ashow(Family)";
+#
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='600' src='https://rdrr.io/snippets/embed/?code=$code' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+#
+########################
+
+################################################
+#  Settings for displaying R code
+################################################
+#
+# BCODE ECODE macro from Robin Cruz webwork moodle post
+$BCODE = MODES(
+	HTML=>'<code style="font-family: Courier; font-size:larger; background:transparent; border:0; padding:0; word-wrap:break-word; white-space: pre-wrap; white-space: -moz-pre-wrap; white-space: -pre-wrap; white-space: -o-pre-wrap; display: inline; ">',
+	TeX=>'\verb'.chr(0x85)
+);
+$ECODE = MODES(HTML=>'</code>',TeX=>chr(0x85));
+
+$Req = "<-";
+@Rbox_code = (
+   align     => '>{\ttfamily}p{500px}',
+   midrules  => 0,
+   center    => 0,
+   tablecss  => 'background-color:silver;border-radius:5px;padding:20px;margin-left:20px;margin-top:0px;',
+   allcellcss=> 'font-family:Lucida Console,Monaco, monospace;padding-left:10px;',
+);
+@Rbox_out = (
+   align     => '>{\ttfamily}p{500px}',
+   midrules  => 0,
+   center    => 0,
+   tablecss  => 'background-color:#FCFFF5;box-shadow:0 0 0 1px #A3C293 inset, 0 0 0 0 transparent;border:1px solid #e1e1e8;border-radius:5px;padding:20px;margin-left:20px;',
+   allcellcss=> 'font-family:Lucida Console,Monaco, monospace;padding-left:10px;',
+);
+@Note = (
+   align     => 'rX',
+   midrules  => 0,
+   center    => 0,
+   tablecss  => 'background-color:#00FFFF;box-shadow:0 0 0 1px #0000A0 inset, 0 0 0 0 transparent;border:2px solid #0000A0;border-radius:10px;margin-left:20px;width:70%;',
+   allcellcss=> 'padding:2px;padding-top:0px;padding-bottom:0px;vertical-align:top;',
+);
+
+
+##############################
+# Rchecker uses R to check answers
+#
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my $comp = String($ansHash->{comp});
+  my $precode = $ansHash->{precode} // "";
+  my $postcode = $ansHash->{postcode} // "";
+  $precode = String($precode);
+  rserve_eval($precode . $s->value ."; ". $postcode);
+  rserve_eval("student <- $comp");
+  rserve_eval($precode . $c->value ."; ". $postcode);
+  rserve_eval("correct <- $comp");
+  return ( rserve_eval("identical(student,correct)") );
+};
+##########################
+
+
+
+################################################
+#  Setup 
+#    to get data from R:    Real(rserve_eval(" <R-command> "));
+#    comparison strings:    String(" <R-command> ")
+################################################
+Context("Numeric");
+
+$rock1 = (random(0,1)==1 ? "> " : "< ") . 
+         list_random(10,30,70,90,110,130,200,600,700,800,900,1000); 
+@rock2 = ("area","peri","shape");   @rock2 = @rock2[shuffle(3)];
+
+@rock3 = ("area","peri","shape");   @rock3 = @rock3[shuffle(3)];
+
+$rev = ( random(0,1) == 1 ? "-" : "");
+
+@name = ("Gizem","Ece","Hasan","Emre","Mert","Elif","Defne","Derya","Erhan","Emel");
+$name = $name[random(0,9)];
+
+do { @room = shuffle(25); } until ($room[0]*$room[1]*$room[2] != 0);
+
+@age = (random(15,19), random(22,25));
+@gender = ("guys", "girls"); $gender = $gender[random(0,1)];
+$mf = ($gender eq "guys" ? "M" : "F");
+
+################################################
+# Correct Answers for Code Boxes
+################################################
+Context("ArbitraryString");
+
+$code_a1 = String(
+ qq/rock[rock/ .'$'. qq/perm $rock1, ] /
+);
+$code_a2 = String(
+ qq/rock[rock/ .'$'. qq/perm $rock1, "$rock2[0]"] /
+);
+$code_a3 = String(
+ qq/rock[rock/ .'$'. qq/perm $rock1, c("$rock2[0]","$rock2[1]")] /
+);
+
+$code_b1 = String(
+ qq/rock[order(rock/ .'$'. qq/$rock3[0]), ]/
+);
+
+$code_b2 = String(
+ qq/rock[order(${rev}rock/ .'$'. qq/perm, rock/ .'$'. qq/$rock3[0]), ]/
+);
+
+$code_renumber = String(
+ qq/row.names(ans) <- 1:nrow(ans);/
+); 
+
+$code_c1 = String(
+ qq/Friends["$name","Room"] <- $room[0]/
+);
+
+$code_c2 = String(
+ qq/Friends[Friends/ .'$'. qq/Gender == "$mf","Room"] <- $room[1]/
+);
+
+$code_c3 = String(
+ qq/Friends[Friends/ .'$'. qq/Age > $age[0] & Friends/ .'$'. qq/Age < $age[1],"Room"] <- $room[2]/
+);
+
+$Friends = String(qq/
+ Friends <- data.frame(
+  row.names = c("Gizem","Ece","Hasan","Emre","Mert","Elif","Defne","Derya","Erhan","Emel","Ali"),
+  Age = 15:25,
+  Gender = c("F","F","M","M","M","F","F","F","M","F","M"),
+  Roome = c(-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1)
+ );/
+); 
+
+$rev = ($rev eq "-" ? " in reverse-order" : ""); 
+
+
+#############################################
+#  Problem Text
+################################################
+Context()->texStrings;
+BEGIN_TEXT
+$BBOLD Data Frame Manipulations $EBOLD
+
+$PAR
+(Click the sections below to open/close them.)
+
+END_TEXT
+Scaffold::Begin(can_open=>"always",is_open=>"first_incorrect");
+###############################################
+Section::Begin("$BBOLD (A)  Slicing Data Frames$EBOLD");
+BEGIN_TEXT
+Previously we created two $BCODE Family $ECODE data frames.
+\{ 
+DataTable([
+ [['Family',colspan=>5],[''],['Family_named',colspan=>3,cellcss=>'text-align:center;'],['']],
+ [[''] ,['Name'] ,['Age'],['Gender'],[''],[''],[''] ,['Age'],['Gender'],   ['']],
+ [['1'],['Benjamin'] ,['15'], ['M'],[''],[''],['Benjamin'] ,['15'], ['M'],['']],
+ [['2'],['Annabet'],['11'], ['F'],[''],[''],['Annabet'],['11'], ['F'],['']],
+ [['3'],['Charlie'],['7'], ['M'],[''],[''],['Charlie'],['7'], ['M'],['']],
+ [['4'],['Daddy'],['41'], ['M'],[''],[''],['Daddy'],['41'],['M'],['']],
+ [['5'],['Mama'],['41'], ['F'],[''],[''],['Mama'],['41'],['F'],['']],
+],@Rbox_out,align=>'clrrp{30px}|p{10px}lrrp{30px}'); 
+\}
+$PAR
+\{ knowlLink("Code for Family", value=>' 
+ Family <- data.frame($BR        
+$SPACE $SPACE Name = c("Benjamin","Annabet","Charlie","Daddy","Mama"),$BR
+$SPACE $SPACE Age  = c(15, 11, 7, 41, 41),$BR
+$SPACE $SPACE Gender = factor( c("M", "F", "M", "M", "F") ),$BR
+$SPACE $SPACE stringsAsFactors = FALSE$BR
+)'
+); \}
+$PAR
+\{ knowlLink("Code for Family_named", value=>'
+ Family_named <- data.frame($BR        
+$SPACE $SPACE row.names = c("Benjamin","Annabet","Charlie","Daddy","Mama"),$BR
+$SPACE $SPACE Age  = c(15, 11, 7, 41, 41),$BR
+$SPACE $SPACE Gender = c("M", "F", "M", "M", "F")$BR
+)'
+); \}
+$PAR
+Columns of a data frame are accessed using $BCODE $DOLLAR$ECODE. 
+$BR For example, 
+\{ DataTable(
+ [['Family${DOLLAR}Age']],
+ @Rbox_code);
+\}
+gives the $BCODE Age $ECODE column of everyone in
+the $BCODE Family $ECODE data frame.  
+\{ DataTable(
+ [['15 $SPACE 11  $SPACE 7 $SPACE 41 $SPACE 41']],
+ @Rbox_out);
+\}
+$BR
+To get individual elements of a data frame, use 
+"${BITALIC}matrix index notation${EITALIC}": $BR
+\(\quad\)$BCODE\([<\)row\(>\),\(<\)col\(>]\)$ECODE
+$BR For example 
+\{ DataTable(
+ [['Family\([\)3,2\(]\)']],
+ @Rbox_code);
+\} 
+gets the element from the $BCODE Family $ECODE data frame in row 3 and column 2
+(the age of Charlie: ${BCODE}7${ECODE}). 
+$PAR
+We could also refer to columns by their name (rather than number):
+\{ DataTable(
+ [['Family\([\)3, "Age"\(]\)']],
+ @Rbox_code);
+\} 
+which is very nice if we also named the rows
+\{ DataTable(
+ [['Family_named\([\)"Charlie", "Age"\(]\)']],
+ @Rbox_code);
+\} 
+$PAR
+If we didn't name the rows, we can still get this value by searching 
+for the row where the $BCODE Name $ECODE column equals $BCODE "Charlie" $ECODE.
+\{ DataTable(
+ [['Family\([\)Family${DOLLAR}Name=="Charlie", "Age"\(]\)']],
+ @Rbox_code);
+\} 
+$BR
+\{ DataTable([
+ [['$BBOLD Note: $EBOLD'],
+  ['  Checking equality is done with ${BBOLD}double${EBOLD} equals sign $BCODE == $ECODE']],
+ [[''],['  Single equals $BCODE = $ECODE is used for assigning parameter values.']]],
+ @Note);
+\}
+
+$PAR
+If the search results in multiple rows, then we would get multiple results.
+$BR For example
+\{ DataTable(
+ [['Family\([\)Family${DOLLAR}Gender=="F", "Age"\(]\)']],
+ @Rbox_code);
+\} 
+would give the ages of all girls.
+$PAR
+We can get multiple columns similarly
+\{ DataTable(
+ [['Family\([\)Family${DOLLAR}Gender=="F", c("Name","Age")\(]\)']],
+ @Rbox_code);
+\} 
+resulting in the name and age of only the girls
+\{ DataTable([
+ [[''] ,['Name'] ,  ['Age'],['']],
+ [['2'],['Annabet'],['11'], ['']],
+ [['5'],['Mama'],   ['41'], ['']],
+],@Rbox_out,align=>'clrp{280px}'); \}
+$PAR
+As well as equality, we can check for inequality.  $BR Also if we leave
+one of the sections of the index notation blank, then we mean ALL 
+from either rows or columns.
+$BR
+For example
+\{ DataTable(
+ [['Family\([\)Family${DOLLAR}Age < 14,$SPACE \(]\)']],
+ @Rbox_code);
+\}
+results in all values for children less than 14 years old
+(rows with age < 14 and ALL columns)
+\{ DataTable([
+ [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+ [['2'],['Annabet'],['11'], ['F'],['']],
+ [['3'],['Charlie'],['7'], ['M'],['']],
+],@Rbox_out,align=>'clrrp{240px}'); \}
+$PAR
+To check compound requirements, use $BCODE\(\&\)$ECODE "AND" as well as
+$BCODE\(|\)$ECODE "OR".
+$BR
+For example
+\{ DataTable(
+ [['Family\([\)Family${DOLLAR}Age > 14 & Family${DOLLAR}Gender == "M",$SPACE \(]\)']],
+ @Rbox_code);
+\}
+gets all values for only the boys older than 14.
+\{ DataTable([
+ [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+ [['1'],['Benjamin'],['15'], ['M'],['']],
+ [['4'],['Daddy'],['41'], ['M'], ['']]
+],@Rbox_out,align=>'clrrp{240px}'); \}
+
+
+$PAR $HR $PAR
+
+$BBOLD EXERCISES $EBOLD$BR
+
+R contains a sample dataset$BCODE rock $ECODE containing measurements 
+of 48 rocks from a petroleum reservoir. The dataset begins
+\{ DataTable([
+ [[''] ,['area'] ,['peri'],['shape'],['perm'],  ['']],
+ [['1'],['4990'],['2791.90'],['0.0903'],['6.3'],['']],
+ [['2'],['7002'],['3892.60'],['0.1486'],['6.3'],['']],
+ [['3'],['7558'],['3930.66'],['0.1833'],['6.3'],['']]
+],@Rbox_out,align=>'clrrrp{200px}'); \}
+
+
+$PAR
+\(\bullet\) 
+In the box below, type a command to get all rows of $BCODE rock $ECODE
+where $BR $BCODE perm $rock1$ECODE 
+$BR
+\(\quad\) \{ ans_box(1,58)     #  compare to   rock[rock${DOLLAR}perm $rock1, ] 
+\}
+$PAR
+\(\bullet\)
+In the box below, type a command to get only the $BR
+$BCODE $rock2[0] $ECODE column of the rows where $BR 
+$BCODE perm $rock1$ECODE 
+$BR
+\(\quad\) \{ ans_box(1,58)     # check value of ???
+\}
+$PAR
+\(\bullet\)
+In the box below, type a command to get only the $BR
+$BCODE $rock2[0] $ECODE and $BCODE $rock2[1] $ECODE columns of the rows where $BR
+$BCODE perm $rock1$ECODE 
+
+$BR
+\(\quad\) \{ ans_box(1,58)     # check value of ???
+\}
+
+$PAR
+\{ knowlLink("Remark:",value=>escapeSolutionHTML(EV3P(q!
+  If you only want to select a part of a data frame for viewing, and not 
+  try to change it (like we will in part (C)), then you could instead use
+  $BR 
+  $BCODE subset(\\(<\\)data\\(>\\), \\(<\\)rows\\(>\\), \\(<\\)cols\\(>\\)) $ECODE 
+  $PAR
+  For example $BR
+  $BCODE subset( Family, Gender=="F", c(Name, Age) ) $ECODE $BR
+  instead of $BR 
+  $BCODE Family\\([\\) Family${DOLLAR}Gender=="F", c("Name","Age") \\(]\\)
+  !)),base64=>1);
+ \}
+
+END_TEXT
+
+ANS($code_a1->cmp(
+    checker=>$Rchecker,
+       comp=>"ans",
+    precode=>"ans <- "
+));  
+ANS($code_a2->cmp(
+    checker=>$Rchecker,
+       comp=>"ans", 
+    precode=>"ans <- "
+));  
+ANS($code_a3->cmp(
+    checker=>$Rchecker,
+       comp=>"ans",
+    precode=>"ans <- "
+));  
+
+Section::End();
+###############################################
+Section::Begin("$BBOLD (B)  Reordering Data Frames$EBOLD");
+BEGIN_TEXT
+
+We can reorder data frames by entering our own order manually. $BR
+For example 
+\{ DataTable(
+ [['Family\([\)c(4,5,1,2,3),$SPACE \(]\)']],
+ @Rbox_code);
+\}
+will reorder $BCODE Family $ECODE so that rows 4 and 5 come first.
+\{ DataTable([
+ [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+ [['4'],['Daddy'],['41'], ['M'], ['']],
+ [['5'],['Mama'],['41'], ['F'], ['']],
+ [['1'],['Benjamin'],['15'], ['M'],['']],
+ [['2'],['Annabet'],['11'], ['F'], ['']],
+ [['3'],['Charlie'],['7'], ['M'], ['']],
+],@Rbox_out,align=>'clrrp{240px}'); \}
+
+$PAR
+Of course, usually data sets are too big to reorder manually like this. $BR  
+Instead we sort data according to values using the $BCODE order(..) $ECODE
+function. $BR
+For example
+\{ DataTable(
+ [['Family\([\)order(Family${DOLLAR}Name),$SPACE \(]\)']],
+ @Rbox_code);
+\}
+will sort the family alphabetically by the $BCODE Name $ECODE column.
+\{ DataTable([
+ [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+ [['2'],['Annabet'],['11'], ['F'], ['']],
+ [['1'],['Benjamin'],['15'], ['M'],['']],
+ [['3'],['Charlie'],['7'], ['M'], ['']],
+ [['4'],['Daddy'],['41'], ['M'], ['']],
+ [['5'],['Mama'],['41'], ['F'], ['']],
+],@Rbox_out,align=>'clrrp{240px}'); \}
+
+$PAR
+Giving multiple parameters to $BCODE order(..) $ECODE will sort by multiple rules. $BR
+To reverse ordering use a $BCODE - $ECODE sign.$BR
+For example
+\{ DataTable(
+ [['Family\([\)order( Family${DOLLAR}Gender, -Family${DOLLAR}Age ),$SPACE \(]\)']],
+ @Rbox_code);
+\}
+will sort the family by $BCODE Gender $ECODE and then in reverse-order by $BCODE Age$ECODE.
+\{ DataTable([
+ [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+ [['5'],['Mama'],['41'], ['F'], ['']],
+ [['2'],['Annabet'],['11'], ['F'], ['']],
+ [['4'],['Daddy'],['41'], ['M'], ['']],
+ [['1'],['Benjamin'],['15'], ['M'],['']],
+ [['3'],['Charlie'],['7'], ['M'], ['']],
+],@Rbox_out,align=>'clrrp{240px}'); \}
+$PAR
+\{ DataTable([
+ [['$BBOLD Note: $EBOLD'],
+  ['${BCODE}order(..)$ECODE is changing the ${BBOLD}rows${EBOLD}, so it goes in the ']],
+ [[''],['${BBOLD}row${EBOLD} position in matrix index notation [\(<\)row\(>\),\(<\)col\(>\)].']]],
+ @Note);
+\}
+
+
+$PAR $HR $PAR 
+
+$BBOLD EXERCISES $EBOLD$BR
+\(\bullet\)
+In the box below type the command to sort the $BCODE rock $ECODE data frame$BR
+by $BCODE $rock3[0]$ECODE.
+$BR
+\(\quad\) \{ ans_box(1,58)     # check value of ???
+\}
+
+$PAR
+\(\bullet\)
+In the box below type the command to sort the $BCODE rock $ECODE data frame$BR
+first by $BCODE perm $ECODE$BBOLD$rev$EBOLD, and$BR 
+then by  $BCODE $rock3[0]$ECODE.
+$BR
+\(\quad\) \{ ans_box(1,58)     # check value of ???
+\}
+
+
+END_TEXT
+
+ANS($code_b1->cmp(
+    checker=>$Rchecker,
+       comp=>"ans",
+    precode=>"ans <- ",
+   postcode=>$code_renumber
+));  
+ANS($code_b2->cmp(
+    checker=>$Rchecker,
+       comp=>"ans",
+    precode=>"ans <- ",
+   postcode=>$code_renumber
+));  
+Section::End();
+###############################################
+Section::Begin("$BBOLD (C)  Changing a Data Frame$EBOLD");
+BEGIN_TEXT
+
+To change values in data frames, select data to change as in part $BBOLD(A)$EBOLD
+and then assign it a new value.
+$BR
+For example, Mama has always insisted that she is younger than Daddy 
+(and taller, and more attractive, etc). $BR 
+We can correct her age with
+the command
+\{ DataTable(
+ [['Family\([\) Family${DOLLAR}Name=="Mama" , "Age" \(]\) <- 40']],
+ @Rbox_code);
+\}
+This is even easier in a data frame with named rows
+\{ DataTable(
+ [['Family_named\([\) "Mama" , "Age" \(]\) <- 40']],
+ @Rbox_code);
+\}
+$BR
+The same code works for making multiple changes.$BR
+For example, at the end of a year 
+we can increase everyone's age at once by just updating the entire column:
+\{ DataTable(
+ [['Family${DOLLAR}Age <- Family${DOLLAR}Age + 1']],
+ @Rbox_code);
+\}
+or we could manually enter a list of ages (for the parents, since they are 
+old enough already)
+\{ DataTable(
+ [['Family\([\) Family${DOLLAR}Age > 20, "Age" \(]\) <- c(41,40)']],
+ @Rbox_code);
+\}
+$BR
+We can also set all elements to be a single value. $BR
+For example, if we need 
+to visit the pub, we can quickly modify the ages of all the children:
+\{ DataTable(
+ [['Family\([\) Family${DOLLAR}Age < 21 , "Age" \(]\) <- 21']],
+ @Rbox_code);
+\}
+The commands above result in the following $BCODE Family $ECODE
+\{ DataTable([
+ [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+ [['1'],['Benjamin'],['21'], ['M'],['']],
+ [['2'],['Annabet'],['21'], ['F'], ['']],
+ [['3'],['Charlie'],['21'], ['M'], ['']],
+ [['4'],['Daddy'],['41'], ['M'], ['']],
+ [['5'],['Mama'],['40'], ['F'], ['']],
+],@Rbox_out,align=>'clrrp{240px}'); \}
+
+
+$PAR $HR $PAR
+
+$BBOLD EXERCISE $EBOLD$BR
+
+
+$PAR
+Suppose you have a large data frame $BCODE Friends $ECODE with 
+named rows and columns labeled 
+$BCODE Age$ECODE, $BCODE Gender$ECODE, $BCODE Room $ECODE
+beginning with the rows
+\{ DataTable([
+ [[''] ,['Age'],['Gender'],['Room'], ['']],
+ [['Ali'],['17'], ['M'], ['10'],['']],
+ [['Ayse'],['18'], ['F'], ['8'], ['']],
+],@Rbox_out,align=>'clrrp{240px}'); \}
+
+$BR
+\(\bullet\) 
+In the box below, give the command which will change ${name}'s room
+to $room[0].$BR
+\(\quad\) \{ ans_box(1,58)     #  
+\}
+$PAR
+
+\(\bullet\) 
+In the box below, give the command which will put all of the 
+$gender in room 
+$room[1].$BR
+\(\quad\) \{ ans_box(1,58)     #  
+\}
+$PAR
+
+
+\(\bullet\) 
+In the box below, give the command which will put everyone older than 
+$age[0] and younger than $age[1] in room 
+$room[2].$BR
+\(\quad\) \{ ans_box(1,58)     #  
+\}
+$PAR
+
+
+
+END_TEXT
+
+ANS($code_c1->cmp(checker=>$Rchecker,comp=>"Friends",precode=>$Friends));
+ANS($code_c2->cmp(checker=>$Rchecker,comp=>"Friends",precode=>$Friends));
+ANS($code_c3->cmp(checker=>$Rchecker,comp=>"Friends",precode=>$Friends));
+
+Section::End();
+#############################################
+Section::Begin("$BBOLD Embedded R Window $EBOLD",is_open=>"never");
+BEGIN_TEXT
+
+
+The embedded R window below contains some sample code related to this problem.
+$BR
+You can delete the sample code and type your own code to do computations or check 
+your code for errors.$BR
+${BCENTER} $Rframe ${ECENTER}
+
+END_TEXT
+Section::End();
+Scaffold::End();
+
+Context()->normalStrings;
+
+
+
+ENDDOCUMENT();
