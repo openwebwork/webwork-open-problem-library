@@ -1,0 +1,199 @@
+## DESCRIPTION
+##  Select transformations that are projections
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Properties)
+## Date(19/04/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",
+"MatrixUnits.pl",
+"MathObjects.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Four random transformations.$BR Two are projections (including identity); two are not (including permutation).');
+
+#####################################
+#  Setup
+
+Context("Numeric");
+Context()->variables->are(
+   a=>'Real',b=>'Real',c=>'Real',d=>'Real',e=>'Real'
+);
+Context()->noreduce('(-x)-y');
+
+@vars = (
+  Formula("a"),
+  Formula("b"),
+  Formula("c"),
+  Formula("d"),
+  Formula("e")
+);
+
+my @correct;  my @incorrect;
+
+Context()->texStrings;
+
+########
+# Identity transform
+#
+{
+my $n = 3; random(4,5);
+my $f = "\(T($vars[0]";
+foreach my $i (1..($n-1)) {
+  $f =  $f . ",$vars[$i]"; 
+}
+$f = $f . ") = ($vars[0]";
+foreach my $i (1..($n-1)) {
+  $f =  $f . ",$vars[$i]"; 
+}
+$f = $f . ")\)$BR";
+
+$correct[0] = $f;
+}
+
+
+########
+# Permutation transform
+#
+{
+my $n = 3; random(4,5);
+my @sh = shuffle($n);
+while ( Vector(@sh) == Vector(0..($n-1))) { @sh = shuffle($n); } 
+my $f = "\(T($vars[0]";
+foreach my $i (1..($n-1)) {
+  $f =  $f . ",$vars[$i]"; 
+}
+$f = $f . ") = ($vars[$sh[0]]";
+foreach my $i (1..($n-1)) {
+  $f =  $f . ",$vars[$sh[$i]]"; 
+}
+$f = $f . ")\)$BR";
+
+$incorrect[0] = $f;
+}
+
+
+########
+# Random nxn projection  rank r
+#
+{
+my $n = 3;  random(3,4);    
+my $r = random(2,$n-1);
+my @L;  my @U;  my @D;  my @M;
+my @sh = shuffle($n);  # permute rows of L
+foreach my $i (0..($n-1)) {
+  foreach my $j (0..($n-1)) {
+    $L[$sh[$i]][$j] = ($i < $j) ? 0 : ($i == $j) ? 1 : random(-1,1);
+         $U[$i][$j] = ($i > $j) ? 0 : ($i == $j) ? 1 : random(-1,1);
+	 $D[$i][$j] = ($i != $j) ? 0 : ($i < $r) ? 1 : 0;
+  }
+} 
+my $P = Matrix(@L)*Matrix(@U);
+my $M = $P->inverse * Matrix(@D) * $P;
+
+foreach my $i (0..($n-1)) {
+  foreach my $j (0..($n-1)) {
+    $M[$i][$j] = $M->element($i+1,$j+1);
+  }
+}
+my $f = "\(T($vars[0]";
+foreach my $i (1..($n-1)) {
+  $f =  $f . ",$vars[$i]"; 
+}
+$f = $f . ") = \bigl(";
+foreach my $i (0..($n-1)) {
+  my $out = Formula(0);
+  foreach my $j (0..($n-1)) {
+    $out = (abs($M[$i][$j]) < .01) ? $out : 
+           Formula($out + $M[$i][$j]*$vars[$j]); 
+  }  
+  $out = $out->reduce;
+  $f = ($i==0) ? $f . "$out" : $f . ",\;$out";
+}
+$f = $f . "\bigr)\)$BR";
+
+$correct[1] = $f;
+}
+
+
+########
+# Random  non-projection 
+#
+{
+my $n = 3;  random(3,4);
+my @M;
+do {
+  foreach my $i (0..($n-1)) {
+    foreach my $j (0..($n-1)) {
+      $M[$i][$j] = random(-1,1);
+    }
+  }
+} until ( Matrix(@M)*Matrix(@M) != Matrix(@M) );
+
+my $f = "\(T($vars[0]";
+foreach my $i (1..($n-1)) {
+  $f =  $f . ",$vars[$i]"; 
+}
+$f = $f . ") = \bigl(";
+foreach my $i (0..($n-1)) {
+  my $out = Formula(0);
+  foreach my $j (0..($n-1)) {
+    $out = Formula($out + $M[$i][$j]*$vars[$j]); 
+  }  
+  $out = $out->reduce;
+  $f = ($i==0) ? $f . "$out" : $f . ",\;$out";
+}
+$f = $f . "\bigr)\)$BR";
+
+$incorrect[1] = $f;
+}
+
+$choice = new_checkbox_multiple_choice();
+$choice->qa("Select all.",@correct);
+$choice->extra(@incorrect);
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Select all linear transformations that are projections.
+$BR
+\{ $choice->print_a() \}
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 0;
+
+ANS( checkbox_cmp( $choice->correct_ans() ) );
+
+COMMENT('');
+
+ENDDOCUMENT(); 

@@ -1,0 +1,620 @@
+## DESCRIPTION
+##  Compute eigenvalues and eigenvectors step by step
+##  4x4 matrix 
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"scaffold.pl",
+"niceTables.pl"
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Step-by-step computation, 4x4 matrix in 2x2 blocks.$BR One repeated eigenvalue. Matrix permuted to disguise block form.');
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+
+Context("Matrix");
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',w=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+my $debug = 0;
+
+my @var = ("x","y","z","w");
+
+##
+# Build 4x4 linear transformation with known eigenvalues and eigenvect
+#  2x2 blocks
+#
+my @M; my @v; 
+#       my @l;    # comment out for debug
+#
+## block 1    $M1
+# 1) choose eigenvalues a,bc for matrix of form
+#    [ 0 -ac  ]     [ 0   ac  ]
+#    [ b a+bc ]  or [ -b a+bc ]
+#
+# 2) phase shift to get 
+#    [ p   -ac   ]
+#    [ b  a+bc+p ]
+#
+#  eigenvalues (a+p) and (bc+p)
+#  eigenvectors [c -1] and [a -b]
+{
+my $p; my $a; my $b; my $c; my $min; my $max;
+do {
+   $a = non_zero_random(-4,4,1);
+   $b = non_zero_random(-3,3,1); 
+   $c = random(1,3,1); 
+   $min = max(-6-$a,-6-$b*$c);  
+   $max = min(6-$a,6-$b*$c);
+} until (($min < $max-1) && ($a != $b*$c));
+
+do { $p = non_zero_random($min,$max,1); } 
+until (($a != -$p) and ($b*$c != -$p));  # ensures nonzero eigenvals
+
+my $sign = non_zero_random(-1,1,1);
+
+$M[0][0] = $p;        $M[0][1] = -$sign*$a*$c;
+$M[1][0] = $sign*$b;  $M[1][1] =   $a + $b*$c + $p;
+
+foreach my $i (0..1) { foreach my $j (2..3) { $M[$i][$j] = 0; $M[$j][$i] = 0; } }
+
+  $l[0] =   $a  + $p;   $v[0] = [$c, -$sign,   0,0];   # eval and evect
+  $l[1] = $b*$c + $p;   $v[1] = [$a, -$sign*$b,0,0];   # for this block
+}
+## block 2     $M2
+# 1) pick a block 1 eigenvalue to repeat
+# 2) triangular matrix
+#   [ a  0 ]
+#   [ c  b ]  <--> or transpose
+#
+{
+my $a; my $b;     # need one more new eigenvalue
+do {$a = $l[random(0,1)];   $b = non_zero_random(-4,4);}
+until (($b!=$l[0]) && ($b!=$l[1]));
+if (random(0,1)==0) { my $temp = $a; $a = $b; $b = $temp; }
+
+$M[2][2] = $a;  $M[2][3] = 0;
+$M[3][2] =  0;  $M[3][3] = $b;
+my $c = random(0,1);
+$M[2+$c][2+(($c+1)%2)] = non_zero_random(-4,4);
+
+$l[2] = $M[2][2];   $v[2] = [0,0,$M[2][2]-$M[3][3],$M[3][2]];
+$l[3] = $M[3][3];   $v[3] = [0,0,$M[2][3],$M[3][3]-$M[2][2]];
+}
+
+
+##
+# permute columns/rows to obfuscate block strucure
+#
+{
+  my @N; my @w; 
+  my @p = pick(4, (0,1,2,3));
+  foreach my $i (0..3) {
+    foreach my $j (0..3) {  
+      $N[$i][$j] = $M[$p[$i]][$p[$j]];
+      $w[$i][$j] = $v[$i][$p[$j]]; 
+    }
+  } 
+  @M = @N;
+  @v = @w;
+}
+$M = Matrix(@M);  # use this for answer checking!!!
+
+##
+# Convert to Transformation form
+#
+{Context()->texStrings;
+foreach my $i (0..3) {
+  my $f = Formula(0);
+  foreach my $j (0..3) { $f = $f + $M[$i][$j]*Formula("$var[$j]"); }
+  $Tout = (defined($Tout)) ? $Tout . ",\; " . $f->reduce : "" . $f->reduce;  
+} 
+Context()->normalStrings;}
+
+
+####
+# DEBUG STUFF
+#
+if ($debug == 1) {
+$v1= Vector(@{$v[0]});
+$v2= Vector(@{$v[1]});
+$v3= Vector(@{$v[2]});
+$v4= Vector(@{$v[3]});
+}
+
+
+##
+# (A) Characteristic polynomial
+#
+Context()->variables->are(t=>'Real');
+$delta = Formula("(t-$l[0])(t-$l[1])(t-$l[2])(t-$l[3])")->reduce;
+
+##
+# (B) Roots and algebraic multiplicities
+
+my @root = (); my @mult = (); 
+
+push (@root, $l[0]);  push (@mult, 1); 
+foreach my $i (1..3) {
+  my $j;  my $found=0;
+  foreach $j (0..$#root) {
+    if ($l[$i] == $root[$j]) {
+      $mult[$j]++; $found=1; last;
+    } 
+  }
+  if ($found==0) {
+    push (@root, $l[$i]);  push (@mult, 1); 
+  }
+}
+my $blank = Formula("");
+foreach my $i ($#root..3) { 
+  push (@root, $blank);  push (@mult, $blank); 
+}
+
+$roots = 
+MultiAnswer(
+  $root[0],$mult[0],
+  $root[1],$mult[1],
+  $root[2],$mult[2],
+  $root[3],$mult[3]
+)->with(
+  singleResult=>0, 
+  allowBlankAnswers=>1,
+  checkTypes=>0,
+  checker=>sub{ 
+  my ($correct,$student,$self) = @_;
+
+  my @c = ([],[],[],[]);    my @s = ([],[],[],[]);
+  my @result = ( (0) x 8 ); my $total =0;
+  
+  ($c[0][0], $c[0][1], 
+   $c[1][0], $c[1][1], 
+   $c[2][0], $c[2][1],
+   $c[3][0], $c[3][1]) = @{$correct};
+
+  ($s[0][0], $s[0][1], 
+   $s[1][0], $s[1][1], 
+   $s[2][0], $s[2][1],
+   $s[3][0], $s[3][1]) = @{$student};
+
+  my $nc = 0; do {$nc++;} while (($nc <= $#c) && ($c[$nc][0] != Formula(""))); 
+
+  foreach my $i (0..3) { 
+    next if ($s[$i][0] eq "");
+    foreach my $j (0..$nc-1) {
+      if ((Formula("$s[$i][0]+0")!=Formula("0")) && (Formula("$s[$i][0]+0")==Formula("$c[$j][0]+0"))) {
+        $result[2*$i] = 1;  $total++;
+        if (Formula("$s[$i][1]+0")==Formula("$c[$j][1]+0")) {
+          $result[2*$i+1] = 1; $total++;
+        }
+        $c[$j][0] = "";
+        last; 
+      }
+    }
+  } 
+  if ($total==2*$nc) {
+    foreach my $i (0..3) {
+      if (($s[$i][0] eq "") && ($s[$i][1] eq "")) {
+        $result[2*$i] = 1; $result[2*$i+1] = 1;
+      }
+    }
+  }
+       
+  return ~~@result;
+});
+
+##
+# (C) Bases for eigenspaces
+#
+
+my @evects = ([],[],[],[]); 
+
+foreach my $i (0..3) {
+  foreach my $j (0..$#root) {
+    if ($root[$j] == $l[$i]) {
+      $evects[$j][scalar @{$evects[$j]}] = Point(@v[$i]);
+    }
+  } 
+}
+foreach my $i (0..$#evects) {
+  $evects[$i] = List(@evects[$i]);
+}
+foreach my $i ($#evects+1..3) {
+  $evects[$i] = List("");
+}
+
+
+sub concatenate_columns_into_matrix {
+  my @c = @_;
+  my @temp = ();
+  for my $column (@c) {
+    push(@temp,Matrix($column)->transpose->row(1));    
+  }
+  return Matrix(@temp)->transpose;
+}
+
+sub list_basis_cmp {   # input is two lists of vectors
+  my ($list1,$list2) = @_;
+
+  my @b = $list1->value;
+  my @c = $list2->value;
+
+  return 0 if ($#b != $#c);
+
+  foreach my $i (0..$#c) {
+    $b[$i] = Matrix($b[$i])->transpose;
+    $c[$i] = Matrix($c[$i])->transpose;
+    return 0 if (($b[$i]->length != $c[$i]->length) ||
+                 ($b[$i]->isZero) || ($c[$i]->isZero));
+  }
+  my $Mb = concatenate_columns_into_matrix(@b);
+  my $Mc = concatenate_columns_into_matrix(@c);
+  
+  my $MbTb = ($Mb->transpose)*$Mb; return 0 if ($MbTb->det == 0);
+  my $McTc = ($Mc->transpose)*$Mc; return 0 if ($McTc->det == 0);
+
+  my $X = ($McTc->inverse) * (($Mc->transpose) * $Mb);
+  return 0 if ($Mb != $Mc * $X);
+
+  return 1;
+}
+
+$eig_basis = 
+MultiAnswer(
+  $root[0],$evects[0],
+  $root[1],$evects[1],
+  $root[2],$evects[2],
+  $root[3],$evects[3] 
+)->with(
+  singleResult=>0, 
+  allowBlankAnswers=>1,
+  checkTypes=>0,
+  checker=>sub{ 
+  my ($correct,$student,$self) = @_;
+
+
+  my @c = ([],[],[],[]);    my @s = ([],[],[],[]);
+  my @result = ( (0) x 8 ); my $total =0;
+  
+  ($c[0][0], $c[0][1], 
+   $c[1][0], $c[1][1], 
+   $c[2][0], $c[2][1],
+   $c[3][0], $c[3][1]) = @{$correct};
+
+  ($s[0][0], $s[0][1], 
+   $s[1][0], $s[1][1], 
+   $s[2][0], $s[2][1],
+   $s[3][0], $s[3][1]) = @{$student};
+
+  my $nc = 0; do {$nc++;} while (($nc <= $#c) && ($c[$nc][0] != Formula(""))); 
+
+  foreach my $i (0..3) { 
+    next if ($s[$i][0] eq "");
+    foreach my $j (0..$nc-1) {
+      if ((Formula("$s[$i][0]+0")!=Formula("0")) && (Formula("$s[$i][0]+0")==Formula("$c[$j][0]+0"))) {
+        $result[2*$i] = 1;  $total++;
+
+        $s[$i][1] = List($s[$i][1]) if Value::classMatch($s[$i][1],"Point");
+        if (Value::classMatch($s[$i][1],"List") && list_basis_cmp($s[$i][1],$c[$j][1])) {
+          $result[2*$i+1] = 1; $total++;
+        }
+        $c[$j][0] = "";
+        last; 
+      }
+    }
+  } 
+  if ($total==2*$nc) {
+    foreach my $i (0..3) {
+      if (($s[$i][0] eq "") && ($s[$i][1] eq "")) {
+        $result[2*$i] = 1; $result[2*$i+1] = 1;
+      }
+    }
+  }
+       
+  return ~~@result;
+});
+
+
+
+##
+# (D) eigenvalues and geometric multiplicities
+#
+
+$eig_mult = 
+MultiAnswer(
+  $root[0],$mult[0],$mult[0],
+  $root[1],$mult[1],$mult[1],
+  $root[2],$mult[2],$mult[2],
+  $root[3],$mult[3],$mult[3]
+)->with(
+  singleResult=>0, 
+  allowBlankAnswers=>1,
+  checkTypes=>0,
+  checker=>sub{ 
+  my ($correct,$student,$self) = @_;
+
+  my @c = ([],[],[],[]);     my @s = ([],[],[],[]);
+  my @result = ( (0) x 12 ); my $total =0;
+  
+  ($c[0][0], $c[0][1], $c[0][2],
+   $c[1][0], $c[1][1], $c[1][2],
+   $c[2][0], $c[2][1], $c[2][2],
+   $c[3][0], $c[3][1], $c[3][2]) = @{$correct};
+
+  ($s[0][0], $s[0][1], $s[0][2],
+   $s[1][0], $s[1][1], $s[1][2],
+   $s[2][0], $s[2][1], $s[2][2],
+   $s[3][0], $s[3][1], $s[3][2]) = @{$student};
+
+  my $nc = 0; do {$nc++;} while (($nc <= $#c) && ($c[$nc][0] != Formula(""))); 
+
+  foreach my $i (0..3) { 
+    next if ($s[$i][0] eq "");
+    foreach my $j (0..$nc-1) {
+      if ((Formula("$s[$i][0]+0")!=Formula("0")) && (Formula("$s[$i][0]+0")==Formula("$c[$j][0]+0"))) {
+        $result[3*$i] = 1;  $total++;
+        if (Formula("$s[$i][1]+0")==Formula("$c[$j][1]+0")) {
+          $result[3*$i+1] = 1; $total++;
+        }
+        if (Formula("$s[$i][2]+0")==Formula("$c[$j][2]+0")) {
+          $result[3*$i+2] = 1; $total++;
+        }
+        $c[$j][0] = "";
+        last; 
+      }
+    }
+  } 
+  if ($total==3*$nc) {
+    foreach my $i (0..3) {
+      if (($s[$i][0] eq "") && ($s[$i][1] eq "") && ($s[$i][2] eq "")) {
+        $result[3*$i] = 1; $result[3*$i+1] = 1; $result[3*$i+2] = 1;
+      }
+    }
+  }
+       
+  return ~~@result;
+});
+
+
+##
+# (F) Basis and Diagonal matrix.
+#
+
+{
+my $tvects = List(
+  Point(@v[0]),
+  Point(@v[1]),
+  Point(@v[2]),
+  Point(@v[3])
+); 
+my $D = Matrix([
+  [$l[0],  0,  0,  0],
+  [  0,$l[1],  0,  0],
+  [  0,  0,$l[2],  0],
+  [  0,  0,  0,$l[3]]
+]);
+
+$diagonal = 
+MultiAnswer(
+  $tvects, $D 
+)->with(
+  singleResult=>0, 
+  allowBlankAnswers=>1,
+  checkTypes=>0,
+  checker=>sub{ 
+  my ($correct,$student,$self) = @_;
+
+  my ($sV, $sM) = @{$student};
+
+
+  return 0 if !(Value::classMatch($sV,"List"));
+  my @sV = $sV->value;
+  my @se;
+
+  return 0 if ($#sV != 3); 
+  foreach my $i (0..3) {
+    return 0 if ($sV[$i]->length != 4);
+    $sV[$i] = Matrix($sV[$i])->transpose;
+    return 0 if ($sV[$i]->isZero);
+
+    my $Tv = $M*$sV[$i];  # check if eigenvector
+    my $j=0; do {$j++;} while ($sV[$i]->element($j,1)==0); 
+    $se[$i] = $Tv->element($j,1)/$sV[$i]->element($j,1); # guess eigenvalue
+
+
+    return 0 if !(($Tv - $se[$i]*$sV[$i])->isZero);      # check eigenvalue
+  }   
+  return 0 if (concatenate_columns_into_matrix(@sV)->det == 0);
+  
+  my $D = Matrix([[$se[0],0,0,0],[0,$se[1],0,0],[0,0,$se[2],0],[0,0,0,$se[3]]]);
+
+
+  return [(1,0)] if (($sM->length == 1) || !($D-$sM)->isZero);
+
+  return [(1,1)];
+});
+}
+
+Context()->texStrings;
+
+#####################################
+#  Main text
+#
+if ($debug == 1) {
+BEGIN_TEXT
+DEBUG DATA $BR
+\(M = $M\) $BR 
+\(\quad $v1 = $l[0] \text{ eigenvector}\) $BR 
+\(\quad $v2 = $l[1] \text{ eigenvector}\) $BR 
+\(\quad $v3 = $l[2] \text{ eigenvector}\) $BR 
+\(\quad $v4 = $l[3] \text{ eigenvector}\) $BR 
+DEBUG END
+$PAR
+END_TEXT
+}
+BEGIN_TEXT
+
+
+The linear transformation \(T:\mathbb{R}^4\to\mathbb{R}^4\) below is diagonalizable.
+\[T(x,y,z,w) = \Bigl($Tout\Bigr)\]
+$BR
+Compute the following. $BITALIC (Click to open and close sections below).$EITALIC
+
+END_TEXT
+#####################
+# Begin Scaffold
+Scaffold::Begin(can_open=>"always",is_open=>"first_incorrect");
+#####################
+Section::Begin("$BBOLD(A) Characteristic Polynomial$EBOLD");
+#####################
+BEGIN_TEXT
+
+
+Compute the characteristic polynomial  
+$BITALIC(as a function of \(t\))$EITALIC.$PAR
+\(\quad \Delta(t) = \)\{$delta->ans_rule(30);\}
+
+
+END_TEXT
+#####################
+Section::End();
+Section::Begin("$BBOLD(B) Roots and Multiplicities$EBOLD");
+#####################
+BEGIN_TEXT
+
+
+Find the roots of \(\Delta(t)\) and their algebraic multiplicities. 
+\{DataTable([
+ ['Root','Multiplicity'],
+ ['\(t=\)'.$roots->ans_rule(2),$roots->ans_rule(2)], 
+ ['\(t=\)'.$roots->ans_rule(2),$roots->ans_rule(2)], 
+ ['\(t=\)'.$roots->ans_rule(2),$roots->ans_rule(2)], 
+ ['\(t=\)'.$roots->ans_rule(2),$roots->ans_rule(2)] 
+ ], align=>'cc', center=>0);
+\}
+$BR
+$BITALIC (Leave any unneeded answer spaces blank.)$EITALIC
+
+
+END_TEXT
+#####################
+Section::End();
+Section::Begin("$BBOLD(C) Eigenvalues and Eigenspaces$EBOLD");
+#####################
+BEGIN_TEXT
+
+
+Find the eigenvalues and bases for the eigenspaces.
+\{DataTable([
+ ['Eigenvalue','Basis for Eigenspace'],
+ ['\(\lambda =\)'.$eig_basis->ans_rule(2),
+     '\(\Bigl\lbrace\)'.$eig_basis->ans_rule(25).'\(\Bigr\rbrace\)'], 
+ ['\(\lambda =\)'.$eig_basis->ans_rule(2),
+     '\(\Bigl\lbrace\)'.$eig_basis->ans_rule(25).'\(\Bigr\rbrace\)'], 
+ ['\(\lambda =\)'.$eig_basis->ans_rule(2),
+     '\(\Bigl\lbrace\)'.$eig_basis->ans_rule(25).'\(\Bigr\rbrace\)'], 
+ ['\(\lambda =\)'.$eig_basis->ans_rule(2),
+     '\(\Bigl\lbrace\)'.$eig_basis->ans_rule(25).'\(\Bigr\rbrace\)'], 
+ ], align=>'cc', center=>0);
+\}
+$BR
+$BITALIC (Leave any unneeded answer spaces blank.)$EITALIC
+
+
+END_TEXT
+#####################
+Section::End();
+Section::Begin("$BBOLD(D) Eigenvalues and Multiplicities$EBOLD");
+#####################
+BEGIN_TEXT
+
+
+Find the eigenvalues and their algebraic and geometric multiplicities. 
+\{DataTable([
+ ['Eigenvalue','Alg. Mult.','Geom. Mult.'],
+ ['\(\lambda =\)'.$eig_mult->ans_rule(2),$eig_mult->ans_rule(2),$eig_mult->ans_rule(2)], 
+ ['\(\lambda =\)'.$eig_mult->ans_rule(2),$eig_mult->ans_rule(2),$eig_mult->ans_rule(2)], 
+ ['\(\lambda =\)'.$eig_mult->ans_rule(2),$eig_mult->ans_rule(2),$eig_mult->ans_rule(2)], 
+ ['\(\lambda =\)'.$eig_mult->ans_rule(2),$eig_mult->ans_rule(2),$eig_mult->ans_rule(2)] 
+ ], align=>'ccc', center=>0);
+\}
+$BR
+$BITALIC (Leave any unneeded answer spaces blank.)$EITALIC
+
+
+END_TEXT
+#####################
+Section::End();
+Section::Begin("$BBOLD(E) Diagonal Basis and Matrix$EBOLD");
+#####################
+BEGIN_TEXT
+
+
+Write the basis \(F\) so that \(\mathrm{M}_F^F(T)\) is diagonal 
+and give the related matrix \(\mathrm{M}_F^F(T)\). $PAR
+
+\(\quad \text{Basis } F = \Bigl\lbrace\)\{$diagonal->ans_rule(35)\}\(\Bigr\rbrace\) 
+
+$PAR
+\(\quad \mathrm{M}_F^F(T) = \)\{$diagonal->ans_array(2)\} 
+
+$PAR
+$BITALIC
+Note: The matrix \(M\) will not be checked unless your basis is correct. $BR
+$SPACE $SPACE However, your basis answer won't be checked if \(M\) is left completely blank. $PAR
+$SPACE $SPACE To check only the basis, you need to put at least one number in \(M\).$BR
+$SPACE $SPACE Sorry guys, webwork is being weird. (After working on this for a day, I gave up.)
+$EITALIC
+
+
+END_TEXT
+#####################
+Section::End();
+Scaffold::End();
+#####################################
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+ANS( $delta->cmp() );
+ANS( $roots->cmp );
+ANS( $eig_basis->cmp );
+ANS( $eig_mult->cmp );
+ANS( $diagonal->cmp );
+
+ENDDOCUMENT(); 

@@ -1,0 +1,134 @@
+## DESCRIPTION
+##  Basis for kernel and image of F:Fun-->R^2
+##  --easy version--
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Kernel and image)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('Easy version');
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  if ($k>1) {
+    while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  } elsif ($k==1) {
+    @out = ($in[random(0,$#in)]);
+  }
+  @out;
+}
+
+
+Context('Vector');
+Context()->variables->are(x=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+
+my ($a,$b) = pick(2,(-3..-1,1..3));
+do { $b = non_zero_random(-4,4); } while (abs($a)==abs($b));
+my ($c,$d) = pick(2,(2,3)); 
+if (random(0,1)==1) { 
+  if (random(0,1)==1) { $c = -$c; }
+  else                { $d = -$d; }
+}
+
+Context()->variables->add(
+ f1 => ["Real",TeX=>"f(1)"],
+ f2 => ["Real",TeX=>"f(2)"],
+ x1 => ["Real",TeX=>"\chi_1"],
+ x2 => ["Real",TeX=>"\chi_2"],
+);
+
+@expr = (Formula("$c*$a f1 + $c*$b f2")->reduce,
+         Formula("$d*$a f1 + $d*$b f2")->reduce);
+
+# note to self:  figure out how to do this with 'adaptive parameters'
+
+$ker = List(Formula("$b x1 - $a x2")->reduce);
+$im  = List(Vector($c,$d));
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \(S=\lbrace 1,2\rbrace\) and \(T:\mathrm{Fun}(S)\to \mathbb{R}^2\) be the linear
+transformation defined by 
+\[
+ T\bigl(f(x)\bigr) = \Bigl($expr[0],\ $expr[1]\Bigr)
+\]
+Find bases for \(\mathrm{Ker}(T)\) and \(\mathrm{Im}(T)\).
+
+$PAR
+\(\qquad \text{Basis of Ker}(T)  = \Bigl\lbrace\) 
+  \{ ans_rule(20) \} 
+\(\Bigr\rbrace\)
+
+$PAR
+\(\qquad \text{Basis of Im}(T)  = \Bigl\lbrace\) 
+  \{ ans_rule(20) \} 
+\(\Bigr\rbrace\)
+
+
+$PAR $SPACE $SPACE $BITALIC
+Enter functions using characteristic funtions, writing \(\fbox{x1}\) for \(\chi_1\)
+etc.
+$EITALIC
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+$listBasis = sub { 
+  my ($correct,$student,$ansHash,$value) = @_;
+  my @C = @{$correct};
+  my @S = @{$student};
+
+  $t = $ansHash->{text};
+
+  if ($t eq "kernel") {
+    foreach (0..$#C) {
+      $C[$_] = Vector($C[$_]->eval(x1=>1,x2=>0),$C[$_]->eval(x1=>0,x2=>1));
+    }
+    foreach (0..$#S) {
+      $S[$_] = Vector($S[$_]->eval(x1=>1,x2=>0),$S[$_]->eval(x1=>0,x2=>1));
+    }
+  }
+
+  foreach (0..$#S) {
+    Value->Error("No zero vectors in basis, fool!")
+       if ($S[$_]->isZero);
+    Value->Error("Vector not in $t!") 
+       if (! $C[0]->isParallel($S[$_]));
+  }
+
+  Value->Error("Not independent!")  if ($#S > $#C);
+
+  return ($#C+1,());
+};
+
+
+
+ANS( $ker->cmp(list_checker=>$listBasis,text=>"kernel") );
+ANS( $im->cmp( list_checker=>$listBasis,text=>"image") );
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

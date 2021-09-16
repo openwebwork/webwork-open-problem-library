@@ -1,0 +1,240 @@
+## DESCRIPTION
+##  Give basis for image and kernel for 3x4 transform 
+##   code wirtten for generic size nxm and rank r
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Kernel and image)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(3)
+## Static(0)
+## MO(1)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PG.pl",
+"PGcourse.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGmatrixmacros.pl",
+"MatrixCheckers.pl",
+"MatrixReduce.pl",
+"parserVectorUtils.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('modify code to generate problems for any size up to 5x5 and any rank$BR this problem is 3x4 with rank 2');
+
+Context('Matrix');
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',s=>'Real',t=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+
+$m = 3;   # Problem will be an  m x n  Matrix of rank r
+$n = 4;   # Max size on input is 5 (variables x,y,z,s,t)
+$r = 2;
+$nul = $n - $r;   # Nullity of matrix
+
+########
+#  Build LU decomposition
+#    
+# L is m x m   La is array  
+#              Lm is matrix
+my @La = ();
+foreach my $i (0 .. $m-1) {
+  foreach my $j (0 .. $m-1) {
+    $La[$i][$j] = ($i<$j ? 0 : ($i==$j ? 1 : non_zero_random(-2,2)));
+  }
+}
+my $Lm = Matrix(@La);
+
+
+########
+# U is m x n  Matrix with r nonzero rows 
+#             @p is vector of pivot columns  (indexed from 0)
+my @p = map {$_ + 1} shuffle($n-1);                  # shuffle of 1..(n-1)
+   @p = PGsort(sub{$_[0] < $_[1]}, @p[0..($r-2)]);   # pick r-1 to be pivots
+   @p = (0, @p);                                     # first pivot is at 0
+my @Ua = ();
+foreach my $i (0..$r-1) {            # fill in pivot rows
+  foreach my $j (0 .. $n-1) {
+    $Ua[$i][$j] = ($j<$p[$i] ? 0 : non_zero_random(-2,2)); 
+  }
+}
+foreach my $i ($r .. $m-1) {         # fill in non-pivot rows
+  foreach my $j (0 .. $n-1) {
+    $Ua[$i][$j] = 0;
+  }
+}
+my $Um = Matrix(@Ua);
+
+
+ $Am = $Lm * $Um;                # multiply LU decomposition to get matrix 
+my @Aa = ();                       # and convert to array
+foreach my $i (0 .. $m-1) {
+  foreach my $j (0 .. $n-1) {
+    $Aa[$i][$j] = $Am->element($i+1,$j+1);
+  }
+}
+
+my @Tout;
+my @vars = (Formula("x"),
+            Formula("y"),
+	    Formula("z"),
+	    Formula("s"),
+	    Formula("t"));
+foreach my $i (0 .. $m-1) {
+  $Tout[$i] = Formula(0);
+  foreach my $j (0 .. $n-1) {
+    $Tout[$i] = Formula($Tout[$i] + $Aa[$i][$j]*$vars[$j]);
+  }
+  $Tout[$i] = $Tout[$i]->reduce;
+}
+
+
+################
+# Columnspace of matrix / Image of transform
+#
+$ColList = (List(Vector($Am->column($p[0]+1))));
+foreach my $j (1 .. $r-1) {
+  $ColList = $ColList . List(Vector($Am->column($p[$j]+1)));
+}
+
+
+
+################
+# Convert everything to transform notation
+#
+Context()->texStrings;
+$Tinput = "$vars[0]";
+foreach my $j (1 .. $n-1) {
+  $Tinput = $Tinput . ", $vars[$j]";
+}
+$Toutput = "$Tout[0]";
+foreach my $i (1 .. $m-1) {
+  $Toutput = $Toutput . ",\; $Tout[$i]";
+} 
+
+
+Context()->normalStrings;
+Context()->variables->are();
+###############
+#  Nullspace / Kernel Computation
+#
+my @Ra = rref_perl_array(@Ua);
+my @Na;
+foreach my $i (0..$n-1) {
+  foreach my $j (0..$nul-1) {
+    $Na[$i][$j] = 0;
+  }
+}
+my $j=0;
+@p = (@p,$n);
+foreach my $k (1..$r) {   #  Use nonpivot column to get nullsp
+  foreach my $i ($p[$k-1]+1..$p[$k]-1) {
+    $Na[$i][$j]       = -1;         # pivots are 1 
+    foreach my $h (0..$k-1) {       # but just in case
+      $Na[$p[$h]][$j] =  $Ra[$h][$i];
+    }
+    $j++;
+  }
+}
+my $Nm = Matrix(@Na);
+my $Rm = Matrix(@Ra);
+
+$NulList = List(Vector($Nm->column(1)));
+foreach my $j (1 .. $nul-1) {
+  $NulList = $NulList . List(Vector($Nm->column($j+1)));
+}
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+The linear transformation \(T:\mathbb{R}^$n\to \mathbb{R}^$m\) defined by
+$BR
+\(\quad \displaystyle T($Tinput) = \Bigl($Toutput\Bigr)\)
+$PAR
+Give a basis for the image and kernel of \(T\).
+
+$PAR
+
+Basis of \(\mathrm{Im}(T)\) is
+  \(\Bigl\lbrace\) \{ $ColList->ans_rule(20) \} \(\Bigr\rbrace\)
+
+$PAR
+
+Basis of \(\mathrm{Ker}(T)\) is
+  \(\Bigl\lbrace\) \{ $NulList->ans_rule(20) \} \(\Bigr\rbrace\)
+
+$PAR
+\(\quad\) $BITALIC
+Enter your answers as comma separated lists of vectors, for example $BR
+\(\qquad (1,2,3)\;,\;(4,5,6) \)$EITALIC
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#######
+# This is a modified version of basis_checker_row
+#
+$listBasis = sub { 
+  my ($c,$s,$ansHash,$value) = @_;
+  my ($nc,$ns) = (scalar(@$c),scalar(@$s));
+  
+  my @cv, @sv;
+  foreach my $i (0..$nc-1) {
+    $cv[$i] = Matrix($c->[$i])->transpose;
+  }
+  my $len = ($cv[0]->dimensions)[0];
+  foreach my $i (0..$ns-1) {
+    $sv[$i] = Matrix($s->[$i])->transpose;
+    if ($sv[$i]->isZero) {
+      Value->Error("Dr. Benjamin says: $BR 'NO ZERO VECTORS IN BASIS!'  orz");
+      return 0;
+    }
+    if (($sv[$i]->dimensions)[0] != $len) {
+      Value->Error("Your vectors have wrong dimension!");
+      return 0;
+    }
+  }
+
+  my $Cm = concatenate_columns_into_matrix(@cv);
+  my $Sm = concatenate_columns_into_matrix(@sv);
+
+  my $CTC = ($Cm->transpose) * $Cm;
+  warn "Correct answer is a linearly dependent set." if ($CTC->det == 0);
+
+  if ( (($Sm->transpose) * $Sm)->det == 0) {
+    Value->Error("Your vectors are not independent!");
+    return 0;
+  }
+
+  return 0 if $nc != $ns;
+
+  my $X = ($CTC->inverse) * (($Cm->transpose) * $Sm);
+
+  return 0 if ($Sm != $Cm * $X);
+
+  return ($nc,());
+};
+
+
+ANS( $ColList->cmp(list_checker=>$listBasis) );
+ANS( $NulList->cmp(list_checker=>$listBasis) );
+
+
+#  note to self: use checker => ~~&basis_checker_columns
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

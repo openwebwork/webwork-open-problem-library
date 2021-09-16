@@ -1,0 +1,202 @@
+## DESCRIPTION
+##  Computing 2x2 inverses.  
+##  I tried to do something tricky so that students couldn't just plug into online solver.
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrices)
+## DBsection(Inverses)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"contextFraction.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Random 2x2 matrix with determinant between 2 and 5.  Three random entries removed from equation.$BR Answers are fractions.');
+
+###################
+#
+# my copy of shuffle
+#
+sub shuffle {
+  my $n = shift;
+  my @ar = 0..($n-1);
+  my @sh = ();
+  while (@sh<$n) {
+    push( @sh, splice(@ar, random(0,$#ar), 1) );
+  }
+  @sh;
+}
+
+
+Context("Matrix");
+Context()->variables->are(a=>'Real',b=>'Real',c=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+#
+# This code is terrible. 
+# I apologize to anyone who reads it in the future.
+# I wrote it in a hurry and then hacked in a modification.
+#
+
+
+$n = 2;  
+
+$d = random(2,5);
+
+# Build det +-1 matrix    later we modify to make determinant = d
+my @p = shuffle($n);   # row permutation
+my @q = shuffle($n);   # column permutation
+$M[$p[0]][$q[0]] = 1;  
+$M[$p[0]][$q[1]] = $d*non_zero_random(-floor(5/$d),floor(5/$d));
+$M[$p[1]][$q[0]] = non_zero_random(-3,3);
+$M[$p[1]][$q[1]] = $M[$p[0]][$q[1]]*$M[$p[1]][$q[0]] + 1;
+#
+# M is row & col permutation of 
+#   1   x
+#   y  xy+1
+#
+# x is a mutiple of d (which will be the determinant)
+#
+
+my @a; my @b; my @c; my @Minv;
+if (random(0,1)==0) {      # multiply (col 0) or (row 1) by d
+ $M[$p[0]][$q[0]] *= $d;   #  this way only one enty will be a fraction
+ $M[$p[1]][$q[0]] *= $d;   #  in inverse
+ @c = ($q[0],$p[0]);       # <- fraction entry is q0, p0 in inverse
+ @a = ($p[1],$q[1]);       # <- corresponding entry is p1, q1 in matrix
+} else {
+ $M[$p[1]][$q[0]] *= $d;   # Note: this relies on n=2 so p and q are 
+ $M[$p[1]][$q[1]] *= $d;   #    their own inverses
+ @c = ($q[1],$p[1]);       # <- fraction entry is q1, p1 in inverse
+ @a = ($p[0],$q[0]);       # <- corresponding entry is p0, q0 in matrix
+}
+$Minv = Matrix(@M)->inverse;  # create inverse array..  wth, use webwork
+foreach my $i (0..($n-1)) {   #  I know det = +-d but I don't want to think
+  foreach my $j (0..($n-1)) { #  about the sign... or mess with permutations
+    $Minv[$i][$j] = $Minv->element($i+1,$j+1);
+  }
+}
+
+if (random(0,1)==0) {     # decide order to write matrices
+  if (random(0,1)==0) {   # decide where third replacement goes 
+    do { @b = (random(0,1),random(0,1)); } 
+    until (($b[0]!=$a[0]) && ($b[1]!=$a[1]));    # M = Minv
+    if ($a[0] < $b[0]) {                         # b is in M
+      $a = $M[$a[0]][$a[1]]; $M[$a[0]][$a[1]] = Formula("a");
+      $b = $M[$b[0]][$b[1]]; $M[$b[0]][$b[1]] = Formula("b");
+    } elsif ($a[0] > $b[0]) {
+      $a = $M[$b[0]][$b[1]]; $M[$b[0]][$b[1]] = Formula("a");
+      $b = $M[$a[0]][$a[1]]; $M[$a[0]][$a[1]] = Formula("b");
+    } elsif ($a[1] < $b[1]) {
+      $a = $M[$a[0]][$a[1]]; $M[$a[0]][$a[1]] = Formula("a");
+      $b = $M[$b[0]][$b[1]]; $M[$b[0]][$b[1]] = Formula("b");
+    }
+    $c = $Minv[$c[0]][$c[1]];  $Minv[$c[0]][$c[1]] = Formula("c");
+  } else {
+    $a = $M[$a[0]][$a[1]];  $M[$a[0]][$a[1]] = Formula("a");
+    do { @b = (random(0,1),random(0,1)); } 
+    until (($b[0]!=$c[0]) && ($b[1]!=$c[1]));    # M = Minv
+    if ($c[0] < $b[0]) {                         # b is in Minv
+      $b = $Minv[$c[0]][$c[1]]; $Minv[$c[0]][$c[1]] = Formula("b");
+      $c = $Minv[$b[0]][$b[1]]; $Minv[$b[0]][$b[1]] = Formula("c");
+    } elsif ($c[0] > $b[0]) {
+      $b = $Minv[$b[0]][$b[1]]; $Minv[$b[0]][$b[1]] = Formula("b");
+      $c = $Minv[$c[0]][$c[1]]; $Minv[$c[0]][$c[1]] = Formula("c");
+    } elsif ($c[1] < $b[1]) {
+      $b = $Minv[$c[0]][$c[1]]; $Minv[$c[0]][$c[1]] = Formula("b");
+      $c = $Minv[$b[0]][$b[1]]; $Minv[$b[0]][$b[1]] = Formula("c");
+    }
+  } 
+  $M = Matrix(@M);
+  $Minv = Matrix(@Minv);
+} else {
+  if (random(0,1)==0) {   # decide where third replacement goes 
+    do { @b = (random(0,1),random(0,1)); } 
+    until (($b[0]!=$a[0]) && ($b[1]!=$a[1]));    # Minv = M
+    if ($a[0] < $b[0]) {                         # b is in M
+      $b = $M[$a[0]][$a[1]]; $M[$a[0]][$a[1]] = Formula("b");
+      $c = $M[$b[0]][$b[1]]; $M[$b[0]][$b[1]] = Formula("c");
+    } elsif ($a[0] > $b[0]) {
+      $b = $M[$b[0]][$b[1]]; $M[$b[0]][$b[1]] = Formula("b");
+      $c = $M[$a[0]][$a[1]]; $M[$a[0]][$a[1]] = Formula("c");
+    } elsif ($a[1] < $b[1]) {
+      $b = $M[$a[0]][$a[1]]; $M[$a[0]][$a[1]] = Formula("b");
+      $c = $M[$b[0]][$b[1]]; $M[$b[0]][$b[1]] = Formula("c");
+    }
+    $a = $Minv[$c[0]][$c[1]];  $Minv[$c[0]][$c[1]] = Formula("a");
+  } else {
+    $c = $M[$a[0]][$a[1]];  $M[$a[0]][$a[1]] = Formula("c");
+    do { @b = (random(0,1),random(0,1)); } 
+    until (($b[0]!=$c[0]) && ($b[1]!=$c[1]));    # Minv = M
+    if ($c[0] < $b[0]) {                         # b is in Minv
+      $a = $Minv[$c[0]][$c[1]]; $Minv[$c[0]][$c[1]] = Formula("a");
+      $b = $Minv[$b[0]][$b[1]]; $Minv[$b[0]][$b[1]] = Formula("b");
+    } elsif ($c[0] > $b[0]) {
+      $a = $Minv[$b[0]][$b[1]]; $Minv[$b[0]][$b[1]] = Formula("a");
+      $b = $Minv[$c[0]][$c[1]]; $Minv[$c[0]][$c[1]] = Formula("b");
+    } elsif ($c[1] < $b[1]) {
+      $a = $Minv[$c[0]][$c[1]]; $Minv[$c[0]][$c[1]] = Formula("a");
+      $b = $Minv[$b[0]][$b[1]]; $Minv[$b[0]][$b[1]] = Formula("b");
+    }
+  } 
+  $M = Matrix(@Minv);
+  $Minv = Matrix(@M);
+}
+
+
+
+Context("Fraction-NoDecimals");
+$a = Fraction($a);
+$b = Fraction($b);
+$c = Fraction($c);
+
+Context()->texStrings;
+#####################################
+#  Main text
+BEGIN_TEXT
+
+Find \(a\), \(b\), and \(c\) so that 
+ \[$M^{-1} = $Minv\]
+$PAR
+\(a = \)\{$a->ans_rule(5);\}$PAR
+\(b = \)\{$b->ans_rule(5);\}$PAR
+\(c = \)\{$c->ans_rule(5);\}$PAR
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+Context("Fraction-NoDecimals");
+
+ANS( Fraction($a)->cmp() );
+ANS( Fraction($b)->cmp() );
+ANS( Fraction($c)->cmp() );
+
+
+
+
+ENDDOCUMENT(); 

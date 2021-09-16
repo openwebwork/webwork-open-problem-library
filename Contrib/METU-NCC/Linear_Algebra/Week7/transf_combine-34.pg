@@ -1,0 +1,200 @@
+## DESCRIPTION
+##  Evaluate combination of transformations
+##   R^3-->R^3-->R^3
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Evaluating linear transformations)
+## Date(22/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"PGchoicemacros.pl",
+);
+
+
+TEXT(beginproblem());
+
+#####################################
+#  Setup
+
+Context("Matrix");
+Context()->noreduce('(-x)-y');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->parens->set("(" => {type => "Vector", close => ")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+
+#  S : R^m --> R^n  (n x m)  
+#  T : R^n --> R^o  (o x n)
+#
+# note: later modifications to code require all square
+#   --> compute ST - 2 TS
+#
+($m,$n,$o) = (3,3,3);
+my $max = 2;              # maxnorm of matrices
+
+my @S, @T;                # matrices for the transformations S and T
+
+my @zero = shuffle($n);         
+foreach my $i (0..($n-1)) { foreach my $j (0..($m-1)) {
+  $S[$i][$j] = non_zero_random(-$max,$max);
+} $S[$i][$zero[$i]] = 0; }
+
+@zero = shuffle($n);         
+foreach my $i (0..($o-1)) { foreach my $j (0..($n-1)) {
+  $T[$i][$j] = non_zero_random(-$max,$max);
+} $T[$i][$zero[$i]] = 0; }
+
+# Generate input vector for question
+#
+my @input;
+do { foreach (0..($m-1)) { $input[$_] = random(-2,2); } 
+} until (!(Vector(map {abs($_)} @input)->isParallel(Vector(map {1} @input)))
+      && !(Vector(@input)->isZero));
+$input = Vector(@input);
+
+
+# Compute product 
+#
+my @C = (Matrix(@S)*Matrix(@T) - 2 * Matrix(@T)*Matrix(@S))->value; 
+
+# plugging in input vector
+#
+
+$output[0] = Vector(Matrix(@C) * $input);
+
+
+# Make pretty functions for the problem text
+#
+Context()->variables->are(
+ x => ['Real', TeX=>"x"],
+ a => ['Real', TeX=>"a"],
+ b => ['Real', TeX=>"b"],
+ c => ['Real', TeX=>"c"],
+ d => ['Real', TeX=>"d"],
+ e => ['Real', TeX=>"e"],
+);
+Context()->noreduce('(-x)-y');
+
+my @inS = 
+ (Formula("a"),
+  Formula("b"),
+  Formula("c"),
+  Formula("d"),
+  Formula("e")
+ )[0..($m-1)];
+my @inT = 
+ (Formula("a"),
+  Formula("b"),
+  Formula("c"),
+  Formula("d"),
+  Formula("e")
+ )[0..($n-1)];
+
+$inS = Vector(@inS);
+$inT = Vector(@inT);
+
+$outS = "\bigl("; 
+foreach my $i (0..($n-1)) { 
+  my $tmp = $S[$i][0]*$inS[0];
+  foreach my $j (1..($m-1)) {
+    $tmp = Formula("$tmp + $S[$i][$j]*$inS[$j]")->reduce;
+  }
+  $outS = $outS . $tmp->TeX . 
+    (($i != $n-1) ? ",\ " : "\bigr)");
+} 
+
+$outT = "\bigl(";
+foreach my $i (0..($o-1)) { 
+  my $tmp = $T[$i][0]*$inT[0];
+  foreach my $j (1..($n-1)) {
+    $tmp = Formula("$tmp + $T[$i][$j]*$inT[$j]")->reduce;
+  }
+  $outT = $outT . $tmp->TeX . 
+    (($i != $o-1) ? ",\ " : "\bigr)");
+} 
+
+
+  
+# Make the generic output vector
+# 
+
+foreach my $i (0..($o-1)) {
+  $output[1][$i] = $C[$i][0] * $inS[0];
+  foreach my $j (1..($m-1)) {
+    $output[1][$i] = Formula("$output[1][$i] + $C[$i][$j]*$inS[$j]")->reduce;
+  }
+}
+$output[1] = Vector(@{$output[1]});
+
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Let \(S:\mathbb{R}^{$m} \to \mathbb{R}^{$n}\) be the linear transformation
+$BR
+\(\displaystyle \quad 
+  S $inS = $outS 
+\)
+$PAR
+Let \(T: \mathbb{R}^{$n}\to \mathbb{R}^{$o}\) be the linear transformation
+$BR
+\(\displaystyle \quad 
+  T $inT = $outT
+\)
+$PAR
+Evaluate the composition at \($input\)
+$BR
+\(\displaystyle \quad
+  (S \cdot T - 2 T \cdot S)$input = \)
+\{ ans_rule() \}
+$PAR
+$PAR
+Compute the composition transformation
+$BR
+\(\displaystyle \quad
+  (S \cdot T - 2 T \cdot S)$inS = \)
+\{ ans_rule() \}
+$PAR
+\(\quad\)$BITALIC
+Write your answer for the second part as a vector using \(a,b,c\). For example
+\(\fbox{(3a + 2b - 3c , a + b)}\)
+$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 0;
+
+ANS( $output[0]->cmp() );
+ANS( $output[1]->cmp() );
+
+
+
+COMMENT('S and T entries in [-2,2].  S invertible 3x3, T is 2x3 with one zero entry in each row.');
+
+ENDDOCUMENT(); 

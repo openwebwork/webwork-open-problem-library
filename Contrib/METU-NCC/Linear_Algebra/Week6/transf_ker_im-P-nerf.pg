@@ -1,0 +1,125 @@
+## DESCRIPTION
+##  Basis for kernel and image of T:P_1-->P_1
+##  --easy version--
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Kernel and image)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('easy version');
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  if ($k>1) {
+    while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  } elsif ($k==1) {
+    @out = ($in[random(0,$#in)]);
+  }
+  @out;
+}
+
+
+Context('Vector');
+Context()->variables->are(x=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+
+my ($c,$d) = pick(2,(-4..-1,1..4));
+do { $d = non_zero_random(-4,4); } while (abs($d)==abs($c));
+
+my $dc = $c*$d;
+
+Context()->variables->add(
+ p =>["Real",TeX=>"p(x)"],
+ pp=>["Real",TeX=>"p'(x)"],
+ pc=>["Real",TeX=>"p($c)"],
+ pz=>["Real",TeX=>"p(0)"]
+);
+
+
+my @expr = (Formula("pc x"),Formula("$dc pp"),Formula("$d pz"))[pick(3,(0..2))];
+$expr = ($expr[0]+$expr[1]+$expr[2])->reduce;
+
+# note to self:  figure out how to do this with 'adaptive parameters'
+
+$ker = List(Formula("(x-$c)")->reduce);
+$im  = List(Formula("(x+$d)")->reduce);
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \(T:\mathcal{P}_1(\mathbb{R})\to \mathcal{P}_1(\mathbb{R})\) be the linear
+transformation defined by 
+\[
+ T\bigl(p(x)\bigr) = $expr
+\]
+Find bases for \(\mathrm{Ker}(T)\) and \(\mathrm{Im}(T)\).
+
+$PAR
+\(\qquad \text{Basis of Ker}(T)  = \Bigl\lbrace\) 
+  \{ ans_rule(20) \} 
+\(\Bigr\rbrace\)
+
+$PAR
+\(\qquad \text{Basis of Im}(T)  = \Bigl\lbrace\) 
+  \{ ans_rule(20) \} 
+\(\Bigr\rbrace\)
+
+
+$PAR $SPACE $SPACE $BITALIC
+Enter your bases as comma separated lists of polynomials, for example $BR
+\(\qquad \fbox{x^2+2x+2 , x(x+1)} \)$EITALIC
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+$listBasis = sub { 
+  my ($correct,$student,$ansHash,$value) = @_;
+  my @C = @{$correct};
+  my @S = @{$student};
+
+  $z = $ansHash->{zero};
+  $t = $ansHash->{text};
+
+  foreach (0..$#S) {
+    Value->Error("No zero polynomials in basis, fool!")
+       if ($S[$_]->isZero);
+    Value->Error("Wrong degree!")
+       if !($S[$_]->D('x')->D('x')->isZero);
+    Value->Error("Polynomial not in $t!") 
+       if ($S[$_]->eval(x=>$z) != 0);
+  }
+
+  Value->Error("Not independent!")  if ($#S > $#C);
+
+  return ($#C+1,());
+};
+
+
+
+ANS( $ker->cmp(list_checker=>$listBasis,zero=>$c,text=>"kernel") );
+ANS( $im->cmp(list_checker=>$listBasis,zero=>-$d,text=>"image") );
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

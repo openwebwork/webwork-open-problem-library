@@ -1,0 +1,120 @@
+## DESCRIPTION
+##  Find cyclic vector for P_n 
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Jordan form)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(3)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",  # needed for shuffle
+"MathObjects.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT("Random operation of form ap' + (cx+d)p''.");
+
+Context("Matrix");
+Context()->variables->are(
+  x=> 'Real',
+  p=>['Real',TeX=>"p    {\small(x)}"],
+ dp=>['Real',TeX=>"p\hspace{1pt}' \hspace{-1pt}{\small(x)}"],
+ddp=>['Real',TeX=>"p\hspace{1pt}''\hspace{-1pt}{\small(x)}"]
+);
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+
+my @c = (
+  non_zero_random(-2,2),
+  non_zero_random(-2,2),
+  non_zero_random(-2,2)
+);
+while ($c[0]+$c[1]==0) { $c[1]=non_zero_random(-2,2); }
+$Tin = Formula("p");
+$Tout = Formula("$c[0]*dp + ($c[1]*x+$c[2])*ddp")->reduce;
+$shift = Matrix(
+ [ 0,0,0 ],
+ [ 1,0,0 ],
+ [ 0,1,0 ],
+);
+$ans = List(
+  Formula("x^2"),
+  Formula("2*($c[0]+$c[1])*x + 2*$c[2]")->reduce,
+  Formula("2*$c[0]*($c[0]+$c[1])")->reduce
+);
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Consider the differential operator 
+\(T:\mathcal{P}_2(\mathbb{R})\to \mathcal{P}_2(\mathbb{R})\)
+given by 
+\[T($Tin) = $Tout\]
+Find an ordered basis \(F\) for \(\mathcal{P}_2(\mathbb{R})\) such that \(T\)
+acts like a shift operator with respect to \(F\),
+i.e. \(\mathrm{M}_F^F(T) = $shift\)
+$PAR
+Basis \(F = \Bigl\lbrace\)\{ $ans->ans_rule(15); \}\(\Bigr\rbrace\)
+$PAR
+\(\qquad\) $BITALIC
+  Enter your basis as polynomials separated by comma: e.g.
+  \(x,\;2x^2+1,\; 2\)
+$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+ANS($ans->cmp(list_checker => sub {
+  my ($c, $s, $hash, $val) = @_;
+  my $n = scalar(@$s);
+ 
+  if ($n != 3) {
+    Value->Error("Wrong number of basis vectors!");
+  }
+
+  foreach my $i (0..($n-2)) {
+    my $ds  = Formula($s->[$i])->D('x');
+    my $dds = Formula($ds)->D('x');
+    if (Formula($s->[$i+1]) != $Tout->substitute(dp=>$ds,ddp=>$dds)) {
+      Value->Error("Your vectors are not cyclic!");
+    }
+    if (Formula($s->[$i+1]) == Formula('0')) {
+      Value->Error("Dr. Benjamin says 'BASIS VECTORS CANNOT BE 0!!!'  orz");
+    }
+  }
+
+  return(3,'');
+}
+));
+
+
+COMMENT('');
+
+ENDDOCUMENT(); 

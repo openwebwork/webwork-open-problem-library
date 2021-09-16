@@ -1,0 +1,148 @@
+## DESCRIPTION
+##  Find basis of span of plane in R^3
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Span)
+## Date(01/09/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+DOCUMENT();
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",   # used by listBasis checker
+"parserVectorUtils.pl",
+"PGcourse.pl",
+);
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+TEXT(beginproblem());
+
+COMMENT('should we remove the hint that two vectors are necessary?');
+
+Context("Vector");
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+Context()->variables->are(x=>"Real",y=>"Real",z=>"Real",t=>"Real");
+
+$n = 3; 
+@vars = (Formula("x"),Formula("y"),Formula("z"),Formula("t"));
+
+my @v = pick($n,(-5..-1,1..5));
+$eqn = Formula("0");
+foreach (0..($n-1)) { $eqn = Formula("$eqn + $v[$_]*$vars[$_]")->reduce; }
+
+my @ans;
+foreach (0..($n-2)) { 
+  my @tmp = ((0)x($n));
+  $tmp[$_]   =  $v[$n-1]; 
+  $tmp[$n-1] = -$v[$_]; 
+  @ans[$_] = Vector(@tmp);
+}
+
+$ans = List(@ans);
+$vars = Vector(@vars[0..($n-1)]);
+
+$vects = "v_1";
+foreach (2..($n-1)) { $vects = $vects . ",\,v_{$_}"; }
+
+$example = "";
+foreach my $i (0..($n-2)) { 
+ $example = $example . (($i!=0) ? " , (" : "(");  
+ foreach my $j (1..$n) {
+   $example = $example . (($j!=1) ? "," : "") . ($i*$n+$j)
+ }  
+ $example = $example . ")"
+}
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \[U = \bigl\lbrace $vars\ \Big|\ \ $eqn = 0 \bigr\rbrace\]
+Find vectors \($vects\) whose span is \(U\).
+$PAR
+\(\qquad U = \mathrm{Span}\Bigl\lbrace\)\{ans_rule(20);\}\(\Bigr\rbrace\)
+
+$PAR
+$SPACE $SPACE $BITALIC
+Write you answer as a comma separated list of vectors .
+$BR $SPACE $SPACE $SPACE
+For example $example 
+$EITALIC
+
+$PAR
+On your own paper, you should show that these two vectors are enough 
+to span all of \(U\).
+
+
+END_TEXT
+Context()->normalStrings;
+
+$showPartialCorrectAnswers = 1;
+
+#######
+# This is a modified version of basis_checker_row
+#
+$listBasis = sub {
+  my ($c,$s,$ansHash,$value) = @_;
+
+  my ($nc,$ns) = (scalar(@$c),scalar(@$s));
+  return 0 if ($nc != $ns);
+
+  my @cv, @sv;
+  foreach my $i (0..$nc-1) {
+    $cv[$i] = Matrix($c->[$i])->transpose;
+  }
+  my $len = ($cv[0]->dimensions)[0];
+  foreach my $i (0..$ns-1) {
+    return 0 if ($s->[$i]->type ne "Point");
+    if (!(Formula($s->[$i])->isConstant)) {
+      Value->Error("Do not use variables in your vectors!");
+      return 0;
+    }
+    $sv[$i] = Matrix($s->[$i])->transpose;
+    if ($sv[$i]->isZero) {
+      Value->Error("Dr. Benjamin says: $BR 'NO ZERO VECTORS IN BASIS!'  orz");
+      return 0;
+    }
+    if (($sv[$i]->dimensions)[0] != $len) {
+      Value->Error("Your vectors have wrong dimension!");
+      return 0;
+    }
+  }
+
+  my $Cm = concatenate_columns_into_matrix(@cv);
+  my $Sm = concatenate_columns_into_matrix(@sv);
+
+  my $CTC = ($Cm->transpose) * $Cm;
+  warn "Correct answer is a linearly dependent set." if ($CTC->det == 0);
+
+  if ( (($Sm->transpose) * $Sm)->det == 0) {
+    Value->Error("Your vectors are not independent!");
+    return 0;
+  }
+
+  my $X = ($CTC->inverse) * (($Cm->transpose) * $Sm);
+
+  return 0 if ($Sm != $Cm * $X);
+
+  return ($nc,());
+};
+
+
+ANS( $ans->cmp(list_checker=>$listBasis) );
+
+ENDDOCUMENT();

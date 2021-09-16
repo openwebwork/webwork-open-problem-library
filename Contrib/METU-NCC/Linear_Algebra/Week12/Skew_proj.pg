@@ -1,0 +1,153 @@
+## DESCRIPTION
+##   Given eigenbases for skew projection onto plane.
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Properties)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",  # used by listBasis checker
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Random plane equation and projection direction.$BR Students must recall definitions.');
+
+Context("Matrix");
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+my @var = (
+  Formula("x"), 
+  Formula("y"), 
+  Formula("z") 
+);
+
+
+
+$n = 3;
+
+foreach my $i (0..($n-1)) {
+  $v[$i] = non_zero_random(-5,5);
+  $c[$i] = non_zero_random(-5,5);
+  $plane = (defined($plane)) ? Formula("$plane+$c[$i]*$var[$i]") : Formula("$c[$i]*$var[$i]");
+}
+
+$plane = $plane->reduce; 
+$v = Vector(@v);
+
+my @p_basis = ();
+foreach my $i (0..($n-2)) {
+  my @p = ();
+  foreach my $j (0..($n-1)) {
+    $p[$j] = ($j==0)   ? $c[$i+1] :  
+             ($j==$i+1)? -$c[0]   : 0;
+  }
+  $p_basis[$i] = Vector(@p);
+}
+
+$v_basis = List($v);
+$p_basis = List(@p_basis);
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Let \(P:\mathbb{R}^$n \to \mathbb{R}^$n\) be the skew-projection
+onto the plane 
+\( \Pi = \bigl\lbrace $plane = 0 \bigr\rbrace\)
+parallel to the vector \($v\).
+$PAR
+Find bases for the 0 and 1 eigenspaces.
+$PAR
+Basis for \(V_0 = \biggl\lbrace\)\{ $v_basis->ans_rule(20); \}\(\biggr\rbrace\)
+$PAR
+Basis for \(V_1 = \biggl\lbrace\)\{ $p_basis->ans_rule(20); \}\(\biggr\rbrace\)
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+#######
+# This is a modified version of basis_checker_row
+#
+$listBasis = sub {
+  my ($c,$s,$ansHash,$value) = @_;
+
+  my ($nc,$ns) = (scalar(@$c),scalar(@$s));
+  return 0 if ($nc != $ns);
+
+  my @cv, @sv;
+  foreach my $i (0..$nc-1) {
+    $cv[$i] = Matrix($c->[$i])->transpose;
+  }
+  my $len = ($cv[0]->dimensions)[0];
+  foreach my $i (0..$ns-1) {
+    return 0 if ($s->[$i]->type ne "Point");
+    if (!(Formula($s->[$i])->isConstant)) {
+      Value->Error("Do not use variables in your vectors!");
+      return 0;
+    }
+    $sv[$i] = Matrix($s->[$i])->transpose;
+    if ($sv[$i]->isZero) {
+      Value->Error("Dr. Benjamin says: $BR 'NO ZERO VECTORS IN BASIS!'  orz");
+      return 0;
+    }
+    if (($sv[$i]->dimensions)[0] != $len) {
+      Value->Error("Your vectors have wrong dimension!");
+      return 0;
+    }
+  }
+
+  my $Cm = concatenate_columns_into_matrix(@cv);
+  my $Sm = concatenate_columns_into_matrix(@sv);
+
+  my $CTC = ($Cm->transpose) * $Cm;
+  warn "Correct answer is a linearly dependent set." if ($CTC->det == 0);
+
+  if ( (($Sm->transpose) * $Sm)->det == 0) {
+    Value->Error("Your vectors are not independent!");
+    return 0;
+  }
+
+  my $X = ($CTC->inverse) * (($Cm->transpose) * $Sm);
+
+  return 0 if ($Sm != $Cm * $X);
+
+  return ($nc,());
+};
+
+
+ANS( $v_basis->cmp(list_checker=>$listBasis) );
+ANS( $p_basis->cmp(list_checker=>$listBasis) );
+
+
+
+ENDDOCUMENT(); 

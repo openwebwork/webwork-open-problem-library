@@ -1,0 +1,555 @@
+## DESCRIPTION
+##  Find Jordan blocks and vectors for a matrix
+##  Changing variables in code easily modifies to other sizes
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Jordan form)
+## Date(05/03/2021)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MatrixCheckers.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"scaffold.pl"
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Matrix size = 5; Block sizes = 2, 1+1 (mult 2), 1');
+
+##
+# modified version of NchooseK used to pick random subarray
+#   (see PGchoicemacros.pl)
+#
+sub pick {
+  my ($k, @in) = @_;
+  if ($k==1) {                   # allow to pick a single value 
+    return $in[random(0,$#in)];  #   return value rather than array
+  } 
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+
+  return @out;
+}
+
+
+Context("Matrix");
+Context()->variables->are(
+ x1=>['Real',TeX=>'x_1'],
+ x2=>['Real',TeX=>'x_2'],
+ x3=>['Real',TeX=>'x_3'],
+ x4=>['Real',TeX=>'x_4'],
+ x5=>['Real',TeX=>'x_5'],
+ x6=>['Real',TeX=>'x_6'],
+ t=>'Real',
+);
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+
+my $debug = 0;     # displays info about problem creation
+
+my @var = ("x1","x2","x3","x4","x5","x6"); 
+
+##
+# Convert to Matrix to Transformation form
+#
+sub MtoT {
+  my @M = @_;
+  my @T;
+
+  foreach my $i (0..($n-1)) {
+    my $f = Formula(0);
+    foreach my $j (0..($n-1)) { $f = Formula("$f + $M[$i][$j]*$var[$j]"); }
+  push (@T, $f->reduce);
+  }
+  return Vector(@T);
+}; 
+
+$n = 5;              # dimension of problem
+@board = (2,1,1,1);  # depth of generalized eigenvectors
+
+##
+# pick nonzero eigenvalues
+my @eigval = pick($#board+1,(-3..-1,1..3));
+
+##
+# For geometric mult > 1, modify eigval so that some 
+# (adjacent values) are repeated
+#
+ $eigval[2] = $eigval[1];
+
+
+
+##
+# Build matrix M  from Jacobi blocks J  and vectors P
+#
+my @M; my @J; my @P; my $P;  
+foreach my $i (0..($n-1)) { $J[$i] = [(0)x$n]; }
+my $i=0; 
+foreach my $j (0..$#board) { foreach (1..$board[$j]) { 
+  $J[$i][$i] = $eigval[$j]; 
+  $J[$i][$i-1] = 1 if ($_ > 1); 
+  $i++;
+} }   
+$J = Matrix(@J);
+
+##
+# After having trouble coming up with a good method to ensure a nice problem,
+# I eventually just decided to loop over nice answers until the question is 
+# also reasonable.
+# There's got to be a better way to do this....
+#
+if ($debug==1) {$search=0;}
+do {
+  my @p = pick($n,(0..($n-1)));  # P will be row/column permutation of matrix
+  my @q = pick($n,(0..($n-1)));  # with 1 on diagonal and +-1 on subdiagonal
+
+  foreach my $i (0..($n-1)) {
+    $P[$p[$i]] = [(0)x$n];       # create row of zeros
+    $P[$p[$i]][$q[$i]] = 1;      # place permuted diagonal 1
+  }
+
+ # throw in subdiagonal terms 
+ #  experimentation shows that 5x5 with all subdiagonal terms nonzero is too big
+ #  but it's okay if I leave one subdiagonal term 0 
+  foreach my $i (1..($n-2)) {    
+    $P[$p[random(0,$i-1)]][$q[$i]]=random(-1,1,2);
+  }           
+
+  $P = Matrix(@P);   # prospective matrix of eigenvectors and gen. eigenvect
+
+  $M = $P * $J * $P->inverse;
+  @M = $M->value;
+
+  $nonzero = 0;      # check if the generated T has too many nonzero terms
+  foreach my $i (0..($n-1)) { foreach my $j (0..($n-1)) {
+    if ($M[$i][$j] != 0) { $nonzero++; }
+  } }
+  if ($debug==1) {$search++;}
+} until ($nonzero < 10);  # usually loops around 30 times to find a small T ?
+
+##
+# setup input and output of T for display in problem
+#
+$Tin = Vector(@var[0..($n-1)]);
+$Tout = MtoT(@M);
+
+##
+## Jordan Bases
+##
+
+##
+# store basis, blocks, etc for each eigenvalue in @block
+#   $block[.][0] = eigenvalue
+#   $block[.][1] = Jordan basis           (List of points) 
+#   $block[.][2] = Jordan block           (Matrix)
+#   $block[.][3] = Powers of (T - eigval) (Array of formulas) 
+#   $block[.][4] = kernel dimensions      (Array of numbers)
+
+{ my $j=0; my $k=1;   # j=unique eigval and  k=matrix col 
+for (my $i=0; $i<=$#eigval; $i++) {
+  $block[$j][0] = $eigval[$i];
+
+  my @subdiag = ( 0 );
+
+  $block[$j][1] = List(Point($P->column($k++)));  
+  foreach (1..$board[$i]) {  $block[$j][4][$_-1] = Real($_); }
+  foreach (2..$board[$i]) {
+    push(@subdiag, (1));  
+    $block[$j][1] = $block[$j][1] . List(Point($P->column($k++)));  
+  }
+  while (($i+1 <= $#eigval) && 
+      ($eigval[$i]==$eigval[$i+1])) {
+    push(@subdiag, (0));
+    $i++;
+    $block[$j][1] = $block[$j][1] . List(Point($P->column($k++)));  
+    foreach (1..$board[$i]) {
+      if (defined($block[$j][4][$_-1])) { $block[$j][4][$_-1] += $_; }
+      else {        $block[$j][4][$_-1] = $block[$j][4][$_-2] +  1;  } 
+    }
+    foreach ($board[$i]..$#{$block[$j][4]}) { $block[$j][4][$_] += $board[$i]; }
+    foreach (2..$board[$i]) { 
+      push(@subdiag, (1)); 
+      $block[$j][1] = $block[$j][1] . List(Point($P->column($k++)));  
+    } 
+  }
+
+  push(@{$block[$j][4]},
+       (($block[$j][4][$#{$block[$j][4]}]) x ($#subdiag - $#{$block[$j][4]})));
+
+  my @B;
+  $B[0] = [(0)x($#subdiag+1)]; $B[0][0] = $eigval[$i];
+  foreach (1..$#subdiag) { 
+    $B[$_] = [(0)x($#subdiag+1)]; 
+    $B[$_][$_] = $eigval[$i]; 
+    $B[$_][$_-1] = $subdiag[$_]; }
+  $block[$j][2] = Matrix(@B);
+
+  $Mn  = $M - Value::Matrix->I($n)*$eigval[$i];  # T - eigval 
+  $Mnp = Value::Matrix->I($n);                   # powers
+  foreach (0..$#subdiag) { 
+    $Mnp = $Mnp*$Mn;
+    $block[$j][3][$_] = MtoT($Mnp->value);
+  }
+
+  $j++;
+} }
+@block = PGsort( sub {$_[0][0] < $_[1][0]}, @block ); 
+
+##
+# characteristic polynomial 
+$Delta = "";
+foreach (0..$#block) {
+  $Delta = $Delta . "\," . (($block[$_][1]->length == 1)
+    ? "(" . (Formula("(t-$block[$_][0])")->reduce)->TeX . ")" 
+    : (Formula("(t-$block[$_][0])^(".$block[$_][1]->length.")")->reduce)->TeX); 
+}
+
+
+##
+# Answer checker for Jordan basis (List) and Jordan block
+#
+$Bchecker = sub {
+  my ($correct, $student, $self) = @_;
+  my ($basis_s,$block_s) = @{$student};
+  my ($basis_c,$block_c) = @{$correct};
+
+## Gather information about correct answer
+  my @Fc = $basis_c->value; 
+  my @Jc = $block_c->value;
+  if ($#Jc == 0) { @Jc = (); $Jc[0][0] = ($block_c->value)[0]; }
+
+## Convert correct basis to column vectors and make bais matrix 
+  foreach (0..$#Fc) { $Fc[$_] = Matrix($Fc[$_])->transpose; }
+  my $Mc = concatenate_columns_into_matrix(@Fc);
+
+## sub_c is gather info about sub-diagonal of block  
+  my @sub_c=(1); 
+  foreach (1..$#Jc) {
+    if ($Jc[$_][$_-1] == 1) { $sub_c[$#sub_c] += 1; }
+    else                    { $sub_c[$#sub_c+1] = 1; }
+  }
+
+## corresponding student answers
+  my @Fs; my @Js; my $Ms;
+
+## result of problem check
+  my @msg = ("","");  my @result=(0,0);
+
+PARTI:     ## Check basis by itself 
+if (!($basis_s eq "")) {
+  @Fs = $basis_s->value;
+  if ($Fs[0]->length == 1) {
+    my @tmp; 
+    foreach (0..$#Fs) { $tmp[$_] = ($Fs[$_]->value)[0] }
+    @Fs = (Point(@tmp));
+  }
+
+  $result[0]=1;
+
+## convert Fs from points to columns and check length
+  foreach (0..$#Fs) { 
+    if ($Fs[$_]->length != $n) { 
+      $result[0]=0; $msg[0]="Vectors are wrong length!"; goto PARTII; 
+    }
+    $Fs[$_] = Matrix($Fs[$_])->transpose;
+  }
+
+## check number of vectors
+  if ($#Fs != $#Fc) { 
+    $result[0]=0; $msg[0] = "Wrong number of vectors!"; goto PARTII;
+  }
+
+## check Fs is independent
+  $Ms = concatenate_columns_into_matrix(@Fs);
+  if ( (($Ms->transpose)*$Ms)->det == 0 ) {
+    $result[0]=0; $msg[0] = "Not independent!";  goto PARTII;
+  }
+
+## count number of eigenvectors
+  my $vects = 0;
+  foreach (0..$#Fs) { if ($M*$Fs[$_] == $Jc[0][0]*$Fs[$_]) { $vects++; } }
+  if ($vects !=  $#sub_c+1) { 
+    $result[0]=0; $msg[0] = "Not enough eigenvectors!"; goto PARTII;
+  }
+
+## count number of shifting vectors
+  $vects = 0;
+  foreach (0..($#Fs-1)) { 
+    if ($M*$Fs[$_] == $Fs[$_]*$Jc[0][0] + $Fs[$_+1]) { $vects++; }
+  }
+  if ($vects != $#Fc-$#sub_c) {
+    $result[0]=0; goto PARTII;
+  }
+}
+
+
+
+PARTII:   ## Check Jordan block by itself
+if (defined($block_s)) {
+  if ($#Jc==0) { $Js[0][0] = ($block_s->value)[0]; }
+  else         { @Js = $block_s->value; }
+  $result[1]=1;
+
+# verify upper triangle is 0
+  foreach my $i (0..($#Jc-1)) { foreach my $j (($i+1)..$#Jc) {
+    if ($Js[$i][$j] != 0)    
+    { $result[1]=0; $msg[1]="Wrong form!"; goto CLOSING; } } }
+
+# verify lower sub-triangle is 0
+  foreach my $i (2..($#Jc))   { foreach my $j (0..($i-2)) {
+    if ($Js[$i][$j] != 0)     
+    { $result[1]=0; $msg[1]="Wrong form!"; goto CLOSING; } } }
+
+  my @sub_s=(1);                  # check sub-diagonal is 0 or 1
+  foreach (1..$#Jc) {             # and count block sizes
+    if (($Js[$_][$_-1] != 0) && ($Js[$_][$_-1] != 1))
+    { $result[1]=0; $msg[1]="Wrong form!"; goto CLOSING; }
+    if ($Js[$_][$_-1] == 1) { $sub_s[$#sub_s] += 1; }
+    else                    { $sub_s[$#sub_s+1] = 1; }
+  }
+  if ($#sub_s != $#sub_c)
+  { $result[1]=0; $msg[1]="Wrong number of subblocks!"; goto CLOSING; }
+
+  @sub_s = PGsort( sub {$_[0] < $_[1]}, @sub_s);
+  @sub_c = PGsort( sub {$_[0] < $_[1]}, @sub_c);
+
+  foreach (0..$#sub_c) { if ($sub_s[$_] != $sub_c[$_])
+    { $result[1]=0; $msg[1]="Wrong subblock sizes!"; goto CLOSING; }
+  }
+ 
+  foreach (0..$#Jc) {                     # check diagonal
+    if ($Js[$_][$_] != $Jc[$_][$_]) 
+    { $result[1]=0; $msg[1]="Wrong diagonal!"; goto CLOSING; }
+  }
+}
+
+goto CLOSING if (($result[0]==0) || ($result[1]==0));
+
+PARTIII: {   ## Check basis and Jordan block for consistency
+## check that T is right-shift for vectors <=> cols of J with 1 on subdiag.
+
+  foreach (0..($#Fs-1)) { 
+    if ($Js[$_+1][$_] == 1) { ## check that T shifts rightwards
+      if ($M*$Fs[$_] != $Fs[$_]*$Js[$_][$_] + $Fs[$_+1]) {
+        $result[0]=0; $msg[0]="Incompatible with Jordan block!"; goto CLOSING;
+      }
+    } 
+  }
+}
+
+
+CLOSING:
+  $self->setMessage(1,$msg[0]);
+  $self->setMessage(2,$msg[1]);
+
+  return [@result];
+};
+
+
+foreach (0..$#block) {
+  $Block_ans[$_] = MultiAnswer($block[$_][1], $block[$_][2])->with(
+    singleResult=>0,
+    allowBlankAnswers=>1,
+    checkTypes=>0,
+    checker=>$Bchecker
+  );
+}
+
+
+## setup stuff for display
+
+@T = ();
+Context()->variables->add("T"=>"Real");
+foreach(0..$#block) { $T[$_] = Formula("T-$block[$_][0]")->reduce; }
+
+
+@ind = ("A","B","C","D","E","F","G","H","I");
+####
+# DEBUG STUFF
+#
+if ($debug == 1) {
+ $Pmat = $P;
+}
+
+Context()->texStrings;
+
+#####################################
+#  Main text
+#
+if ($debug == 1) {
+BEGIN_TEXT
+DEBUG DATA $BR
+\(P = $Pmat\) $BR 
+\(J = $J\) $BR 
+\(M = $M\) $BR
+Search Length = $search $BR
+DEBUG END
+$PAR
+END_TEXT
+}
+BEGIN_TEXT
+
+
+Let \(T\) be the linear transformation \(T:\mathbb{R}^$n\to\mathbb{R}^$n\) below
+\[T $Tin = $Tout\]
+$PAR
+The characteristic polynomial of \(T\) is 
+$BR
+\(\qquad \Delta(t) = $Delta\)
+$PAR
+In the parts below, you will compute an ordered Jordan basis \(F\) and Jordan blocks for
+\(M_F^F(T)\). $BITALIC (Click to open and close sections below).$EITALIC
+$PAR
+\(\qquad\) Write \(x_1\) as \(\fbox{x1}\) and \(x_2\) as \(\fbox{x2}\) etc.
+
+
+END_TEXT
+#####################
+# Begin Scaffold
+Scaffold::Begin(can_open=>"always",is_open=>"first_incorrect");
+#####################
+#Section::Begin("$BBOLD(".$ind[0].") Matrix$EBOLD");
+#####################
+#BEGIN_TEXT
+#
+#Write the matrix \(M(T)\) of \(T\) relative to the standard basis.$PAR
+#\(\quad M(T) = \)\{$M->ans_array(1);\}
+#
+#
+#END_TEXT
+#####################
+$p = 0;
+while ($p<=$#block) {
+
+Section::Begin("$BBOLD(".$ind[$p].") Eigenvalue \(t=".$block[$p][0]."\)$EBOLD");
+#####################
+BEGIN_TEXT
+
+$PAR
+\( \phantom{{}^2}\bigl($T[$p]\bigr)$Tin = \) \{ $block[$p][3][0]->ans_rule(30); \}
+$BR
+\(\qquad \mathrm{dim}\Bigl(\mathrm{ker}\bigl($T[$p]\bigr)\Bigr) = \) 
+  \{ $block[$p][4][0]->ans_rule(3); \}
+
+END_TEXT
+$q=2; $size=($block[$p][2]->dimensions)[0];
+while ($q <= $size) {
+BEGIN_TEXT
+$PAR
+\( \bigl($T[$p]\bigr)^$q $Tin = \) \{ $block[$p][3][$q-1]->ans_rule(30);  \}
+$BR
+\(\qquad \mathrm{dim}\Bigl(\mathrm{ker}\bigl($T[$p]\bigr)^$q\Bigr) = \) 
+  \{ $block[$p][4][$q-1]->ans_rule(3); \}
+END_TEXT
+$q++; }
+BEGIN_TEXT
+
+$HR
+
+$PAR
+\( \quad \text{Jordan Basis} = \)\{$Block_ans[$p]->ans_rule(40);\}
+$PAR
+\( \quad \text{Jordan Block} = \)\{$Block_ans[$p]->ans_array(1);\}
+
+
+END_TEXT
+if ($debug == 1) {
+BEGIN_TEXT
+  $PAR
+  \(\qquad \quad \) DEBUG DATA:$BR
+  $BR
+  $PAR
+  \( \phantom{{}^2}\bigl($T[$p]\bigr) = $block[$p][3][0]\) \{ \}
+  $BR
+  \( \mathrm{dim}( \mathrm{ker} ) = $block[$p][4][0] \)
+
+  END_TEXT
+  $q=2; $size=($block[$p][2]->dimensions)[0];
+  while ($q <= $size) {
+  BEGIN_TEXT
+  $PAR
+  \( \bigl($T[$p]\bigr)^$q  = $block[$p][3][$q-1]\)
+  $BR
+  \( \mathrm{dim}( \mathrm{ker} ) = $block[$p][4][$q-1] \)
+  END_TEXT
+  $q++; }
+  BEGIN_TEXT
+
+  $BR
+  \(\qquad \qquad \text{Jordan Basis} = $block[$p][1]\)
+  $BR
+  \(\qquad \qquad \text{Jordan Block} = $block[$p][2]\) 
+  $BR \(\qquad \quad \) DEBUG END $BR
+END_TEXT
+}
+BEGIN_TEXT
+
+
+END_TEXT
+####################
+Section::End();
+
+$p++;
+}
+
+#####################
+#Section::Begin("$BBOLD(".$ind[$p+1].") Matrix \(J\)$EBOLD");
+#####################
+#BEGIN_TEXT
+#
+#Write your full ordered Jordan basis for 
+#\(T\) and the corresponding matrix \(M_F^F(T)\).
+#
+#$PAR
+#\(\quad \text{Jordan basis} = \)
+#$PAR
+#\(\quad M_F^F(T) = \)\{$J->ans_array(1) \}
+#
+#END_TEXT
+#####################
+#Section::End();
+Scaffold::End();
+#####################################
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+#ANS( $M->cmp() );
+
+foreach my $i (0..$#Block_ans) { 
+  foreach my $j (0..$#{$block[$i][3]}) {
+    ANS ( $block[$i][3][$j]->cmp() );
+    ANS ( $block[$i][4][$j]->cmp() );
+  }
+  ANS( $Block_ans[$i]->cmp() ); 
+}
+
+
+#ANS( $J->cmp() );
+
+
+
+ENDDOCUMENT(); 

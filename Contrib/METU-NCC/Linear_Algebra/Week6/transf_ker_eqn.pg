@@ -1,0 +1,128 @@
+## DESCRIPTION
+##  Give formula for kernel in R^3 (line)
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Kernel and image)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PG.pl",
+"PGcourse.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGmatrixmacros.pl",
+"MatrixCheckers.pl",
+"parserVectorUtils.pl",
+);
+
+TEXT(beginproblem());
+
+Context('Matrix');
+
+$L = Matrix([
+  [                      1, 0],
+  [non_zero_random(-2,2,1), 1],
+]);
+
+@Uarray = ([0,0,0],
+           [0,0,0]); 
+
+$p1 = 1;  $p2 = 2;  # locations of pivots
+
+for (my $i=$p1-1; $i<3; $i++) {
+  $Uarray[0][$i] = non_zero_random(-2,2,1);
+}
+for (my $i=$p2-1; $i<3; $i++) {
+  $Uarray[1][$i] = non_zero_random(-2,2,1);
+}
+
+$U = Matrix(@Uarray);
+
+$A = $L * $U;
+
+@Narray = ([0,0],
+           [0,0],
+           [0,0]);
+my $j=0;
+for(my $i=0; $i<3; $i++) {
+  if (($i != $p1-1) && ($i != $p2-1)) {
+    if ($i < $p1-1) {
+      $Narray[$i][$j] = 1;
+    } elsif ($i < $p2-1) {
+      $Narray[$p1-1][$j] =  $Uarray[0][ $i  ];
+      $Narray[ $i  ][$j] = -$Uarray[0][$p1-1];
+    } else {
+      $Narray[$p1-1][$j] =  $Uarray[0][ $i  ]*$Uarray[1][$p2-1] -
+                            $Uarray[0][$p2-1]*$Uarray[1][ $i  ]; 
+      $Narray[$p2-1][$j] =  $Uarray[1][ $i  ]*$Uarray[0][$p1-1];
+      $Narray[ $i  ][$j] = -$Uarray[1][$p2-1]*$Uarray[0][$p1-1];
+    }
+    $j = $j+1;
+  }
+}
+
+Context("Vector");
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+$n  = Vector($Narray[0][0],$Narray[1][0],$Narray[2][0]); 
+
+@c1 = ($A->element(1,1),$A->element(1,2),$A->element(1,3)); 
+@c2 = ($A->element(2,1),$A->element(2,2),$A->element(2,3)); 
+
+Context("Numeric");
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',t=>'Real');
+Context()->noreduce('(-x)-y');
+
+$f1 = Formula("$c1[0]*x+$c1[1]*y+$c1[2]*z")->reduce;
+$f2 = Formula("$c2[0]*x+$c2[1]*y+$c2[2]*z")->reduce;
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Let \({T}:\mathbb{R}^3\to \mathbb{R}^2\) be the linear transformation 
+defined by $BR
+\(\displaystyle \quad {T}(x,y,z) = \bigl($f1,\,$f2\bigr)\) 
+$PAR
+Then \(\mathrm{Ker}({T})\) is a line in \(\mathbb{R}^3\), written parametrically as  
+$BR
+\(\mathbf{r}(t) = t\,(a,b,c)\quad \) for some \((a,b,c)\in\mathbb{R}^3\). 
+$PAR
+\(\quad\)\((a,b,c)\ =\ \)\{$n->ans_rule(10) \}
+$PAR
+(Write your answer as a vector \((a,b,c)\). 
+For example "\((2,3,4)\)")
+
+END_TEXT
+
+Context()->normalStrings;
+
+
+$showPartialCorrectAnswers = 0;
+
+ANS( $n->cmp(checker=>sub{
+  my ($correct,$student,$ansHash) = @_;
+  my $c = Vector($correct->value);
+  my $s = Vector($student->value);    
+
+  return (isParallel $c $s);
+}) );
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.
+
+
+

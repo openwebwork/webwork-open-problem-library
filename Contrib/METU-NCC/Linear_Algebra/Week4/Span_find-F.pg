@@ -1,0 +1,171 @@
+## DESCRIPTION
+##  Find vectors spanning 3D subspace of Fun
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Basis and dimension)
+## Date(07/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(3)
+## Static(0)
+## MO(1)
+
+DOCUMENT();  
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",
+"parserMultiAnswer.pl"
+);
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+TEXT(beginproblem());
+
+COMMENT("not hard, but students can't handle char functions...");
+
+Context("Numeric");
+Context()->variables->are(
+ x1=>['Real',TeX=>"\chi_1"],
+ x2=>['Real',TeX=>"\chi_2"],
+ x3=>['Real',TeX=>"\chi_3"],
+ x4=>['Real',TeX=>"\chi_4"],
+ x5=>['Real',TeX=>"\chi_5"],
+ f=>'Real'
+);
+
+@chi = (
+  Formula("x1"),
+  Formula("x2"),
+  Formula("x3"),
+  Formula("x4"),
+  Formula("x5")
+);
+
+sub Function {
+  my @v = @_;
+  my $F = Formula("0");
+  foreach (0..$#v) { $F = $F + Formula("$v[$_] * $chi[$_]")->reduce; }
+
+  return $F->reduce;
+};
+
+
+@v = (); 
+
+@x = pick(3,(1..5));
+@x[0,1] = PGsort(sub{$_[0] < $_[1]}, @x[0,1]);
+
+do { @c = (non_zero_random(-3,3),non_zero_random(-3,3)); }
+until ((($c[0]>0) || ($c[1]>0)) && (abs($c[0]) != abs($c[1])));
+
+$expr = ($c[1]>0) ? 
+ Formula("$c[0] f")->reduce->TeX . "($x[0]) + " .
+ Formula("$c[1] f")->reduce->TeX . "($x[1])"          :
+ Formula("$c[0] f")->reduce->TeX . "($x[0])" .
+ Formula("$c[1] f")->reduce->TeX . "($x[1])"          ;
+
+my @y = PGsort(sub{$_[0] < $_[1]}, @x);
+my $i = 0;
+foreach (1..5) {
+  if ($_ == $y[$i]) {
+    $i += 1;
+  } else {
+    @tmp = (0,0,0,0,0); $tmp[$_-1] = 1;
+    push(@v, Vector(@tmp));
+  }
+}
+{
+  my @tmp = (0,0,0,0,0);  
+  $tmp[$x[0]-1] =  $c[1];
+  $tmp[$x[1]-1] = -$c[0];
+  push(@v, Vector(@tmp));
+}
+
+@f = ();  foreach (0..2) { $f[$_] = Function($v[$_]->value); }
+
+
+$MAns = MultiAnswer($f[0], $f[1], $f[2])->with(
+ singleResult=>0,
+ allowBlankAnswers=>1,
+ checkTypes=>0,
+ checker=>sub{
+  my ($correct,$student,$self) = @_;
+  my @C = @{$correct};
+  my @S = @{$student};
+ 
+  my @result = (1,1,1);
+  my @msg    = ("","","");
+
+  @Ans = ();
+
+  foreach (0..2) {
+    if ($C[$_]->typeMatch($S[$_])) {
+      my @V = ($S[$_]->eval(x1=>1,x2=>0,x3=>0,x4=>0,x5=>0,f=>0),
+               $S[$_]->eval(x1=>0,x2=>1,x3=>0,x4=>0,x5=>0,f=>0),
+               $S[$_]->eval(x1=>0,x2=>0,x3=>1,x4=>0,x5=>0,f=>0),
+               $S[$_]->eval(x1=>0,x2=>0,x3=>0,x4=>1,x5=>0,f=>0),
+               $S[$_]->eval(x1=>0,x2=>0,x3=>0,x4=>0,x5=>1,f=>0));
+      if (($V[$x[2]-1] != 0) 
+       || ($c[0]*$V[$x[0]-1] + $c[1]*$V[$x[1]-1] != 0)) {
+        $result[$_] = 0;  $msg[$_] = "Not in \(U\)";
+      } else {
+        push(@Ans, Matrix(@V)->transpose);
+      }
+    } else { $result[$_] = 0; }
+  }
+ 
+  if ($#Ans > 0) { 
+    $Sm = concatenate_columns_into_matrix(@Ans);
+    if ( ($Sm->transpose * $Sm)->det == 0) {
+      Value->Error("Your vectors are not independent!");
+      return 0;
+    }
+  }
+
+  foreach (0..2) { $self->setMessage($_+1,$msg[$_]) if ($result[$_]==0); }
+  return ~~@result;
+});
+
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Let \(S=\lbrace 1,2,3,4,5 \rbrace\).  Let 
+\( \displaystyle 
+  U = \Bigl\lbrace f\in \mathrm{Fun}(S)\ 
+	  \Big|\ $expr=0,\ f($x[2])=0 \Bigr\rbrace\)
+$PAR
+Find \(f,g,h\in\mathrm{Fun}(S)\) whose span is \(U\).
+$PAR
+
+\(\quad U = \mathrm{Span}\Bigl\lbrace\)
+  \{$MAns->ans_rule(10);\},
+  \{$MAns->ans_rule(10);\},
+  \{$MAns->ans_rule(10);\} 
+\(\Bigr\rbrace\)
+
+$PAR $SPACE $SPACE $BITALIC
+Write \(f,g,h\) using characteristic functions, using 
+x1 for \(\chi_1\), and x2 for \(\chi_2\), etc.
+$EITALIC
+
+
+END_TEXT
+Context()->normalStrings;
+
+
+ANS( $MAns->cmp );
+
+
+ENDDOCUMENT();

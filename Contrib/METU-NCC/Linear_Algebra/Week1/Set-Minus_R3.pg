@@ -1,0 +1,143 @@
+## DESCRIPTION
+##  Find points on line minus half space.
+## ENDDESCRIPTION
+
+
+## DBsubject(Set theory and logic)
+## DBchapter(Operations on sets)
+## DBsection(Boolean operations on sets)
+## Date(01/09/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+DOCUMENT();  
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PGauxiliaryFunctions.pl"
+);
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+TEXT(beginproblem());
+
+COMMENT('Points on random line above/below random plane');
+
+Context("Vector");
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',t=>'Real');
+
+$n=3;
+
+do { 
+  foreach my $i (0..($n-1)) { $v[$i] = non_zero_random(-3,3); }
+} until (! Vector(map {abs($_)} @v)->isParallel(Vector(map {1} @v)));
+
+do { 
+  foreach my $i (0..($n-1)) { $w[$i] = non_zero_random(-3,3); }
+} until ((! Vector(map {abs($_)} @w)->isParallel(Vector(map {1} @w)))
+      && (Vector(@w) . Vector(@v) != 0));
+
+$expr = Formula("$w[0]x+$w[1]y+$w[2]z")->reduce;
+$ta = Formula("$v[0]t")->reduce;
+$tb = Formula("$v[1]t")->reduce;
+$tc = Formula("$v[2]t")->reduce;
+
+$V = Vector(@v);  $W = Vector(@w);  my $VW = $V . $W;
+
+$i = random(0,1);
+@ineq = ("\le","\ge");
+
+$g = ($i==0) ? $VW + random(1,3)
+             : $VW - random(1,3);
+
+$ans1 = (($i==0) xor ($VW < 0))
+      ? (ceil($g/$VW) +1)*$V
+      : (floor($g/$VW)-1)*$V;
+$ans2 = (($i==0) xor ($VW < 0))
+      ? (ceil($g/$VW) +2)*$V
+      : (floor($g/$VW)-2)*$V;
+
+
+$MAns = MultiAnswer($ans1, $ans2
+)->with(
+ singleResult=>0,
+ allowBlankAnswers=>1,
+ checkTypes=>0,
+ checker=>sub{
+
+ my ($correct,$student,$self) = @_;
+ my ($c1,$c2) = @{$correct};
+ my ($s1,$s2) = @{$student};
+
+ my @result = (1,1);
+
+
+ if (Point($c1)->typeMatch($s1)) {
+   $s1 = Vector($s1);
+   my $msg = "";
+   if (! $V->isParallel(Vector($s1))) { 
+     $result[0] = 0; $msg = "Not in \(A\)$BR"; 
+   } 
+   if ((($i==0) && ($s1 . $W <= $g)) ||
+       (($i==1) && ($s1 . $W >= $g)))  {
+     $result[0] = 0; $msg = "$msg In \(B\)$BR"; 
+   }
+   $self->setMessage(1,$msg) if ($result[0]==0);
+ } else { $result[0] = 0; }
+ if (Point($c2)->typeMatch($s2)) {
+   $s2 = Vector($s2);
+   my $msg = "";
+   if (! $V->isParallel(Vector($s2))) { 
+     $result[1] = 0; $msg = "Not in \(A\)$BR"; 
+   } 
+   if ((($i==0) && ($s2 . $W <= $g)) ||
+       (($i==1) && ($s2 . $W >= $g)))  {
+     $result[1] = 0; $msg = "$msg In \(B\)$BR"; 
+   }
+   $self->setMessage(2,$msg) if ($result[1]==0);
+ } else { $result[1] = 0; }
+
+
+ if ($c1->typeMatch($s1) && $c2->typeMatch($s2) && ($s1 == $s2))
+   { $result[1] = 0; $self->setMessage(2,"not distinct"); } 
+
+
+ return ~~@result;
+});
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Find two $BBOLD distinct, nonzero $EBOLD elements of \(A\setminus B\) if the subsets
+\(A, B \subset \mathbb{R}^{$n}\) are defined as follows.
+$PAR
+\(\qquad \displaystyle A = \bigl\lbrace ($ta,$tb,$tc)\ \Big|\ \ t\in \mathbb{R} \bigr\rbrace\)
+$PAR
+\(\qquad \displaystyle B = \bigl\lbrace (x,y,z)\ \Big|\ \ $expr $ineq[$i] $g \bigr\rbrace\)
+$PAR
+
+\{$MAns->ans_rule(25);\} $BR 
+\{$MAns->ans_rule(25);\} 
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $MAns->cmp );
+
+ENDDOCUMENT();

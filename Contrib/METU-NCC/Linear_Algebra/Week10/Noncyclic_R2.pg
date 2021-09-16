@@ -1,0 +1,163 @@
+## DESCRIPTION
+##  Find noncyclic vectors for cyclic transform (should be easy) 
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Properties)
+## Date(19/04/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",  # needed for shuffle
+"MathObjects.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Random 2x2 cyclic transform with entries between -3 and 3.');
+
+Context("Matrix");
+Context()->variables->are(
+   x=> 'Real',
+   y=> 'Real',
+   z=> 'Real',
+   w=> 'Real',
+);
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+my @vars = (
+  Formula("x"),
+  Formula("y"),
+  Formula("z"),
+  Formula("w")
+);
+
+$n = 2;   # this code will actually only work for n=2 currently....
+
+my @M;
+my @p = shuffle($n); 
+foreach my $i (0..($n-1)) {
+  foreach my $j (0..($n-1)) {
+    $M[$p[$i]][$p[$j]] = ($i > $j) ? 0 : non_zero_random(-3,3); 
+  }
+}
+while ( $M[1][1] == $M[0][0] ) { $M[1][1] = non_zero_random(-3,3); } 
+
+$M = Matrix(@M);
+
+Context()->texStrings;
+foreach my $i (0..($n-1)) {
+  my $f = Formula(0);
+  foreach my $j (0..($n-1)) {
+    $f = $f + Formula("$M[$i][$j]*$vars[$j]"); 
+  }
+  $f = $f->reduce;
+  $Tout = defined($Tout) ? $Tout . ",\;$f"     : "$f";
+  $Tin  = defined($Tin)  ? $Tin . ",$vars[$i]" : "$vars[$i]"; 
+}
+Context()->normalStrings;
+
+$ans = ($p[0]==0) ? 
+List(
+  Vector(1,0),	
+  Vector($M[0][1],$M[1][1]-$M[0][0])
+) : 
+List(
+  Vector(0,1),	
+  Vector($M[0][0]-$M[1][1],$M[1][0])
+);
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Consider the cyclic transformation 
+\(T:\mathbb{R}^$n\to \mathbb{R}^$n\)
+given by 
+\[T($Tin) = \Bigl($Tout\Bigr)\]
+Find two nonzero linearly independent vectors which are NOT cyclic. 
+$PAR
+Vectors \( = \Bigl\lbrace\)\{ $ans->ans_rule(20); \}\(\Bigr\rbrace\)
+$PAR
+\(\qquad\) $BITALIC
+  Enter your vectors separated by comma: e.g.
+  \((1,0),\;(0,1)\)
+$EITALIC
+$PAR
+Recall that a cyclic transformation \(T:V\to V\) has vectors 
+\(\mathbf{v}\) so that
+\(\bigl\lbrace \mathbf{v},\,T\mathbf{v},\,T^2\mathbf{v},\dots\bigr\rbrace\)
+spans \(V.\)  In this case, such vectors \(\mathbf{v}\) are called 
+$BBOLD cyclic vectors. $EBOLD  
+For a vector
+to be not cyclic, applying \(T\) over and over should not generate a spanning
+set. $BITALIC (Note: most vectors are cyclic.) $EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+ANS($ans->cmp(list_checker => sub {
+  my ($c, $s, $hash, $val) = @_;
+  my ($nc, $ns) = (scalar(@$c), scalar(@$s));
+ 
+  if ($ns != $n) {
+    Value->Error("Wrong number of vectors!");
+    return 0;
+  }
+
+  my @v;
+  foreach my $i (0..($n-1)) {
+    return 0 if ($s->[$i]->type ne "Point");
+    if (!(Formula($s->[$i])->isConstant)) {
+      Value->Error("Do not use variables in your vectors!");
+      return 0;    
+    }
+    $v[$i] = Vector($s->[$i]);
+    if ($v[$i]->isZero) {
+      Value->Error("Enter non-zero vectors.");
+      return 0;
+    }
+    if (!($v[$i]->isParallel(Vector($M*$v[$i])))) {
+      $ith = Value::List->NameForNumber($i+1);
+      Value->Error("Your $ith vector is cyclic!");
+      return 0;
+    }
+  } 
+
+  if ($v[0]->isParallel($v[1])) {
+    Value->Error("Your vectors are not independent!");
+    return 0;
+  } 
+
+  return($ns,'');
+}
+));
+
+
+COMMENT('');
+
+ENDDOCUMENT(); 

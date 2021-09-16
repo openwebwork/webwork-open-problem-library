@@ -1,0 +1,116 @@
+## DESCRIPTION
+##  Extend basis in R^4
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Basis and dimension)
+## Date(14/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## MO(1)
+## Static(0)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('starting vectors are sums of some standard basis vectors');
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+Context('Vector');
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',t=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+($n,$m) = (4,2);     # n = dimension   m = #vectors given
+
+foreach (0..($n-1))  # make standard basis vectors
+{ $e[$_] = [(0)x($n)];  $e[$_][$_] = 1;  $e[$_] = Vector(@e[$_]); }
+
+@e = @e[pick($n,(0..($n-1)))];  #reorder
+
+foreach my $i (0..($m-1))  {  # make display vectors 
+  my @i = pick(random(1,$n-$i-1),(($i+1)..($n-1))); 
+  foreach my $j (0..$#i) { $e[$i] = $e[$i] + $e[$i[$j]]; } 
+}
+$E = List(@e[0..($m-1)]);
+
+$newVectors = List(@e[$m..$#e]);
+
+Context()->texStrings;
+BEGIN_TEXT
+Extend  
+\(\displaystyle E = \bigl\lbrace $E \bigr\rbrace\) 
+to a basis of \(\mathbb{R}^{$n}\)
+$PAR
+\(\qquad \text{Additional Vectors} = \)  \{ ans_rule(25) \} 
+$PAR
+\(\quad\) $BITALIC
+Enter your answer as comma separated lists of vectors, for example $BR
+\(\qquad \fbox{(1,2,3,4) , (5,6,7,8)} \)$EITALIC
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#######
+# This is a modified version of basis_checker_row
+#
+$listBasis = sub { 
+  my ($c,$s,$ansHash,$value) = @_;
+  my ($nc,$ns) = (scalar(@$c),scalar(@$s));
+  
+  my @cv, @sv;
+  foreach my $i (0..$nc-1) {
+    $cv[$i] = Matrix($c->[$i])->transpose;
+  }
+  my $len = ($cv[0]->dimensions)[0];
+  foreach my $i (0..$ns-1) {
+    $sv[$i] = Matrix($s->[$i])->transpose;
+    if ($sv[$i]->isZero) {
+      Value->Error("Dr. Benjamin says: $BR 'NO ZERO VECTORS IN BASIS!'  orz");
+      return 0;
+    } 
+    if (($sv[$i]->dimensions)[0] != $len) {
+      Value->Error("Your vectors have wrong dimension!");
+      return 0;
+    }
+  }
+ 
+  Value->Error("Span is too small!")          if ($ns < $nc);
+  Value->Error("Not independent from \(E\)!") if ($ns > $nc);
+
+  foreach (0..($m-1)) { push(@sv,Matrix($e[$_])->transpose); }
+
+  if ( concatenate_columns_into_matrix(@sv)->det == 0 ) {
+    Value->Error("Does not extend to basis!");
+  }
+
+
+  return ($nc,());
+};
+
+
+ANS( $newVectors->cmp(list_checker=>$listBasis) );
+
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

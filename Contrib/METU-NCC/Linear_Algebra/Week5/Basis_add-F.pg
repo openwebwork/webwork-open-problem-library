@@ -1,0 +1,144 @@
+## DESCRIPTION
+##  Extend basis in Fun{1,2,3,4}
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Basis and dimension)
+## Date(14/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## MO(1)
+## Static(0)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('starting vectors are sums of some standard basis vectors');
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+Context('Vector');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->variables->are(
+ x1=>['Real',TeX=>"\chi_1"],
+ x2=>['Real',TeX=>"\chi_2"],
+ x3=>['Real',TeX=>"\chi_3"],
+ x4=>['Real',TeX=>"\chi_4"],
+ x5=>['Real',TeX=>"\chi_5"],
+ f=>'Real'
+);
+@chi = (
+  Formula("x1"),
+  Formula("x2"),
+  Formula("x3"),
+  Formula("x4"),
+  Formula("x5")
+);
+sub Function {
+  my @V = @_;
+  my $F = Formula("0");
+  foreach (0..$#V) { $F = $F + Formula("$V[$_] * $chi[$_]")->reduce; }
+
+  return $F->reduce;
+};
+sub Fun2Array {
+ my ($F,$dim) = @_;
+ my @V = ($F->eval(x1=>1,x2=>0,x3=>0,x4=>0,x5=>0,f=>0),
+          $F->eval(x1=>0,x2=>1,x3=>0,x4=>0,x5=>0,f=>0),
+          $F->eval(x1=>0,x2=>0,x3=>1,x4=>0,x5=>0,f=>0),
+          $F->eval(x1=>0,x2=>0,x3=>0,x4=>1,x5=>0,f=>0),
+          $F->eval(x1=>0,x2=>0,x3=>0,x4=>0,x5=>1,f=>0));
+  return @V[0..($dim-1)];
+};
+
+
+($n,$m) = (4,2);     # n = dimension   m = #vectors given
+
+
+
+$S="1"; foreach (2..$n) { $S = $S . ",$_"; }
+
+foreach (0..($n-1))  # make standard basis vectors
+{ $e[$_] = $chi[$_]; }
+
+@e = @e[pick($n,(0..($n-1)))];  #reorder
+
+foreach my $i (0..($m-1))  {  # make display vectors 
+  my @i = pick(random(1,$n-$i-1),(($i+1)..($n-1))); 
+  foreach my $j (0..$#i) { $e[$i] = $e[$i] + $e[$i[$j]]; } 
+}
+$E = List(@e[0..($m-1)]);
+
+$newVectors = List(@e[$m..$#e]);
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \(S=\lbrace $S \rbrace\).  Extend  
+\(\displaystyle E = \bigl\lbrace $E \bigr\rbrace\) 
+to a basis of \(\mathrm{Fun}(S)\)
+$PAR
+\(\qquad \text{Additional Vectors} = \)  \{ ans_rule(25) \} 
+$PAR
+$SPACE $SPACE $BITALIC
+Enter your answer using characteristic functions, with 
+\(\fbox{x1}\) for \(\chi_1\), and \(\fbox{x2}\) for \(\chi_2\), etc.
+$EITALIC
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#######
+# This is a modified version of basis_checker_row
+#
+$listBasis = sub { 
+  my ($c,$s,$ansHash,$value) = @_;
+  my @c = @{$c};
+  my @s = @{$s};
+  
+  my @sv;
+  foreach (0..$#s) {
+    if ($s[$_] == Formula("0")) {
+      Value->Error("Dr. Benjamin says: $BR 'NO ZERO VECTORS IN BASIS!'  orz");
+    } 
+    @sv[$_] = [ Fun2Array($s[$_],$n) ];
+  }
+ 
+  Value->Error("Span is too small!")          if ($#s < $#c);
+  Value->Error("Not independent from \(E\)!") if ($#s > $#c);
+
+  foreach (0..($m-1)) { @sv[$#s+$_+1] = [ Fun2Array($e[$_],$n) ]; }
+
+  if ( Matrix(@sv)->det == 0 ) {
+    Value->Error("Does not extend to basis!");
+  }
+
+
+  return ($#c+1,());
+};
+
+
+ANS( $newVectors->cmp(list_checker=>$listBasis) );
+
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

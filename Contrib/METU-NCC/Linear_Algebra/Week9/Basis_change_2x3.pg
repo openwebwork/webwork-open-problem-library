@@ -1,0 +1,191 @@
+## DESCRIPTION
+##  Matrix for transformation wrt different bases.
+##   Code is basically dimension independent
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Coordinate vectors and change of basis)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",  # needed for shuffle
+"MathObjects.pl",
+"rand_Array.pl"       # local macro file
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Random 2x3 matrix. Random source/target bases.');
+
+Context("Matrix");
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+#####################
+# from rand_Array.pl
+#
+#   rand_Array_2nonzero (n, m, size)    -- 2 nonzero in each row
+#   rand_Array_triangle (n, m, size)    -- permuation of triangular
+#   rand_Array_En       (n, m, size, k) -- product of k elementary
+#   rand_Array_perm     (n, m)          -- permuation
+#   ident_Array         (n, m)          -- identity
+#
+#####################
+
+
+ ($n, $m) = (2, 3); 
+my @T; my @V; my @W; my @E_dom; my @E_ran;
+
+do {
+  @T = rand_Array_En($n,$m,2,2);      # linear transformation
+} until !(Matrix(@T)->row($n)->isZero);
+
+do {
+  @V = rand_Array_2nonzero($m);     #  input basis
+} until (Matrix(@V)->det != 0);
+@W = rand_Array_triangle($n);       # output basis
+
+@E_dom = ident_Array($m);
+@E_ran = ident_Array($n);
+
+
+$M1 =                       Matrix(@T);
+$M2 =                       Matrix(@T) * Matrix(@V);
+$M3 = Matrix(@W)->inverse * Matrix(@T);
+$M4 = Matrix(@W)->inverse * Matrix(@T) * Matrix(@V);
+
+#######################
+#
+# Generate T input and output
+#          V and W
+#
+Context()->variables->are(
+  x=> 'Real',
+  y=> 'Real',
+  z=> 'Real',
+  t=> 'Real'
+);
+
+my @var = (Formula("x"),Formula("y"),Formula("z"),Formula("t"));
+
+Context()->texStrings;
+
+##########
+#
+# T  input and output for display
+#
+foreach my $j (0..($m-1)) {
+  $in = (defined($in)) ? $in . ",\,$var[$j]" : "$var[$j]";
+}
+
+foreach my $i (0..($n-1)) {
+  my $f = Formula(0);
+  foreach my $j (0..($m-1)) {
+    $f = $f + Formula("$T[$i][$j]*$var[$j]");
+  }
+  $f = $f->reduce;
+  $out = (defined($out)) ? $out . ",\;$f" : "$f";
+}
+$dom = "\mathbb{R}^$m";
+$range = "\mathbb{R}^$n";
+
+##########
+#
+# V  -- basis of domain
+#
+my $V = Matrix(@V);
+my $E_dom = Matrix(@E_dom);
+foreach my $j (0..($m-1)) {
+  $V_basis = (defined($V_basis)) ? $V_basis . ",\ " . Vector($V->column($j+1)) : 
+                                   Vector($V->column(1)); 
+  $E_dom_b = (defined($E_dom_b)) ? $E_dom_b . ",\ " . Vector($E_dom->column($j+1)) : 
+                                   Vector($E_dom->column(1)); 
+}
+
+##########
+#
+# W  -- basis of range
+#
+my $W = Matrix(@W);
+my $E_ran = Matrix(@E_ran);
+foreach my $i (0..($n-1)) {
+  $W_basis = (defined($W_basis)) ? $W_basis . ",\ " . Vector($W->column($i+1)) : 
+                                   Vector($W->column(1)); 
+  $E_ran_b = (defined($E_ran_b)) ? $E_ran_b . ",\ " . Vector($E_ran->column($i+1)) : 
+                                   Vector($E_ran->column(1)); 
+}
+#####################################
+#  Main text
+
+BEGIN_TEXT
+
+Let \(T:$dom\to $range\) be the transformation $BR
+\(\qquad \displaystyle T($in) = \Bigl($out\Bigr)\)
+$PAR
+and consider the ordered bases $BR
+\(\qquad \displaystyle {E_{$m}} = \Bigl\lbrace $E_dom_b\Bigr\rbrace\) the standard basis of \($dom\) $BR
+\(\qquad \displaystyle \;{F} = \Bigl\lbrace $V_basis\Bigr\rbrace\) a basis of source \($dom\) $BR
+\(\qquad \displaystyle {E_{$n}} = \Bigl\lbrace $E_ran_b\Bigr\rbrace\) the standard basis of \($range\) $BR
+\(\qquad \displaystyle \;{G} = \Bigl\lbrace $W_basis\Bigr\rbrace\) a basis of target \($range\) $BR
+$PAR
+Calculate the matrix \(\mathrm{M}_{{B}}^{{C}}(T)\) representing \(T\) 
+relative to input basis \({B}\) and output basis \({C}\) for the bases below:
+$PAR
+
+$PAR
+
+\(\quad \mathrm{M}_{E_{$m}}^{E_{$n}}(T) = \)\{ $M1->ans_array(2); \}
+
+
+$PAR
+
+\(\quad \mathrm{M}_{F}^{E_{$n}}(T) = \)\{   $M2->ans_array(2); \}
+
+
+$PAR
+
+\(\quad \mathrm{M}_{E_{$m}}^{G}(T) = \)\{   $M3->ans_array(2); \}
+
+
+$PAR
+
+\(\quad \;\mathrm{M}_{F}^{G}(T) = \)\{   $M4->ans_array(2); \}
+
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+
+ANS( $M1->cmp() );
+ANS( $M2->cmp() );
+ANS( $M3->cmp() );
+ANS( $M4->cmp() );
+
+
+
+COMMENT('');
+
+ENDDOCUMENT(); 

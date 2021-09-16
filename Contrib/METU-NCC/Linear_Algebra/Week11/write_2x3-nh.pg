@@ -1,0 +1,166 @@
+## DESCRIPTION
+##  Write system of equations with given solution set
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Systems of linear equations)
+## DBsection(Systems with 3 variables)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## MO(1)
+## Static(0)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('Solution set is random line in 3D');
+
+Context('Matrix');
+Context()->variables->are(
+ w=>['Real',TeX=>"w"],
+ x=>['Real',TeX=>"x"],  # Variables
+ y=>['Real',TeX=>"y"],  #  for system of equations
+ z=>['Real',TeX=>"z"],
+);
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+
+($n,$m) = (2,3);           #  $n equations in $m unknowns
+@var = ("x","y","z","w");  #  order of unknowns
+
+$vars = "$var[0]";  foreach my $i (1..$m-1) {$vars = $vars . ",$var[$i]";}
+##################################
+#
+# generate nonhomogeneous part 
+#      array @b  and   Vector $b 
+#
+my $k; 
+do {    # nonhomogeneous part
+  $k = 0;
+  foreach my $i (0..$m-1) 
+  { $b[$i] = random(-3,3);   $k = $k + (($b[$i]==0) ? 1 : 0); }
+} while ($k > 1);
+
+$b = Vector(@b);
+
+###################################
+#
+# generate homogeneous part -- #vectors = codim = $m - $n
+#     arrays @v   and   Vectors $w[i]  and  Matrix $V
+#
+do {
+  foreach my $j (0..($m-$n-1)) { 
+    foreach my $i (0..$m-1) 
+    { $v[$j][$i] = non_zero_random(-3,3); }
+  }
+  $V = Matrix(@v);
+} until (($V*$V->transpose)->det != 0);
+
+foreach my $j (0..($m-$n-1)) {  $w[$j] = Vector($V->row($j+1));  }
+
+
+@word = ("zero","one","two","three","four","five","six","seven");
+
+
+########  Dimension independent up to here #########
+
+
+$equations = MultiAnswer(
+  Formula("$v[0][1]*x - $v[0][0]*y")->reduce,
+  Real("$v[0][1]*$b[0] - $v[0][0]*$b[1]"),
+  Formula("$v[0][2]*x - $v[0][0]*z")->reduce,
+  Real("$v[0][2]*$b[0] - $v[0][0]*$b[2]")
+)->with(
+     singleResult=>1,
+allowBlankAnswers=>0,
+       checkTypes=>1,
+           format=>"<table border='0' cellspacing='3'>
+ <tr><td> %s </td><td>= %s</td></tr>
+ <tr><td> %s </td><td>= %s</td></tr></table>",
+       tex_format=>"\begin{align} %s &= %s \\ %s &= %s \end{align}",
+          checker=>sub { 
+  my ($c,$s,$self,$ansHash) = @_;
+
+  my @se; my @sb; my @ce; my @cb; my @score;
+  
+  foreach my $i (0..$n-1) { 
+    $ce[$i] = shift @{$c};   $cb[$i] = shift @{$c};
+    $se[$i] = shift @{$s};   $sb[$i] = shift @{$s};
+  }
+
+
+  foreach my $i (0..(2*$n-1)) { $score[$i] = 0; }
+
+  foreach my $i (0..$n-1) {
+    foreach my $j (0..$m-1) {
+      $M[$i][$j] = Formula($se[$i])->D("$var[$j]");
+      Value->Error("Not linear") if !($M[$i][$j]->isConstant);
+      $M[$i][$j] = Real("$M[$i][$j]");
+    }
+    $sb[$i] = $sb[$i] - Formula($se[$i])->eval(x=>0,y=>0,z=>0); 
+  }
+  my $M = Matrix(@M);
+
+
+  my $MV = $M*$V->transpose;
+
+  my $Mb = Matrix($M*$b);
+  foreach my $i (0..$n-1) {
+    if ($MV->row($i+1)->isZero) {
+      $score[2*$i] = 1;
+      if ($Mb->element($i+1,1)==$sb[$i]) { $score[2*$i+1]=1; }
+      else { $self->setMessage(2*$i+1,"Does not satisfy particular solution."); }
+    } else { $self->setMessage(2*$i+1,"Does not satisfy homogeneous solution."); } 
+  } 
+
+  if (($M*$M->transpose)->det == 0) 
+  { $self->setMessage(2*$n-1,"Equations not independent!"); 
+    $score[2*$n-2]=0; $score[2*$n-1]=0; }
+
+
+   return [@score];
+}
+);
+
+Context()->texStrings;
+##################################################
+#
+#  Problem Text
+#
+BEGIN_TEXT
+
+Write a linear system of $word[$n] equations in $word[$m] variables 
+(\($vars\)) whose solution set is
+
+\[\mathrm{Sol} = 
+  \bigl\lbrace $b + 
+            t$w[0]\bigr\rbrace\]
+
+\(\quad\)\{$equations->ans_rule(6)\}\(\ \!=\ \)\{$equations->ans_rule(1) \}$BR
+\(\quad\)\{$equations->ans_rule(6)\}\(\ =\ \)\{$equations->ans_rule(1) \} 
+
+END_TEXT
+
+###################################################
+#
+#  Check solutions
+#
+
+Context()->normalStrings;
+
+
+ANS( $equations->cmp() );
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

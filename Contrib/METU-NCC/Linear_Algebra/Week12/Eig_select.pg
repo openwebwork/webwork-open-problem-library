@@ -1,0 +1,285 @@
+## DESCRIPTION
+##  Select transformations with distinct eigenvalues
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl"
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Five random transformations. Three should be selected.');
+
+###################
+#
+# my copy of shuffle
+#
+sub shuffle {
+  my $n = shift;
+  my @ar = 0..($n-1);
+  my @sh = ();
+  while (@sh<$n) {
+    push( @sh, splice(@ar, random(0,$#ar), 1) );
+  }
+  @sh;
+}
+
+
+#
+#  This code mashes together code from a bunch of other problems I
+#  wrote during the past years.  It's a mess.  Don't try to read it.
+#
+
+Context("Numeric");
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',w=>'Real');
+Context()->noreduce('x^(-a)','(-x)-y');
+
+my @true = (); my @false = ();
+
+{   # 2x2 with 2 real distinct eigenvalues
+my $p; my $a; my $b; my $c; my $min; my $max; my @M;
+do {
+   $a = non_zero_random(-4,4,1);
+   $b = non_zero_random(-3,3,1);
+   $c = random(1,3,1);
+   $min = max(-6-$a,-6-$b*$c);
+   $max = min(6-$a,6-$b*$c);
+} until (($min < $max-1) & ($a != $b*$c));
+
+do { $p = non_zero_random($min,$max,1); }
+until (($a != -$p) and ($b*$c != -$p));  # ensures nonzero eigenvals
+
+my $sign = non_zero_random(-1,1,1);
+
+$M[0][0] = $p;        $M[0][1] = -$sign*$a*$c;
+$M[1][0] = $sign*$b;  $M[1][1] =   $a + $b*$c + $p;
+
+my $T1 = Formula("$M[0][0]*x + $M[0][1]*y")->reduce->TeX;
+my $T2 = Formula("$M[1][0]*x + $M[1][1]*y")->reduce->TeX;
+
+push (@true, 
+ "\(\ T:\mathbb{R}^2 \to \mathbb{R}^2\) by \(T(x,y) = \bigl($T1,\,$T2\bigr)\)$BR"
+);
+}
+
+{  # 2x2 with complex eigenvalues
+my @CNum; my @OffD; my @M;
+@CNum = ([1,1, 1,1, 1, 1, 1,2,2, 2, 2,3,3,3,3,4, 4, 4, 4, 5, 6,6, 6],
+         [1,2, 3,3, 5, 7, 8,2,2, 4, 6,3,3,4,6,4, 6, 7, 8, 5, 6,6, 8]);
+@OffD = ([1,1, 1,2, 2, 5, 5,1,2, 2, 4,2,3,5,5,4, 4, 5, 8, 5, 6,8,10],
+         [2,5,10,5,13,10,13,8,4,10,10,9,6,5,9,8,13,13,10,10,12,9,10]);
+my $i = random(0,22,1);
+my $j = random(0,1,1); 
+my $k = random(0,1,1); 
+my $sign1 = non_zero_random(-1,1,1);
+my $sign2 = non_zero_random(-1,1,1);
+
+my $a = $sign1*$CNum[$j][$i];
+my $b =        $CNum[($j+1)%2][$i];
+
+my $c = $sign2*$OffD[$k][$i];
+my $d = $sign2*$OffD[($k+1)%2][$i];
+
+##
+# choose phase so that real part is between -6 and 6.
+#
+my $p = non_zero_random( max(-6-$a,-9) , min(6-$a,9) , 1);
+
+$M[0][0] = $p;  $M[0][1] =  -$c;
+$M[1][0] = $d;  $M[1][1] =  2*$a+$p;
+
+my $T1 = Formula("$M[0][0]*x + $M[0][1]*y")->reduce->TeX;
+my $T2 = Formula("$M[1][0]*x + $M[1][1]*y")->reduce->TeX;
+
+push (@true, 
+ "\(\ T:\mathbb{C}^2 \to \mathbb{C}^2\) by \(T(x,y) = \bigl($T1,\,$T2\bigr)\)$BR"
+);
+push (@false, 
+ "\(\ T:\mathbb{R}^2 \to \mathbb{R}^2\) by \(T(x,y) = \bigl($T1,\,$T2\bigr)\)$BR"
+);
+}
+
+{  # 2x2 with repeated real roots
+my @M;
+my @CNum =  (1,2,2,3,3,4,4,5,6,6,0);              # a
+my @OffD = ([1,2,1,3,1,4,2,5,6,4,0],              # b
+            [1,2,4,3,9,4,8,5,6,9,random(1,9,1)]); # c
+my $i = random(0,10,1);
+my $k = random(0,1,1); 
+my $sign1 = non_zero_random(-1,1,1);
+my $sign2 = non_zero_random(-1,1,1);
+
+my $a = $sign1*$CNum[$i];
+
+my $b = $sign2*$OffD[$k][$i];
+my $c = $sign2*$OffD[($k+1)%2][$i];
+
+##
+# choose phase so that matrix entries stay <= 8 
+#
+my $p = non_zero_random( -8+abs($a),8-abs($a), 1);
+
+$M[0][0] = $p+$a;  $M[0][1] =  -$b;
+$M[1][0] = $c;     $M[1][1] =  $p-$a;
+
+my $T1 = Formula("$M[0][0]*x + $M[0][1]*y")->reduce->TeX;
+my $T2 = Formula("$M[1][0]*x + $M[1][1]*y")->reduce->TeX;
+
+push (@false, 
+ "\(\ T:\mathbb{C}^2 \to \mathbb{C}^2\) by \(T(x,y) = \bigl($T1,\,$T2\bigr)\)$BR"
+);
+}
+
+{ # 4x4 with 2 eigenvalues
+##
+# Build 4x4 linear transformation with known eigenvalues and eigenvect
+#  2x2 blocks
+#
+my @M; my $l1; my $l2;
+#
+## block 1    
+# 1) choose eigenvalues a,bc for matrix of form
+#    [ 0 -ac  ]     [ 0   ac  ]
+#    [ b a+bc ]  or [ -b a+bc ]
+#
+# 2) phase shift to get 
+#    [ p   -ac   ]
+#    [ b  a+bc+p ]
+#
+#  eigenvalues (a+p) and (bc+p)
+{
+my $p; my $a; my $b; my $c; my $min; my $max;
+do {
+   $a = non_zero_random(-4,4,1);
+   $b = non_zero_random(-3,3,1); 
+   $c = random(1,3,1); 
+   $min = max(-6-$a,-6-$b*$c);  
+   $max = min(6-$a,6-$b*$c);
+} until ($min < $max-1);
+
+do { $p = non_zero_random($min,$max,1); } 
+until (($a != -$p) and ($b*$c != -$p));  # ensures nonzero eigenvals
+
+my $sign = non_zero_random(-1,1,1);
+
+$M[0][0] = $p;        $M[0][1] = -$sign*$a*$c;
+$M[1][0] = $sign*$b;  $M[1][1] =   $a + $b*$c + $p;
+
+foreach my $i (0..1) { foreach my $j (2..3) { $M[$i][$j] = 0; $M[$j][$i] = 0; } }
+
+$l1 =   $a + $p;
+$l2 = $b*$c + $p;
+}
+
+## block 2     $M2
+# 1) check if previous block repeated an eigenvalue
+#    --> must keep total eigenvalues = 2. 
+# 2) triangular matrix
+#   [ a  0 ]
+#   [ c  b ]  <--> or transpose
+#
+{
+my $a; my $b; 
+if ( $l1 == $l2 ) {  # need one new eigenvalue
+  do {$a = non_zero_random(-4,4);} until ($a != $l1); 
+  $b = (random(0,1)==0) ? $a : $l1;
+  if (random(0,1)==0) { my $temp = $a; $a = $b; $b = $temp; }
+} else {             # already have two eigenvalues
+  $a = (random(0,1)==1) ? $l1 : $l2;
+  $b = (random(0,1)==1) ? $l1 : $l2;
+}
+$M[2][2] = $a;  $M[2][3] = 0;
+$M[3][2] =  0;  $M[3][3] = $b;
+my $c = random(0,1);
+$M[2+$c][2+(($c+1)%2)] = non_zero_random(-4,4);
+}
+
+##
+# reverse blocks???
+#
+if (random(0,1)==1) {
+  my @N;
+  my @p = (3,2,1,0);
+  foreach my $i (0..3) {
+    foreach my $j (0..3) {  $N[$i][$j] = $M[$p[$i]][$p[$j]]; }
+  } 
+  @M = @N;
+}
+
+##
+# build output transform
+#
+my @T;  my @var = ("x","y","z","w");
+foreach my $i (0..3) {
+  my $f = Formula("0");
+  foreach my $j (0..3) {
+    $f = Formula("$f+$M[$i][$j]*$var[$j]"); 
+  }
+  $T[$i] = $f->reduce->TeX;
+}
+
+push (@true, 
+ "\(\ T:\mathbb{R}^4 \to \mathbb{R}^4\) by ".
+ "\(T(x,y,z,w) = \bigl($T[0],\,$T[1],\,$T[2],\,$T[3]\bigr)\)$BR"
+);
+}
+
+
+
+$choice = new_checkbox_multiple_choice();
+$choice->qa(
+ "Select all transformations below with exactly TWO distinct eigenvalues",
+ @true
+);
+$choice->extra(@false);
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+
+\{ $choice->print_q() \}
+$BR
+\{ $choice->print_a() \}
+
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 0;
+
+ANS( checkbox_cmp( $choice->correct_ans() ) );
+
+
+ENDDOCUMENT(); 
+
+

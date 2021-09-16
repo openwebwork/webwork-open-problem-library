@@ -1,0 +1,114 @@
+## DESCRIPTION
+##  Compute eigenvalue of manipulated transformation
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Properties)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"contextFraction.pl"
+);
+
+
+TEXT(beginproblem());
+
+
+COMMENT('Compute eigenvalues of 2x2 transform, then manipulate.');
+
+###################
+#
+# my copy of shuffle
+#
+sub shuffle {
+  my $n = shift;
+  my @ar = 0..($n-1);
+  my @sh = ();
+  while (@sh<$n) {
+    push( @sh, splice(@ar, random(0,$#ar), 1) );
+  }
+  @sh;
+}
+
+Context("Matrix");
+Context()->variables->are(x=>'Real',y=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+my @p = shuffle(2);  # upper or lower triangular  
+my @L;
+foreach my $i (0..1) { 
+  foreach my $j (0..1) { 
+    $L[$p[$i]][$p[$j]] = ($i<$j) ? 0 : non_zero_random(-3,3);
+  }
+}
+do { $L[0][0] = non_zero_random(-4,4); } 
+while ( abs($L[0][0]) == abs($L[1][1]) );
+
+$Tout = List(
+ Formula("$L[0][0]*x + $L[0][1]*y")->reduce,
+ Formula("$L[1][0]*x + $L[1][1]*y")->reduce
+);
+
+Context("Fraction-NoDecimals");
+Context()->variables->are(T=>'Real');
+Context()->noreduce('x^(-a)');
+
+my @c = ();
+my @ar = (-5..-1,1..5); 
+foreach (0..2) { push( @c, splice(@ar, random(0,$#ar), 1) ); }
+$f = Formula("$c[0]*T + $c[1]*T^{-1} + $c[2]*T^2")->reduce;
+
+$a = List(
+ Fraction($f->eval(T=>$L[0][0])), 
+ Fraction($f->eval(T=>$L[1][1]))
+); 
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Suppose \(T:\mathbb{R}^2\to \mathbb{R}^2\) is the isomorphism $BR
+\[ T(x,y) = \bigl($Tout\bigr) \]
+
+$PAR
+Find the eigenvalues of \($f\).
+$PAR
+Eigenvalues = \{ $a->ans_rule(20); \}
+
+$PAR
+\(\hspace{1cm}\) 
+Enter your answer as a comma separated list of values,
+e.g. "1, 3/2"
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+ANS( $a->cmp(ordered=>0) );
+
+ENDDOCUMENT(); 
+
+
