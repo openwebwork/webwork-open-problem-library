@@ -1,0 +1,257 @@
+## DBsubject(Calculus - single variable)
+## DBchapter(Infinite sequences and series)
+## DBsection(Strategy for testing series)
+## Level(3)
+## Author(Arda Bugra Ozer)
+## Institution(METU-NCC)
+## Language(en)
+
+
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "PGcourse.pl",
+  "PGessaymacros.pl"
+);
+
+COMMENT('online quiz page$BR uses essay grader PGessaymacros.pl');
+
+Context("Numeric");
+$showPartialCorrectAnswers = 1;
+
+$r = random(2,6,1);
+$rm1 = $r - 1;
+$rm1e = ( $rm1 == 1 ) ? "" : "^$rm1";
+$rp1 = $r + 1;
+$a = $r + 1;
+$b = random(1,5,1);
+
+## we pick one from each of four problem groupings, and then
+##    order them randomly
+## group1 = ratio test series
+##    terms in the group are [ a_n, starting index, convergence, ratio,
+##    simplified ratio, limit ]
+@group1 = ( [ "{(n-1)!\over n^$r}", 1, "diverges",
+	      "{n!\over (n+1)^$r}\cdot{n^$r\over (n-1)!} = " .
+	          "{1\cdot 2\cdots(n-1)\cdot n\over n^$r + $r n$rm1e " .
+	          " +\cdots}\cdot{n^$r\over 1\cdot 2\cdots (n-1)}",
+	      "{n^{$rp1}\over n^$r + $r n$rm1e +\cdots}",
+	      "\infty" ],
+	    [ "{{n^$r}\over n!}", 1, "converges",
+	      "{(n+1)^$r\over(n+1)!}\cdot{n!\over n^$r}",
+	      "{n^$r + $r n$rm1e +\cdots\over n+1}\cdot {1\over n^$r}",
+	      "0" ],
+	    [ "{$a^n\over(2n)!}", 1, "converges",
+	      "{$a^{n+1}\over(2n)!(2n+1)(2n+2)}\cdot{(2n)!\over $a^n}",
+	      "{$a\over (2n+1)(2n+2)}",
+	      "0" ],
+	    [ "{(2n)!\over $a^n}", 1, "diverges",
+	      "{(2n)!(2n+1)(2n+2)\over $a^{n+1}}\cdot{$a^n\over (2n)!}",
+	      "{(2n+1)(2n+2)\over $a}",
+	      "\infty" ],
+	  );
+## group2 = alternating test series, or series for which the
+##    terms do not go to zero, in which case we know the series diverges.
+##    terms in this group are [ a_n, starting index, convergence, s_n,
+##    reason ]
+@group2 = ( [ "{(-1)^{n-1} $a^n\over n^$r}", 1, "diverges",
+	      "{$a^n\over n^$r}",
+	      "because exponential functions dominate power functions" ],
+	    [ "{(-1)^{n-1}  n^$r\over $a^n}", 1, "converges",
+	      "{n^$r\over $a^n}",
+	      "because exponential functions dominate power functions" ],
+	  );
+## group3 = comparison test series
+##    terms in the group are [ a_n, starting index, convergence,
+##    term in comparison series, comparison direction (< or >),
+##    reason for convergence or divergence ]
+@group3 = ( [ "{$a\over\ln n^$r}", 2, "diverges", "{1\over n}", ">",
+	      "because it is a \(p\)-series with \(p=1\)" ],
+	    [ "{$a + \sin(n)\over n^$r+$b}", 1, "converges", "{{$a+1}\over n^$r}",
+	      "<", "because it is a constant times a \(p\)-series with \(p>1\)" ],
+	  );
+## group4 = limit comparison test series
+##    terms in the group are [ a_n, starting index, convergence,
+##    comparison term, why, ratio, simplified ratio, limit ]
+@group4 = ( [ "{n(n+$b)\over\sqrt{n^3+$a n^2}}", 1, "diverges", "\sqrt n",
+	      "because the leading terms in the numerator and denominator " .
+	        "are \(n^2\) and \(n^{3/2}\), respectively, which suggests " .
+	        "behavior like \(n^{1/2}\), and we know the convergence of " .
+	        "this series.",
+	      "{n(n+$b)\over\sqrt{n^3+$a n^2}}\cdot{1\over n^{1/2}} = " .
+	        "{n^2 + $b n\over\sqrt{n^4 + $a n^3}}",
+	      "{1 + {$b\over n}\over \sqrt{1 + {$a\over n^2}}}", 1 ],
+	    [ "{\sqrt{n^2 - $a}\over n^3 - $b n}", $b+1, "converges",
+	      "{1\over n}",
+	      "because the leading terms in the numerator and denominator " .
+	        "are \(\sqrt{n^2}\) and \(n^3\), respectively, which " .
+	        "suggests behavior like \(1/n^2\), and we know the " .
+	        "convergence of this series.",
+	      "{\sqrt{n^2 - $a}\over n^3 - $b n}\cdot {n^2\over 1} = " .
+	        "{\sqrt{n^6 - $a n^4}\over n^3 - $b n}",
+	      "{\sqrt{1 - {$a\over n^2}}\over 1 - {$b\over n^2}}", 1 ],
+	    );
+
+## combine these into one data structure to make it easy to shuffle them
+@allProb = ( [@group1], [@group2], [@group3], [@group4] );
+
+## generate a random ordering for these
+@pOrd = NchooseK(4,4);
+## pick one from each
+@which = ();
+foreach ( @allProb ) { push( @which, random(0, @{$_}-1, 1) ); }
+
+@mcprob = ();
+@solns  = ();
+for $i ( @pOrd ) {
+    $w = $which[$i];
+    @ansAr = @{$allProb[$i]->[$w]};
+
+    $mc = new_multiple_choice();
+    $start = $ansAr[1];
+    $term  = $ansAr[0];
+    $mc->qa("\(\sum\limits_{n=$start}^{\infty}\,$term\)", $ansAr[2]);
+    $mc->makeLast("converges", "diverges");
+    push( @mcprob, $mc );
+
+    $soln = "";
+    if ( $i==0 ) {
+	$soln = "To determine the convergence of " .
+	  "\(\sum\limits_{n=$start}^{\infty}\,$term\), we can use the " .
+	    "ratio test.  The ratio \(a_{n+1}\over a_n\) is \[ " .
+	      $ansAr[3] . " = " . $ansAr[4] . ". \] " .
+		"We know that \(\lim\limits_{n\to\infty} $ansAr[4] " .
+		  "= $ansAr[5]\), so this series $ansAr[2].";
+    } elsif ( $i==1 ) {
+	if ( $w == 0 ) {  ## the terms don't go to zero
+	    $soln = "To determine the convergence of " .
+	      "\(\sum\limits_{n=$start}^{\infty}\,$term\), we can use " .
+		"the requirement that the terms of the series, \(a_n\), " .
+		  "must go to zero for the series to converge.  Here, " .
+		    "the sequence of terms \(a_n = $ansAr[3]\) " .
+		      "does not go to zero $ansAr[4].  Thus this " .
+			"series $ansAr[2].";
+	} else {  ## terms go to zero
+	    $soln = "To determine the convergence of " .
+	      "\(\sum\limits_{n=$start}^{\infty}\,$term\), we can use " .
+		"the alternating series test.  In this case the terms " .
+		  "in the series alternate between positive and negative " .
+		    "signs, and the sequence given by the terms of the " .
+		      "series, \(a_n = $ansAr[3]\), converges " .
+			"to zero $ansAr[4].  Thus the series $ansAr[2].";
+	}
+    } elsif ( $i==2 ) {
+	$soln = "To determine the convergence of " .
+	  "\(\sum\limits_{n=$start}^{\infty}\,$term\), we can use " .
+	    "comparison with the series " .
+	      "\(\sum\limits_{n=$start}^{\infty}\,$ansAr[3]\).  " .
+		"We know that \($term $ansAr[4] $ansAr[3]\) " .
+		  "and that " .
+		    "\(\sum\limits_{n=$start}^{\infty}\,$ansAr[3]\) " .
+		      "$ansAr[2] $ansAr[5], so we know " .
+			"that \(\sum\limits_{n=$start}^{\infty}\,$term\) " .
+			  "also $ansAr[2].";
+    } elsif ( $i==3 ) {
+	$soln = "To determine the convergence of " .
+	  "\(\sum\limits_{n=$start}^{\infty}\,$term\), we can use the " .
+	    "limit comparison test.  We compare with " .
+	      "\(\sum\limits_{n=$start}^{\infty}\,$ansAr[3]\) " .
+		"$ansAr[4].  Then the ratio of the terms from these " .
+		  "series is \[{a_n\over b_n} = $ansAr[5] = " .
+		    "$ansAr[6]. \]  We know that \(\lim\limits_" .
+		      "{n\to\infty} $ansAr[6] = $ansAr[7]\)," .
+			" so that the convergence properties of these two " .
+			  "series must be the same.  Therefore, because " .
+			    "\(\sum\limits_{n=$start}^{\infty}\," .
+			      "$ansAr[3]\) $ansAr[2], the " .
+				"series \(\sum\limits_{n=$start}^{\infty}\," .
+				  "$term\) must also.";
+    }
+    push( @solns, $soln );
+}
+
+TEXT(beginproblem());
+Context()->texStrings;
+BEGIN_TEXT
+For each of the following, carefully determine whether the series
+converges or not.
+$PAR
+$BBOLD (i) $EBOLD$SPACE
+\{ $mcprob[$pOrd[0]]->print_q() \}
+\{ $mcprob[$pOrd[0]]->print_a() \}
+
+$PAR
+$BBOLD (ii) $EBOLD$SPACE
+\{ $mcprob[$pOrd[1]]->print_q() \}
+\{ $mcprob[$pOrd[1]]->print_a() \}
+
+$PAR
+$BBOLD (iii) $EBOLD$SPACE
+\{ $mcprob[$pOrd[2]]->print_q() \}
+\{ $mcprob[$pOrd[2]]->print_a() \}
+
+$PAR
+$BBOLD (iv) $EBOLD$SPACE
+\{ $mcprob[$pOrd[3]]->print_q() \}
+\{ $mcprob[$pOrd[3]]->print_a() \}
+
+$BBOLD (v) $EBOLD$SPACE Define what it means for a series \(\displaystyle \sum_{n=1}^{\infty} a_n \) to be $BBOLD absolutely convergent$EBOLD in your own words.
+
+$PAR \{ essay_box(4,60) \} $PAR
+
+$BBOLD (vi) $EBOLD$SPACE Give an example of \( a_n \) where 
+\(\displaystyle \sum_{n=1}^{\infty} a_n \) is $BBOLD conditionally convergent$EBOLD.
+$PAR \{ essay_box(1,40) \} $PAR
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+ANS(radio_cmp( $mcprob[$pOrd[0]]->correct_ans() ) );
+ANS(radio_cmp( $mcprob[$pOrd[1]]->correct_ans() ) );
+ANS(radio_cmp( $mcprob[$pOrd[2]]->correct_ans() ) );
+ANS(radio_cmp( $mcprob[$pOrd[3]]->correct_ans() ) );
+ANS( essay_cmp() );
+ANS( essay_cmp() );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+$PAR SOLUTION $PAR
+
+${BBOLD}(i)$EBOLD
+$solns[$pOrd[0]]
+
+$PAR
+${BBOLD}(ii)$EBOLD
+$solns[$pOrd[1]]
+
+$PAR
+${BBOLD}(iii)$EBOLD
+$solns[$pOrd[2]]
+
+$PAR
+${BBOLD}(iv)$EBOLD
+$solns[$pOrd[3]]
+
+$PAR
+${BBOLD}(v)$EBOLD
+A series \(\displaystyle \sum_{n=1}^{\infty} a_n \) is called absolutely convergent if \(\displaystyle \sum_{n=1}^{\infty} |a_n| \) is convergent.
+
+$PAR
+${BBOLD}(iv)$EBOLD
+A series \(\displaystyle \sum_{n=1}^{\infty} a_n \) is called conditionally convergent if \(\displaystyle \sum_{n=1}^{\infty} a_n \) is convervent but\(\displaystyle \sum_{n=1}^{\infty} |a_n| \) is divergent.$BR
+The most standard examples for a conditionally convergent series are $BR
+\[ \sum_{n=1}^{\infty} \frac{(-1)^n}{n} \, ,\, \sum_{n=1}^{\infty} \frac{(-1)^n}{\ln(n)} \, ,\, \sum_{n=1}^{\infty} \frac{(-1)^n}{\sqrt{n}}.\]
+
+
+END_SOLUTION
+Context()->normalStrings;
+
+
+;
+ENDDOCUMENT();
