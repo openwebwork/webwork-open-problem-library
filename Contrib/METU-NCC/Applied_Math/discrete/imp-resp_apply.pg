@@ -1,0 +1,170 @@
+##DESCRIPTION
+##ENDDESCRIPTION
+## DBsubject()
+## DBchapter()
+## DBsection()
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## KEYWORDS('discrete')
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"contextFraction.pl",
+"PGcourse.pl",
+"PGbasicmacros.pl",
+"parserFunction.pl",
+"parserVectorUtils.pl"
+);
+
+##############
+#
+#  Code for kroneker delta
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+sub d {
+  shift; my $x = shift;
+  return ($x==0) ? 1 : 0;
+}
+package main;
+#
+###############
+
+
+TEXT(beginproblem());
+
+Context('Fraction')->variables->are(t=>'Real');
+################
+#
+#  Add delta function 
+#   -- never used in student answers, so no need to 
+#      specify test points for checker.
+#
+Context()->functions->add(
+  d => {class => 'my::Function::numeric', 
+        TeX => '\delta',
+        nocomplex => 1}
+);
+#
+###############3
+
+
+$a = random(-2,2,1); $b = $a+random(1,3,1); # interval [a,b]
+
+my $n = 4;
+my $h = ($b-$a)/($n+1);   # step-size
+$hf   = Fraction("($b-$a)/($n+1)")->reduce;
+
+my $y0type = random(0,1,1); 
+my $y1type = random(0,1,1); 
+while ($y0type + $y1type == 2) {
+  $y0type = random(0,1,1); $y1type = random(0,1,1);
+}
+
+$hcoeff = $hf;
+if ($y0type + $y1type == 0) {
+  $hcoeff = Fraction("$hcoeff/($n+1)")->reduce;
+}
+
+
+#  DE is   y'' + p y' + q y  =  fun
+
+my $c1 = non_zero_random(-3,3,1);
+my $c2 = random(-3,3,1);
+
+$f = Formula("$c1*t + $c2")->reduce;
+
+
+Context()->variables->{namePattern} = qr/[a-z][a-z0-9_]*'*/i;
+Context()->variables->add(
+    "y"=>"Real",
+   "y'"=>["Real",TeX=>"y\,'" ],
+  "y''"=>["Real",TeX=>"y\,''"]
+);
+
+$y0tex = ($y0type==0) ? Formula("y") : Formula("y'");
+$y1tex = ($y1type==0) ? Formula("y") : Formula("y'");
+
+$DE = Formula("-y''");
+
+
+Context('Matrix');
+
+my $fv = ColumnVector($f->eval(t=>"$a+  $h"),
+                      $f->eval(t=>"$a+2*$h"),
+                      $f->eval(t=>"$a+3*$h"),
+                      $f->eval(t=>"$a+4*$h"));
+
+my $Y;
+
+if ($y0type == 1) {         # free fixed
+  $Y = Matrix([[4,3,2,1],
+               [3,3,2,1],
+               [2,2,2,1],
+               [1,1,1,1]]); 
+#  $Y = $h*$Y;
+} elsif ($y1type == 1) {    # fixed free
+  $Y = Matrix([[1,1,1,1],
+               [1,2,2,2],
+               [1,2,3,3],
+               [1,2,3,4]]); 
+#  $Y = $h*$Y;
+} else {                    # fixed fixed
+  $Y = Matrix([[4,3,2,1],   #  elementwise product 
+               [3,6,4,2],   #  of other two
+               [2,4,6,3],
+               [1,2,3,4]]); 
+}
+
+$y1 = $Y->column(1);
+$y2 = $Y->column(2);
+$y3 = $Y->column(3);
+$y4 = $Y->column(4);
+
+# answers
+
+$y = ColumnVector($h * $hcoeff * $Y * $fv);
+
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+The differential equation \( -y\,'' = f(t),\ \)  
+\(\ $y0tex($a)=0\), 
+\(\ $y1tex($b)=0\ \) 
+discretized with step-size \(h = $hf\) has the 
+following impulse responses.
+
+$PAR
+
+\(\mathbf{y^{(1)}} = $hcoeff $y1\qquad 
+  \mathbf{y^{(2)}} = $hcoeff $y2\qquad 
+  \mathbf{y^{(3)}} = $hcoeff $y3\qquad 
+  \mathbf{y^{(4)}} = $hcoeff $y4\)
+
+$PAR
+What is the discrete solution to the differential 
+equation with \(f(t) = $f\)?
+
+$PAR 
+
+\(\quad \mathbf{y} = \) \{ $y->ans_array(45) \}
+
+END_TEXT
+
+Context()->normalStrings;
+
+ANS( $y->cmp() );
+
+
+COMMENT("Size n=4, at most one boundary value on y', random interval, f=at+b.");
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.
+
+
+
