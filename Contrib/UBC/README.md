@@ -11,9 +11,8 @@ Contributors (github):
 * jamescharbonneau
 * grrhendra
 * kirkeyj
-* GraemeDockrill
-* IvyaThalenmourn
 * msekatchev
 * capacapac
 * robynnewell
 * monabe
+* zalimo01
