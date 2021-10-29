@@ -1,0 +1,248 @@
+## DESCRIPTION
+##  Find values yielding different numbers of solutions to Ax=b
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Systems of linear equations)
+## DBsection(Systems with 3 variables)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(3)
+## MO(1)
+## Static(0)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PG.pl",
+"PGcourse.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGmatrixmacros.pl",
+"MatrixCheckers.pl",
+"MatrixReduce.pl",
+"parserVectorUtils.pl",
+"contextArbitraryString.pl"
+);
+
+TEXT(beginproblem());
+
+COMMENT('Random 3x3 equation Ax=b with missing value from b only.$BR  Integer answers.');
+
+Context('Matrix');
+Context()->variables->are(
+ x=>['Real',TeX=>"x"],  # Variables
+ y=>['Real',TeX=>"y"],  #  for system of equations
+ z=>['Real',TeX=>"z"],
+ a=>'Real',               # Unknowns 
+ b=>'Real',               #  for system 
+);
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+
+
+($m, $n) = (3, 3);  # Problem will be an  m x n  Matrix of rank r
+   $b = 1;           # Homogeneous or non-homogeneous system
+my $r = 2;           # Rank of matrix
+my $nul = $n - $r;   # Nullity of matrix
+
+@vars = (
+  Formula("x"),
+  Formula("y"),
+  Formula("z"),
+);
+
+
+########
+#  Build LU decomposition
+#    
+# L is m x m   La is array  
+#              Lm is matrix
+#
+# at least one lower triangle zero in each row
+#
+my @La = ();
+foreach my $i (0 .. $m-1) {
+  foreach my $j (0 .. $m-1) {
+    $La[$i][$j] = ($i<$j)  ? 0 : 
+                  ($i==$j) ? 1 : 
+                  ($j==0)  ? random(-1,1) : non_zero_random(-2,2);
+  }
+}
+if (($La[1][0] == 0) && ($La[2][0] == 0)) {
+  $La[random(1,2)][0] = non_zero_random(-2,2);
+}
+do {$La[1][0] = non_zero_random(-1,1); $La[2][1] = non_zero_random(-1,1);}
+while ($La[1][0]*$La[2][1] == $La[1][1]*$La[2][0]);
+my $Lm = Matrix(@La);
+
+
+########
+# U is m x n  Matrix with r nonzero rows 
+#             @p is vector of pivot columns  (indexed from 0)
+#my @p = map {$_ + 1} shuffle($n-1);                  # shuffle of 1..(n-1)
+#   @p = PGsort(sub{$_[0] < $_[1]}, @p[0..($r-2)]);   # pick r-1 to be pivots
+#   @p = (0, @p);                                     # first pivot is at 0
+my @p = (0,1);
+my @Ua = ();
+foreach my $i (0..$r-1) {            # fill in pivot rows
+  foreach my $j (0 .. $n-1+$b) {
+    $Ua[$i][$j] = ($j< $p[$i]) ? 0 : 
+                  ($j==$p[$i]) ? non_zero_random(-1,1) : non_zero_random(-2,2); 
+  }
+}
+foreach my $i (0..$r-2){
+  $Ua[$i][random($p[$i]+1,$n-1)] = 0;
+}
+foreach my $i ($r .. $m-1) {         # fill in non-pivot rows
+  foreach my $j (0 .. $n-1+$b) {
+    $Ua[$i][$j] = 0;
+  }
+}
+my $Um = Matrix(@Ua);
+
+
+my $Am = $Lm * $Um;                # multiply LU decomposition to get matrix 
+my @Aa = ();                       # and convert to array
+foreach my $i (0 .. $m-1) {
+  foreach my $j (0 .. $n-1+$b) {
+    $Aa[$i][$j] = $Am->element($i+1,$j+1);
+  }
+}
+
+
+###################################################
+#
+# Split off the augmented part of the matrix
+#   for system display and answer checking
+#
+foreach my $i (0..$m-1) {
+  $b[$i] = pop @{$Aa[$i]};
+}
+
+##################################################
+#
+# Replace random parts with variables 
+#
+{
+#  my $i = random(0,$m-1);  my $j = random(0,$n-1);
+#  $c[0] = $Aa[$i][$j];  $Aa[$i][$j] = "a";
+  my $i = random(0,$m-1);
+  $c[1] = $b[$i];       $b[$i] = "\mathbf{b}";
+}  
+
+###################################################
+#
+# Create strings for displaying system of equations
+#
+Context()->texStrings;
+
+foreach my $i (0 .. $m-1) {
+  $Tout[$i] = (($Aa[$i][0] eq "a") ? "\mathbf{a}\,$vars[0]&" :
+               ($Aa[$i][0]==0) ? "&" : 
+               ($Aa[$i][0]==1) ? "$vars[0]&" : 
+               ($Aa[$i][0]==-1)? "-$vars[0]&" : 
+ 			         "$Aa[$i][0]\,$vars[0]&");
+  foreach my $j (1 .. $n-1) {
+    $Tout[$i] = $Tout[$i] .
+                (($Aa[$i][$j] eq "a") ? 
+		  (($Tout[$i] !~ /^&*$/) ? "+" : " ") . "&\mathbf{a}\,$vars[$j]&" :
+		 ($Aa[$i][$j]==0) ? "&&" :
+                 ($Aa[$i][$j]==-1)? "-\,&$vars[$j]&" :
+                 ($Aa[$i][$j]<0)  ? "-\,&" . abs($Aa[$i][$j]) . "\,$vars[$j]&" :
+                 (($Tout[$i] !~ /^&*$/) ? "+" : " ") .
+                  (($Aa[$i][$j]==1) ? "\,&$vars[$j]&" :
+                                      "\,&$Aa[$i][$j]\,$vars[$j]&"));
+  }
+}
+
+$np = 2*$n+1;
+
+Context("ArbitraryString");
+
+$s_inf = String("b = $c[1]");
+$s_no  = String("b != $c[1]");
+
+##################################################
+#
+#  Problem Text
+#
+BEGIN_TEXT
+
+Find values of \(\mathbf{b}\) 
+so that the system below has the indicated properties.
+
+\[\begin{alignedat}{$np}
+$Tout[0]\ =\ &$b[0] \\
+$Tout[1]\ =\ &$b[1] \\
+$Tout[2]\ =\ &$b[2] \\
+\end{alignedat}\]
+
+$PAR
+$BBOLD (A) $EBOLD ... has a solution.
+$BR
+\(\quad\) \{ $s_inf->ans_rule() \}
+$PAR
+$BBOLD (B) $EBOLD ... has no solution.
+$BR
+\(\quad\) \{ $s_no->ans_rule() \}
+$PAR
+
+
+\(\quad\) 
+Write your answers using "!=" for "not equals" 
+(\(\neq\)). For example $BR
+\(\qquad \)${BTT}b = 3${ETT} $BR
+\(\quad\) or $BR
+\(\qquad \)${BTT}b != 4${ETT}
+
+
+END_TEXT
+
+###################################################
+#
+#  Check solutions
+#
+
+Context()->normalStrings;
+
+$str_list_checker = sub {
+  my ($c,$s,$ansHash) = @_;
+  my @c = split(',',$c);
+  my @s = split(',',$s);
+  my ($nc,$ns) = (scalar(@c),scalar(@s));
+
+  return 0 if ($nc != $ns);
+
+  foreach my $i (0..$nc-1) {
+    $c[$i] =~ s/ *//g; 
+    $s[$i] =~ s/ *//g;
+  }
+  foreach my $i (0..$nc-1) {
+    my $flag = 0;
+    if ($s[$i] !~ /=/) {
+      Value->Error("Your answer does not contain an equality or inequality");
+    }
+    foreach my $j (0..$nc-1) {
+      if ($c[$i] eq $s[$j]) {
+        $flag = 1;
+      }
+    }
+    return 0 if ($flag == 0); 
+  }
+  
+  
+  return 1;
+}; 
+
+
+ANS( $s_inf->cmp(checker=>$str_list_checker) );
+ANS(  $s_no->cmp(checker=>$str_list_checker) );
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

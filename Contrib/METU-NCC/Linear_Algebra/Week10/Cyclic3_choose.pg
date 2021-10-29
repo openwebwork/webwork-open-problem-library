@@ -1,0 +1,194 @@
+## DESCRIPTION
+##  Select cyclic vectors for linear transformation
+##   Code is somewhat general (MIGHT work for dim 4, 5, ...?)
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Jordan form)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",  # needed for shuffle
+"MathObjects.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT("Random 3x3 transformation. Two cyclic vectors; two noncyclic (including 0).");
+
+Context("Matrix");
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',s=>'Real',t=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+
+$n = 3;    # Dimension.  This code MIGHT work for n = 4 or 5 also...
+
+
+my @var = (
+  Formula("x"),
+  Formula("y"),
+  Formula("z"),
+  Formula("t"),
+  Formula("s")
+);
+sub gcd {
+  my $a = abs(shift); my $b = abs(shift);
+  ($a,$b) = ($b,$a) if $a < $b;
+  return $a if $b == 0;
+  my $r = $a % $b;
+  while ($r != 0) {
+    ($a,$b) = ($b,$r);
+    $r = $a % $b;
+  }
+  return $b;
+}
+
+
+my $l = random(-1,1,2);  # eigenval is +-1
+
+my @v2 = ((0) x ($n)); my $v2; my $k;
+$v2[random(0,$n-1)] = 1;
+$v2 = Vector(@v2);
+
+my @v; my @M;
+do {
+if (random(0,1)==1) {    # eigenvect is (+-1, +-1, 0)
+  my @p = shuffle($n); 
+
+  foreach my $i (0..($n-2)) {
+    $v[$p[$i]] = random(-1,1,2);
+  }
+  $v[$p[$n-1]] = 0;       # zero in $p[$n-1]
+
+  my @q = shuffle($n-1);  # location of nozero in each row 
+  my @r = shuffle($n-1);  # location of nonzeros in $p[$n-1] row
+
+  foreach my $i (0..($n-2)) {
+    foreach my $j (0..($n-2)) {
+      $M[$p[$i]][$p[$q[$j]]] =  ($i!=$j) ? 0 : $l*$v[$p[$q[$j]]]*$v[$p[$i]];  
+    }
+    $M[$p[$i]][$p[$n-1]] = random(-1,1,2);
+    $M[$p[$n-1]][$p[$i]] = ($i==$r[0]) ?  $v[$p[$i]] : 
+                           ($i==$r[1]) ? -$v[$p[$i]] : 0;  
+  }
+  $M[$p[$n-1]][$p[$n-1]] = 0;
+
+} else {                 # eigenvect is (+-1, +-1, +-1)
+  foreach my $i (0..($n-1)) {
+    $v[$i] = random(-1,1,2);
+  }
+  
+  my $a = random(0,$n-1);   # create cylic permutation @p
+  my $b;                    # start=a, step-size=b
+  do {$b = random(1,$n-1);} until (gcd($b,$n)==1);
+  $b = $b*random(-1,1,2);   # maybe go left instead of right
+  my @p = map { ($a + $b * $_) % $n } (0..($n-1));
+
+  foreach my $i (0..($n-1)) {
+    my @r = shuffle($n-1);
+    my $z = random(0,1);
+    foreach my $j (0..($n-1)) {
+      $M[$i][$p[$j]] = ($j==$i) ? $l*$v[$i]/$v[$p[$j]] : ($z==0) ? 0 :  
+                       ($j==($i+$r[0]+1)%$n) ? -$v[$p[$j]] :
+                       ($j==($i+$r[1]+1)%$n) ?  $v[$p[$j]] : 0;
+    }
+  }
+}
+$M=Matrix(@M);
+} until (Vector($M*$M*$v2) . (Vector($M*$v2) x $v2) != 0);
+
+
+Context()->texStrings;
+foreach my $i (0..($n-1)) {
+  my $f = Formula(0);
+  foreach my $j (0..($n-1)) {
+    my $c = $M[$i][$j];
+    $f = Formula($f + $c*$var[$j]);
+  }
+  $f = $f->reduce;
+  $Tout = ($i==0) ? "$f" : $Tout . ",\;$f";
+  $Tin  = ($i==0) ? "$var[$i]" : $Tin . ",$var[$i]";
+}
+Context()->normalStrings;
+
+my @zero;
+foreach my $i (0..($n-1)) { $zero[$i] = 0; }
+
+
+my @v1;    # v1 changes one sign, v2 is random ej
+my $v1; 
+
+do {$k = random(0,$n-1);} until ($v[$k] != 0);
+foreach my $i (0..($n-1)) { $v1[$i] = ($i==$k) ? -$v[$i] : $v[$i]; }
+$v1 = Vector(@v1);  
+while ((Vector($M*$M*$v1) . (Vector($M*$v1) x $v1) == 0) || 
+       ($v1->isParallel($v2))) {
+  $v1[random(0,$n-1)] = random(-1,1); 
+  $v1 = Vector(@v1); 
+}
+
+
+
+my $zero = Vector(@zero);  my $v  = Vector(@v);
+
+$mc = new_checkbox_multiple_choice();
+Context()->texStrings;
+
+$mc->qa("Select all vectors below which are cyclic with respect to \(T\).",
+        "\($v1\)","\($v2\)");
+
+$mc->extra("\($v\)","\($zero\)");
+
+
+
+#####################################
+#  Main text
+
+
+BEGIN_TEXT
+
+
+Given the cyclic transformation \(T:\mathbb{R}^$n\to \mathbb{R}^$n\) by 
+\[T($Tin) = \Bigl($Tout\Bigr)\]
+\{ $mc->print_q() \}
+$BR
+\{ $mc->print_a() \}
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+install_problem_grader(~~&std_problem_grader);
+
+$showPartialCorrectAnswers = 0;
+
+ANS( checkbox_cmp( $mc->correct_ans() ) );
+
+
+
+COMMENT('');
+
+ENDDOCUMENT(); 

@@ -1,0 +1,230 @@
+## DESCRIPTION
+##  Find matrix for linear transformation involving P_n
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Associated matrices)
+## Date(15/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(3)
+## MO(1)
+## Static(0)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",   # needed for shuffle
+"MathObjects.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT("(A) is random combination of p(0), p(±1), p(±2)$BR (B) is random combination of p(±x), p'(x), p''(x)"); 
+
+Context("Matrix");
+
+my $M_x = Matrix(   # matrix for multiply by x
+ [0,0,0,0],
+ [1,0,0,0],
+ [0,1,0,0],
+ [0,0,1,0]
+);
+
+my $M_xx = Matrix(  # matrix for multiply by x^2
+ [0,0,0,0],
+ [0,0,0,0],
+ [1,0,0,0],
+ [0,1,0,0]
+);
+
+my $M_p = Value::Matrix->I(4);
+
+my $M_d = Matrix(   # matrix for derivative
+ [0,1,0,0],
+ [0,0,2,0],
+ [0,0,0,3],
+ [0,0,0,0]
+);
+
+my $M_dd = Matrix(  # matrix for double derivative
+ [0,0,2,0],
+ [0,0,0,6],
+ [0,0,0,0],
+ [0,0,0,0]
+);
+
+my $M_n = Matrix(   # matrix for x |--> -x
+ [1, 0, 0, 0],
+ [0,-1, 0, 0],
+ [0, 0, 1, 0],
+ [0, 0, 0,-1]
+);
+
+my @A_p  = (        # derivatives p at +-x
+  [$M_p, $M_n      ],
+  [$M_d, $M_n*$M_d ],
+  [$M_dd,$M_n*$M_dd]
+);
+
+my @A_x = (         # multiply by x^n
+ $M_p, $M_x, $M_xx
+);
+
+
+Context()->variables->are(
+  x => ['Real',TeX=>"x"],
+  p => ['Real',TeX=>"\,p{\small (x)}"],
+ dp => ['Real',TeX=>"\,p\,'\!{\small (x)}"],
+ddp => ['Real',TeX=>"\,p\,''\!{\small (x)}"],
+  pm=> ['Real',TeX=>"\,p{\small (-x)}"],
+ dpm=> ['Real',TeX=>"\,p\,'\!{\small (-x)}"],
+ddpm=> ['Real',TeX=>"\,p\,''\!{\small (-x)}"],
+ p0 => ['Real',TeX=>"\,p{\small (0)}"],
+ p1 => ['Real',TeX=>"\,p{\small (1)}"],
+ p2 => ['Real',TeX=>"\,p{\small (2)}"],
+ pm1=> ['Real',TeX=>"\,p{\small (-1)}"],
+ pm2=> ['Real',TeX=>"\,p{\small (-2)}"]
+);
+
+@p = (               # derivatives of p at +-x
+  [Formula("p"),  Formula("pm")  ],
+  [Formula("dp"), Formula("dpm") ],
+  [Formula("ddp"),Formula("ddpm")]
+);
+my @pn = (           # values of p at +-n
+  [Formula("p0"), Formula("p0") ],	 
+  [Formula("p1"), Formula("pm1")],	 
+  [Formula("p2"), Formula("pm2")],	 
+); 
+
+
+####
+#  Part A
+#
+# (ax^i + bx^j) p(0) + (cx^i + dx^j) p(+-1) + (ex^i + fx^j) p(+-2)
+#
+my @c = (
+  [ random(-2,2), random(-2,2) ],
+  [ random(-2,2), random(-2,2) ],
+  [ random(-2,2), random(-2,2) ]
+);
+my @pow;
+$c[random(0,2)][random(0,1)] = 0;  # make c have at least one zero
+for my $i (0..2) {
+  if (($c[$i][0] == 0) && ($c[$i][1] == 0)) {
+    $c[$i][random(0,1)] = non_zero_random(-2,2);
+  }
+  $pow[$i] = [PGsort(sub{$_[0] < $_[1]}, (shuffle(4))[1,2])];
+}
+my @s = (0, random(0,1), random(0,1));
+my @Pn = (
+  [1,0,0,0],
+  [1,($s[1]==0)?1:-1,1,($s[1]==0)?1:-1],
+  [1,($s[2]==0)?2:-2,4,($s[2]==0)?8:-8]
+);
+
+$out1 = Formula(0);
+my @M1 = ([0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]);
+foreach my $i (0..2) {
+  $out1 = $out1 + 
+        Formula("($c[$i][0]*x^$pow[$i][0]+$c[$i][1]*x^$pow[$i][1])*$pn[$i][$s[$i]]")->reduce;
+  $out1 = $out1->reduce;
+  foreach my $k (0..1) {
+    foreach my $j (0..3) {
+      $M1[$pow[$i][$k]][$j] += $c[$i][$k]*$Pn[$i][$j]; 
+    }
+  }
+}
+$M1 = Matrix(@M1);
+
+
+
+
+####
+#  Part B
+#
+# a p(+-x) + (b + cx) p'(x) + (dx^i + ex^j) p''(x)
+#
+#  could also use p'(+-x) p''(+-x) 
+#   but current code doesn't allow these (to make problem simpler)
+
+my @c = (
+  [non_zero_random(-2,2),           0 ],
+  [         random(-2,2), random(-2,2)],
+  [         random(-2,2), random(-2,2)]
+);
+for my $i (1..2) {
+  if (($c[$i][0] == 0) && ($c[$i][1] == 0)) {
+    $c[$i][random(0,1)] = non_zero_random(-2,2);
+  }
+}
+my @s = (random(0,1), 0, 0);  #  sign of x -- p'(-x) may be confusing, actually
+
+my @pow = ([0,0],[0,1],(random(0,3)==0) ? [0,2] : 
+                       (random(0,1)==0) ? [0,1] : [1,2]);
+ 
+$M2 = Matrix( [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0] );
+$out2 = Formula(0);
+foreach my $i (0..2) {
+  $out2 = $out2 + 
+         Formula("($c[$i][0]*x^$pow[$i][0]+$c[$i][1]*x^$pow[$i][1])*$p[$i][$s[$i]]")->reduce;
+  $out2 = $out2->reduce;
+  $M2 = $M2 + ($c[$i][0]*$A_x[$pow[$i][0]]+$c[$i][1]*$A_x[$pow[$i][1]])*$A_p[$i][$s[$i]];
+}
+
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Calculate the matrix \(\mathrm{M}(T)\) representing the given linear
+transformations $BITALIC (relative to the standard basis)$EITALIC
+$PAR
+
+$BBOLD (A) $EBOLD \(\ T:\mathcal{P}_3(\mathbb{R})\to \mathcal{P}_3(\mathbb{R})\) defined by
+$PAR
+\(\displaystyle \quad T\bigl($p[0][0]\bigr) = 
+  $out1\)
+$PAR
+\(\quad \mathrm{M}(T) = \)\{$M1->ans_array(2);\}
+
+$PAR
+$BR
+
+$BBOLD (B) $EBOLD \(\ T:\mathcal{P}_3(\mathbb{R})\to \mathcal{P}_3(\mathbb{R})\) defined by
+$PAR
+\(\displaystyle \quad T\bigl($p[0][0]\bigr) = 
+   $out2\)
+$PAR
+\(\quad \mathrm{M}(T) = \)\{$M2->ans_array(2);\}
+
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+
+ANS( $M1->cmp() );
+ANS( $M2->cmp() );
+
+
+COMMENT('');
+
+ENDDOCUMENT(); 

@@ -1,0 +1,155 @@
+## DESCRIPTION
+##  Find cyclic vector in R^3
+##   Code is dimension independent (change variable for other dim)
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Jordan form)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",  # needed for shuffle
+"MathObjects.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Random nilpotent 3x3 matrix.');
+
+Context("Matrix");
+Context()->variables->are(
+   x=> 'Real',
+   y=> 'Real',
+   z=> 'Real',
+   w=> 'Real',
+);
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+my @vars = (
+  Formula("x"),
+  Formula("y"),
+  Formula("z"),
+  Formula("w")
+);
+
+$n = 3;
+
+my @p = shuffle($n);
+my @M;
+foreach my $i (0..($n-1)) {
+  foreach my $j (0..($n-1)) {
+    $M[$p[$i]][$p[$j]] = ($j <= $i)   ? 0 : 
+                         ($j == $i+1) ? non_zero_random(-1,1) :  
+                         ($j == $i+2) ? non_zero_random(-2,2) : 0;  
+  }
+}
+$M = Matrix(@M);
+
+Context()->texStrings;
+foreach my $i (0..($n-1)) {
+  my $f = Formula(0);
+  foreach my $j (0..($n-1)) {
+    $f = $f + Formula("$M[$i][$j]*$vars[$j]"); 
+  }
+  $f = $f->reduce;
+  $Tout = defined($Tout) ? $Tout . ",\;$f"     : "$f";
+  $Tin  = defined($Tin)  ? $Tin . ",$vars[$i]" : "$vars[$i]"; 
+}
+Context()->normalStrings;
+
+my @v;  
+foreach my $i (0..($n-1)) { 
+  $v[$i] = ($i == $p[$n-1]) ? 1 : 0;
+}
+my @Tv;
+foreach my $i (0..($n-1)) {
+  $Tv[$i] = ($i==0) ? Vector(@v) : Vector($M*$Tv[$i-1]);
+}
+$ans = List(@Tv);
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Consider the nilpotent transformation 
+\(T:\mathbb{R}^$n\to \mathbb{R}^$n\)
+given by 
+\[T($Tin) = \Bigl($Tout\Bigr)\]
+Find an ordered basis \(F\) for \(\mathbb{R}^$n\) such that \(T\)
+acts like a shift operator with respect to \(F\).
+$PAR
+Basis \(F = \Bigl\lbrace\)\{ $ans->ans_rule(30); \}\(\Bigr\rbrace\)
+$PAR
+\(\qquad\) $BITALIC
+  Enter your basis as vectors separated by comma: e.g.
+  \((1,0,0),\;(0,1,0),\;(0,0,1)\)
+$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+ANS($ans->cmp(list_checker => sub {
+  my ($c, $s, $hash, $val) = @_;
+  my ($nc, $ns) = (scalar(@$c), scalar(@$s));
+ 
+  if ($ns != $n) {
+    Value->Error("Wrong number of basis vectors!");
+    return 0;
+  }
+
+  foreach my $i (0..($n-2)) {
+    return 0 if (($s->[$i]->type ne "Point") || ($s->[$i+1]->type ne "Point"));
+    if (!(Formula($s->[$i])->isConstant)) {
+      Value->Error("Do not use variables in your vectors!");
+      return 0;
+    } 
+    my $v = Matrix($s->[$i])->transpose;
+    my $w = Matrix($s->[$i+1])->transpose;
+    if ($w->isZero) {
+      Value->Error("Dr. Benjamin says:~~n 'BASIS VECTORS CANNOT BE 0!!!'~~n  orz");
+      return 0;
+    }
+    if (($v->dimensions)[0] != $n) {
+      Value->Error("Your vectors have wrong dimension!");
+      return 0;
+    }
+    if ($M*$v != $w) {
+      Value->Error("Your vectors are not cyclic!");
+      return 0;
+    }
+  }
+
+  return($ns,'');
+}
+));
+
+
+COMMENT('');
+
+ENDDOCUMENT(); 

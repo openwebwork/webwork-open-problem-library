@@ -1,0 +1,142 @@
+## BEGIN_DESCRIPTION
+## Bayes Theorem using a table of (percent) probabilities.
+## Use false positive and false negative rates of test
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Probability)
+## DBchapter(Sample Space)
+## DBsection(Bayes theorem -- inverse probability)
+## Author(Benjamin Walter)
+## Institution(METU-NCC)
+## Language(en)
+## MO(1)
+## Static(0)
+## Level(3)
+## KEYWORDS('Bayes', 'False Positive', 'Test')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"parserPopUp.pl",
+"MathObjects.pl",
+"niceTables.pl",
+"contextFraction.pl"
+);
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+};
+
+TEXT(beginproblem());
+
+Context("Fraction");
+
+$FP = Fraction(1,random(3,8));
+do {
+  $FN = Fraction(1,random(3,8));
+} while ($FN == $FP);
+
+@TP = (Fraction(PGsort(sub{$_[0] < $_[1]}, pick(2,(1..10)))),
+       Fraction(0));
+$TP[1] = 1 - $TP[0];
+
+@word = (["","not"],["Yes", "No"]);  $choice = random(0,1);
+
+@count = ([   0,       $FP*$TP[1], 0],
+          [$FN*$TP[0],          0, 0],
+          [   $TP[0],      $TP[1], 1]);
+$count[0][0] = $count[2][0] - $count[1][0];
+$count[1][1] = $count[2][1] - $count[0][1];
+$count[0][2] = $count[0][0] + $count[0][1];
+$count[1][2] = $count[1][0] + $count[1][1];
+
+$bl = "border-left: 3px double;";
+$bt = "border-top:  3px double; width: 50px;";
+
+@Q  = ("positive (\(\oplus\))", "negative (\(\ominus\))"); 
+@pick = (random(0,1), random(0,1), random(0,1));
+@A  = ([$count[0][0]/$count[0][2],$count[0][1]/$count[0][2]],
+       [$count[1][0]/$count[1][2],$count[1][1]/$count[1][2]]);
+
+@list = (["?","Yes","No","Test ⊕","Test ⊖",
+         "Yes | Test ⊕","Yes | Test ⊖","No | Test ⊕","No | Test ⊖",
+         "Test ⊕ | Yes","Test ⊕ | No","Test ⊖ | Yes","Test ⊖ | No"]);
+$Q1 = PopUp($list[0],$list[0][3+$pick[0]]);
+$Q2 = PopUp($list[0],$list[0][5+$pick[2]*2+$pick[1]]);
+
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Before running a test, it is estimated that the probability of an event 
+${BBOLD}$word[0][$choice]${EBOLD}
+occurring is 
+\(\mathrm{P}(\text{$word[1][$choice]}) = $TP[$choice]\).
+$BR
+The test performed has false positive rate of 
+\( $FP\) 
+and false negative rate of 
+\( $FN\).
+$BR
+Fill in the table below with probabilities (as fractions).
+$PAR
+
+\{
+DataTable(
+  [
+    [['Prob. (\(\%\))', headerrow => 1],'Test \(\oplus\)','Test \(\ominus\)',['Total',cellcss=>$bl]],
+    ['${BBOLD}$word[1][0]${EBOLD}',
+        $count[0][0]->ans_rule(4), 
+        $count[1][0]->ans_rule(4), 
+       [$count[2][0]->ans_rule(4),cellcss=>$bl]],
+    ['${BBOLD}$word[1][1]${EBOLD}',
+        $count[0][1]->ans_rule(4),
+        $count[1][1]->ans_rule(4), 
+       [$count[2][1]->ans_rule(4),cellcss=>$bl]],
+    [['${BBOLD}Total${EBOLD}',cellcss=>$bt], 
+       [$count[0][2]->ans_rule(4),cellcss=>$bt], 
+       [$count[1][2]->ans_rule(4),cellcss=>$bt], 
+       ['\(1\)',cellcss=>$bl.$bt]]
+  ], 
+  align => '| r | c | c || c |',
+  midrules => 1
+);
+\}
+
+$PAR
+What is the probability of a $Q[$pick[0]] result from the test?
+$BR $SPACE $SPACE
+\(P\Bigl(\)\{$Q1->menu()\}\(\Bigr) = \)
+\{$count[$pick[0]][2]->ans_rule(10)\}
+$PAR
+If the test result is $Q[$pick[1]], then what is the probability of 
+the event 
+${BBOLD}$word[0][$pick[2]]${EBOLD}
+occurring?
+$BR $SPACE $SPACE
+\(P\Bigl(\)\{$Q2->menu()\}\(\Bigr) = \)
+\{$A[$pick[1]][$pick[2]]->ans_rule(20)\}
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+ANS($count[0][0]->cmp()); ANS($count[1][0]->cmp()); ANS($count[2][0]->cmp());
+ANS($count[0][1]->cmp()); ANS($count[1][1]->cmp()); ANS($count[2][1]->cmp());
+ANS($count[0][2]->cmp()); ANS($count[1][2]->cmp());
+
+ANS($Q1->cmp());
+ANS($count[$pick[0]][2]->cmp()); 
+ANS($Q2->cmp());
+ANS($A[$pick[1]][$pick[2]]->cmp(tolType=>relative,tolerance=>0.03));
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

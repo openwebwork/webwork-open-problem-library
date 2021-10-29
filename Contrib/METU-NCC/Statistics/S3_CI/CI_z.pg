@@ -1,0 +1,162 @@
+## BEGIN_DESCRIPTION
+## Confidence intervals using Normal distribution in R
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(One sample mean - z)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## Language(en)
+## MO(1)
+## Static(0)
+## KEYWORDS('R', 'confidence interval', 'sample mean', 'z-test')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextArbitraryString.pl",
+   "RserveClient.pl",
+   "PGcourse.pl",
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+#  Setup
+Context("Numeric");
+
+
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+$mu   = random(20,40,1);
+$sdev = random(6,10,.1);
+$n    = random(40,100,1);
+$a    = random(.005,.05,.005);  
+$p = 100 - $a*200;
+$alph = Real(2*$a);
+
+
+Context("ArbitraryString");
+
+$z = String("-qnorm($a)");
+$L = String("$mu+qnorm($a)*$sdev/sqrt($n)");
+$R = String("$mu-qnorm($a)*$sdev/sqrt($n)");
+
+Context("Numeric");
+
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+$BITALIC
+For the problems below, you may either enter a numeric answer
+(accurate to 3 significant digits), or the R code
+which generates the answer. $BR $SPACE (Your answer will be checked by R.)
+$EITALIC
+
+$PAR $HR $PAR
+
+A random variable is sampled \($n\) times yielding sample mean
+\(\overline{x} = $mu\) and sample standard deviation \(s = $sdev\).
+
+$PAR
+What is \(\alpha\) for the \($p \%\) confidence interval?
+$BR
+\(\quad \alpha = \)
+  \{ans_rule(5)\}
+
+$PAR
+What is \(z_{\alpha/2}\) for the \($p \%\) confidence interval?
+$BR
+\(\quad z_{\alpha/2} = \) 
+   \{ans_rule(15)\}
+
+$PAR
+
+Give the \($p \%\) confidence interval.
+$BR
+\(\quad \Bigl( \)
+   \{ans_rule(25)\} 
+\(,\ \)
+   \{ans_rule(25)\} 
+\(\Bigr) \)
+
+$PAR
+
+$PAR
+$HR
+$PAR
+You may use the embedded R window below to check your code and perform computations.$BR
+${BCENTER}
+$Rframe
+${ECENTER}
+$PAR
+Recall that if \(Z\sim \mathrm{Normal}(0,1)\) 
+then the critical values of \(Z\) are computed in R by the command:
+$BR
+\(\qquad z_\alpha \  =\!= \   \) 
+    ${BTT}\(-\)qnorm(\(\alpha\))${ETT}
+$BR
+For example 
+$BR $SPACE $SPACE $SPACE ${BTT}\(-\)qnorm\((.05)\)${ETT} $SPACE $SPACE $SPACE 
+computes the critical value \(z_{5\%}\) where 
+\(\mathrm{P}\bigl(Z > z_{5\%}\bigr) =\!= 5\%\).
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my @s_ans = rserve_eval($s->value);
+  if (String($s_ans[0]) == String("NaN")) {
+    Value->Error("R code does not return a number!");
+  }
+  $s_ans = Real($s_ans[0]);
+  my $c_ans = Real(rserve_eval($c->value));
+  my $m = Real($ansHash->{m});
+  if ( abs($c_ans + $s_ans - 2*$m) < .02) {
+    Value->Error("Wrong sign for \(z\)!");
+  }
+  if (abs($c_ans) > .001) {
+    return ( (abs($c_ans - $s_ans) < .005*abs($c_ans)) ? 1 : 0);
+  } else {
+    return ( (abs($c_ans - $s_ans) < .001) ? 1 : 0);
+  }
+};
+
+
+ANS($alph->cmp(checker=>sub{
+ my ($c, $s, $ansHash) = @_; 
+ my $s_ans = Real($s->value);
+ my $c_ans = Real($c->value);
+ if ($s_ans == $c_ans*100) {
+   Value->Error("Do not enter \(\alpha\) as percent!");
+ }
+ return ( $c_ans == $s_ans ? 1 : 0 );
+}));
+ANS($z->cmp(checker=>$Rchecker, m=>0));
+ANS($L->cmp(checker=>$Rchecker, m=>$mu));
+ANS($R->cmp(checker=>$Rchecker, m=>$mu));
+
+
+ENDDOCUMENT();

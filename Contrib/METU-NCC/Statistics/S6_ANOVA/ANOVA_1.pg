@@ -1,0 +1,166 @@
+## BEGIN_DESCRIPTION
+## Complete ANOVA table and answer questions about its values
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One-way ANOVA)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(4)
+## Language(en)
+## MO(1)
+## Static(0)
+## KEYWORDS('ANOVA', 'R')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "PGchoicemacros.pl",
+   "PGcourse.pl",
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "parserPopUp.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+
+#  Setup
+Context("Numeric");
+Context()->flags->set(
+  tolerance => 0.01,
+  tolType   => "relative"
+);
+
+$df_f = Real(random(4,10,1));
+$df_t = Real(random(6,12)*($df_f+1)-1);
+$df_e = Real($df_t - $df_f);
+
+$ss_e = Real(random(2,20,0.1)*$df_e);
+$ms_e = Real($ss_e/$df_e);
+
+$a    = random(.006,.05,.002);
+
+$ss_f = Real(rserve_eval("round(qf(1-$a,$df_f,$df_e)*$ms_e*$df_f,1)"));
+$ms_f = Real($ss_f/$df_f);
+
+$ss_t = Real($ss_f + $ss_e);
+$ms_t = Real($ss_t/$df_t);
+
+$F    = Real($ms_f/$ms_e);
+
+$p    = Real(rserve_eval("1-pf($F,$df_f,$df_e)"));
+
+$br = "border-right: 3px double;";
+$bb = "border-bottom: 3px double;";
+
+$df_i = random(0,2);
+$ss_i = random(0,2);
+
+@df   = ("\($df_f\)", "\($df_e\)", "\($df_t\)"); 
+@df_a = ($df_f, $df_e, $df_t); 
+$df[$df_i] = ans_rule(5);
+
+@ss   = ("\($ss_f\)", "\($ss_e\)", "\($ss_t\)"); 
+@ss_a = ($ss_f, $ss_e, $ss_t); 
+$ss[$ss_i] = ans_rule(5);
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+
+Complete the ANOVA table below and then answer questions about its values.
+All answers must be ${BBOLD}numerical${EBOLD} and accurate to 3 significant digits.
+
+$PAR
+\{
+DataTable(
+  [
+    [['Source',cellcss=>$br.$bb],
+        ['df',cellcss=>$bb],
+        ['SS',cellcss=>$bb],
+        ['MS',cellcss=>$bb],
+        ['F', cellcss=>$bb],
+        ['p', cellcss=>$bb]],
+    [['Factor',cellcss=>$br],
+         $df[0],  $ss[0],
+         $ms_f->ans_rule(10),
+            $F->ans_rule(5),
+            $p->ans_rule(5)],
+    [['Error',cellcss=>$br],
+         $df[1], $ss[1],
+         $ms_e->ans_rule(10),
+         ],
+    [['Total',cellcss=>$br],
+         $df[2], $ss[2],
+         $ms_t->ans_rule(10),
+         ],
+  ], 
+  align => '| l | c | c | c | c  | c |',
+  midrules => 1
+);
+\}
+
+
+$PAR
+\(\qquad \text{Number of Factors}  = \) \{ ans_rule(10) \}
+
+$PAR
+\(\qquad \text{Total Number of Samples}  = \) \{ ans_rule(10) \}
+
+$PAR
+\(\qquad \text{Pooled Sample Variance}  = \) \{ ans_rule(10) \}
+
+$PAR
+\(\qquad \text{Total Sample Variance}  = \) \{ ans_rule(10) \}
+
+
+$PAR
+$HR
+$PAR
+You may use the embedded R window below to perform computations.$BR
+${BCENTER}
+$Rframe
+${ECENTER}
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+ANS( $df_a[$df_i]->cmp() );  
+ANS( $ss_a[$ss_i]->cmp() );  
+
+ANS($ms_f->cmp());  ANS($F->cmp());    ANS($p->cmp());
+
+ANS($ms_e->cmp());
+
+ANS($ms_t->cmp());
+
+ANS(Real($df_f+1)->cmp());     # Number of Factors
+
+ANS(Real($df_t+1)->cmp());     # Number of Samples
+
+ANS($ms_e->cmp());             # Pooled Sample Var
+
+ANS($ms_t->cmp());             # Total Sample Var
+
+ENDDOCUMENT();

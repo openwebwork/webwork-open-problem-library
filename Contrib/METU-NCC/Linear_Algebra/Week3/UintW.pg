@@ -1,0 +1,121 @@
+## DESCRIPTION
+##  Basis of intersection of two planes in R^3
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Span)
+## Date(01/09/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+DOCUMENT();  
+
+loadMacros(
+"PGstandard.pl",
+"PGcourse.pl",
+"parserVectorUtils.pl",
+"MathObjects.pl",
+);
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+sub gcd {
+  my $a = abs(shift); my $b = abs(shift);
+  ($a,$b) = ($b,$a) if $a < $b;
+  return $a if $b == 0;
+  my $r = $a % $b;
+  while ($r != 0) {
+    ($a,$b) = ($b,$r);
+    $r = $a % $b;
+  }
+  return $b;
+}
+
+TEXT(beginproblem());
+
+COMMENT('equivalent to parameterizing line of intersection');
+
+Context("Vector");
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',t=>'Real');
+
+
+my @var = (Formula("x"),Formula("y"),Formula("z"),Formula("t"));
+my @start = (0,0,0); 
+my @dir;
+
+foreach (0..2) { $dir[$_] = non_zero_random(-2,2); }
+
+my @v; my @w;
+
+do { 
+  foreach (0..2) { $v[$_] = non_zero_random(-2,2); }
+} until (! Vector(map {abs($_)} @v)->isParallel(Vector(map {1} @v))
+      && ! Vector(@v)->isParallel(Vector(@dir)));
+
+do { 
+  foreach (0..2) { $w[$_] = non_zero_random(-2,2); }
+} until ((! Vector(map {abs($_)} @w)->isParallel(Vector(map {1} @w)))
+      && ( Matrix([[@v],[@w],[@dir]])->det != 0));
+
+@v = (Vector(@v) x Vector(@dir))->value;
+@w = (Vector(@w) x Vector(@dir))->value;
+
+
+my $gcd = gcd(gcd($v[0],$v[1]),$v[2]);
+foreach (0..2) { $v[$_] = $v[$_]/$gcd; }
+   $gcd = gcd(gcd($w[0],$w[1]),$w[2]); 
+foreach (0..2) { $w[$_] = $w[$_]/$gcd; }
+
+$Aeqn = Formula("0");  $Beqn = Formula("0");
+foreach my $i (0..2) {
+  $Aeqn = Formula("$Aeqn + $v[$i] * $var[$i]")->reduce; 
+  $Beqn = Formula("$Beqn + $w[$i] * $var[$i]")->reduce;
+}
+
+$vars = Vector(@var[0..2]);
+$intersect = Vector(@dir);
+
+
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Let \(U, W \subset \mathbb{R}^{3}\) be defined as follows.
+$PAR
+\[\displaystyle U = \bigl\lbrace $vars\ \Big|\ \ $Aeqn=0 \bigr\rbrace\]
+$PAR
+\[\displaystyle W = \bigl\lbrace $vars\ \Big|\ \ $Beqn=0 \bigr\rbrace\]
+$PAR
+Find a vector \((a,b,c)\) whose span is the intersection.
+$PAR
+\(\qquad U\cap W = \mathrm{Span}\Bigl\lbrace\)\{ans_rule(10);\}\(\Bigr\rbrace\)
+$PAR
+On your own paper, you should verify that this vector spans the intersection.
+
+END_TEXT
+Context()->normalStrings;
+
+
+$parallel_cmp = sub {
+  my ($correct, $student, $ansHash) = @_;
+  return $correct->isParallel($student);
+}; 
+
+ANS( $intersect->cmp(
+        showCoordinateHints=>0,
+        checker=>$parallel_cmp) );
+
+ENDDOCUMENT();

@@ -1,0 +1,339 @@
+## BEGIN_DESCRIPTION
+##  R programming tutorial built in webwork
+##    1. Basic data types in R 
+## END_DESCRIPTION
+
+##############################################
+## DBsubject()
+## DBchapter()
+## DBsection()
+## Level(2)
+## Author(Benjamin Walter)
+## Institution(METU-NCC)
+## Language(en)
+## Keywords('R','programming') 
+## MO(1)
+## Static(0)
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",       # Standard macros for PG language
+   "PGcourse.pl",
+   "PGchoicemacros.pl",   # Needed for randomization method
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl",
+   "scaffold.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Page 1 of R programming tutorial written in webwork');
+#
+########################
+# Embedded R-frame for student computations
+#
+$code = "Age%20%20%20%20%3C-%20c(17%2C%2019%2C%2018%2C%2019)%0AName%20%20%20%3C-%20c(%22Ali%22%2C%20%22Burak%22%2C%20%22Ceren%22%2C%20%22Deniz%22)%0AGender%20%3C-%20c(%22M%22%2C%20%22M%22%2C%20%22F%22%2C%20%22F%22)%0A%0AFriends%20%3C-%20data.frame(Name%2CAge%2CGender)%0Ashow(Friends)";
+#
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='500' src='https://rdrr.io/snippets/embed/?code=$code' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+#
+########################
+
+
+################################################
+#  Setup 
+#    to get data from R:    Real(rserve_eval(" <R-command> "));
+#    comparison strings:    String(" <R-command> ")
+################################################
+Context("Numeric");
+
+
+# Pick three random ordered days (other than Sunday)
+@Day = ("Mon","Tue","Wed","Thu","Fri","Sat");
+  @pick = shuffle(6);
+  @pick = PGsort(sub{$_[0] < $_[1]},  ($pick[0],$pick[1],$pick[2]));
+  @Day = ($Day[$pick[0]],$Day[$pick[1]],$Day[$pick[2]]);
+
+# Pick three random temperatures  
+@Temp = (random(20,35,1),random(20,35,1),random(20,35,1));
+
+# Pick three random factors for Sun ("Y"/"N")
+@Factor = ("Y","N");
+@Sun = ($Factor[random(0,1)],$Factor[random(0,1)],$Factor[random(0,1)]);
+
+
+Context("ArbitraryString");
+
+################################################
+# Correct Answers for Code Boxes
+################################################
+
+$code_1 = String(
+" Day  <- '$Day[0]'
+ Temp <- $Temp[0]"
+);
+$code_2 = String(
+" Day  <- c('$Day[0]','$Day[2]')
+ Temp <- c($Temp[0],$Temp[2])"
+);
+$code_3 = String(
+" Day  <- c('$Day[0]','$Day[1]','$Day[2]')
+ Temp <- c($Temp[0],$Temp[1],$Temp[2])
+ Sun  <- c('$Sun[0]','$Sun[1]','$Sun[2]')
+ Weather <- data.frame(Day,Temp,Sun)"
+);
+
+
+################################################
+#  Settings for displaying R code
+################################################
+#
+# BCODE ECODE macro from Robin Cruz webwork moodle post
+$BCODE = MODES(
+	HTML=>'<code style="font-family: Courier; font-size:larger; background:transparent; border:0; padding:0; word-wrap:break-word; white-space: pre-wrap; white-space: -moz-pre-wrap; white-space: -pre-wrap; white-space: -o-pre-wrap; display: inline; ">',
+	TeX=>'\verb'.chr(0x85)
+);
+$ECODE = MODES(HTML=>'</code>',TeX=>chr(0x85));
+
+
+$Req = "<-";
+@Rbox_code = (
+   align     => '>{\ttfamily}p{400px}',
+   midrules  => 0,
+   center    => 0,
+   tablecss  => 'background-color:silver;border-radius:5px;margin-left:20px;padding:20px;',
+   allcellcss=> 'font-family:Lucida Console,Monaco, monospace;padding-left:10px;',
+);
+@Rbox_out = (
+   align     => '>{\ttfamily}p{400px}',
+   midrules  => 0,
+   center    => 0,
+   tablecss  => 'background-color:#FCFFF5;box-shadow:0 0 0 1px #A3C293 inset, 0 0 0 0 transparent;border:1px solid #e1e1e8;border-radius:5px;padding:20px;margin-left:20px;',
+   allcellcss=> 'font-family:Lucida Console,Monaco, monospace;padding-left:10px;',
+);
+@Note = (
+   align     => 'rX',
+   midrules  => 0,
+   center    => 0,
+   tablecss  => 'background-color:#00FFFF;box-shadow:0 0 0 1px #0000A0 inset, 0 0 0 0 transparent;border:2px solid #0000A0;border-radius:10px;margin-left:20px;width:70%;',
+   allcellcss=> 'padding:2px;padding-top:5px;padding-bottom:5px;vertical-align:top;',
+);
+
+
+###########################
+# Rchecker uses R to check answers
+#
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my $comp= String($ansHash->{comp});
+  rserve_eval($s->value);
+  rserve_eval("student <- $comp");
+  rserve_eval($c->value);
+  rserve_eval("correct <- $comp");
+  return ( rserve_eval("identical(student,correct)") );
+};
+##########################
+
+
+################################################
+#  Problem Text
+################################################
+Context()->texStrings;
+BEGIN_TEXT
+$BBOLD Basic Data Types in R $EBOLD
+
+$PAR
+(Click the sections below to open/close them.)
+
+END_TEXT
+Scaffold::Begin(can_open=>"always",is_open=>"first_incorrect");
+###############################################
+Section::Begin("$BBOLD (A)  Variables$EBOLD");
+BEGIN_TEXT
+
+In R, numbers and other data can be stored in $BITALIC variables$EITALIC.  To save data 
+in a variable, R uses an arrow "\(<\!\!-\)".  
+$BR 
+For example the commands
+\{ DataTable([
+ ['Age ${SPACE}$Req 17'],
+ ['Name $Req "Ali"']
+],@Rbox_code); \}
+will store the number 17 and the string "Ali" as 
+$BCODE Age $ECODE and $BCODE Name$ECODE.
+$BR
+\{ DataTable([[
+['$BBOLD Note: $EBOLD'],
+['R will automatically create any variables you use.']]],
+ @Note);
+\}
+
+$PAR $HR $PAR
+
+$BBOLD EXERCISE $EBOLD$BR
+
+In the box below, type commands to store "$Day[0]" and $Temp[0] as 
+$BCODE Day $ECODE and $BCODE Temp$ECODE.
+$BR
+\(\quad\) \{ ans_box(3,49)    #  check value of    c(Day,Temp)
+\}
+
+$PAR
+
+\{ knowlLink("Weird side note",  
+     value=>' $SPACE You can also store data using an arrow in the other direction. For example: $BR
+     <code style="Font-family:courier;font-size:inherit;"> 
+     $SPACE $SPACE 17 $SPACE-> Age $BR
+     $SPACE "Ali" -> Name </code>');
+\}
+
+END_TEXT
+
+ANS($code_1->cmp(checker=>$Rchecker,comp=>"c(Day,Temp)"));
+
+Section::End();
+###############################################
+Section::Begin("$BBOLD (B)  Arrays$EBOLD");
+BEGIN_TEXT
+
+To store groups of data, use $BITALIC combine $EITALIC "${BTT}c(..)${ETT}". 
+$BR
+For example:
+\{ DataTable([
+ ['Age $SPACE$SPACE $Req c(17, 19, 18, 19)'],
+ ['Name $SPACE $Req c("Ali", "Burak", "Ceren", "Deniz")'],
+ ['Gender $Req c("M", "M", "F", "F")'],
+],@Rbox_code); \}
+will store four values in each of 
+$BCODE Age$ECODE,  $BCODE Name$ECODE, and $BCODE Gender$ECODE.
+$BR \(\qquad\)
+$BITALIC 
+   (A sequence of data values like this is called a "vector" or an "array".) 
+$EITALIC
+
+
+$PAR $HR $PAR
+
+$BBOLD EXERCISE $EBOLD$BR
+
+In the box below, type commands which will store 
+"$Day[0]", "$Day[2]" as $BCODE Day$ECODE; and 
+$Temp[0], $Temp[2] as $BCODE Temp$ECODE. 
+$BR
+\(\quad\) \{ ans_box(3,49)      #  check value of    c(Day,Temp)
+\}
+
+END_TEXT
+
+ANS($code_2->cmp(checker=>$Rchecker,comp=>"c(Day,Temp)"));
+
+Section::End();
+###############################################
+Section::Begin("$BBOLD (C)  Data Frames$EBOLD");
+BEGIN_TEXT
+
+The usual type of data in R is a called a "data frame".  
+Data frames are tables of data with 
+(numbered rows and) labeled columns. 
+$BR
+For example, following the previous commands with 
+\{ DataTable([
+ ['Friends <- data.frame(Name, Age, Gender)'],
+ ['show(Friends)'],
+],@Rbox_code); \}
+results in the output
+\{ DataTable([
+ [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+ [['1'],['Ali']  ,['17'], ['M'],['']],
+ [['2'],['Burak'],['19'], ['M'],['']],
+ [['3'],['Ceren'],['18'], ['F'],['']],
+ [['4'],['Deniz'],['19'], ['F'],['']]
+],@Rbox_out,align=>'clrrp{230px}'); \}
+$BR
+\{ DataTable([[
+['$BBOLD Note: $EBOLD'],
+['The rows of a data frame are called $BCODE observations $ECODE and the
+  columns are called $BCODE variables$ECODE.']]],
+ @Note);
+\}
+
+If we hadn't previously created the "Name", "Age", and "Gender" vectors, then 
+we could also have use the single (long) command:
+\{ DataTable([
+ ['Friends <- data.frame(      '],
+ ['\(\hspace{20pt}\) Name  ${SPACE}= c("Ali", "Burak", "Ceren", "Deniz"),'], 
+ ['\(\hspace{20pt}\) Age $SPACE  = c(  17, 19, 18, 19),  '],
+ ['\(\hspace{20pt}\) Gender= c("M",  "M", "F", "F")  '],
+ [')']
+],@Rbox_code); \}
+$BR
+
+\{ DataTable([[
+['$BBOLD Note: $EBOLD'],
+['Even though the parts above are on different lines, they are all
+  part of a single command -- being combined by  
+  $BCODE data.frame(..) $ECODE -- so they must be sparated by commas ","']]],
+ @Note);
+\}
+$BR
+\{ DataTable([[
+['$BBOLD Also Note: $EBOLD'],
+['The assignment inside of $BCODE data.frame(..) $ECODE above is 
+  naming columns, so it uses $BCODE = $ECODE instead of $BCODE <- $ECODE ']]],
+ @Note);
+\}
+
+
+$PAR $HR $PAR
+
+$BBOLD EXERCISE $EBOLD$BR
+
+In the box below, type commands to store the following data frame
+as $BCODE Weather$ECODE.
+\{ DataTable([
+ [[''] ,['Day']    ,['Temp']    ,['Sun']    , ['']],
+ [['1'],['$Day[0]'],['$Temp[0]'],['$Sun[0]'], ['']],
+ [['2'],['$Day[1]'],['$Temp[1]'],['$Sun[1]'], ['']],
+ [['3'],['$Day[2]'],['$Temp[2]'],['$Sun[2]'], ['']],
+],@Rbox_out,align=>'clrrp{240px}'); \}
+$BR
+\(\quad\) \{ ans_box(5,49)      #  check value of    Weather
+\}
+
+
+END_TEXT
+
+ANS($code_3->cmp(checker=>$Rchecker,comp=>"Weather"));
+
+Section::End();
+#############################################
+Section::Begin("$BBOLD Embedded R Window $EBOLD",is_open=>"never");
+BEGIN_TEXT
+
+
+The embedded R window below contains some sample code related to this problem.
+$BR
+You can delete the sample code and type your own code to do computations or check
+your code for errors.$BR
+${BCENTER} $Rframe ${ECENTER}
+
+END_TEXT
+Section::End();
+Scaffold::End();
+
+
+
+
+ENDDOCUMENT();

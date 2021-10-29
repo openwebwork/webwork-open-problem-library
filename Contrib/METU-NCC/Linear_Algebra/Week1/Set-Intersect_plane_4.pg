@@ -1,0 +1,156 @@
+## DESCRIPTION
+##  Intersection of two planes
+## ENDDESCRIPTION
+
+
+## DBsubject(Set theory and logic)
+## DBchapter(Operations on sets)
+## DBsection(Boolean operations on sets)
+## Date(01/09/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+DOCUMENT();  
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl"
+);
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+TEXT(beginproblem());
+
+COMMENT('Find two points on intersection of two planes in 4D');
+
+Context("Vector");
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',t=>'Real');
+
+
+$n = 4;
+
+my @start; my @dir;
+my @var = (Formula("x"),Formula("y"),Formula("z"),Formula("t"));
+
+$start[0] = 0;
+do { 
+  foreach my $i (1..($n-1)) { $start[$i] = random(-1,1); }
+} until (! Vector(@start)->isZero );
+$start[0] = random(-1,1,2);
+
+foreach my $i (1..($n-1)) { $dir[$i] = random(-1,1,2); }
+$dir[0] = 0;
+
+my @v; my @w;
+
+do { 
+  foreach my $i (0..($n-2)) { $v[$i] = non_zero_random(-3,3); }
+} until (! Vector(map {abs($_)} @v)->isParallel(Vector(map {1} @v)));
+
+do { 
+  foreach my $i (0..($n-2)) { $w[$i] = non_zero_random(-3,3); }
+} until ((! Vector(map {abs($_)} @w)->isParallel(Vector(map {1} @w)))
+      && (! Vector(@w)->isParallel(Vector(@v))));
+
+
+$v[$n-1] = - (Vector(@dir[0..($n-2)]) . Vector(@v)) / $dir[$n-1];
+$w[$n-1] = - (Vector(@dir[0..($n-2)]) . Vector(@w)) / $dir[$n-1];
+
+my @i = pick($n,(0..($n-1)));
+@start = @start[@i];
+@dir   = @dir[@i];
+@v     = @v[@i];
+@w     = @w[@i];
+
+$Aeqn = Formula("0");  $Beqn = Formula("0");
+foreach my $i (0..($n-1)) {
+  $Aeqn = Formula("$Aeqn + $v[$i] * $var[$i]")->reduce; 
+  $Beqn = Formula("$Beqn + $w[$i] * $var[$i]")->reduce;
+}
+$Aeqn = $Aeqn->reduce;  $Beqn = $Beqn->reduce;
+$Ad = Vector(@start) . Vector(@v);
+$Bd = Vector(@start) . Vector(@w);
+
+$vars = Vector(@var[0..($n-1)]);
+
+$ans1 = Vector(@start);
+$ans2 = Vector(@start)-Vector(@dir);
+$ans3 = Vector(@start)+Vector(@dir);
+
+$MAns = MultiAnswer($ans1, $ans2, $ans3
+)->with(
+ singleResult=>0,
+ allowBlankAnswers=>1,
+ checkTypes=>0,
+ checker=>sub{
+ my ($c,$s,$self) = @_;
+ my ($c1,$c2,$c3) = @{$c};
+ my ($s1,$s2,$s3) = @{$s};
+
+
+ my @result = (1,1,1);
+
+
+ if (Point($c1)->typeMatch($s1)) {
+   if ((Vector(@v) . $s1 != $Ad) || (Vector(@w) . $s1 != $Bd)) {
+     $result[0] = 0;
+   } 
+ } else { $result[0] = 0; }
+ if (Point($c2)->typeMatch($s2)) {
+   if ((Vector(@v) . $s2 != $Ad) || (Vector(@w) . $s2 != $Bd)) {
+     $result[1] = 0;
+    }
+ } else { $result[1] = 0; } 
+ if (Point($c3)->typeMatch($s3)) {
+   if ((Vector(@v) . $s3 != $Ad) || (Vector(@w) . $s3 != $Bd)) {
+     $result[2] = 0;
+   } 
+ } else { $result[2] = 0; } 
+
+ if (Point($c1)->typeMatch($s1) && Point($c2)->typeMatch($s2) && ($s1 == $s2))
+   { $result[1] = 0; $self->setMessage(2,"not distinct"); } 
+ if (Point($c1)->typeMatch($s1) && Point($c3)->typeMatch($s3) && ($s1 == $s3))
+   { $result[2] = 0; $self->setMessage(3,"not distinct"); } 
+ if (Point($c2)->typeMatch($s2) && Point($c3)->typeMatch($s3) && ($s2 == $s3))
+   { $result[2] = 0; $self->setMessage(3,"not distinct"); } 
+
+
+ return ~~@result;
+});
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Find three $BBOLD distinct $EBOLD elements of \(A\cap B\) if the subsets
+\(A, B \subset \mathbb{R}^{$n}\) are defined as follows.
+$PAR
+\(\qquad \displaystyle A = \bigl\lbrace $vars\ \Big|\ \ $Aeqn=$Ad \bigr\rbrace\)
+$PAR
+\(\qquad \displaystyle B = \bigl\lbrace $vars\ \Big|\ \ $Beqn=$Bd \bigr\rbrace\)
+$PAR
+
+\{$MAns->ans_rule(10);\} $BR 
+\{$MAns->ans_rule(10);\} $BR
+\{$MAns->ans_rule(10);\} 
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $MAns->cmp );
+
+ENDDOCUMENT();

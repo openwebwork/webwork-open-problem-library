@@ -1,0 +1,340 @@
+## DESCRIPTION
+## Linear Algebra
+## ENDDESCRIPTION
+
+## KEYWORDS('linear algebra','spring system')
+
+## Date('April 2014')
+## Author('Benjamin Walter')
+## Institution('METU NCC')
+
+######################################
+#  Initialization
+
+DOCUMENT() ;        
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserVectorUtils.pl",
+"unionTables.pl",
+"PGcourse.pl",
+"scaffold.pl"
+) ;
+TEXT(beginproblem());
+
+#######################################
+#  Setup
+
+Context('Matrix');
+
+
+@springs = (
+  "spring-3mass-2springs.png",
+);
+
+@dim = (
+ [ 75, 200],  # 3mass-2springs
+);
+
+@elong = (
+  [[-1, 1, 0],  # 3 mass 2 springs
+   [ 0,-1, 1]]
+);
+
+
+$A = Matrix($elong[0]);
+
+@const = (random(1,5,1));
+
+@C = ();
+$C[0] = [ (0) x ($A->dimensions)[0] ];  $C[0][0] = $const[0];
+
+for (my $j = 1; $j < ($A->dimensions)[0]; $j++) {
+  push @const, random(1,5,1);
+  $C[$j] = [ (0) x ($A->dimensions)[0] ];
+  $C[$j][$j] = $const[$j];
+}
+
+$c = Matrix(@const)->transpose;
+
+$K = $A->transpose * Matrix(@C) * $A;
+
+$null_sp = ColumnVector(1,1,1);  
+$a = ColumnVector(0,0);
+$b = ColumnVector(0,0);
+
+$U = Matrix([
+      [-1, 0],
+      [ 0,-1],
+      [ 0, 0]
+]);
+
+$L = Matrix([
+    [ 1, 0, 0],
+    [-1, 1, 0],
+    [ 0,-1, 1]
+]);
+
+$perp = ColumnVector(1,1,-2);
+
+Context()->variables->add(
+  "f1"=>['Real',TeX=>"f_1"],
+  "f2"=>['Real',TeX=>"f_2"],
+  "f3"=>['Real',TeX=>"f_3"]
+);
+
+$fun_a = Formula("f1");
+$fun_b = Formula("f1+f2");
+$fun_c = Formula("f1+f2+f3");
+
+$fun = Matrix([[$fun_a],[$fun_b],[$fun_c]]);
+
+#######################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+An intersting thing happens when springs systems have no attachments 
+to the outside.  Consider the following free system.
+
+$PAR
+
+$BCENTER
+\{ image( $springs[0], width=>$dim[0][0], height=>$dim[0][1],  
+tex_size=>$dim[0][0], extra_html_tags=>'alt="Spring System"' ) \}
+with spring constants
+\(\mathbf{c} = $c\).
+$ECENTER
+
+$PAR
+
+Assume down is the positive direction.
+
+$BR
+$HR
+$BR
+
+Write the elongation matrix.
+$BR
+
+\(\quad \mathrm{A} = \) \{ $A->ans_array(2) \}  
+
+$PAR
+
+END_TEXT
+
+Scaffold::Begin(can_open=>"always");
+#################################################################
+Section::Begin("${BBOLD}Free Displacements.${EBOLD}");
+
+BEGIN_TEXT
+
+Because the system is unattached, it is possible to displace
+the masses without causing any internal force.  We will find a
+(nonzero) displacement vector \(\mathbf{u}\) so that
+$BCENTER
+ \( \mathrm{K}\mathbf{u} = 
+    \mathrm{A}^\mathrm{T} \mathrm{C} \mathrm{A} \mathbf{u} = 
+    \mathbf{0}\).
+$ECENTER
+
+\(\quad\) 
+
+(1) Solve \(\mathrm{A}^\mathrm{T} \mathbf{w} = \mathbf{0} \) 
+    (forward substitution). $BR
+
+    \(\qquad \mathbf{w} = \) \{ $a->ans_array(2) \}
+
+$PAR \(\quad\) 
+
+(2) Solve \(\mathrm{C} \mathbf{e} = \mathbf{w} \)
+    (forward substitution).  $BR
+
+    \(\qquad \mathbf{e} = \) \{ $b->ans_array(2) \}
+
+$PAR \(\quad\) 
+
+(3) Solve \(\mathrm{A} \mathbf{u} = \mathbf{e} \)
+    (back substitution). $BR
+
+    \(\qquad \mathbf{u} = \) \{ $null_sp->ans_array(2) \}\(t\)
+
+$PAR
+
+\{ 
+BeginTable(border=>1,tex_border=>"1pt", spacing=>10, padding=>10). 
+AlignedRow(["
+  $BITALIC
+  We say that \(\mathbf{u}\) is the 
+  ${EITALIC}${BBOLD}null space${EBOLD}${BITALIC} 
+  of the matrix \(\mathrm{K}\).
+  All unattached systems have the same \(\mathbf{u}\) (which you just computed)
+  in their null space, which corresponds to displacing the entire spring system
+  all together.  Since it doesn't stretch any springs 
+  (\(\mathbf{e} = \mathbf{0}\)), this displacement
+  doesn't cause any force.
+  $EITALIC
+"], align=>LEFT, separation=>10). 
+EndTable() 
+\}
+
+END_TEXT
+
+Section::End();
+#################################################################
+Section::Begin("${BBOLD}Balanced Forces.${EBOLD}");
+
+BEGIN_TEXT
+
+Just as there are certain displacements which cause no force; for 
+this system, many external forces cannot be balanced by displacement.   
+We can compute which forces can be balanced by investigating
+when there is a solution to 
+$BCENTER
+\[ \mathrm{K}\mathbf{u} = 
+   \mathrm{A}^\mathrm{T} \mathrm{C} \mathrm{A} \mathbf{u} = 
+   \mathbf{f}.\]
+$ECENTER
+
+\(\quad\) 
+
+(1) Write the LU decomposition for \(\mathrm{A}^\mathrm{T}\) 
+
+   $BR
+
+   \(\qquad \mathrm{A}^\mathrm{T} = \)
+     \{ $L->ans_array(2) \} \{ $U->ans_array(2) \}
+
+$PAR \(\quad\) 
+
+(2) Using variables for the components of \(\mathbf{f}\), 
+    divide by L (the left matrix above) using forward substitution.
+
+   $BCENTER
+   \( \mathrm{L} \left[\begin{matrix}a\\ b\\ c\end{matrix}\right] = 
+                 \left[\begin{matrix}f_1\\ f_2\\ f_3\end{matrix}\right]\)
+
+     $BR $BITALIC
+     (Write ${EITALIC}${BTT}f1${ETT}${BITALIC} for \(f_1\),
+      and   ${EITALIC}${BTT}f2${ETT}${BITALIC} for \(f_2\),
+      and   ${EITALIC}${BTT}f3${ETT}${BITALIC} for \(f_3\).) 
+     $EITALIC 
+   $ECENTER
+
+   \(\qquad \left[\begin{matrix}a\\ b\\ c\end{matrix}\right] = \) 
+      \{ $fun->ans_array() \}
+
+
+$PAR \(\quad\) 
+
+(3) Since the bottom row of \(\mathrm{U}\) is all 0,
+    there will only be a solution to 
+    \(\mathrm{U}\mathbf{u} =  
+        \left[\begin{matrix}a \\ b\\ c\end{matrix}\right]\) if 
+
+    $BR
+
+    \(\qquad\) \{ ans_rule($fun_c) \} \(=0\)
+
+$PAR \(\quad\)
+
+(4) Did you really understand this?  Write a nonzero force vector 
+    which is balanced by displacement.
+
+    $BR
+    
+    \(\qquad \mathbf{f}\) = \{ $perp->ans_array(2) \}
+
+    \{ 
+    BeginTable(border=>1,tex_border=>"1pt", spacing=>10, padding=>10). 
+    AlignedRow(["
+      $BITALIC
+       If you apply this force to the spring system, the masses
+       won't just move to a new equilibrium position... instead 
+       the whole spring system will fly away.
+      $EITALIC
+    "], align=>LEFT, separation=>10). 
+    EndTable() 
+    \}
+
+END_TEXT
+
+Section::End();
+##############################################################
+Section::Begin("${BBOLD}Final Comments.${EBOLD}");
+
+BEGIN_TEXT
+
+
+Note that both of the parts above (finding motions that did not
+cause force and forces that were not balanced by motion) relied
+only on the elongation matrix \(\mathrm{A}\) rather than all
+of \(\mathrm{K}\).  
+${BBOLD}
+We will see this again later when we look
+at collapse mechanisms for truss systems.
+${EBOLD}
+
+$PAR
+
+\(\quad \bullet\ \)
+To find motions that did not cause internal force, we computed 
+the ${BBOLD}null space${EBOLD} of \(\mathrm{A}\).
+
+$BR
+
+\(\quad \bullet\ \)
+To find forces that could not be balanced by internal displacement
+(and thus would cause the whole spring system to move without any 
+equilibrium), we computed the ${BBOLD}column space${EBOLD} of 
+\(\mathrm{A}^\mathrm{T}\). 
+
+$PAR
+
+The ${BBOLD}column space${EBOLD} of \(\mathrm{A}^\mathrm{T}\) is
+equal to the ${BBOLD}row space${EBOLD} of \(\mathrm{A}\) which
+is perpendicular to the ${BBOLD}null space${EBOLD}.  This is why
+your answers to the first and second parts looked so similar.
+(The motion vector in the first part is the normal vector
+for the plane of forces in the second part.)
+
+
+END_TEXT
+
+Section::End();
+###########################################################
+Scaffold::End();
+
+
+Context()->normalStrings;
+
+#######################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1 ;
+
+ANS( $A->cmp() );
+# ANS( $K->cmp() );
+
+ANS( $a->cmp() );
+ANS( $b->cmp() );
+ANS( $null_sp->cmp(parallel=>1) );
+
+ANS( $L->cmp() );
+ANS( $U->cmp() );
+
+ANS( $fun->cmp() );
+ANS( $fun_c->cmp() );
+
+ANS( $perp->cmp( 
+  showCoordinateHints => 0,
+  checker=>sub{
+    my ($correct,$student,$ansHash) = @_;
+    my $s = ColumnVector($student);
+    return (($s . ColumnVector(1,1,1) == 0) && ($s->norm != 0));
+  }
+));
+
+COMMENT('Randomly picks from 10 possible systems and randomizes spring constants.');
+
+ENDDOCUMENT();

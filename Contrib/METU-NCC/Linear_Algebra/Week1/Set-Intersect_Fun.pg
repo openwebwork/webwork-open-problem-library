@@ -1,0 +1,147 @@
+## DESCRIPTION
+##  Intersections of function sets
+## ENDDESCRIPTION
+
+
+## DBsubject(Set theory and logic)
+## DBchapter(Operations on sets)
+## DBsection(Boolean operations on sets)
+## Date(01/09/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+DOCUMENT();  
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"contextFraction.pl"
+);
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+TEXT(beginproblem());
+
+COMMENT('requirements for A and B are random.$BR f(a_1) = c_1  and  c_2 f(a_2) + c_3 f(a_3) = c_4'); 
+
+Context("Fraction");
+Context()->variables->are(
+  f1=>['Real',TeX=>"f{\small (1)}"],
+  f2=>['Real',TeX=>"f{\small (2)}"],
+  f3=>['Real',TeX=>"f{\small (3)}"],
+  g1=>['Real',TeX=>"g{\small (1)}"],h1=>['Real',TeX=>"h{\small (1)}"],
+  g2=>['Real',TeX=>"g{\small (2)}"],h2=>['Real',TeX=>"h{\small (2)}"],
+  g3=>['Real',TeX=>"g{\small (3)}"],h3=>['Real',TeX=>"h{\small (3)}"],
+);
+
+@f=(Formula("f1"),Formula("f2"),Formula("f3"));
+@g=(Formula("g1"),Formula("g2"),Formula("g3"));
+@h=(Formula("h1"),Formula("h2"),Formula("h3"));
+
+
+@i = pick(3,(0..2));
+@c = pick(4,(-5..-2,2..5));
+
+$Aexpr = Formula("$f[$i[0]]")->TeX . " = $c[0]"; 
+$Bexpr = Formula("$c[1] $f[$i[1]] + $c[2] $f[$i[2]]")->reduce;
+ $Bexpr = $Bexpr->TeX . "= $c[3]";
+
+$A[$i[0]] = Real($c[0]);            $B[$i[0]] = Real($c[0]);
+$A[$i[1]] = Fraction($c[3]/$c[1]);  $B[$i[1]] = Real(0);
+$A[$i[2]] = Real(0);                $B[$i[2]] = Fraction($c[3]/$c[2]);
+
+
+$MAns = MultiAnswer(
+ $A[0],$A[1],$A[2],
+ $B[0],$B[1],$B[2]
+)->with(
+ singleResult=>1,
+ allowBlankAnswers=>1,
+ checkTypes=>0,
+ format=>"g(1)=%s, g(2)=%s, g(3)=%s ${BR}h(1)=%s, h(2)=%s, h(3)=%s",
+ tex_format=>"g{\small(1)}=%s,\quad g{\small(2)}=%s,\quad g{\small(3)}=%s\\ 
+	      h{\small(1)}=%s,\quad h{\small(2)}=%s,\quad h{\small(3)}=%s", 
+ checker=>sub{
+
+ my @cA; my @cB; my @sA; my @sB;
+ my ($correct,$student,$self) = @_;
+
+ ($cA[0],$cA[1],$cA[2],$cB[0],$cB[1],$cB[2]) = @{$correct};
+ ($sA[0],$sA[1],$sA[2],$sB[0],$sB[1],$sB[2]) = @{$student};
+
+ my $result = 1;  my $msg = "";
+
+ if ($cA[0]->typeMatch($sA[0]) && 
+     $cA[1]->typeMatch($sA[1]) && 
+     $cA[2]->typeMatch($sA[2])) {
+   if ($sA[$i[0]] != $cA[$i[0]]) { 
+     $result = 0; $msg = $msg . "\(g\) is not in \(A\)$BR"; 
+   }  elsif ($c[1]*$sA[$i[1]] + $c[2]*$sA[$i[2]] != $c[3])  {
+     $result = 0; $msg = $msg . "\(g\) is not in \(B\)$BR"; 
+   }  else { $msg = $msg . "\(g\) is good$BR"; }
+ } else { $result = 0; }   # one of them is blank
+ if ($cB[0]->typeMatch($sB[0]) && 
+     $cB[1]->typeMatch($sB[1]) && 
+     $cB[2]->typeMatch($sB[2])) {
+   if ($sB[$i[0]] != $cB[$i[0]]) { 
+     $result = 0; $msg = $msg . "\(h\) is not in \(A\)$BR"; 
+   }  elsif ($c[1]*$sB[$i[1]] + $c[2]*$sB[$i[2]] != $c[3])  {
+     $result = 0; $msg = $msg . "\(h\) is not in \(B\)$BR"; 
+   }  else { $msg = $msg . "\(h\) is good$BR"; }
+ } else { $result = 0; }   # one of them is blank
+
+
+ if ($cA[0]->typeMatch($sA[0]) && 
+     $cA[1]->typeMatch($sA[1]) && 
+     $cA[2]->typeMatch($sA[2]) && 
+     $cB[0]->typeMatch($sB[0]) && 
+     $cB[1]->typeMatch($sB[1]) && 
+     $cB[2]->typeMatch($sB[2]) &&
+     ($sA[0] == $sB[0]) &&
+     ($sA[1] == $sB[1]) &&
+     ($sA[2] == $sB[2])) 
+   { $result = 0; $msg = $msg . "Not distinct!" } 
+
+  Value->Error($msg) if (($result == 0) && !($msg eq ""));
+
+  return $result;
+});
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Let \(S = \lbrace 1,2,3\rbrace\).$BR
+Find two $BBOLD distinct $EBOLD elements \(g,h \in A\cap B\) if the subsets
+\(A, B \subset \mathrm{Fun}(S)\) are defined as follows.
+$PAR
+\(\qquad \displaystyle A = \bigl\lbrace f\in\mathrm{Fun}(S)\ \Big|\ \ $Aexpr \bigr\rbrace\)
+$PAR
+\(\qquad \displaystyle B = \bigl\lbrace f\in\mathrm{Fun}(S)\ \Big|\ \ $Bexpr \bigr\rbrace\)
+$PAR
+
+ \(\quad $g[0] = \)\{$MAns->ans_rule(5);\}  
+\(,\quad $g[1] = \)\{$MAns->ans_rule(5);\}  
+\(,\quad $g[2] = \)\{$MAns->ans_rule(5);\}   
+$PAR
+ \(\quad $h[0] = \)\{$MAns->ans_rule(5);\}  
+\(,\quad $h[1] = \)\{$MAns->ans_rule(5);\}  
+\(,\quad $h[2] = \)\{$MAns->ans_rule(5);\}  
+
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $MAns->cmp );
+
+ENDDOCUMENT();

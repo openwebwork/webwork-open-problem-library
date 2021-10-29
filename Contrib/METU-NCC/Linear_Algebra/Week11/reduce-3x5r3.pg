@@ -1,0 +1,121 @@
+## DESCRIPTION
+##  Reduce 3x5 to row echelon form
+##   Change size in code by editing variables at start
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrices)
+## DBsection(Echelon form)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## MO(1)
+## Static(0)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PG.pl",
+"PGcourse.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGmatrixmacros.pl",
+"MatrixCheckers.pl",
+"MatrixReduce.pl",
+"parserVectorUtils.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('3x5 matrix with rank 3 (general form)'); 
+
+Context('Matrix');
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+
+
+($m, $n) = (3, 5);  # Problem will be an  m x n  Matrix of rank r
+my $r = 3;           # Rank of matrix
+my $nul = $n - $r;   # Nullity of matrix
+
+
+########
+#  Build LU decomposition
+#    
+# L is m x m   La is array  
+#              Lm is matrix
+#
+# at least one lower triangle zero in each row
+#
+my @La = ();
+foreach my $i (0 .. $m-1) {
+  foreach my $j (0 .. $m-1) {
+    $La[$i][$j] = ($i<$j)  ? 0 : 
+                  ($i==$j) ? 1 : 
+                  ($j==0)  ? non_zero_random(-1,1) : non_zero_random(-2,2);
+  }
+}
+my $Lm = Matrix(@La);
+
+
+########
+# U is m x n  Matrix with r nonzero rows 
+#             @p is vector of pivot columns  (indexed from 0)
+my @p = map {$_ + 1} shuffle($n-1);                  # shuffle of 1..(n-1)
+   @p = PGsort(sub{$_[0] < $_[1]}, @p[0..($r-2)]);   # pick r-1 to be pivots
+   @p = (0, @p);                                     # first pivot is at 0
+my @Ua = ();
+foreach my $i (0..$r-1) {            # fill in pivot rows
+  foreach my $j (0 .. $n-1+$b) {
+    $Ua[$i][$j] = ($j< $p[$i]) ? 0 : 
+                  ($j==$p[$i]) ? non_zero_random(-1,1) : non_zero_random(-3,3); 
+  }
+}
+foreach my $i ($r .. $m-1) {         # fill in non-pivot rows
+  foreach my $j (0 .. $n-1+$b) {
+    $Ua[$i][$j] = 0;
+  }
+}
+my $Um = Matrix(@Ua);
+
+$Rm = Matrix(rref_perl_array(@Ua));
+$Am = $Lm * $Um;     
+
+
+Context()->texStrings;
+##################################################
+#
+#  Problem Text
+#
+BEGIN_TEXT
+
+Reduce the following matrix to reduced row echelon form.
+$PAR
+
+\(\displaystyle $Am \longmapsto\)\{ $Rm->ans_array(2);\}
+
+
+
+
+END_TEXT
+
+###################################################
+#
+#  Check solutions
+#
+
+Context()->normalStrings;
+
+
+ANS( $Rm->cmp() );
+
+
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

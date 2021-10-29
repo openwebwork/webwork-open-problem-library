@@ -1,0 +1,126 @@
+## DESCRIPTION
+##  Find points in difference of sets of functions
+## ENDDESCRIPTION
+
+
+## DBsubject(Set theory and logic)
+## DBchapter(Operations on sets)
+## DBsection(Boolean operations on sets)
+## Date(01/09/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+DOCUMENT();  
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PGauxiliaryFunctions.pl"
+);
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->variables->are(x=>"Real");
+
+$i = random(0,1);
+@ineq = ("\le","\ge");
+
+($a,$c) = pick(2,(-2..2));
+do { $b = non_zero_random(-2,2) } until ($b!=$a);
+
+$d = ($b-$a)+$c + (($i==0) ? random(1,3) : -random(1,3));
+
+$m1 = (($i==0) xor ($b-$a < 0))
+      ?  ceil(($d-$c)/($b-$a))+1 
+      : floor(($d-$c)/($b-$a))-1;
+$m2 = (($i==0) xor ($b*($b-$a) < 0))
+      ?  ceil(($d-$c)/($b*($b-$a)))+1 
+      : floor(($d-$c)/($b*($b-$a)))-1;
+
+$ans1 = Formula("$m1*x+($c-$m1*$a)")->reduce;
+$ans2 = Formula("$m2*x(x-$a)+$c")->reduce;
+
+$MAns = MultiAnswer($ans1, $ans2
+)->with(
+ singleResult=>0,
+ allowBlankAnswers=>1,
+ checkTypes=>0,
+ checker=>sub{
+
+ my ($correct,$student,$self) = @_;
+ my ($c1,$c2) = @{$correct};
+ my ($s1,$s2) = @{$student};
+
+ my @result = (1,1);
+
+ if ($c1->typeMatch($s1)) {
+   my $msg = "";
+   if (!($s1->D('x')->D('x')->D('x')->isZero)) {
+     $result[0] = 0; $msg = "Wrong degree!$BR";
+   }
+   if ($s1->eval(x=>$a) != $b) { 
+     $result[0] = 0; $msg = $msg . "Not in \(A\)$BR"; 
+   } 
+   if ((($i==0) && ($s1->eval(x=>$c) <= $d)) ||
+       (($i==1) && ($s1->eval(x=>$c) >= $d)))  {
+     $result[0] = 0; $msg = $msg . "In \(B\)$BR"; 
+   }
+   $self->setMessage(1,$msg) if ($result[0]==0);
+ } else { $result[0] = 0; }
+ if ($c2->typeMatch($s2)) {
+   my $msg = "";
+   if (!($s2->D('x')->D('x')->D('x')->isZero)) {
+     $result[1] = 0; $msg = "Wrong degree!$BR";
+   }
+   if ($s2->eval(x=>$a) != $b) { 
+     $result[1] = 0; $msg = $msg . "Not in \(A\)$BR"; 
+   } 
+   if ((($i==0) && ($s2->eval(x=>$c) <= $d)) ||
+       (($i==1) && ($s2->eval(x=>$c) >= $d)))  {
+     $result[1] = 0; $msg = $msg . "In \(B\)$BR"; 
+   }
+   $self->setMessage(2,$msg) if ($result[1]==0);
+} else { $result[1] = 0; } 
+
+ if ($c1->typeMatch($s1) && $c2->typeMatch($s2) && ($s1 == $s2))
+   { $result[1] = 0; $self->setMessage(2,"not distinct"); } 
+
+
+ return ~~@result;
+});
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Find two $BBOLD distinct $EBOLD elements of \(A\setminus B\) if the subsets
+\(A, B \subset \mathcal{P}_2(\mathbb{R})\) are defined as follows.
+$PAR
+\(\qquad \displaystyle A = \bigl\lbrace p(x)\in\mathcal{P}_2(\mathbb{R})\ |\ \ p($a)=$b \bigr\rbrace\)
+$PAR
+\(\qquad \displaystyle B = \bigl\lbrace p(x)\in\mathcal{P}_2(\mathbb{R})\ |\ \ p($c) $ineq[$i] $d \bigr\rbrace\)
+$PAR
+
+\{$MAns->ans_rule(25);\} $BR 
+\{$MAns->ans_rule(25);\} 
+
+END_TEXT
+Context()->normalStrings;
+
+ANS( $MAns->cmp );
+
+ENDDOCUMENT();

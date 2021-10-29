@@ -1,0 +1,132 @@
+## DESCRIPTION
+##  Find cyclic vector for P_n 
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Jordan form)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",  # needed for shuffle
+"MathObjects.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT("Random operation of form ap' + bp'' + cp'''");
+
+Context("Matrix");
+Context()->variables->are(
+   x=> 'Real',
+   p=>['Real',TeX=>"p{\small(x)}"],
+  dp=>['Real',TeX=>"p\hspace{1pt}'  \hspace{-1pt}{\small(x)}"],
+ ddp=>['Real',TeX=>"p\hspace{1pt}'' \hspace{-1pt}{\small(x)}"],
+dddp=>['Real',TeX=>"p\hspace{1pt}'''\hspace{-1pt}{\small(x)}"],
+);
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+
+my @c = (
+  non_zero_random(-2,2),  # coeff of p'
+  non_zero_random(-2,2),  # coeff of p''
+  non_zero_random(-2,2)   # coeff of p'''
+);
+$Tin = Formula("p");
+$Tout = Formula("$c[0]*dp + $c[1]*ddp+$c[2]*dddp")->reduce;
+$shift = Matrix(
+ [ 0,0,0,0 ],
+ [ 1,0,0,0 ],
+ [ 0,1,0,0 ],
+ [ 0,0,1,0 ],
+);
+
+my $v    = Formula("x^3");
+my @ans;
+@ans[0] = List($v);
+foreach my $i (1..3) {
+  my $dv   =   $v->D('x');
+  my $ddv  =  $dv->D('x');
+  my $dddv = $ddv->D('x');
+  $v   = $Tout->substitute(dp=>$dv,ddp=>$ddv,dddp=>$dddv);
+  $ans[$i] = Formula($v)->reduce;
+}
+
+$ans = List(@ans);
+
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+
+Consider the differential operator 
+\(T:\mathcal{P}_3(\mathbb{R})\to \mathcal{P}_3(\mathbb{R})\)
+given by 
+\[T($Tin) = $Tout\]
+Find an ordered basis \(F\) for \(\mathcal{P}_3(\mathbb{R})\) such that \(T\)
+acts like a shift operator with respect to \(F\),
+i.e. \(\mathrm{M}_F^F(T) = $shift\)
+$PAR
+Basis \(F = \Bigl\lbrace\)\{ $ans->ans_rule(20); \}\(\Bigr\rbrace\)
+$PAR
+\(\qquad\) $BITALIC
+  Enter your basis as polynomials separated by comma: e.g.
+  \(x^2,\;2x+1,\; 2\)
+$EITALIC
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+ANS($ans->cmp(list_checker => sub {
+  my ($c, $s, $hash, $val) = @_;
+  my ($nc, $ns) = (scalar(@$c), scalar(@$s));
+ 
+  if ($ns != $nc) {
+    Value->Error("Wrong number of basis vectors!");
+  }
+
+  foreach my $i (0..($nc-2)) {
+    my $ds   = Formula($s->[$i])->D('x');
+    my $dds  = $ds->D('x');
+    my $ddds = $dds->D('x');
+    if (Formula($s->[$i+1]) != $Tout->substitute(dp=>$ds,ddp=>$dds,dddp=>$ddds)) {
+      Value->Error("Your vectors are not cyclic!");
+    }
+    if (Formula($s->[$i+1]) == Formula('0')) {
+      Value->Error("Dr. Benjamin says 'BASIS VECTORS CANNOT BE 0!!!'  orz");
+    }
+  }
+
+  return($nc,'');
+}
+));
+
+
+COMMENT('');
+
+ENDDOCUMENT(); 

@@ -1,0 +1,269 @@
+## DESCRIPTION
+##  Compute size of Jordan blocks for nilpotent transformation
+##   Problem size is hard-coded, not generic. 
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Jordan form)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"scaffold.pl",
+"niceTables.pl"
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Compute size of Jordan blocks for nilpotent transformation. $BR Block sizes = 4, 2');
+
+sub pick {
+  my ($k, @in) = @_;
+  if ($k==1) {
+    return $in[random(0,$#in)];
+  } 
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+
+  return @out;
+}
+
+Context("Matrix");
+Context()->variables->are(
+ x1=>['Real',TeX=>'x_1'],
+ x2=>['Real',TeX=>'x_2'],
+ x3=>['Real',TeX=>'x_3'],
+ x4=>['Real',TeX=>'x_4'],
+ x5=>['Real',TeX=>'x_5'],
+ x6=>['Real',TeX=>'x_6'],
+);
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+
+my $debug = 0;
+
+my @var = ("x1","x2","x3","x4","x5","x6"); 
+
+($n, $nil) = (6, 4);   # n = dimension,  nil = nilpotency index
+
+##
+# Build nilpotent matrix M  from Jacobi blocks J  and vectors P
+#
+my $M; my @M; my @J; my $J; my @P; # my $P;  
+foreach my $i (0..($n-1)) { $J[$i] = [(0)x$n]; }
+foreach my $i (0..2,4)    { $J[$i+1][$i] = 1;  }
+$J = Matrix(@J);
+
+##
+# After having trouble coming up with a good method to ensure a nice problem,
+# I eventually just decided to loop over nice answers until the question is 
+# also reasonable.
+# There's got to be a better way to do this....
+#
+if ($debug==1) {$search=0;}
+do {
+  foreach my $i (0..($n-1)) { 
+    $P[$i] = [(0)x$n];
+  }
+
+  my @p = pick($n,(0..($n-1))); 
+  my @q = pick($n,(0..($n-1)));
+
+  $P[$p[0]][$q[0]]=1; 
+  $P[$p[1]][$q[1]]=1; 
+  $P[$p[2]][$q[2]]=1; $P[$p[pick(1,(0..1))]][$q[2]]=random(-1,1,2);
+  $P[$p[3]][$q[3]]=1; $P[$p[pick(1,(0..2))]][$q[3]]=random(-1,1,2);
+  $P[$p[4]][$q[4]]=1; $P[$p[pick(1,(0..3))]][$q[4]]=random(-1,1,2);
+  $P[$p[5]][$q[5]]=1; $P[$p[pick(1,(0..4))]][$q[5]]=random(-1,1,2);
+
+  $P = Matrix(@P); 
+
+  $M = $P * $J * $P->inverse;
+  @M = $M->value;
+
+  $nonzero = 0;
+  foreach my $i (0..($n-1)) { foreach my $j (0..($n-1)) { 
+    if ($M[$i][$j] != 0) { $nonzero++; }
+  } }
+  if ($debug==1) {$search++;}
+} until ($nonzero < 10);
+
+
+##
+# Convert to Transformation form
+#
+sub MtoT {
+  my @M = @_;
+  my @T;
+
+#  foreach my $i (0..$#{$M}) {
+  foreach my $i (0..5) {
+    my $f = Formula(0);
+#    foreach my $j (0..$#{$M[0]}) { $f = $f + $M[$i][$j]*Formula("$var[$j]"); }
+    foreach my $j (0..5) { $f = Formula("$f + $M[$i][$j]*$var[$j]"); }
+  push (@T, $f->reduce);
+  }
+  return Vector(@T);
+}; 
+
+$Tin = Vector(@var[0..($n-1)]);
+$Tout = MtoT(@M);
+
+####
+# DEBUG STUFF
+#
+if ($debug == 1) {
+
+}
+
+
+##
+# (A) Powers
+#
+$Mn[0] = $M;
+$Tout[0] = $Tout;
+foreach (1..($nil-1)) { 
+  $Mn[$_] = $M*$Mn[$_-1];
+  $Tout[$_] = MtoT($Mn[$_]->value);
+}
+
+
+##
+# (B) Kernel Dimensions 
+#
+
+@Tker = (
+  Real(2),
+  Real(4),
+  Real(5),
+  Real(6)
+);
+
+
+##
+# (C) V-board
+#
+$Board = List(4,2);
+
+%imagedata = (
+  width=>50, tex_size=>50
+);
+
+Context()->texStrings;
+
+#####################################
+#  Main text
+#
+if ($debug == 1) {
+BEGIN_TEXT
+DEBUG DATA $BR
+\(P = $P\) $BR 
+\(T = $Tout[0]\) $BR
+\(T^2 = $Tout[1]\) $BR
+\(T^3 = $Tout[2]\) $BR
+\(T^4 = $Tout[3]\) $BR
+Search Length = $search $BR
+DEBUG END
+$PAR
+END_TEXT
+}
+BEGIN_TEXT
+
+
+The linear transformation \(T:\mathbb{R}^$n\to\mathbb{R}^$n\) below is nilpotent of
+nilpotency index $nil.
+\[T $Tin = $Tout\]
+$BR
+Compute the following. $BITALIC (Click to open and close sections below).$EITALIC
+
+END_TEXT
+#####################
+# Begin Scaffold
+Scaffold::Begin(can_open=>"always",is_open=>"first_incorrect");
+#####################
+Section::Begin("$BBOLD(A) Powers$EBOLD");
+#####################
+BEGIN_TEXT
+
+
+Compute the powers of \(T\) $BR
+\(\quad \phantom{{}^1}T$Tin =\ \)\{$Tout[0]->ans_rule(40);\} $BR
+\(\quad T^2\!$Tin =\ \)\{$Tout[1]->ans_rule(40);\} $BR
+\(\quad T^3\!$Tin =\ \)\{$Tout[2]->ans_rule(40);\} $BR
+\(\quad T^4\!$Tin =\ \)\{$Tout[3]->ans_rule(40);\} $BR
+$PAR
+$SPACE Write \(x_1\) as \(\fbox{x1}\) and \(x_2\) as \(\fbox{x2}\) etc.
+
+END_TEXT
+#####################
+Section::End();
+Section::Begin("$BBOLD(B) Kernel dimensions $EBOLD");
+#####################
+BEGIN_TEXT
+
+
+Compute the kernel dimensions $BR
+\(\quad \mathrm{dim}\bigl(\mathrm{Ker}(T)\bigr)\phantom{{}^1} =\ \)\{ $Tker[0]->ans_rule(3); \} $BR
+\(\quad \mathrm{dim}\bigl(\mathrm{Ker}(T^2)\bigr) =\ \)\{$Tker[1]->ans_rule(3);\} $BR
+\(\quad \mathrm{dim}\bigl(\mathrm{Ker}(T^3)\bigr) =\ \)\{$Tker[2]->ans_rule(3);\} $BR
+\(\quad \mathrm{dim}\bigl(\mathrm{Ker}(T^4)\bigr) =\ \)\{$Tker[3]->ans_rule(3);\} $BR
+
+
+END_TEXT
+#####################
+Section::End();
+Section::Begin("$BBOLD(C) V-Board$EBOLD");
+#####################
+BEGIN_TEXT
+
+Describe the V-board.  Write the height of the columns from left to right.
+$PAR
+\(\mathrm{Column\ Heights} =\ \)\{$Board->ans_rule(10);\}
+
+$PAR
+$SPACE $SPACE For example the boards below would be described with the following heights.
+\{ LayoutTable( [
+ [ "",image("board-421.jpg",%imagedata) , image("board-211.jpg",%imagedata) ],
+ [ "","\(\fbox{4,2,1}\)" , "\(\fbox{2,1,1}\)" ] 
+ ], align => 'c | c | c |', center => 0
+);\}
+
+END_TEXT
+#####################
+Section::End();
+Scaffold::End();
+#####################################
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+foreach (0..($nil-1)) { ANS( $Tout[$_]->cmp() ); }
+foreach (0..($nil-1)) { ANS( $Tker[$_]->cmp() ); }
+$showPartialCorrectAnswers=0;
+ANS( $Board->cmp(ordered=>1) );
+
+
+
+ENDDOCUMENT(); 

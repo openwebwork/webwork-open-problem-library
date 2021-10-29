@@ -1,0 +1,208 @@
+## DESCRIPTION
+##  Compute kernel, image, and nilpotence of 4x4 matrix
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Linear transformations)
+## DBsection(Kernel and image)
+## Date(15/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(3)
+## MO(1)
+## Static(0)
+
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"PG.pl",
+"PGcourse.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGmatrixmacros.pl",
+"MatrixCheckers.pl",
+"MatrixReduce.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('Matrix is permuation of lower triangular with entries between -2 and 2');
+
+Context('Matrix');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->variables->are();
+
+
+########
+# M is 4 x 4  Nilpotent Matrix (permuted Jordan form)
+#             @p is permutation
+my @p = shuffle(4);                  
+my $nul = random(1,2);  $nilp = Real(5-$nul);
+my @Ma;
+foreach my $i (0..3) {   
+  foreach my $j (0 ..3) {
+    $Ma[$p[$i]][$p[$j]] = (($j>=$i) || ($j>3-$nul) ? 0 : non_zero_random(-2,2)); 
+  }
+}
+$Mm = Matrix(@Ma);
+
+
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',t=>'Real');
+my @vars = (Formula("x"),
+            Formula("y"),
+	    Formula("z"),
+	    Formula("t"));
+my @Tout;
+foreach my $i (0..3) {
+  $Tout[$i] = Formula(0);
+  foreach my $j (0..3) {
+    $Tout[$i] = Formula($Tout[$i] + $Ma[$i][$j]*$vars[$j]);
+  }
+  $Tout[$i] = $Tout[$i]->reduce;
+}
+$Toutput = List(@Tout);
+
+
+################
+# Convert everything to transform notation
+#
+Context()->texStrings;
+$Tinput = "$vars[0]";
+foreach my $j (1 .. 3) {
+  $Tinput = $Tinput . ", $vars[$j]";
+}
+
+
+BEGIN_TEXT
+Let \(T:\mathbb{R}^4 \to \mathbb{R}^4\) be the linear transformation 
+represented by the matrix 
+\(\mathrm{M}(T) = \mathrm{M}^{\mathcal{E}}_{\mathcal{E}}(T)\) 
+$BITALIC (relative to the standard basis)$EITALIC
+$BR
+\[\mathrm{M}(T) = $Mm \]
+$PAR
+
+What is \(T\)?
+$BR
+\(\quad T(x,y,z,t) = \Bigl(\)\{$Toutput->ans_rule(20);\}\(\Bigr)\)
+
+$PAR
+END_TEXT
+Context()->normalStrings;
+
+ANS( $Toutput->cmp(ordered=>1) );
+
+
+################
+# Columnspace of matrix / Image of transform
+#
+my @ColList;
+foreach my $j (0..(3-$nul)) {
+  $ColList[$j] = Vector($Mm->column($p[$j]+1));
+}
+$ColList = List(@ColList);
+
+###############
+#  Nullspace / Kernel Computation
+#
+my @Na;
+foreach my $i (0..3) {
+  foreach my $j (0..$nul-1) {
+    $Na[$i][$j] = 0;
+  }
+}
+foreach my $j (0..$nul-1) {  
+  $Na[$p[3-$j]][$j]   = 1;   
+}
+ $Nm = Matrix(@Na);
+
+my @NulList;
+foreach my $j (0 .. $nul-1) {
+  $NulList[$j] = Vector($Nm->column($j+1));
+}
+$NulList = List(@NulList);
+
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Give bases for \(\mathrm{Ker}(T)\) and \(\mathrm{Im}(T)\).
+$BR
+\(\quad \text{Basis for } \mathrm{Ker}(T) = \) \{ $NulList->ans_rule(30); \}
+$BR
+\(\quad \text{Basis for } \mathrm{Im}(T) \;= \) \{ $ColList->ans_rule(30); \}
+
+
+$PAR
+
+What is the nilpotence index of \(\mathrm{M}(T)\)?
+$BR
+\(\quad \text{Nilpotence index} = \) \{ $nilp->ans_rule(2); \}
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+
+#######
+# This is a modified version of basis_checker_row
+#
+$listBasis = sub { 
+  my ($c,$s,$ansHash,$value) = @_;
+
+  my ($nc,$ns) = (scalar(@$c),scalar(@$s));
+  return 0 if ($nc != $ns);
+
+  my @cv, @sv;
+  foreach my $i (0..$nc-1) {
+    $cv[$i] = Matrix($c->[$i])->transpose;
+  }
+  my $len = ($cv[0]->dimensions)[0];
+  foreach my $i (0..$ns-1) {
+    return 0 if ($s->[$i]->type ne "Point");
+    if (!(Formula($s->[$i])->isConstant)) {
+      Value->Error("Do not use variables in your vectors!");
+      return 0;
+    }
+    $sv[$i] = Matrix($s->[$i])->transpose;
+    if ($sv[$i]->isZero) {
+      Value->Error("Dr. Benjamin says: $BR 'NO ZERO VECTORS IN BASIS!'  orz");
+      return 0;
+    }
+    if (($sv[$i]->dimensions)[0] != $len) {
+      Value->Error("Your vectors have wrong dimension!");
+      return 0;
+    }
+  }
+
+  my $Cm = concatenate_columns_into_matrix(@cv);
+  my $Sm = concatenate_columns_into_matrix(@sv);
+
+  my $CTC = ($Cm->transpose) * $Cm;
+  warn "Correct answer is a linearly dependent set." if ($CTC->det == 0);
+
+  if ( (($Sm->transpose) * $Sm)->det == 0) {
+    Value->Error("Your vectors are not independent!");
+    return 0;
+  }
+
+  my $X = ($CTC->inverse) * (($Cm->transpose) * $Sm);
+
+  return 0 if ($Sm != $Cm * $X);
+
+  return ($nc,());
+};
+
+ANS( $NulList->cmp(list_checker=>$listBasis) );
+ANS( $ColList->cmp(list_checker=>$listBasis) );
+ANS( $nilp->cmp() );
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

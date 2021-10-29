@@ -1,0 +1,197 @@
+##DESCRIPTION
+##ENDDESCRIPTION
+## DBsubject()
+## DBchapter()
+## DBsection()
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## KEYWORDS('discrete')
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"contextFraction.pl",
+"PGcourse.pl",
+"PGbasicmacros.pl",
+"parserFunction.pl",
+"parserVectorUtils.pl"
+);
+
+$showPartialCorrectAnswers = 1;
+
+##############
+#
+#  Code for kroneker delta
+#
+package my::Function::numeric;
+our @ISA = ('Parser::Function::numeric');
+sub d {
+  shift; my $x = shift;
+  return ($x==0) ? 1 : 0;
+}
+package main;
+#
+###############
+
+
+TEXT(beginproblem());
+
+Context('Fraction')->variables->are(t=>'Real');
+################
+#
+#  Add delta function 
+#   -- never used in student answers, so no need to 
+#      specify test points for checker.
+#
+Context()->functions->add(
+  d => {class => 'my::Function::numeric', 
+        TeX => '\delta',
+        nocomplex => 1}
+);
+#
+###############3
+
+
+$a = random(-2,2,1); $b = $a+random(1,3,1); # interval [a,b]
+
+my $n = random(3,4,1);    # n x n matrix 
+my $h = ($b-$a)/($n+1);   # step-size
+$hf = Compute("($b-$a)/($n+1)")->reduce;
+
+$y0 = 0;  my $y0type = 0;   # type determines y vs y'
+$y1 = 0;  my $y1type = 0;   # y0, y1  determines boundary value
+
+my $cyp = non_zero_random(-3,3,1);
+my $cyq = non_zero_random(-3,3,1);
+my $c1f = non_zero_random(-3,3,1);  
+
+#  DE is   y'' + p y' + q y  =  fun
+
+my $p = Formula("$cyp");
+my $q = Formula("$cyq");
+my $fun;
+
+if (random(0,1,1)==1) {
+  $fun     = Formula("$c1f * t")->reduce;
+  $funDisp = Formula("$c1f * t")->reduce;
+} else {
+  my $c  = $a + random(1,$n,1)*$h;
+  my $cf = Fraction($c);
+  $fun     = Formula("d(t-$c)/$h")->reduce;
+  $funDisp = Formula("d(t-$cf)")->reduce;
+}
+
+Context()->variables->{namePattern} = qr/[a-z][a-z0-9_]*'*/i;
+Context()->variables->add(
+    "y"=>"Real",
+   "y'"=>["Real",TeX=>"y\,'" ],
+  "y''"=>["Real",TeX=>"y\,''"]
+);
+
+$y0tex = ($y0type==0) ? Formula("y") : Formula("y'");
+$y1tex = ($y1type==0) ? Formula("y") : Formula("y'");
+
+$DE = Formula("y'' + $p*y' + $q*y")->reduce;
+
+
+
+Context('Matrix')->variables->are(
+  y0=>['Real',TeX=>"y_0"],
+  y1=>['Real',TeX=>"y_1"],
+  y2=>['Real',TeX=>"y_2"],
+  y3=>['Real',TeX=>"y_3"],
+  y4=>['Real',TeX=>"y_4"],
+  y5=>['Real',TeX=>"y_5"],
+  y6=>['Real',TeX=>"y_6"]
+);
+
+my @D, @F, @Y;  
+
+# top row 
+push @D, [(0)x$n];
+$D[0][1] =  1/($h**2) + $p->eval(t=>($a+$h))/(2*$h);
+push @Y, "y1";
+if ($y0type == 0) {
+  $D[0][0] = -2/($h**2) + $q->eval(t=>($a+$h));
+  push @F, $fun->eval(t=>($a+$h)) - 
+             $y0*(1/($h**2) - $p->eval(t=>($a+$h))/(2*$h));
+} else {
+  $D[0][0] = -1/($h**2) - $p->eval(t=>($a+$h))/(2*$h) + $q->eval(t=>($a+$h));
+  push @F, $fun->eval(t=>($a+$h)) + 
+             $y0*(1/$h - $p->eval(t=>($a+$h))/2);
+}
+
+# middle rows
+for (my $i=1; $i<$n-1; $i++) {
+  push @D, [(0)x$n];
+  $D[$i][$i-1] =  1/($h**2) - $p->eval(t=>($a+($i+1)*$h))/(2*$h); 
+  $D[$i][$i]   = -2/($h**2) + $q->eval(t=>($a+($i+1)*$h)); 
+  $D[$i][$i+1] =  1/($h**2) + $p->eval(t=>($a+($i+1)*$h))/(2*$h);  
+  push @Y, "y" . ($i+1);
+  push @F, $fun->eval(t=>($a+($i+1)*$h));
+}
+
+# last row
+push @D, [(0)x$n];
+$D[$n-1][$n-2] =  1/($h**2) - $p->eval(t=>($b-$h))/(2*$h);
+push @Y, "y" . $n;
+if ($y1type == 0) {
+  $D[$n-1][$n-1] = -2/($h**2) + $q->eval(t=>($b-$h));
+  push @F, $fun->eval(t=>($b-$h)) -
+             $y1*(1/($h**2) + $p->eval(t=>($b-$h))/(2*$h));
+} else {
+  $D[$n-1][$n-1] = -1/($h**2) + $p->eval(t=>($b-$h))/(2*$h) + $q->eval(t=>($b-$h));
+  push @F, $fun->eval(t=>($b-$h)) -
+             $y1*(1/$h + $p->eval(t=>($b-$h))/2);
+}
+
+
+# answers
+$d = Matrix(@D);
+$f = ColumnVector(@F);
+$y = ColumnVector(@Y);
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Discretize the differential equation \( $DE = $funDisp,\ \)  
+\(\ $y0tex($a)=$y0\), 
+\(\ $y1tex($b)=$y1\ \) 
+with step-size \(h = $hf\).
+
+$PAR
+\(\quad\)\{ $d->ans_array(4) \}\{ $y->ans_array(1)\}\( = \)\{ $f->ans_array(4)\}
+
+$PAR 
+\(\qquad\qquad\)
+$BITALIC 
+(Enter variables \(y_0\), \(y_1\), \(y_2\), \(y_3\), \(y_4\), \(y_5\) into webwork as 
+${EITALIC}${BTT}y0${ETT}${BITALIC}, 
+${EITALIC}${BTT}y1${ETT}${BITALIC}, 
+${EITALIC}${BTT}y2${ETT}${BITALIC}, 
+${EITALIC}${BTT}y3${ETT}${BITALIC}, 
+${EITALIC}${BTT}y4${ETT}${BITALIC}, 
+${EITALIC}${BTT}y5${ETT}${BITALIC}.) 
+$EITALIC
+
+END_TEXT
+
+Context()->normalStrings;
+
+ANS( $d->cmp() );
+ANS( $y->cmp() );
+ANS( $f->cmp() );
+
+
+COMMENT("Discretize y''+py'+qy=f.  Easy level. $BR p,q=c, f=t or impulse, random interval, y boundary = 0, length 3 or 4.");
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.
+
+
+

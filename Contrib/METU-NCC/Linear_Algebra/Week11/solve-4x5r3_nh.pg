@@ -1,0 +1,339 @@
+## DESCRIPTION
+##  Solve nonhomogeneous system beginning in echelon form
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Systems of linear equations)
+## DBsection(Systems with 4 or more variables)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(3)
+## MO(1)
+## Static(0)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PG.pl",
+"PGcourse.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"PGmatrixmacros.pl",
+"MatrixCheckers.pl",
+"MatrixReduce.pl",
+"parserVectorUtils.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('Random 4x5 system.  Small integer answers.');
+
+Context('Matrix');
+Context()->variables->are(
+ x1=>['Real',TeX=>"x_1"],  # Variables
+ x2=>['Real',TeX=>"x_2"],  #  for system of equations
+ x3=>['Real',TeX=>"x_3"],
+ x4=>['Real',TeX=>"x_4"],
+ x5=>['Real',TeX=>"x_5"],
+ x6=>['Real',TeX=>"x_6"],
+ x7=>['Real',TeX=>"x_7"],
+ s=>'Real',                # Parameters
+ t=>'Real',                #  for homogeneous solution
+ u=>'Real'
+);
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+
+
+($m, $n) = (4, 5);  # Problem will be an  m x n  Matrix of rank r
+   $b = 1;           # Homogeneous or non-homogeneous system
+my $r = 3;           # Rank of matrix
+my $nul = $n - $r;   # Nullity of matrix
+
+@vars = (
+  Formula("x1"),
+  Formula("x2"),
+  Formula("x3"),
+  Formula("x4"),
+  Formula("x5"),
+  Formula("x6"),
+  Formula("x7")
+);
+@pars = (
+  Formula("s"),
+  Formula("t"),
+  Formula("u")
+);
+
+sub Z {            # Make a zero vector
+  my $n = shift;
+  my @Z;
+  foreach my $i (0..$n-1) {
+    $Z[$i] = 0;
+  }
+  return Vector(@Z);
+}
+
+
+########
+#  Build LU decomposition
+#    
+# L is m x m   La is array  
+#              Lm is matrix
+#
+# at least one lower triangle zero in each row
+#
+my @La = ();
+foreach my $i (0 .. $m-1) {
+  foreach my $j (0 .. $m-1) {
+    $La[$i][$j] = ($i<$j)  ? 0 : 
+                  ($i==$j) ? 1 : 
+                  ($j==0)  ? non_zero_random(-1,1) : non_zero_random(-2,2);
+  }
+}
+my $Lm = Matrix(@La);
+
+
+########
+# U is m x n  Matrix with r nonzero rows 
+#             @p is vector of pivot columns  (indexed from 0)
+my @p = map {$_ + 1} shuffle($n-1);                  # shuffle of 1..(n-1)
+   @p = PGsort(sub{$_[0] < $_[1]}, @p[0..($r-2)]);   # pick r-1 to be pivots
+   @p = (0, @p);                                     # first pivot is at 0
+my @Ua = ();
+foreach my $i (0..$r-1) {            # fill in pivot rows
+  foreach my $j (0 .. $n-1+$b) {
+    $Ua[$i][$j] = ($j< $p[$i]) ? 0 : 
+                  ($j==$p[$i]) ? non_zero_random(-1,1) : non_zero_random(-2,2); 
+  }
+}
+foreach my $i ($r .. $m-1) {         # fill in non-pivot rows
+  foreach my $j (0 .. $n-1+$b) {
+    $Ua[$i][$j] = 0;
+  }
+}
+my $Um = Matrix(@Ua);
+
+
+$Am = $Lm * $Um;                   # multiply LU decomposition to get matrix 
+my @Aa = ();                       # and convert to array
+foreach my $i (0 .. $m-1) {
+  foreach my $j (0 .. $n-1+$b) {
+    $Aa[$i][$j] = $Am->element($i+1,$j+1);
+  }
+}
+
+
+##############################################
+#
+#  Nullspace / Kernel Computation
+#
+my @Ra = rref_perl_array(@Ua);
+my @Na;
+foreach my $i (0..$n-1) {
+  foreach my $j (0..$nul-1) {
+    $Na[$i][$j] = 0;
+  }
+}
+my $j=0;
+@p = (@p,$n);
+foreach my $k (1..$r) {   #  Use nonpivot column to get nullsp
+  foreach my $i ($p[$k-1]+1..$p[$k]-1) {
+    $Na[$i][$j]       = -1;         # pivots are 1 
+    foreach my $h (0..$k-1) {       # but just in case
+      $Na[$p[$h]][$j] =  $Ra[$h][$i];
+    }
+    $j++;
+  }
+}
+my  $Nm = Matrix(@Na);   ### Nullspace matrix
+# $Rm = Matrix(@Ra);   ### rref matrix (for debugging purposes)
+
+###############
+#
+#  Create homogeneous part of solution formula
+#
+$sol = Formula($pars[0]*Vector($Nm->column(1)));
+foreach my $j (1 .. $nul-1) {
+  $sol = $sol + Formula($pars[$j]*Vector($Nm->column($j+1)));
+}
+
+###############
+#
+#  Add particular part of solution
+#
+if ($b != 0) {
+  my @sol_p;
+  foreach my $i (0..$n-1) { $sol_p[$i] = 0; }
+  foreach my $i (0..$r-1) { $sol_p[$p[$i]] = pop @{$Ra[$i]}; }   
+  $sol = Formula(Vector(@sol_p)) + $sol;
+}
+
+###################################################
+#
+# Split off the augmented part of the matrix
+#   for system display and answer checking
+#
+if ($b != 0) {
+  foreach my $i (0..$m-1) {
+    $b[$i] = pop @{$Aa[$i]};
+  }
+  $Am = Matrix(@Aa); 
+  $b = Vector(@b);
+} else { 
+  $b = Z($n);
+}
+
+###################################################
+#
+# Create strings for displaying system of equations
+#
+Context()->texStrings;
+
+foreach my $i (0 .. $m-1) {
+  $Tout[$i] = (($Aa[$i][0]==0) ? "&" : 
+               ($Aa[$i][0]==1) ? "$vars[0]&" : 
+               ($Aa[$i][0]==-1)? "-$vars[0]&" : 
+ 			         "$Aa[$i][0]\,$vars[0]&");
+  foreach my $j (1 .. $n-1) {
+    $Tout[$i] = $Tout[$i] .
+                (($Aa[$i][$j]==0) ? "&&" :
+                 ($Aa[$i][$j]==-1)? "-\,&$vars[$j]&" :
+                 ($Aa[$i][$j]<0)  ? "-\,&" . abs($Aa[$i][$j]) . "\,$vars[$j]&" :
+                 (($Tout[$i] !~ /^&*$/) ? "+" : " ") .
+                 (($Aa[$i][$j]==1) ? "\,&$vars[$j]&" :
+                                     "\,&$Aa[$i][$j]\,$vars[$j]&"));
+  }
+}
+
+$np = 2*$n+1;
+
+##################################################
+#
+#  Problem Text
+#
+BEGIN_TEXT
+
+Find the solution to the non-homogeneous linear system below.
+
+\[\begin{alignedat}{$np}
+$Tout[0]\ =\ &$b[0] \\
+$Tout[1]\ =\ &$b[1] \\
+$Tout[2]\ =\ &$b[2] \\
+$Tout[3]\ =\ &$b[3] \\
+\end{alignedat}\]
+
+\(\mathrm{Sol} = \Bigl\lbrace\)\{ $sol->ans_rule(40); \}\(\Bigr\rbrace\)
+$PAR
+\(\quad\)Write your solution using parameters \(s\), \(t\), etc. For example$BR
+\(\quad \begin{aligned}
+  \mathrm{Sol} 
+    &= \mathbf{x}_p + \mathrm{Sol}_h \\
+    &= \Bigl\lbrace (1,2,3,4,5) + s(1,0,0,0,0) + t(0,1,0,0,0)\Bigr\rbrace
+  \end{aligned}
+\) 
+
+END_TEXT
+
+###################################################
+#
+#  Check solutions
+#
+
+Context()->normalStrings;
+
+#######
+# Checks solution to Mx = b 
+#   Split solution into particular and homogeneous parts.
+#   Check each part separately (ignore $c...)
+#
+# cmp ( checker=>@sol_checker, M=>$M, [b=>$b] )
+#
+$sol_checker = sub { 
+  my ($c,$s,$ansHash) = @_;
+
+  $s = Formula($s);
+  $c = Formula($c);
+
+  my $M = Matrix($ansHash->{M});
+  my $b = $ansHash->{b} // Z($m);  
+  my $error;
+
+  if ($s->usesOneOf(@vars)) {
+    Context()->texStrings;
+    Value->Error("Use parameters $pars[0], $pars[1], etc!");
+    Context()->normalStrings;
+  }
+ 
+  my $sp=$s;              ## Get student particular solution
+
+  foreach my $i (0..scalar(@pars)-1) {
+    $sp = $sp->substitute($pars[$i]=>0);
+  }
+  $sp = Vector($sp->reduce->eval);
+
+  if (!($sp->isZero)) {   ## Check student's particular solution if nonzero
+    if ($sp->length != $n) {
+      Value->Error("Your vectors are the wrong length!");
+    }
+    $k = $M*$sp;
+    if (Vector($M*$sp) != $b) {  
+      $error = "\(\bullet\) Special solution \(\mathbf{x}_p\) is wrong!";
+    }
+  } else {                ## Check system is homogeneous if sp = 0
+    if (!($b->isZero)) {
+      $error = "\(\bullet\) Special solution \(\mathbf{x}_p\) is missing!";
+    }
+  }
+
+  my @s;                 ## Get student homogeneous solution
+
+  foreach my $i (0..scalar(@pars)-1) {
+    if ($c->usesOneOf($pars[$i])) {
+      if (!($s->usesOneOf($pars[$i]))) {
+        Value->Error("Wrong number of homogeneous solution vectors!");
+      }
+
+      $s[$i] = $s->substitute($pars[$i]=>1)->reduce;
+      foreach my $j (0..scalar(@pars)-1) {
+        $s[$i] = $s[$i]->substitute($pars[$j]=>0)->reduce;
+      }
+      $s[$i] = Vector(($s[$i] - $sp)->reduce->eval);
+      if ($s[$i]->length != $n) {
+        Value->Error("Your vectors are the wrong length!");
+      }
+      if (!($M*$s[$i])->isZero) {  ## Check homogeneous solution vector
+        $ith = $pars[$i]->TeX;
+        $error = ((defined($error)) ? $error . "$BR " : "") .
+                 "\(\bullet\ $ith\)-vector is incorrect!";
+      }
+    } else {
+      if ($s->usesOneOf($pars[$i])) {
+        Value->Error("Wrong number of homogeneous solution vectors!");
+      }
+    }
+  }
+
+  my $Ms = Matrix(@s);     ## Check homogeneous solution for independence
+  if ( ($Ms * $Ms->transpose)->det == 0) {
+    Value->Error("Your homogeneous solution vectors are not independent!");
+  }
+  Value->Error($error) if (defined($error));
+
+  return 1;
+};
+
+
+
+$sol_eval = $sol->cmp(checker=>$sol_checker, M=>$Am, b=>$b);
+pop(@{$sol_eval->{post_filters}});
+ANS( $sol_eval  );
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

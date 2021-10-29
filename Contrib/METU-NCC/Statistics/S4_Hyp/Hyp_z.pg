@@ -1,0 +1,230 @@
+## BEGIN_DESCRIPTION
+## Hypothesis testing with Normal distribution in R
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One sample mean - z)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## Language(en)
+## MO(1)
+## Static(0)
+## KEYWORDS('1-tail', '2-tail', 'hypothesis test', 'z-test', 'R')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "PGchoicemacros.pl",
+   "PGcourse.pl",
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "parserPopUp.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+
+#  Setup
+Context("Numeric");
+
+$n    = random(50,100,1);
+$mu_0 = random(20,40, 1);
+$sdev = random(6, 10,.1); 
+$a    = random(.004, .04, .002);
+$pm   = random(-1,1,2);
+$mu   = Real(rserve_eval("round($mu_0 + ($pm)*qnorm($a)*$sdev/sqrt($n),1)"));
+
+$z_score = Real(($mu - $mu_0)/($sdev/sqrt($n)));
+
+Context("ArbitraryString");
+
+$num = ($mu < $mu_0 ? String("$mu-$mu_0") : String("$mu_0-$mu"));
+
+@p_val  = (String("2*pnorm(($num)/($sdev/sqrt($n)))"),
+           String("pnorm(($num)/($sdev/sqrt($n)))"));
+
+Context("Numeric");
+
+@p = (Real(rserve_eval($p_val[0])),
+      Real(rserve_eval($p_val[1])));
+
+
+@test_i = shuffle(2);  #choose order of hypotheses
+
+@tail_pop = (
+  PopUp(["select type","one-tailed","two-tailed"],"two-tailed"),
+  PopUp(["select type","one-tailed","two-tailed"],"one-tailed")
+);
+
+$ineq = (($mu < $mu_0) ? "<" : ">");
+@test = ("\(\mu  \neq $mu_0\)",
+         "\(\mu $ineq $mu_0\)");
+
+
+sub test_p {
+  my ($alpha, $prob) = @_;
+
+  if ($prob < $alpha) {
+    return PopUp(["select","reject","fail to reject"],"reject");
+  } else {
+    return PopUp(["select","reject","fail to reject"],"fail to reject");
+  }
+}
+
+@conc = ([test_p(.05, $p[0]), test_p(.05,  $p[1])],
+         [test_p(.01, $p[0]), test_p(.01,  $p[1])],
+         [test_p(.005,$p[0]), test_p(.005, $p[1])]);
+
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+$BITALIC
+For the problems below, you may either enter a numeric answer
+(accurate to 3 significant digits), or the R code
+which generates the answer. $BR $SPACE (Your answer will be checked by R.)
+$EITALIC
+
+
+$PAR $HR $PAR
+
+A population is sampled \($n\) times yielding sample mean
+\(\overline{x} = $mu\) and sample standard deviation \(s = $sdev\).
+A similar population has mean \(\mu_0 = $mu_0\).  Run a hypothesis
+test against 
+$BR \(\qquad \mathrm{H}_0:\ \ \mu = $mu_0\).
+
+
+$PAR
+The \(z\)-score of sampled data is:
+$BR \(\qquad z\)-score:  \{ $z_score->ans_rule(20) \}
+
+$PAR
+For $SPACE \(\mathrm{H}_A:\) $test[$test_i[0]] $SPACE use a 
+\{ $tail_pop[$test_i[0]]->menu() \}
+test
+$BR
+For $SPACE \(\mathrm{H}_A:\) $test[$test_i[1]] $SPACE use a 
+\{ $tail_pop[$test_i[1]]->menu() \}
+test
+ 
+$PAR
+In these cases, the \(p\)-values are:
+$BR
+\{ 
+DataTable(
+ [
+  ['\(\mathrm{H}_A:\)', 
+    '$SPACE $test[$test_i[0]] $SPACE', 
+    '$SPACE $test[$test_i[1]] $SPACE'],
+  ['\(p\)-value',      
+    $p_val[$test_i[0]]->ans_rule(15),
+    $p_val[$test_i[1]]->ans_rule(15)]
+ ],
+ align => '| r | c | c |',
+ midrules => 1
+);
+\}
+
+$PAR
+State whether you would 'reject' or 'fail to reject' the Null Hypothesis 
+for the following significance levels:
+\{ 
+DataTable(
+ [
+  ['', 
+    '\(\mathrm{H}_A:\) $test[$test_i[0]]', 
+    '\(\mathrm{H}_A:\) $test[$test_i[1]]'],
+  ['\(\alpha=.05\)',      
+    $conc[0][$test_i[0]]->menu(),
+    $conc[0][$test_i[1]]->menu()],
+  ['\(\alpha=.01\)',      
+    $conc[1][$test_i[0]]->menu(),
+    $conc[1][$test_i[1]]->menu()],
+  ['\(\alpha=.005\)',      
+    $conc[2][$test_i[0]]->menu(),
+    $conc[2][$test_i[1]]->menu()],
+ ],
+ align => '| l | c | c |',
+ midrules => 1
+);
+\}
+
+
+
+$PAR
+$HR
+$PAR
+You may use the embedded R window below to check your code and perform computations.$BR
+${BCENTER}
+$Rframe
+${ECENTER}
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my @s_ans = rserve_eval($s->value);
+  my $c_ans = Real(rserve_eval($c->value));
+  if (String($s_ans[0]) == String("NaN")) {
+    Value->Error("Error in R-code!");
+  }
+  $s_ans = Real($s_ans[0]);
+  if (abs($c_ans) > .00001) {
+    return ( (abs($c_ans - $s_ans) < .005*abs($c_ans)) ? 1 : 0);
+  } else {
+    return ( (abs($c_ans - $s_ans) < .000001) ? 1 : 0);
+  }
+};
+
+ANS($z_score->cmp(checker=>sub{
+ my ($c, $s, $ansHash) = @_; 
+ my $s_ans = Real($s->value);
+ my $c_ans = Real($c->value);
+ if ($s_ans == -$c_ans) {
+   Value->Error("Wrong sign!");
+ }
+ return ( $c_ans == $s_ans ? 1 : 0 );
+}));
+
+ANS($tail_pop[$test_i[0]]->cmp());
+ANS($tail_pop[$test_i[1]]->cmp());
+
+ANS($p_val[$test_i[0]]->cmp(checker=>$Rchecker));
+ANS($p_val[$test_i[1]]->cmp(checker=>$Rchecker));
+
+ANS($conc[0][$test_i[0]]->cmp());
+ANS($conc[0][$test_i[1]]->cmp());
+
+ANS($conc[1][$test_i[0]]->cmp());
+ANS($conc[1][$test_i[1]]->cmp());
+
+ANS($conc[2][$test_i[0]]->cmp());
+ANS($conc[2][$test_i[1]]->cmp());
+
+ENDDOCUMENT();

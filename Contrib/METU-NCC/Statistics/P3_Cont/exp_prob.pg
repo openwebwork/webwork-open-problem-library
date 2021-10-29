@@ -1,0 +1,194 @@
+## BEGIN_DESCRIPTION
+## Exponential, Gamma, Geometric, and Negative Binomial
+## probability computations using R (word problems)
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Probability)
+## DBchapter(Continuous distributions)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(5)
+## Language(en)
+## MO(1)
+## Static(0)
+## KEYWORDS('R', 'word problem', 'discrete distribution')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextArbitraryString.pl",
+   "contextFraction.pl",
+   "RserveClient.pl",
+   "PGcourse.pl",
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+#  Setup
+
+$context = Context("Numeric");
+$context->strings->{patterns}{'^.*$'} = [-20,'str'];
+$context->update;
+
+
+$Rframe1 = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+$Rframe2 = MODES(
+ HTML=>
+  "<iframe width='90%' height='200' src='http://www.compileonline.com/execute_r_online.php' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+
+$tot    = random(10,20,1);
+$n      = random(3,floor($tot/2),1);
+$nm     = $n-1;
+
+$lambda = Real($tot/48); 
+
+$x   = random(2,5,1); 
+$xn  = random(max(floor($n/$lambda)-3,2),floor($n/$lambda)+3,1);
+$xm  = $x-1;
+$xx  = $xn-$nm;
+$xxm = $xx-1;
+
+$i    = random(0,1);
+@ineq = (" \ge ", " \le ");
+
+
+Context("ArbitraryString");
+
+@A = ([String("1-pexp($x,$lambda)"),   String("pexp($x,$lambda)")],
+      [String("1-pgamma($xn,$n,$lambda)"),
+                                   String("pgamma($xn,$n,$lambda)")],
+      [String("1-pgeom($xm,$lambda)"), String("pgeom($x,$lambda)")],
+      [String("1-pnbinom($xxm,$n,$lambda)"),
+                                  String("pnbinom($xx,$n,$lambda)")]
+     );
+
+
+Context("Fraction-NoDecimals");
+Context()->flags->set(
+  reduceFractions => 0
+);
+
+$rate   = Fraction($tot,48);
+
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+
+$SPACE $SPACE
+${BITALIC} (For the questions below, you can either enter the answer, or else the
+R command which generates the answer.)${EITALIC}
+$PAR
+$HR
+$PAR
+
+A basketball team makes an average of $tot baskets per 48 minute game.  
+Let \(X\) be the length of time (in minutes) before the first basket
+and \(X_$n\) be the length of time (in minutes) before $n baskets.
+$PAR
+
+
+${BBOLD}(i)${EBOLD} $SPACE $SPACE
+\(X\;\sim\;\text{Exponential}\Bigl( $rate \Bigr) \). 
+$BR Compute
+\(\mathrm{P}\bigl(X\; $ineq[$i]\; $x\bigr) \ =\!= \  \) 
+\{$A[0][$i]->ans_rule(20);\}
+
+$PAR
+
+${BBOLD}(ii)${EBOLD} $SPACE $SPACE
+\(X_$n\;\sim\;\text{Gamma}\Bigl($n\;,\;$rate\Bigr) \)
+$BR Compute
+\(\mathrm{P}\bigl(X\; $ineq[$i]\; $xn \bigr) \ =\!= \  \) 
+\{$A[1][$i]->ans_rule(20);\}
+
+
+$PAR
+$BR
+$PAR
+
+The discrete version of this problem has \(Y\) the number of minutes before
+the first basket, and \(Y_$n\) the number of minutes before $n baskets.
+$PAR
+
+${BBOLD}(iii)${EBOLD} $SPACE $SPACE
+\(X\;\sim\;\text{Geometric}\Bigl( $rate \Bigr)\).
+$BR Compute
+\(\mathrm{P}\bigl(Y\; $ineq[$i]\; $x\bigr) \ =\!= \  \) 
+\{$A[2][$i]->ans_rule(20);\}
+
+$PAR
+
+${BBOLD}(iv)${EBOLD} $SPACE $SPACE
+\((Y_$n-$nm)\;\sim\;\text{NegBinom}\Bigl($n\;,\;$rate\Bigr) \)
+$BR Compute
+\(\mathrm{P}\bigl(Y_$n-$nm\; $ineq[$i]\; $xn-$nm\bigr) \ =\!= \  \) 
+\{$A[3][$i]->ans_rule(20);\}
+
+$PAR
+
+${BITALIC}
+Something to think about -- Why are the "continuous" and "discrete" results
+so different?  If you can't figure out the answer, then ask your professor.
+${EITALIC}
+
+$PAR
+$HR
+$PAR
+
+You may use the embedded R window below to check your code and perform computations.$BR
+${BCENTER}
+$Rframe1
+${ECENTER}
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my @s_ans = rserve_eval($s->value);
+  if (String($s_ans[0]) == String("NaN")) {
+    Value->Error("R code does not return a number!");
+  }
+  $s_ans = Real($s_ans[0]);
+  my $c_ans = Real(rserve_eval($c->value));
+  if (abs($c_ans) > .001) {
+    return ( (abs($c_ans - $s_ans) < .005*abs($c_ans)) ? 1 : 0);
+  } else {
+    return ( (abs($c_ans - $s_ans) < .001) ? 1 : 0);
+  }
+};
+
+ANS($A[0][$i]->cmp(checker=>$Rchecker));
+ANS($A[1][$i]->cmp(checker=>$Rchecker));
+ANS($A[2][$i]->cmp(checker=>$Rchecker));
+ANS($A[3][$i]->cmp(checker=>$Rchecker));
+
+
+
+
+ENDDOCUMENT();

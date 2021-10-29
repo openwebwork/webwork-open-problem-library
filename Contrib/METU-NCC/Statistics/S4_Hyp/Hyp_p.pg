@@ -1,0 +1,207 @@
+## BEGIN_DESCRIPTION
+## Population proportion hypothesis testing (binomial and normal)
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One sample proportion)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## Language(en)
+## MO(1)
+## Static(0)
+## KEYWORDS('population proportion', 'hypothesis test', 'z-test', 'R')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "PGchoicemacros.pl",
+   "PGcourse.pl",
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "parserPopUp.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+
+#  Setup
+Context("Numeric");
+
+$n   = Real(random(100,200,1));
+$p_0 = Real(random(.15,.85,.02));
+$a   = random(.005,.05,.001);
+
+$pm  = random(0,1,1);
+$x   = Real(rserve_eval("qbinom(abs($a-$pm),$n,$p_0)"));
+
+$ineq = (($pm == 0) ? "<" : ">");
+$H_A  = "\mathrm{H}_A:\ \ p $ineq $p_0";
+
+$P_mu    = Real($p_0);
+$P_sd    = Real(sqrt($p_0*(1-$p_0)/$n));
+$z_score = Real(($x/$n - $P_mu)/$P_sd);
+
+Context("ArbitraryString");
+
+if ($pm==0) {
+  @p_val  = (String("pnorm(($x/$n-$p_0)/(sqrt($p_0*(1-$p_0)/$n)))"),
+             String("pbinom($x,$n,$p_0)"));
+} else {
+  @p_val  = (String("1-pnorm(($x/$n-$p_0)/(sqrt($p_0*(1-$p_0)/$n)))"),
+             String("1-pbinom($x,$n,$p_0)"));
+}
+
+Context("Numeric");
+
+@p = (Real(rserve_eval($p_val[0])),
+      Real(rserve_eval($p_val[1])));
+
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+$BITALIC
+For the problems below, you may either enter a numeric answer
+(accurate to 3 significant digits), or the R code
+which generates the answer. $BR $SPACE (Your answer will be checked by R.)
+$EITALIC
+
+
+$PAR $HR $PAR
+
+Since we have access to a computer, there are two ways to do binomial
+(population proportion) hypothesis tests -- using the binomial pmf or 
+the normal pdf.
+
+$PAR
+
+A sample of size \($n\) is drawn from a population, finding \($x\)
+occurrences.
+A similar population has population proportion \(p_0 = $p_0\).  Run a 
+(one sided) hypothesis test 
+$BR \(\qquad \mathrm{H}_0:\ \ p = $p_0\)
+$BR \(\qquad $H_A \)
+
+$PAR
+
+If we use the binomial distribution for \(X\), then according to \(\mathrm{H}_0\) 
+$BR
+ \(\qquad X \sim \mathrm{Binomial}\Bigl(\)
+  \{$n->ans_rule(2)\} \(, \) \{$p_0->ans_rule(2)\} 
+ \(\Bigr)\)
+$BR
+So the sample value of \(X\)
+has \(p\)-value:
+$BR
+ \(\qquad p\)-value:  \{ $p_val[1]->ans_rule(30) \}
+$BR
+ \(\hspace{2cm}\)$BITALIC Compute using pbinom -- be careful since
+ binomial is not a symmetric distribution $EITALIC
+
+$PAR
+
+If we use a normal approximation for the sample population proportion
+\(\displaystyle \hat{P} = \frac{X}{n}\), then according to \(\mathrm{H}_0\) 
+$BR
+ \(\qquad \hat{P} \approx \mathrm{Normal}\Bigl(\)
+  \{$P_mu->ans_rule(2)\} \(, \) \{$P_sd->ans_rule(15)\} 
+ \(\Bigr)\)
+$BR
+So the sample porportion has \(z\)-score:
+$BR 
+ \(\qquad z\)-score:  \{ $z_score->ans_rule(20) \}
+$BR
+which has \(p\)-value:
+$BR
+ \(\qquad p\)-value:  \{ $p_val[0]->ans_rule(30) \}
+
+$PAR
+
+$BITALIC
+If you didn't compute these numerically already, you should compare these two
+\(p\)-values.  The one using Binomial is most accurate, since it didn't require
+an approximation for the distribution.
+$EITALIC
+
+
+$PAR
+$HR
+$PAR
+You may use the embedded R window below to check your code and perform computations.$BR
+${BCENTER}
+$Rframe
+${ECENTER}
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my @s_ans = rserve_eval($s->value);
+  my $c_ans = Real(rserve_eval($c->value));
+  if (String($s_ans[0]) == String("NaN")) {
+    Value->Error("Error in R-code!");
+  }
+  $s_ans = Real($s_ans[0]);
+  if ($s_ans > .5) {
+    Value->Error("Compute p-value on other side! (Your value is > 1/2)");
+  }
+  if (abs($c_ans) > .00001) {
+    return ( (abs($c_ans - $s_ans) < .005*abs($c_ans)) ? 1 : 0);
+  } else {
+    return ( (abs($c_ans - $s_ans) < .000001) ? 1 : 0);
+  }
+};
+
+ANS($n->cmp());
+ANS($p_0->cmp());
+ANS($p_val[1]->cmp(checker=>$Rchecker));
+
+ANS($P_mu->cmp(checker=>sub{
+ my ($c, $s, $ansHash) = @_; 
+ my $s_ans = Real($s->value);
+ my $c_ans = Real($c->value);
+ if ($s_ans == Real($x/$n)) {
+   Value->Error("H_0 distribution, not sample distribution!");
+ }
+ return ( $c_ans == $s_ans ? 1 : 0 );
+}));
+ANS($P_sd->cmp());
+ANS($z_score->cmp(checker=>sub{
+ my ($c, $s, $ansHash) = @_; 
+ my $s_ans = Real($s->value);
+ my $c_ans = Real($c->value);
+ if ($s_ans == -$c_ans) {
+   Value->Error("Wrong sign!");
+ }
+ return ( $c_ans == $s_ans ? 1 : 0 );
+}));
+ANS($p_val[0]->cmp(checker=>$Rchecker));
+
+
+
+ENDDOCUMENT();

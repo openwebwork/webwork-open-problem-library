@@ -1,0 +1,195 @@
+## BEGIN_DESCRIPTION
+## Hypothesis testing: pooled 2-sample t-test
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(Independent samples - t)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(4)
+## Language(en)
+## MO(1)
+## Static(0)
+## KEYWORDS('hypothesis test', '2-sample', 'pooled variance', 't-test', 'R')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "PGchoicemacros.pl",
+   "PGcourse.pl",
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "parserPopUp.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+
+#  Setup
+Context("Numeric");
+
+
+$n_x  = random(4,30,1);
+do { $n_y = random(4,30,1); } until (abs($n_x - $n_y) > 5);
+
+$s_x  = random( 6,10,.1);
+do { $s_y = random( 6,10,.1); } until (abs($s_x - $s_y) > 1.5);
+
+$diff = Real(random( 0,10,1));
+
+$s    = sqrt(((($n_x-1)*($s_x**2) + ($n_y-1)*($s_y**2))/($n_x + $n_y - 2))*(1/$n_x + 1/$n_y));
+$df   = Real($n_x + $n_y - 2);
+
+$mu_y = Real(random(20,40,.1));
+$pm   = random(-1,1,2);
+$a    = random(.004,.04,.002);
+$mu_x = Real(rserve_eval("round($mu_y + $diff - ($pm)*qt($a,$df)*$s,1)"));
+
+Context("ArbitraryString");
+
+$s2   = String("(($n_x-1)*($s_x^2) + ($n_y-1)*($s_y^2))/($n_x+$n_y-2)");
+
+$s    = String("sqrt(($s2)*(1/$n_x + 1/$n_y))");
+
+$t    = String("(($mu_x - $mu_y) - $diff)/$s");
+
+$p    = (($pm < 0) ? String("pt($t,$df)") :
+                     String("1-pt($t,$df)"));
+
+
+Context("Numeric");
+
+$ineq = (($mu_x-$mu_y > $diff) ? ">" : "<" );
+
+$test_pop = PopUp(["??",">",">=","<","<="],$ineq);
+
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+$BITALIC
+For the problems below, you may either enter a numeric answer
+(accurate to 3 significant digits), or the R code
+which generates the answer. $BR $SPACE (Your answer will be checked by R.)
+$EITALIC
+
+
+$PAR $HR $PAR
+
+An experiment samples two independent populations \(X\) and \(Y\).
+$BR
+\(\quad \bullet \ X\) is sampled \($n_x\) times 
+     yielding sample mean \(\bar x = $mu_x\) and sample std dev \(s_x = $s_x\). $BR
+\(\quad \bullet \ Y\) is sampled \($n_y\) times 
+     yielding sample mean \(\bar y = $mu_y\) and sample std dev \(s_y = $s_y\). $BR
+Do a one-tailed, ${BBOLD}pooled variance${EBOLD}, two-sample 
+\(t\)-test against 
+$BR \(\qquad \mathrm{H}_0:\ \ \mu_X - \mu_Y = $diff\).
+
+$PAR
+In this case, the sample mean difference is
+$BR
+\(\qquad \bar x - \bar y = \) \{ ans_rule(5) \}
+
+$PAR
+The alternative hypothesis for the one-tailed test in this case is 
+$BR
+\(\qquad \text{H}_\text{A}:\ \ \ \mu_X - \mu_Y \) \{ $test_pop->menu() \} \($diff\).
+
+$PAR
+The ${BBOLD}pooled sample variance${EBOLD} of 
+\(\bigl\lbrace X_i\bigr\rbrace\) and 
+\(\bigl\lbrace Y_j\bigr\rbrace\) is
+$BR
+\(\qquad s^2 = \) \{ $s2->ans_rule(30) \} 
+
+$PAR
+The ${BBOLD}pooled sample std. dev.${EBOLD} of 
+\(\bigl(\bar X - \bar Y\bigr)\) is 
+$BR
+\(\qquad s_{\bar x - \bar y} = \) \{ $s->ans_rule(30) \} 
+
+
+
+$PAR
+The test statistic has distribution 
+$BR
+\(\qquad T \sim t\Bigl(\) \{ $df->ans_rule(5) \} \(\Bigr)\)
+
+$PAR
+In this case, the test statistic has value
+$BR
+\(\qquad t = \) \{ $t->ans_rule(40) \}
+
+$PAR
+This has \(p\)-value
+$BR
+\(\qquad p = \) \{ $p->ans_rule(45) \}
+
+
+$PAR
+$HR
+$PAR
+You may use the embedded R window below to check your code and perform computations.$BR
+${BCENTER}
+$Rframe
+${ECENTER}
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my @s_ans = rserve_eval($s->value);
+  my $c_ans = Real(rserve_eval($c->value));
+  if (String($s_ans[0]) == String("NaN")) {
+    Value->Error("Error in R-code!");
+  }
+  $s_ans = Real($s_ans[0]);
+  if (abs($c_ans) > .00001) {
+    return ( (abs($c_ans - $s_ans) < .005*abs($c_ans)) ? 1 : 0);
+  } else {
+    return ( (abs($c_ans - $s_ans) < .000001) ? 1 : 0);
+  }
+};
+
+ANS(Real($mu_x-$mu_y)->cmp());
+
+ANS($test_pop->cmp());
+
+ANS($s2->cmp(checker=>$Rchecker));
+
+ANS($s->cmp(checker=>$Rchecker));
+
+ANS($df->cmp());
+
+ANS($t->cmp(checker=>$Rchecker));
+
+ANS($p->cmp(checker=>$Rchecker));
+
+
+
+ENDDOCUMENT();

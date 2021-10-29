@@ -1,0 +1,186 @@
+## BEGIN_DESCRIPTION
+## Beta and Power of one-tailed Normal hypothesis test
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(Type I/type II errors and power)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(4)
+## Language(en)
+## MO(1)
+## Static(0)
+## KEYWORDS('1-tail', 'hypothesis test', 'z-test', 'power', 'beta', 'R')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "PGchoicemacros.pl",
+   "PGcourse.pl",
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "parserPopUp.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+
+#  Setup
+Context("Numeric");
+
+$n    = random(50,100,1);
+$mu_0 = random(20,40, 1);
+$sdev = random(6, 10,.1); 
+$a    = random(.01, .05, .002);
+$pm   = random(-1,1,2);  
+$mu   = Real(rserve_eval("round($mu_0 + ($pm)*qnorm($a)*$sdev/sqrt($n),1)"));
+$alpha= random(.01,.05,.01);
+
+$z_score = Real(($mu - $mu_0)/($sdev/sqrt($n)));
+
+Context("ArbitraryString");
+
+$pm_str  = (($pm==1) ? String("") : String("-"));
+$z_alpha = String("$pm_str qnorm($alpha)");
+$beta    = (($pm==1) ? 
+          String("pnorm(($mu - $mu_0)/($sdev/sqrt($n)) - $z_alpha)") : 
+          String("pnorm($z_alpha - ($mu - $mu_0)/($sdev/sqrt($n)))"));
+$power   = String("1 - $beta");
+
+Context("Numeric");
+
+$z_x = Real(rserve_eval($z_score));
+$z_a = Real(rserve_eval($z_alpha));
+
+$reject = PopUp(["select","reject H_0","fail to reject H_0"],
+                (abs(z_x) > abs(z_a) ? "reject H_0" : 
+                                       "fail to reject H_0"));
+
+$i = random(0,1);
+
+@Q = (["\beta", "\mathrm{Power}"],
+      [PopUp(["select","reject H_0","accept H_0"],"accept H_0"),
+       PopUp(["select","reject H_0","accept H_0"],"reject H_0")],
+      [PopUp(["select","H_0 true","H_0 false"],"H_0 false"),
+       PopUp(["select","H_0 true","H_0 false"],"H_0 false")]);
+
+
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+$BITALIC
+For the problems below, you may either enter a numeric answer
+(accurate to 3 significant digits), or the R code
+which generates the answer. $BR $SPACE (Your answer will be checked by R.)
+$EITALIC
+
+
+$PAR $HR $PAR
+
+A population is sampled \($n\) times yielding sample mean
+\(\bar{x} = $mu\) and sample standard deviation \(s = $sdev\).
+A similar population has mean \(\mu_0 = $mu_0\).  You will run a
+one-tailed hypothesis
+test against 
+$BR \(\qquad \mathrm{H}_0:\ \ \mu = $mu_0\) $BR with \(\alpha = $alpha\).
+
+
+$PAR
+The \(z\)-score of sampled data is:
+$BR \(\qquad z_{\bar x} = \)  \{ $z_score->ans_rule(20) \}
+
+$PAR
+The \(\alpha\) cutoff value is:
+$BR \(\qquad z_\alpha = \)  \{ $z_alpha->ans_rule(10) \}
+$BR
+$BITALIC
+(Choose \(z_\alpha\) so that it has the same sign as \(z_{\bar x}\))
+$EITALIC
+
+$PAR
+In this case, are we rejecting the null hypothesis?
+$BR \(\qquad \text{Result:}\) \{ $reject->menu() \}
+ 
+$PAR
+In this case \(\beta\) and the power of the test are:
+$BR \(\qquad \beta = \) \{ $beta->ans_rule(40) \}
+$BR \(\qquad \mathrm{Power}  = \) \{ $power->ans_rule(40) \}
+
+$PAR
+What probability is \($Q[0][$i]\) giving?
+$BR \(\qquad $Q[0][$i] = \mathrm{P}\Bigl( \)
+\{ $Q[1][$i]->menu() \} \(\ \Bigl| \ \) 
+\{ $Q[2][$i]->menu() \} \( \Bigr) \)
+
+
+$PAR
+$HR
+$PAR
+You may use the embedded R window below to check your code and perform computations.$BR
+${BCENTER}
+$Rframe
+${ECENTER}
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my @s_ans = rserve_eval($s->value);
+  my $c_ans = Real(rserve_eval($c->value));
+  if (String($s_ans[0]) == String("NaN")) {
+    Value->Error("Error in R-code!");
+  }
+  $s_ans = Real($s_ans[0]);
+  if (abs($c_ans) > .00001) {
+    return ( (abs($c_ans - $s_ans) < .005*abs($c_ans)) ? 1 : 0);
+  } else {
+    return ( (abs($c_ans - $s_ans) < .000001) ? 1 : 0);
+  }
+};
+
+ANS($z_score->cmp(checker=>sub{
+ my ($c, $s, $ansHash) = @_; 
+ my $s_ans = Real($s->value);
+ my $c_ans = Real($c->value);
+ if ($s_ans == -$c_ans) {
+   Value->Error("Wrong sign!");
+ }
+ return ( $c_ans == $s_ans ? 1 : 0 );
+}));
+
+ANS($z_alpha->cmp(checker=>$Rchecker) );
+
+ANS( $reject->cmp() );
+
+ANS(   $beta->cmp(checker=>$Rchecker) );
+ANS(  $power->cmp(checker=>$Rchecker) );
+
+ANS($Q[1][$i]->cmp() );
+ANS($Q[2][$i]->cmp() );
+
+ENDDOCUMENT();

@@ -1,0 +1,152 @@
+## DESCRIPTION
+##  Select functions which would extend to basis in Fun{1,2,3}
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Basis and dimension)
+## Date(14/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## MO(1)
+## Static(0)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+);
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+TEXT(beginproblem());
+
+COMMENT('two work, three do not');
+
+#####################################
+#  Setup
+
+Context("Vector");
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->noreduce('(-x)-y');
+Context()->variables->are(
+ x1=>['Real',TeX=>"\chi_1"],
+ x2=>['Real',TeX=>"\chi_2"],
+ x3=>['Real',TeX=>"\chi_3"],
+ x4=>['Real',TeX=>"\chi_4"]
+);
+
+my @chi = (Formula("x1"),Formula("x2"),Formula("x3"),Formula("x4"));
+
+sub Function {
+  my @v = @_;
+  my $F = Formula("0");
+  foreach (0..$#v) { $F = $F + Formula("$v[$_] * $chi[$_]"); }
+
+  return $F->reduce;
+};
+
+$S = "\bigl\lbrace 1,2,3\bigr\rbrace";
+
+
+my @v; my @w; my @u; my $u; my @i;
+
+@i = pick(2,(0..2));
+
+foreach (0..2) { $v[$_] = random(1,3); }
+$v[$i[0]] = 0; $v[$i[1]] = -$v[$i[1]];
+$v = Vector(@v);  $v = -$v if (random(0,1)==1);
+
+foreach (0..2) { $w[$_] = random(1,3); }
+$w[$i[1]] = 0; $w[$i[0]] = -$w[$i[0]];
+$w = Vector(@w);  $w = -$w if (random(0,1)==1);
+
+my $n = $v x $w;    # perpendicular direction 
+
+my @basis = ();     # vectors which make basis 
+my @not = ();       # vectors which are in span
+
+##
+
+do { foreach (0..2) { $u[$_] = random(-3,3); } }
+until ( !(Vector(@u)->isZero()) 
+     && (Vector(@u) . $n != 0) ); 
+$u = Vector(@u);
+push(@basis,$u);
+
+do { foreach (0..2) { $u[$_] = random(-3,3); } }
+until ( !(Vector(@u)->isZero()) 
+     && (Vector(@u) . $n != 0) 
+     && !(Vector(@u)->isParallel($u))); 
+$u = Vector(@u);
+push(@basis,$u);
+
+##
+
+if (random(0,1)==1) { push(@not, $v); }
+else                { push(@not, $w); }
+
+push(@not, random(-1,1,2)*$v+random(-1,1,2)*$w); 
+
+push(@not, Vector(0,0,0));
+
+##
+
+@basis = map {"\(\displaystyle f_3=" . Function(($_)->value)->TeX . " \vphantom{\big)}\)"} @basis;
+@not   = map {"\(\displaystyle f_3=" . Function(($_)->value)->TeX . " \vphantom{\big)}\)"} @not;
+
+$v = Function($v->value)->TeX;
+$w = Function($w->value)->TeX;
+
+$choice = new_checkbox_multiple_choice();
+$choice->qa("Select all functions \(f_3\!{\small(x)}\) such that 
+            \(\lbrace f_1\!{\small(x)},f_2\!{\small(x)},f_3\!{\small(x)}\rbrace\)
+            is a basis of \(\mathrm{Fun}(S)\).",
+            @basis);                # correct answers
+$choice->extra(@not);               # incorrect answers
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Let \(S=$S\) and  
+\(f_1,f_2\in\mathrm{Fun}(S)\) be given by 
+\[\begin{align} 
+  f_1 &= $v \\
+  f_2 &= $w
+\end{align}\]
+
+$PAR
+\{ $choice->print_q() \}
+$BR
+\{ $choice->print_a() \}
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 0;
+
+ANS( checkbox_cmp( $choice->correct_ans() ) );
+
+
+ENDDOCUMENT(); 

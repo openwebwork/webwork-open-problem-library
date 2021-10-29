@@ -1,0 +1,362 @@
+## BEGIN_DESCRIPTION
+##  R programming tutorial built in webwork
+##    2. Data frame manipulations 
+## END_DESCRIPTION
+
+##############################################
+## DBsubject()
+## DBchapter()
+## DBsection()
+## Level(2)
+## Author(Benjamin Walter)
+## Institution(METU-NCC)
+## Language(en)
+## Keywords('R','programming') 
+## MO(1)
+## Static(0)
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",       # Standard macros for PG language
+   "PGcourse.pl",
+   "PGchoicemacros.pl",   # Needed for randomization method
+   "MathObjects.pl",
+   "RserveClient.pl",
+   "contextArbitraryString.pl",
+   "niceTables.pl",
+   "scaffold.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Page 2 of R programming tutorial written in webwork');
+
+########################
+# Embedded R-frame for student computations
+#
+$code = "Name%20%3C-%20c(%22Benjamin%22%2C%22Annabet%22%2C%22Charlie%22%2C%22Daddy%22)%0AAge%20%3C-%20c(15%2C11%2C7%2C41)%0AGender%20%3C-%20factor(c(%22M%22%2C%22F%22%2C%22M%22%2C%22M%22))%0AFamily%20%3C-%20data.frame(Name%2CAge%2CGender%2CstringsAsFactors%20%3D%20FALSE)%0Ashow(Family)%0A%0AwriteLines(%22%5Cn---%20Add%20Mama%20---%22)%0AFamily%20%3C-%20rbind(Family%2Clist(%22Mama%22%2C41%2C%22F%22))%0Ashow(Family)%0A%0AwriteLines(%22%5Cn---%20Order%20by%20Name%20---%22)%0AFamily%5Border(Family%24Name)%2C%5D%0A%0AwriteLines(%22%5Cn---%20Order%20by%20Age%20(Decr)%20then%20Name%20---%22)%0AFamily%5Border(-Family%24Age%2CFamily%24Name)%2C%5D%0A%0AwriteLines(%22%5Cn---%20Only%20big%20kids%20---%22)%0AFamily%5B10%20%3C%20Family%24Age%20%26%20Family%24Age%20%3C%2020%2C%5D%0A%0AwriteLines(%22%5Cn---%20Only%20the%20names%20and%20ages%20of%20girls%20---%22)%0AFamily%5BFamily%24Gender%3D%3D%22F%22%2Cc(%22Name%22%2C%22Age%22)%5D%0A%0AwriteLines(%22%5Cn---%20Correct%20Mama%27s%20age%20---%22)%0AFamily%5BFamily%24Name%3D%3D%22Mama%22%2C%22Age%22%5D%20%3D%2040%0Ashow(Family)";
+#
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='600' src='https://rdrr.io/snippets/embed/?code=$code' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+#
+########################
+
+################################################
+#  Settings for displaying R code
+################################################
+#
+# BCODE ECODE macro from Robin Cruz webwork moodle post
+$BCODE = MODES(
+	HTML=>'<code style="font-family: Courier; font-size:larger; background:transparent; border:0; padding:0; word-wrap:break-word; white-space: pre-wrap; white-space: -moz-pre-wrap; white-space: -pre-wrap; white-space: -o-pre-wrap; display: inline; ">',
+	TeX=>'\verb'.chr(0x85)
+);
+$ECODE = MODES(HTML=>'</code>',TeX=>chr(0x85));
+
+$Req = "<-";
+@Rbox_code = (
+   align     => '>{\ttfamily}p{500px}',
+   midrules  => 0,
+   center    => 0,
+   tablecss  => 'background-color:silver;border-radius:5px;padding:20px;margin-left:20px;margin-top:0px;',
+   allcellcss=> 'font-family:Lucida Console,Monaco, monospace;padding-left:10px;',
+);
+@Rbox_out = (
+   align     => '>{\ttfamily}p{500px}',
+   midrules  => 0,
+   center    => 0,
+   tablecss  => 'background-color:#FCFFF5;box-shadow:0 0 0 1px #A3C293 inset, 0 0 0 0 transparent;border:1px solid #e1e1e8;border-radius:5px;padding:20px;margin-left:20px;',
+   allcellcss=> 'font-family:Lucida Console,Monaco, monospace;padding-left:10px;',
+);
+@Note = (
+   align     => 'rX',
+   midrules  => 0,
+   center    => 0,
+   tablecss  => 'background-color:#00FFFF;box-shadow:0 0 0 1px #0000A0 inset, 0 0 0 0 transparent;border:2px solid #0000A0;border-radius:10px;margin-left:20px;width:70%;',
+   allcellcss=> 'padding:2px;padding-top:0px;padding-bottom:0px;vertical-align:top;',
+);
+
+
+##############################
+# Rchecker uses R to check answers
+#
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  } 
+  my $comp = String($ansHash->{comp});
+  my $precode = $ansHash->{precode} // "";
+  $precode = String($precode);
+  rserve_eval($precode);
+  rserve_eval($s->value);
+  rserve_eval("student <- $comp");
+  rserve_eval($precode);
+  rserve_eval($c->value);
+  rserve_eval("correct <- $comp");
+  return ( rserve_eval("identical(student,correct)") );
+};
+##########################
+
+
+
+################################################
+#  Setup 
+#    to get data from R:    Real(rserve_eval(" <R-command> "));
+#    comparison strings:    String(" <R-command> ")
+################################################
+Context("Numeric");
+
+@Names = (["Ali", "Aysu"],     # Male, Female A-Names
+          ["Bora","Burcu"],    # Male, Female B-Names
+	  ["Can", "Ceren"],    # Male, Female C-Names
+	  ["Deniz","Derya"]);  # 2x Gender Neutral Names
+@order  = shuffle(3);          # Pick order of A,B,C
+
+@Sex = ("M","F");              # Pick gender 
+do {
+ @choice = (random(0,1),random(0,1),random(0,1));
+} until ( $choice[0]+$choice[1]+$choice[2] % 3 != 0 );
+
+@Name = ($Names[$order[0]][$choice[0]],
+         $Names[$order[1]][$choice[1]],
+	 $Names[3][random(0,1)]);
+@Gen = ($Sex[$choice[0]],$Sex[$choice[1]],$Sex[$choice[2]]);
+
+@Age = shuffle(9);             # Pick random unique ages 16--25
+  $Age[0]=$Age[0]+16;
+  $Age[1]=$Age[1]+16;
+  $Age[2]=$Age[2]+16;
+
+$named = (random(0,1)==1 ? "row.names=" : ""); 
+
+
+Context("ArbitraryString");
+
+################################################
+# Correct Answers for Code Boxes
+################################################
+
+$code_A = String(
+" Name <- c('$Name[0]','$Name[1]')
+ Age <- c($Age[0], $Age[1])
+ Gender <- factor(c('$Gen[0]','$Gen[1]'))
+ Friends <- data.frame($named Name, Age, Gender,
+             stringsAsFactors=FALSE)"
+);
+
+if ($named eq "") {
+  $out_A = DataTable([
+    [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+    [['1'],['$Name[0]'],['$Age[0]'], ['$Gen[0]'],['']],
+    [['2'],['$Name[1]'],['$Age[1]'], ['$Gen[1]'],['']],
+   ],@Rbox_out,align=>'clrrp{270px}');
+  $out_B = DataTable([
+    [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+    [['1'],['$Name[0]'],['$Age[0]'], ['$Gen[0]'],['']],
+    [['2'],['$Name[1]'],['$Age[1]'], ['$Gen[1]'],['']],
+    [['3'],['$Name[2]'],['$Age[2]'], ['$Gen[2]'],['']],
+   ],@Rbox_out,align=>'clrrp{270px}');
+
+  $code_B = String(
+    "Friends <- rbind(Friends, list('$Name[2]',$Age[2],'$Gen[2]'))" 
+  );
+
+} else {
+  $out_A = DataTable([
+    [[''] ,['Age'],['Gender'],  ['']],
+    [['$Name[0]'],['$Age[0]'],['$Gen[0]'],['']],
+    [['$Name[1]'],['$Age[1]'],['$Gen[1]'],['']],
+   ],@Rbox_out,align=>'lrrp{300px}');
+  $out_B = DataTable([
+    [[''] ,['Age'],['Gender'],  ['']],
+    [['$Name[0]'],['$Age[0]'],['$Gen[0]'],['']],
+    [['$Name[1]'],['$Age[1]'],['$Gen[1]'],['']],
+    [['$Name[2]'],['$Age[2]'],['$Gen[2]'],['']],
+   ],@Rbox_out,align=>'lrrp{300px}');
+
+
+  $code_B = String(
+    "Friends <- rbind(Friends, $Name[2]=list($Age[2],'$Gen[2]'))" 
+  );
+}
+
+
+
+
+#############################################
+#  Problem Text
+################################################
+Context()->texStrings;
+BEGIN_TEXT
+$BBOLD Data Frame Manipulations $EBOLD
+
+$PAR
+(Click the sections below to open/close them.)
+
+END_TEXT
+Scaffold::Begin(can_open=>"always",is_open=>"first_incorrect");
+###############################################
+Section::Begin("$BBOLD (A)  Factors and Names in Data Frames$EBOLD");
+BEGIN_TEXT
+
+Suppose I want to make a data frame about my family.  I could use the commands
+\{ DataTable([
+ ['Name $SPACE <- c("Benjamin", "Annabet", "Charlie")'],
+ ['Age $SPACE $SPACE<- c(15, 11, 7)'],
+ ['Gender <- c("M", "F", "M")'],
+ ['Family <- data.frame(Name, Age, Gender)']
+],@Rbox_code); \}
+$BR
+There is a problem with this code.  When R makes a data frame,
+it converts any non-numeric fields to $BITALIC factors$EITALIC.  
+$BITALIC Factors$EITALIC are markers which separate data into subgroups.
+In the $BCODE Family $ECODE data frame, $BCODE Gender $ECODE should be a factor, 
+but $BCODE Name$ECODE should not.
+$PAR
+There are two ways to fix this.  
+
+$BR
+$BBOLD Method 1. $EBOLD
+Set $BCODE Gender $ECODE
+to be a factor and then tell R not to make more factors when creating the data frame.
+\{ DataTable([
+ ['Gender <- factor(c("M", "F", "M"))'],
+ ['Family <- data.frame(Name, Age, Gender, stringsAsFactors=FALSE)']
+],@Rbox_code); \}
+In this case $BCODE Family $ECODE will be as follows: 
+\{ DataTable([
+ [[''] ,['Name'] ,['Age'],['Gender'],   ['']],
+ [['1'],['Benjamin'] ,['15'], ['M'],['']],
+ [['2'],['Annabet'],['11'], ['F'],['']],
+ [['3'],['Charlie'],['7'], ['M'],['']],
+],@Rbox_out,align=>'clrrp{240px}'); \}
+$BR
+$BBOLD Method 2. $EBOLD
+Store $BCODE Name $ECODE as row names rather than as table data 
+\{ DataTable([
+ ['Family_named <- data.frame(row.names=Name, Age, Gender)']
+],@Rbox_code); \}
+In this case $BCODE Family_named $ECODE will be as follows
+(with row $BITALIC names $EITALIC instead of row $BITALIC numbers$EITALIC):
+\{ DataTable([
+ [[''] ,['Age'],['Gender'],   ['']],
+ [['Benjamin'] ,['15'], ['M'],['']],
+ [['Annabet'],['11'], ['F'],['']],
+ [['Charlie'],['7'], ['M'],['']],
+],@Rbox_out,align=>'lrrp{270px}'); \}
+$BR
+
+$PAR 
+$HR
+$PAR
+
+$BBOLD EXERCISE $EBOLD$BR
+In the box below, type commands to store the following data frame as 
+$BCODE Friends$ECODE, where the only factor is $BCODE Gender$ECODE.
+\{ $out_A \}
+$BR
+\(\quad\) \{ ans_box(5,57)    #  check value of  Friends 
+\}
+
+
+END_TEXT
+
+ANS($code_A->cmp(checker=>$Rchecker,comp=>"Friends"));
+
+Section::End();
+###############################################
+Section::Begin("$BBOLD (B)  Adding Rows to Data Frames$EBOLD");
+BEGIN_TEXT
+In part (A) we created two family data frames.
+\{ 
+DataTable([
+ [['Family',colspan=>5],[''],['Family_named',colspan=>3,cellcss=>'text-align:center;'],['']],
+ [[''] ,['Name'] ,['Age'],['Gender'],[''],[''],[''] ,['Age'],['Gender'],   ['']],
+ [['1'],['Benjamin'] ,['15'], ['M'],[''],[''],['Benjamin'] ,['15'], ['M'],['']],
+ [['2'],['Annabet'],['11'], ['F'],[''],[''],['Annabet'],['11'], ['F'],['']],
+ [['3'],['Charlie'],['7'], ['M'],[''],[''],['Charlie'],['7'], ['M'],['']],
+],@Rbox_out,align=>'clrrp{30px}|p{10px}lrrp{30px}'); 
+\}
+$PAR
+Add new rows to data frames using
+$BCODE rbind(..)$ECODE -- $BITALIC"row bind"$EITALIC.
+$BR
+For example to add parents to the family frame from above, I could use
+\{ DataTable([
+ ['Family <- rbind(Family, list("Daddy", 41, "M"))'],
+ ['Family <- rbind(Family, list("Mama", 41, "F"))'],
+],@Rbox_code); \}
+$BR
+For the $BCODE _named $ECODE version, "${BCODE}Daddy${ECODE}" and "${BCODE}Mama${ECODE}"
+are $BITALIC names$EITALIC for the new rows rather than $BITALIC data$EITALIC.
+\{ DataTable([
+ ['Family_named <- rbind(Family_named, Daddy=list(41, "M"))'],
+ ['Family_named <- rbind(Family_named, Mama=list(41, "F"))'],
+],@Rbox_code); \}
+$BR
+The $BCODE list(..) $ECODE command used above is like $BCODE c(..) $ECODE
+except that it can combine things of different types $BR (rather than just numbers
+with numbers, or just words with words).
+
+$BR
+\{ DataTable([[
+ ['$BBOLD Note: $EBOLD'],
+ ['  If $BCODE Name $ECODE is a factor then this $BCODE rbind(..) $ECODE
+will give an error.']]],
+ @Note);
+\}
+
+
+$PAR 
+$HR
+$PAR
+
+$BBOLD EXERCISE $EBOLD$BR
+In part (A) you created the following $BCODE Friends $ECODE data frame:
+\{ $out_A \}
+$PAR
+In the box below, type a command to add the following new friend to 
+your $BCODE Friends $ECODE data frame
+$BR
+\(\quad\) $BCODE $Name[2] $ECODE 
+\(\quad\) $BCODE $Age[2] $ECODE 
+\(\quad\) $BCODE $Gen[2] $ECODE 
+
+$PAR
+\(\quad\) \{ ans_box(2,57)    # check value of Friends 
+\}
+
+
+
+END_TEXT
+
+ANS($code_B->cmp(checker=>$Rchecker,comp=>"Friends",precode=>$code_A));
+
+Section::End();
+#############################################
+Section::Begin("$BBOLD Embedded R Window $EBOLD",is_open=>"never");
+BEGIN_TEXT
+
+
+The embedded R window below contains some sample code related to this problem.
+$BR
+You can delete the sample code and type your own code to do computations or check 
+your code for errors.$BR
+${BCENTER} $Rframe ${ECENTER}
+
+END_TEXT
+Section::End();
+Scaffold::End();
+
+Context()->normalStrings;
+
+
+
+ENDDOCUMENT();

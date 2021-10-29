@@ -1,0 +1,155 @@
+## DESCRIPTION
+##  Build matrix given eigenvalues and eigenvectors 
+##  2x2 matrix 
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Diagonalization)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(1)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",  # used by listBasis checker
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('2x2 matrix, random distinct nonzero eigenvalues between -4 and 4.');
+
+###################
+#
+# my copy of shuffle
+#
+sub shuffle {
+  my $n = shift;
+  my @ar = 0..($n-1);
+  my @sh = ();
+  while (@sh<$n) {
+    push( @sh, splice(@ar, random(0,$#ar), 1) );
+  }
+  @sh;
+}
+
+
+Context("Matrix");
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+my @var = (
+  Formula("x"), 
+  Formula("y"), 
+  Formula("z") 
+);
+
+
+
+$n = 2;  
+
+#
+# Build det=1 matrix of eigenvectors
+#
+my $V;
+{my @L;  my @U;
+ my @p = shuffle($n);  my @q = shuffle($n);
+ foreach my $i (0..($n-1)) {
+   foreach my $j (0..($n-1)) {
+     $L[$p[$i]][$j] = ($i==$j) ? 1 : 
+                       ($i<$j) ? 0 : non_zero_random(-2,2);  
+     $U[$i][$q[$j]] = ($i==$j) ? non_zero_random(-1,1) : 
+                       ($i>$j) ? 0 : non_zero_random(-2,2); 
+   }
+ }
+ $V = Matrix(@L)*Matrix(@U);
+}
+
+#
+#  Select unique eigenvalues
+#
+my @l = (); 
+{my @ar = (-4..-1,1..4);
+ foreach (0..($n-1)) {
+   push ( @l, splice(@ar, random(0,$#ar), 1) );
+}}
+
+#
+#  Make transform using diagonal form
+#
+{my @D;
+ foreach my $i (0..($n-1)) { 
+   foreach my $j (0..($n-1)) { 
+     $D[$i][$j] = ($i==$j) ? $l[$i] : 0;
+   }
+ }
+ my $M = $V * Matrix(@D) * $V->inverse;    # Matrix of transform
+
+ my @Tout = ();                            # Formula of transform
+ foreach my $i (0..($n-1)) {
+   $Tout[$i] = $M->element($i+1,1)*Formula("$var[0]"); 
+   foreach my $j (1..($n-1)) {
+     $Tout[$i] = $Tout[$i] + $M->element($i+1,$j+1)*Formula("$var[$j]");
+   }
+   $Tout[$i] = $Tout[$i]->reduce;
+ }
+ $Tout = List(@Tout);
+}
+
+
+#
+# prepare eigenvalue and eigenvector strings
+#
+Context()->texStrings;
+foreach my $i (1..$n) {
+  $evals = (defined($evals)) ? $evals . ",\ \lambda_{$i} = $l[$i-1]" : 
+                               "\lambda_1= $l[0]"; 
+
+  my $v = Vector($V->column($i));
+  $evects = (defined($evects)) ? $evects . ",\ \mathbf{v}_{$i} = $v" :
+                               "\mathbf{v}_{1} = $v"; 
+
+  $in = (defined($in)) ? $in . ",$var[$i-1]" : "$var[0]";
+}
+
+#####################################
+#  Main text
+BEGIN_TEXT
+\($Test\)$PAR
+
+Let \(T:\mathbb{R}^$n \to \mathbb{R}^$n\) be the
+linear transformation with eigenvalues \($evals\)
+and corresponding eigenvectors \($evects\).
+$PAR
+Then \(T($in) = \Bigl(\)\{$Tout->ans_rule(15)\}\(\Bigr)\)
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+
+ANS( $Tout->cmp(ordered=>1) );
+
+
+
+
+ENDDOCUMENT(); 

@@ -1,0 +1,154 @@
+## DESCRIPTION
+##  Choose vectors belonging to span in Fun
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Span)
+## Date(01/09/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",
+"MathObjects.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Options include: 1/2 of basis vector, linear combination of basis vectors, and 0.$BR One option is randomly in our out so that number of correct answers is not always the same.');
+
+#####################################
+#  Setup
+
+Context("Vector");
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  return @out;
+}
+
+sub Function {
+  my ($f,@v) = @_;
+  my $out = "$f (1) = $v[0]";
+  foreach (2..($#v+1))  {
+    $out = $out . "," . (($v[$_-2]>=0) ? "\phantom{-}\ " : "\ ") . 
+                  "$f ($_) = " . $v[$_-1];
+  }
+
+  return $out;
+}
+
+#######################
+
+$n=3;   # we use cross prod, so dimension should be 3
+
+$S = "1"; foreach (2..$n) { $S = $S . ",$_"; }
+
+{
+my @v1 = pick(3,((1)x($n-1), 2)); my @v2 = pick(3,((2)x($n-1), 1));
+foreach (0..($n-1)) {   
+  $v1[$_]=random(-1,1,2)*$v1[$_];
+  $v2[$_]=random(-1,1,2)*$v2[$_];
+}
+$v1 = Vector(@v1);  $v2 = Vector(@v2);  
+}
+
+my $normal = $v1 x $v2;
+
+
+my @in = ();              # vectors in span
+my @out = ();            # vectors which are not in span
+
+if (random(0,1)==1) { 
+  $in[0] = $v1;  
+  $in[1] = non_zero_random(-1,1)*$v1 + non_zero_random(-2,2)*$v2; 
+  do { $other = non_zero_random(-1,1)*$v1 + non_zero_random(-2,2)*$v2; }
+  until (! $other->isParallel($in[1]) );
+  $v1 = 2*$v1;
+} else {     
+  $in[0] = $v2; 
+  $in[1] = non_zero_random(-1,1)*$v2 + non_zero_random(-2,2)*$v1; 
+  do { $other = non_zero_random(-1,1)*$v2 + non_zero_random(-2,2)*$v1; }
+  until (! $other->isParallel($in[1]) );
+  $v2 = 2*$v2; 
+}
+
+push (@in, Vector((0)x($n)));   # zero vector
+
+{
+my @w = pick($n,$in[1]->value); 
+do { $w[random(0,$n-1)] = non_zero_random(-4,4); }
+while (Vector(@w) . $normal == 0);
+
+push (@out, Vector(@w));
+}
+
+if (random(0,1)==1) {
+  push (@in, $other);
+} else {
+  my @w = pick($n,$in[1]->value); 
+  do { $w[random(0,$n-1)] = non_zero_random(-4,4); }
+  while ((Vector(@w) . $normal == 0) || Vector(@w)->isParallel($out[0]));
+
+  push (@out, Vector(@w));
+}
+
+$v1 = Function("f",$v1->value);  $v2 = Function("g",$v2->value);
+
+foreach (0..$#in) 
+  { $in[$_]  = "\(\ \ " . Function("h",$in[$_]->value)  . " \)"; }
+foreach (0..$#out)
+  { $out[$_] = "\(\ \ " . Function("h",$out[$_]->value) . " \)"; }
+
+$choice = new_checkbox_multiple_choice();
+$choice->qa(
+  "Choose all vectors that belong to 
+     \(\mathrm{Span}\bigl\lbrace f,\, g\bigr \rbrace\).",
+  @in); # correct answers
+
+$choice->extra(@out);   # incorrect answers
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Let \(S=\lbrace $S \rbrace\) and \(f,g\in\mathrm{Fun}(S)\) be given by
+\[$v1\] \[$v2\]
+
+\{ $choice->print_q() \}
+$BR
+\{ $choice->print_a() \}
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 0;
+
+ANS( checkbox_cmp( $choice->correct_ans() ) );
+
+ENDDOCUMENT(); 

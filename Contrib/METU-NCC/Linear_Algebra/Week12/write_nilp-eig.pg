@@ -1,0 +1,158 @@
+## DESCRIPTION
+##  Asks students to make a nilpotent transformation with given property
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Diagonalization)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## MO(1)
+## Static(0)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('Dimension 3.  Independent eigenvectors are chosen randomly.');
+
+###################
+#
+# my copy of shuffle
+#
+sub shuffle {
+  my $n = shift;
+  my @ar = 0..($n-1);
+  my @sh = ();
+  while (@sh<$n) {
+    push( @sh, splice(@ar, random(0,$#ar), 1) );
+  }
+  @sh;
+}
+
+
+Context('Matrix');
+Context()->variables->are(
+ x=>['Real',TeX=>"x"],  # Variables
+ y=>['Real',TeX=>"y"],  #  for system of equations
+ z=>['Real',TeX=>"z"],
+);
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+
+($n,$m) = (3,3);       # I'm borrowing code from dimension independent probs..
+@var = ("x","y","z");  #  order of unknowns
+
+$vars = "$var[0]";  foreach my $i (1..$m-1) {$vars = $vars . ",$var[$i]";}
+
+
+#######
+#
+# Generate problem
+#
+my @v; my @w; my @e;  # v and w eigenvectors, e independent std basis vector
+my @p = shuffle($n);
+do {
+  foreach my $j (0..$n-1) {
+    $v[$p[$j]] = ($j==0) ? random(-1,1,2) : non_zero_random(-3,3); 
+    $w[$p[$j]] = ($j==0) ? 0 : ($j==1) ? random(-1,1,2) : non_zero_random(-3,3);
+    $e[$p[$j]] = ($j==2) ? 1 : 0;
+  }
+} until ( !(Vector($v[$p[1]],$v[$p[2]])->isParallel(Vector($w[$p[1]],$w[$p[2]]))) ); 
+
+if (random(0,1) == 0) {
+ $v = Vector(@v);
+ $w = Vector(@w);
+} else {
+ $w = Vector(@v);
+ $v = Vector(@w);
+}
+$e = Vector(@e);
+
+#######
+#
+# Generate answer
+#
+my $V = Matrix([[@e],[@v],[@w]])->transpose;
+my $T = $V*Matrix([[0,0,0],[1,0,0],[0,0,0]])*$V->inverse;
+my @Tout;
+foreach my $i (0..$n-1) {
+  my $out = Formula("0");
+  foreach my $j (0..$m-1) {
+    $out = $out + $T->element($i+1,$j+1)*Formula("$var[$j]");
+  }
+  $Tout[$i] = $out->reduce;
+}
+$Tout = List(@Tout);
+
+
+############ 
+#
+# Answer checker for $Tout
+#
+$Tchecker = sub {
+  my ($c,$s,$ansHash,$value) = @_;
+
+  my ($nc,$ns) = (scalar(@$c),scalar(@$s));
+  Value->Error("Wrong length") if ($nc != $ns);
+
+  my @S; my @c; 
+
+  foreach my $i (0..$n-1) {
+    foreach my $j (0..$m-1) {
+      $S[$i][$j] = Formula($s->[$i])->D("$var[$j]");
+      Value->Error("Not linear") if !($S[$i][$j]->isConstant);
+      $S[$i][$j] = $S[$i][$j]->eval(x=>0,y=>0,z=>0);
+    }
+  }
+
+  my $S = Matrix(@S);
+
+  Value->Error("Enter a nonzero transformation") if ($S->isZero);
+  Value->Error("First vector not eigenvector") if !(($S*$v)->isZero);
+  Value->Error("Second vector not eigenvector") if !(($S*$w)->isZero);
+
+  my $M = Matrix([$v,$w,Vector($S*$e)]);
+
+  Value->Error("Not nilpotent") if ($M->det != 0);
+
+  return $nc;  
+};
+
+
+Context()->texStrings;
+##################################################
+#
+#  Problem Text
+#
+BEGIN_TEXT
+
+Construct a nonzero nilpotent linear transformation \(T:\mathbb{R}^3\to \mathbb{R}^3\)
+such that \($v\) and \($w\) are eigenvectors for \(T\).
+
+$PAR
+\(\quad T($vars) = \Bigl(\)\{$Tout->ans_rule(30);\}\(\Bigr)\)
+
+
+END_TEXT
+
+###################################################
+#
+#  Check solutions
+#
+Context()->normalStrings;
+
+
+ANS( $Tout->cmp(list_checker=>$Tchecker) );
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

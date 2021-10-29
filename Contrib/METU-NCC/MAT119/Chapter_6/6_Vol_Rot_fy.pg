@@ -1,0 +1,187 @@
+## BEGIN_DESCRIPTION
+##  Area of volume of rotation 
+##  Combined disks and shells 
+##    x=f(y) version
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Calculus - single variable)
+## DBchapter(Applications of integration)
+## DBsection(Volumes by multiple methods)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## Language(en)
+## MO(1)
+## Static(0)
+###############################################
+
+
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserPopUp.pl",
+"PGunion.pl"
+);
+
+TEXT(beginproblem());
+
+COMMENT('x=f(y) version$BR DISK and SHELL order is randomized');
+
+Context("Numeric");
+Context()->variables->are(x=>'Real',y=>'Real');
+Context()->noreduce('(-x)-y');
+Context()->functions->disable("abs","sqrt");
+Context()->parens->remove("|");
+Context()->{error}{convert} = sub {
+ my $message = shift;
+ $message =~ s/Unexpected character '~~|'/Absolute value is not allowed/;
+ return $message;
+};
+
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out; 
+}
+
+
+$i = random(0,1);    
+$j = ($i+1)%2;           # this problem will be the OTHER type
+
+my @type = (PopUp(["?","𝜋","2𝜋"],"𝜋"),PopUp(["?","𝜋","2𝜋"],"2𝜋"));
+my $dwhat = PopUp(["?","dx","dy"],"dy");
+my @var = ("y","x");
+
+my $a; my $b; my $n; my @c;
+
+#do {@l = PGsort(sub{$_[0] < $_[1]},pick(2,(-4..-1,1..4)));} 
+do {@l = (random(-4,-1),random(1,4));} # sign check is easy if 0 in interval
+until ($l[1]!=-$l[0]);
+
+do {
+  $a = sgn($l[0]+$l[1])*random(1,max(abs($l[0]+$l[1])-2,5));
+  $b = sgn($l[0]*$l[1])*random(1,max(abs($l[0]*$l[1])-3,5));
+} until (($a != $l[0]+$l[1]) && ($b != $l[0]*$l[1]));
+
+if (random(0,1)==0) {   # line above quadratic 
+  @f = (Formula("x^2 - ($l[0]+$l[1]-$a) x + ($l[0]*$l[1]-$b)")->reduce,
+        Formula("$a x - $b")->reduce);
+  my $fmin = $f[0]->eval(x=>($l[0]+$l[1]-$a)/2);
+  my $fmax = max($f[0]->eval(x=>$l[0]),$f[0]->eval(x=>$l[1]));
+
+  if (random(0,1)==0) {  # rotate around line below
+    @c = (floor($fmin)-random(1,3),$l[0]-random(1,3));
+    @area = (Formula("($f[1]-$c[0])^2 - ($f[0]-$c[0])^2")->reduce,
+             Formula("(x-$c[1])*($f[1]-$f[0])")->reduce);
+  } else {               # rotate around line above
+    @c = (ceil($fmax)+random(1,3), $l[1]+random(1,3));
+    @area = (Formula("($c[0]-$f[0])^2 - ($c[0]-$f[1])^2")->reduce,
+             Formula("($c[1]-x)*($f[1]-$f[0])")->reduce);
+  }
+
+  @f = @f[pick(2,(0,1))];
+} else {                # quadratic above line
+  @f = (Formula("($l[0]+$l[1]-$a) x - ($l[0]*$l[1]-$b) - x^2")->reduce,
+        Formula("$b - $a x")->reduce);
+  my $fmax = $f[0]->eval(x=>($l[0]+$l[1]-$a)/2);
+  my $fmin = min($f[0]->eval(x=>$l[0]),$f[0]->eval(x=>$l[1]));
+
+  if (random(0,1)==0) {  # rotate around line below
+    @c = (floor($fmin)-random(1,3),$l[0]-random(1,3));
+    @area = (Formula("($f[0]-$c[0])^2 - ($f[1]-$c[0])^2")->reduce,
+             Formula("(x-$c[1])*($f[0]-$f[1])")->reduce);
+  } else {               # rotate around line above
+    @c = (ceil($fmax)+random(1,3), $l[1]+random(1,3));
+    @area = (Formula("($c[0]-$f[1])^2 - ($c[0]-$f[0])^2")->reduce,
+             Formula("($c[1]-x)*($f[0]-$f[1])")->reduce);
+  }
+
+  @f = @f[pick(2,(0,1))];
+}
+
+$rotation[0] = ($c[$i]==0) ? ("\(y\)-axis","\(x\)-axis")[$i] 
+                           : "line \($var[$j] = $c[$i]\)";
+$rotation[1] = ($c[$j]==0) ? ("\(y\)-axis","\(x\)-axis")[$j] 
+                           : "line \($var[$i] = $c[$j]\)";
+
+
+foreach (0..1) {
+  $f[$_]    =    $f[$_]->substitute(x=>"y",y=>"x");
+  $area[$_] = $area[$_]->substitute(x=>"y",y=>"x");
+}
+
+Context()->texStrings;
+
+if ($displayMode eq 'TeX') {
+   $int[0] = $type[$i]->menu().'\(\displaystyle \int^{'.ans_rule(1).'}_{'.ans_rule(1).'}'.
+              '\quad '.ans_rule(20).'\ \ \).$dwhat->menu()';
+
+   $int[1] = $type[$j]->menu().'\(\displaystyle \int^{'.ans_rule(1).'}_{'.ans_rule(1).'}'.
+              '\quad '.ans_rule(20).'\ \ \).$dwhat->menu()';
+  } else {
+   $int[0] =
+   BeginTable(center=>0).
+     Row([
+       $type[$i]->menu(),
+       '\(\displaystyle\int\)',
+       ans_rule(1).$BR.$BR.ans_rule(1),
+       '\(\quad \)'.ans_rule(30).'\(\ \ \)'.
+       $dwhat->menu()],separation=>2).
+   EndTable();
+
+   $int[1] =
+   BeginTable(center=>0).
+     Row([
+       $type[$i]->menu(),
+       '\(\displaystyle\int\)',
+       ans_rule(1).$BR.$BR.ans_rule(1),
+       '\(\quad \)'.ans_rule(30).'\(\ \ \)'.
+       $dwhat->menu()],separation=>2).
+   EndTable();
+}
+
+BEGIN_TEXT
+
+Give integrals which compute the volumes of the following solids of rotation.
+(Use of absolute values is ${BBOLD}not${EBOLD} allowed!)
+$PAR
+
+
+Region enclosed by \(x = $f[0]\) and \(x = $f[1]\) 
+$PAR
+\(\quad \bullet\ \) rotated around the $rotation[0].
+$BR
+$int[0]
+$PAR
+\(\quad \bullet\ \) rotated around the $rotation[1].
+$BR
+$int[1]
+
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+
+ANS( $type[$i]->cmp()   );
+ANS( Real($l[1])->cmp() );
+ANS( Real($l[0])->cmp() );
+ANS( $area[$i]->cmp() );
+ANS( $dwhat->cmp() );
+
+
+ANS( $type[$j]->cmp()   );
+ANS( Real($l[1])->cmp() );
+ANS( Real($l[0])->cmp() );
+ANS( $area[$j]->cmp() );
+ANS( $dwhat->cmp() );
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

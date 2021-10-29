@@ -1,0 +1,126 @@
+## DESCRIPTION
+##  Find matrix for skew projection
+##   Code is dimension indepenedent (change dim variable for other sizes)
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Matrix factorizations)
+## DBsection(Diagonalization)
+## Date(31/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(4)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",  # needed for shuffle
+"MathObjects.pl",
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Random 4x4 skew projection.');
+
+Context("Matrix");
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',s=>'Real',t=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+
+$n = 4;    # dimension
+
+
+my @var = (
+  Formula("x"),
+  Formula("y"),
+  Formula("z"),
+  Formula("t"),
+  Formula("s")
+);
+
+my @v; my @c; my $dot;
+do {
+  $dot = 0;
+  foreach my $i (0..($n-1)) {
+    $v[$i] = ($i%2==0) ? non_zero_random(-2,2) : random(-2,2);
+    $c[$i] = non_zero_random(-3,3);
+    $dot += $v[$i]*$c[$i];
+  }
+} until (abs($dot) == 1);
+
+my @sh = shuffle($n);
+@v = @v[@sh];  @c = @c[@sh];
+
+my @M;
+foreach my $i (0..($n-1)) {    # set up the off-diagonal terms
+  foreach my $j (0..($n-1)) {
+    $M[$i][$j] = ($i==$j) ? 0 : -$v[$i]*$c[$j];
+  }
+}
+foreach my $i (0..($n-1)) {    # now do diagonal terms
+  foreach my $j (0..($n-1)) {
+    $M[$i][$i] += ($i==$j) ? 0 : $v[$j]*$c[$j];
+  }
+}
+
+$M = Matrix(@M);
+if ($dot < 0) {
+  $M = -$M;
+} 
+
+$plane = Formula(0);
+foreach my $i (0..($n-1)) {
+  $plane = $plane + Formula("$c[$i]*$var[$i]"); 
+}
+$plane = $plane->reduce;
+
+$v = Vector(@v);
+
+$in = List(@var[0..($n-1)]);
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Let \(P:\mathbb{R}^$n \to \mathbb{R}^$n\) be the skew-projection
+onto the hyperplane 
+\[ W = \lbrace ($in)\;\big|\;$plane = 0 \rbrace\]
+parallel to the vector \($v\).
+$PAR
+Find the matrix \(\mathrm{M}_E^E(P)\) of the projection \(P\)
+relative to the standard basis of \(\mathbb{R}^$n\).
+$PAR
+\(\quad \mathrm{M}_E^E(P) = \) \{ $M->ans_array(2); \}
+
+
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+
+ANS( $M->cmp() );
+
+
+
+COMMENT('');
+
+ENDDOCUMENT(); 

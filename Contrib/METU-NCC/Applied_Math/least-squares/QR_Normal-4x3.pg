@@ -1,0 +1,226 @@
+##DESCRIPTION
+##ENDDESCRIPTION
+## DBsubject(Linear algebra)
+## DBchapter(Matrices)
+## DBsection(Matrix algebra)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(3)
+## KEYWORDS('algebra')
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"PGcourse.pl",
+"PGbasicmacros.pl",
+"PGchoicemacros.pl",
+"parserVectorUtils.pl",
+"parserPopUp.pl",
+);
+
+TEXT(beginproblem());
+
+$showPartialCorrectAnswers = 0;
+$showPartialCredit = 0;
+
+Context('Matrix');
+
+#
+# scaled orthogonal matrix will chosen from eight 
+# families of orthogonal matrices
+#
+my @q = (
+  [[1,-1,-1,-2],
+   [1, 1,-2, 1],
+   [1, 2, 1,-1],
+   [2,-1, 1, 1]],
+  [[1, 1,-7, 0],
+   [1, 3, 3, 0],
+   [2,-1, 1,-1],
+   [2,-1, 1, 1]],
+  [[1, 2,-2,-2],
+   [2,-1, 2,-2],
+   [2, 2, 1, 2],
+   [2,-2,-2, 1]],
+  [[1,-3,-3, 0],
+   [1,-1, 4, 1],
+   [1, 2,-3, 1],
+   [2, 1, 1,-1]],
+  [[1,-2, 0,-4],
+   [1,-5,-1, 2],
+   [1, 3,-3, 0],
+   [2, 2, 2, 1]],
+  [[1, 2, 1,-5],
+   [1, 2, 2, 4],
+   [1, 2,-3, 1],
+   [2,-3, 0, 0]]
+);
+
+my $qm  = random(0,5,1);  # pick one of the orthog matrices
+
+$Q = Matrix([
+   [ $q[$qm][0][0], $q[$qm][0][1], $q[$qm][0][2] ],
+   [ $q[$qm][1][0], $q[$qm][1][1], $q[$qm][1][2] ],
+   [ $q[$qm][2][0], $q[$qm][2][1], $q[$qm][2][2] ],
+   [ $q[$qm][3][0], $q[$qm][3][1], $q[$qm][3][2] ]
+]);
+
+$n = Matrix([             # n is orthogonal to Q
+   [ $q[$qm][0][3] ],
+   [ $q[$qm][1][3] ],
+   [ $q[$qm][2][3] ],
+   [ $q[$qm][3][3] ]
+]);
+
+#
+# to add more randomness we will 
+#   reorder rows and columns 
+#   randomly scale columns 
+#   randomly change signs of rows
+#
+
+my @qc = ([0,0,0],[0,0,0],[0,0,0]);           # column operations
+my @qr = ([0,0,0,0],[0,0,0,0],
+          [0,0,0,0],[0,0,0,0]);               # row operations
+
+my @col = (0,1,2);   @col = @col[shuffle(3)]; # pick order for rows
+my @row = (0,1,2,3); @row = @row[shuffle(4)]; # pick order for cols 
+
+$qc[0][$col[0]] = non_zero_random(-2,2,1);   # scale and move col 1 
+$qc[1][$col[1]] = non_zero_random(-2,2,1);   # scale and move col 2
+$qc[2][$col[2]] = non_zero_random(-1,1,1);   # scale and move col 3
+
+$qr[0][$row[0]] = non_zero_random(-1,1,1);   # scale and move row 1 
+$qr[1][$row[1]] = non_zero_random(-1,1,1);   # scale and move row 2
+$qr[2][$row[2]] = non_zero_random(-1,1,1);   # scale and move row 3
+$qr[3][$row[3]] = non_zero_random(-1,1,1);   # scale and move row 4
+
+
+my $ColOp = Matrix([[$qc[0][0],$qc[0][1],$qc[0][2]],
+                    [$qc[1][0],$qc[1][1],$qc[1][2]],
+                    [$qc[2][0],$qc[2][1],$qc[2][2]]
+]);
+my $RowOp = Matrix([[$qr[0][0],$qr[0][1],$qr[0][2],$qr[0][3]],
+                    [$qr[1][0],$qr[1][1],$qr[1][2],$qr[1][3]],
+                    [$qr[2][0],$qr[2][1],$qr[2][2],$qr[2][3]],
+                    [$qr[3][0],$qr[3][1],$qr[3][2],$qr[3][3]]
+]);
+
+
+$Q = $RowOp * $Q * $ColOp;
+
+$n = $RowOp * $n;
+
+# Now we have completed randomizing the matrix Q !
+
+$R = Matrix([
+   [ 1, non_zero_random(-4,4,1), non_zero_random(-4,4,1) ],
+   [ 0,                       1, non_zero_random(-4,4,1) ],
+   [ 0,                       0,                       1 ]
+]);
+
+
+my $Qnorm1 = $Q->element(1,1)**2 + $Q->element(2,1)**2 + 
+             $Q->element(3,1)**2 + $Q->element(4,1)**2;
+my $Qnorm2 = $Q->element(1,2)**2 + $Q->element(2,2)**2 + 
+             $Q->element(3,2)**2 + $Q->element(4,2)**2;
+my $Qnorm3 = $Q->element(1,3)**2 + $Q->element(2,3)**2 + 
+             $Q->element(3,3)**2 + $Q->element(4,3)**2;
+
+# Pick a nice vector to be the answer
+
+my $b_norm, $Rx, $dim, $B;
+
+do {
+  $Rx = Matrix([
+    [          random(-2,2,1) ],
+    [          random(-2,2,1) ],
+    [ non_zero_random(-2,2,1) ]
+  ]);
+  $b_norm = $Rx->element(1,1)**2 * $Qnorm1 + 
+            $Rx->element(2,1)**2 * $Qnorm2 + 
+            $Rx->element(3,1)**2 * $Qnorm3; 
+} until (($b_norm < 400) && ($b_norm > 0));
+
+($dim,$x,$B) = $R->solve_LR($Rx);
+$b = $Q * $Rx;
+
+# add n to b so that \hat x is only best approx soln
+
+$big_index = 0;
+for (my $i = 1; $i<=3; $i++) {
+  if (abs($b[$big_index]) < abs($b[$i])) {
+    $big_index = $i;
+  }
+}
+
+my $sgn = 1;
+
+if ( $b[$big_index] * $n[$big_index] > 0 ) {
+  $sgn = -1;
+}
+
+$b = $b + $sgn * $n * random(1,2,1);
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+In this problem you will use scaled \(QR\) solve the normal equation for
+$BCENTER
+ \( $Q $R \left[\begin{matrix}x \\ y \\ z\end{matrix}\right] = $b\)
+$ECENTER
+
+$PAR
+$HR
+$BR
+
+$BBOLD Step 1.$EBOLD Solve the normal equation with \(Q\).
+
+$PAR
+
+Use the fact that the columns of \(Q\) are orthogonal to 
+solve the normal equation for $BR
+\( $Q \left[\begin{matrix}a \\ b \\ c\end{matrix}\right] = $b\)
+
+$PAR
+
+\(\left[\begin{matrix}\hat{a}\\ \hat{b}\\ \hat{c}\end{matrix}\right] = \)
+\{ $Rx->ans_array(2); \}
+
+$PAR
+
+$BITALIC Hint: All answers should simplify to be integers. $EITALIC
+
+$PAR
+$HR
+$BR
+
+$BBOLD Step 2.$EBOLD Divide by \(R\).
+
+$PAR
+
+Use back-substitution to solve $BR
+\($R \left[\begin{matrix}\hat{x} \\ \hat{y}\\ \hat{z}\end{matrix}\right] = 
+           \left[\begin{matrix}\hat{a} \\ \hat{b}\\ \hat{c}\end{matrix}\right] \)
+
+$PAR
+
+\(\left[\begin{matrix}\hat{x}\\ \hat{y}\\ \hat{z}\end{matrix}\right] = \) 
+\{ $x->ans_array(2); \}
+
+END_TEXT
+
+Context()->normalStrings;
+
+ANS( $Rx->cmp() );
+ANS( $x->cmp() );
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.
+
+
+

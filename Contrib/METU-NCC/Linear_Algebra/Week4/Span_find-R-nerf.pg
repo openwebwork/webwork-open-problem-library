@@ -1,0 +1,178 @@
+## DESCRIPTION
+##  Find vectors spanning plane in R^4
+##  --Easy version--
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Basis and dimension)
+## Date(07/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('Easy version -- solvable by back substitution');
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+Context('Vector');
+Context()->variables->are(x=>'Real',y=>'Real',z=>'Real',t=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+my @v = (0,0,0); my @w = (0,0,0); my @c = (0,0);
+
+do { foreach my $i (0..2) { $v[$i] = non_zero_random(-2,2); } }
+until ( ! Vector(map {abs($_)} @v)->isParallel(Vector(1,1,1))
+     && ! Vector(@v)->isZero); 
+
+do { foreach my $i (0..2) { $w[$i] = non_zero_random(-2,2); } }
+until ( ! Vector(map {abs($_)} @w)->isParallel(Vector(1,1,1))
+     && ! Vector(@w)->isZero
+     && ($v[0]*$w[1] != $v[1]*$w[0]) ); 
+
+@vp = (-$v[2]*$w[2] , 0 , $v[2]*$w[0] , $w[2]*$v[0]);
+@wp = (0 , -$v[2]*$w[2] , $v[2]*$w[1] , $w[2]*$v[1]);
+
+$v[3] = $v[2];  $v[2] = 0;  $w[3] = 0;
+
+do { @c = (non_zero_random(-3,3), non_zero_random(-3,3)); }
+until ( ($c[0]*$v[0]+$c[1]*$w[0] != 0)
+     && ($c[0]*$v[1]*$c[1]*$w[1] != 0) );
+
+foreach (0..3) { $w[$_] = $c[0]*$v[$_] + $c[1]*$w[$_]; }
+
+my @i = pick(4,(0..3));
+@v = @v[@i];  @vp = @vp[@i];
+@w = @w[@i];  @wp = @wp[@i];
+
+$span = List(Vector(@wp), Vector(@vp));
+
+
+@Tout = ("","");
+my @vars = (Formula("x"),
+            Formula("y"),
+	    Formula("z"),
+	    Formula("t"));
+foreach my $j (0..3) {
+  if ($v[$j] < 0) {
+    $Tout[0] = $Tout[0] . ( ($j!=0) ? "&\;-\;&" : "-" ) . 
+                Formula("-$v[$j] $vars[$j]")->reduce->TeX ;
+  } elsif ($v[$j] == 0) {
+    $Tout[0] = $Tout[0] . ( ($j!=0) ? "&&" : "");
+  } else {
+     $Tout[0] = $Tout[0] . ( ($j!=0) ? "&\;+\;&" : "") . 
+                Formula(" $v[$j] $vars[$j]")->reduce->TeX ;
+  }
+  if ($w[$j] < 0) {
+    $Tout[1] = $Tout[1] . ( ($j!=0) ? "&\;-\;&" : "-" ) . 
+                Formula("-$w[$j] $vars[$j]")->reduce->TeX ;
+  } elsif ($w[$j] == 0) {
+    $Tout[1] = $Tout[1] . ( ($j!=0) ? "&&" : "");
+  } else { 
+    $Tout[1] = $Tout[1] . ( ($j!=0) ? "&\;+\;&" : "")  . 
+                Formula(" $w[$j] $vars[$j]")->reduce->TeX ;
+  }
+}
+$Tout[0] = $Tout[0] . " &\;= 0";
+$Tout[1] = $Tout[1] . " &\;= 0";
+
+
+
+Context()->texStrings;
+BEGIN_TEXT
+Let 
+\[U = \left\lbrace (x,y,z,t)\in\mathbb{R}^4\ \Big|\  
+\begin{alignat}{8}
+ $Tout[0] \\ $Tout[1]
+\end{alignat}
+\right\rbrace
+\]
+
+Find two vectors which span \(U\)
+
+$PAR
+
+\(\qquad U = \mathrm{Span} \Bigl\lbrace\) \{ ans_rule(20) \} \(\Bigr\rbrace\)
+
+$PAR
+\(\quad\) $BITALIC
+Enter your answers as comma separated lists of vectors, for example $BR
+\(\qquad (1,2,3,4)\;,\;(5,6,7,8) \)$EITALIC
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#######
+# This is a modified version of basis_checker_row
+#
+$listBasis = sub { 
+  my ($c,$s,$ansHash,$value) = @_;
+  my ($nc,$ns) = (scalar(@$c),scalar(@$s));
+  
+  my @cv, @sv;
+  foreach my $i (0..$nc-1) {
+    $cv[$i] = Matrix($c->[$i])->transpose;
+  }
+  my $len = ($cv[0]->dimensions)[0];
+  foreach my $i (0..$ns-1) {
+    $sv[$i] = Matrix($s->[$i])->transpose;
+    if ($sv[$i]->isZero) {
+      Value->Error("Dr. Benjamin says: $BR 'NO ZERO VECTORS IN BASIS!'  orz");
+      return 0;
+    }
+    if (($sv[$i]->dimensions)[0] != $len) {
+      Value->Error("Your vectors have wrong dimension!");
+      return 0;
+    }
+  }
+
+  my $Cm = concatenate_columns_into_matrix(@cv);
+  my $Sm = concatenate_columns_into_matrix(@sv);
+
+  my $CTC = ($Cm->transpose) * $Cm;
+  warn "Correct answer is a linearly dependent set." if ($CTC->det == 0);
+
+  if ( (($Sm->transpose) * $Sm)->det == 0) {
+    Value->Error("Your vectors are not independent!");
+    return 0;
+  }
+
+  return 0 if $nc != $ns;
+
+  my $X = ($CTC->inverse) * (($Cm->transpose) * $Sm);
+
+  return 0 if ($Sm != $Cm * $X);
+
+  return ($nc,());
+};
+
+
+ANS( $span->cmp(list_checker=>$listBasis) );
+
+
+#  note to self: use checker => ~~&basis_checker_columns
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

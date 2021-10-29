@@ -1,0 +1,142 @@
+## DESCRIPTION
+##  Find relation among four vectors in P_2 
+##  --Hard Version--
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Linear combinations)
+## Date(07/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"PGmatrixmacros.pl",
+"PGchoicemacros.pl",  # needed for shuffle
+"MathObjects.pl",
+"parserMultiAnswer.pl",
+"rand_Array.pl"       # local library
+);
+
+
+TEXT(beginproblem());
+
+COMMENT('Four vectors spanning P_2.  Hard version.');
+
+Context("Matrix");
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+
+sub Polynomial {
+  my @v = @_;
+  my $P = Formula("0");
+  foreach (0..$#v) { $P = $P + Formula("$v[$_] * x^{$_}"); }
+
+  return $P->reduce;
+};
+
+####################
+# from rand_Array.pl
+#
+#   rand_Array_2nonzero (n, m, size)    -- 2 nonzero in each row
+#   rand_Array_triangle (n, m, size)    -- permuation of triangular
+#   rand_Array_En       (n, m, size, k) -- product of k elementary
+#   rand_Array_perm     (n, m)          -- permuation
+#   ident_Array         (n, m)          -- identity
+#   pick                (n, @array)     -- pick elements from array
+#
+#####################
+
+
+$n = 3; 
+
+$dom = "\mathbb{R}^{$n}"; 
+
+my $B;
+do{ $B = Matrix(rand_Array_2nonzero($n,$n,2)); }      # output basis
+until ( $B->det != 0 );
+
+my @ans;
+foreach my $i (0..$n-1) {
+  $ans[$i] = non_zero_random(-3,3);
+}
+
+foreach (0..($n-1)) { $v[$_] = Vector($B->column($_+1)); }
+$v[$n] = Vector($B*Vector(@ans));
+
+$ans[$n]=-1;
+
+#my @i = pick($n,(0..($n-1)));
+#@v[0..($n-1)]   = @v[@i]; 
+#@ans[0..($n-1)] = @ans[@i];
+
+my @i = pick($n+1,(0..$n));
+@v   = @v[@i];
+@ans = @ans[@i];
+
+
+$multians = MultiAnswer(@ans)->with(
+ singleResult=>1,
+ format=>"[%s] p1 + [%s] p2 + [%s] p3 + [%s] p4",
+ tex_format=>"%s p_1 + %s p_2 + %s p_3 + %s p_4",
+ checker => sub{
+   my ($correct, $student, $ansHash) = @_;
+   return Vector($correct)->isParallel(Vector($student));
+} );
+
+Context()->texStrings;
+##########
+#
+# Basis for display
+#
+$B_basis = "p_1(x) =  ". Polynomial($v[0]->value); 
+
+foreach my $j (1..$n) {
+  $B_basis = $B_basis . ",\ p_{" . ($j+1) . "}(x) = " . Polynomial($v[$j]->value); 
+}
+
+#####################################
+#  Main text
+
+BEGIN_TEXT
+
+Let \(  $B_basis \) in \(\mathcal{P}_2(\mathbb{R})\). $BR
+$PAR
+
+Find a nontrivial linear relation among these vectors.
+$BR
+\(\quad \) \{ $multians->ans_rule(2); \}\(p_1(x)\) 
+END_TEXT
+foreach $i (2..($n+1)) {
+BEGIN_TEXT
+\(\ +\ \) \{ $multians->ans_rule(2); \}\(p_{$i}(x)\)
+END_TEXT
+}
+BEGIN_TEXT
+\(\ =\ 0\)
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+
+ANS( $multians->cmp() );
+
+
+COMMENT('');
+
+ENDDOCUMENT(); 

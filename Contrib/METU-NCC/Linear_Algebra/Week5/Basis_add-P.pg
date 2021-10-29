@@ -1,0 +1,123 @@
+## DESCRIPTION
+##  Extend basis in P_3
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Basis and dimension)
+## Date(14/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(2)
+## MO(1)
+## Static(0)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('starting vectors are sums of some standard basis vectors');
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  @out;
+}
+
+Context('Vector');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->variables->are(
+ x=>'Real'
+);
+
+($n,$m) = (4,2);     # n = dimension   m = #vectors given
+
+$nn=$n-1;
+
+foreach (0..($n-1))  # make standard basis vectors
+{ $e[$_] = Formula("x^{$_}")->reduce; }
+
+@e = @e[pick($n,(0..($n-1)))];  #reorder
+
+foreach my $i (0..($m-1))  {  # make display vectors 
+  my @i = pick(random(1,$n-$i-1),(($i+1)..($n-1))); 
+  foreach my $j (0..$#i) { $e[$i] = $e[$i] + $e[$i[$j]]; } 
+}
+$E = List(@e[0..($m-1)]);
+
+$newVectors = List(@e[$m..$#e]);
+
+Context()->texStrings;
+BEGIN_TEXT
+Extend  
+\(\displaystyle E = \bigl\lbrace $E \bigr\rbrace\) 
+to a basis of \(\mathcal{P}_{$nn}(\mathbb{R})\)
+$PAR
+\(\qquad \text{Additional Vectors} = \)  \{ ans_rule(25) \} 
+
+$PAR
+\(\quad\) $BITALIC
+Enter your answer as comma separated list of polynomials, for example $BR
+\(\qquad  \fbox{ x^2+2x-1 , x(x-1) } \)$EITALIC
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#######
+# This is a modified version of basis_checker_row
+#
+$listBasis = sub { 
+  my ($c,$s,$ansHash,$value) = @_;
+  my @c = @{$c};
+  my @s = @{$s};
+  
+  my @sv;
+  foreach my $i (0..$#s) {
+    if ($s[$i] == Formula("0")) {
+      Value->Error("Dr. Benjamin says: $BR 'NO ZERO VECTORS IN BASIS!'  orz");
+    } 
+    my $deriv = $s[$i]; $jf = 1;
+    foreach my $j (0..($n-1)) { 
+      $sv[$i][$j] = $deriv->eval(x=>0)/($jf); 
+      $deriv = $deriv->D('x');   $jf = $jf*($j+1);
+    } 
+    Value->Error("One polynomial has wrong degree") if !($deriv->isZero);
+  }
+ 
+  Value->Error("Span is too small!")          if ($#s < $#c);
+  Value->Error("Not independent from \(E\)!") if ($#s > $#c);
+
+  foreach my $i (0..($m-1)) {  
+    my $deriv = $e[$i];  $jf = 1;
+    foreach my $j (0..($n-1)) { 
+      $sv[$#s+$i+1][$j] = $deriv->eval(x=>0) / $jf; 
+      $deriv = $deriv->D('x');   $jf = $jf*($j+1);
+    }
+  }
+
+  if ( Matrix(@sv)->det == 0 ) {
+    Value->Error("Does not extend to basis!");
+  }
+
+  return ($#c+1,());
+};
+
+
+ANS( $newVectors->cmp(list_checker=>$listBasis) );
+
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

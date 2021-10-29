@@ -1,0 +1,207 @@
+## BEGIN_DESCRIPTION
+## Confidence intervals for population proportion using R
+## END_DESCRIPTION
+##
+##############################################
+## DBsubject(Statistics)
+## DBchapter(Confidence intervals)
+## DBsection(One sample proportion)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(4)
+## Language(en)
+## MO(1)
+## Static(0)
+## KEYWORDS('R', 'confidence interval', 'sample proportion', 'z-test')
+###############################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "contextArbitraryString.pl",
+   "RserveClient.pl",
+   "PGcourse.pl",
+   "contextFraction.pl"
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+COMMENT('Requires integrated R server (Rserve.pm)');
+
+#  Setup
+Context("Numeric");
+
+
+$Rframe = MODES(
+ HTML=>
+  "<iframe width='90%' height='400' src='https://rdrr.io/snippets/embed/?code=' frameborder='0'></iframe>", 
+ TeX=>
+  "Embedded R window."
+);
+
+$x = random(20,50,1);
+$p = random(.1,.9,.05); 
+$n = ceil($x/$p);
+$a = random(.005,.05,.005);  
+$c = 100 - $a*200;
+$N = random(10000,100000,1000);
+
+Context()->variables->are(
+   p => ["Real", limits=>[0,1]], 
+   q => ["Real", limits=>[0,1]], 
+   n => "Real"
+);
+
+$X_mu = Formula("n*p");
+$X_sd  = Formula("sqrt(n*p*q)");
+$X_sd2 = Formula("sqrt(n*p*(1-p))");
+
+$P_mu = Formula("p");
+$P_sd  = Formula("sqrt(p*q/n)");
+$P_sd2 = Formula("sqrt(p*(1-p)/n)");
+$Pn   = Real($x/$n);
+
+Context("Fraction");
+
+$P = Fraction($x,$n);
+$E = Real(sqrt($x*($n-$x)/$n**3));
+
+Context("ArbitraryString");
+
+$L = String("$P+qnorm($a)*$E");
+$R = String("$P-qnorm($a)*$E");
+
+$pop_L = String("$N*($Pn+qnorm($a)*$E)");
+$pop_R = String("$N*($Pn-qnorm($a)*$E)");
+
+Context("Numeric");
+
+
+#  Text
+Context()->texStrings;
+BEGIN_TEXT
+$BITALIC
+For the problems below, you may either enter a numeric answer, or the R code
+which generates the answer. $BR $SPACE (Your answer will be checked by R.)
+$EITALIC
+
+$PAR $HR $PAR
+
+$BBOLD
+Theory:
+$EBOLD
+Suppose that \(X\sim\text{Binomial}(n,\,p)\).  If \(n\) is big and 
+\(p,q\ge \frac{10}{n}\) then \(X\) and \(\hat P = \frac{X}{n}\) are 
+approximately normal:
+$BR
+\(\quad X \approx \text{Normal}\Bigl( \)
+ \{$X_mu->ans_rule(2)\} \(, \) \{$X_sd->ans_rule(10)\} 
+\(\Bigr) \)
+$BR
+\(\quad \hat P \approx \text{Normal}\Bigl( \)
+ \{$P_mu->ans_rule(2)\} \(, \) \{$P_sd->ans_rule(10)\} 
+\(\Bigr) \)
+
+$PAR $HR $PAR
+
+$BBOLD
+Application:
+$EBOLD
+A sample of size \($n\) is drawn from a population, finding \($x\) occurrences.
+$PAR
+What is the sample proportion?
+$BR
+\(\quad \hat p = \) 
+   \{$P->ans_rule(5)\}
+$PAR
+
+What is the standard error of the sample proportion?
+$BR
+\(\quad \sigma_{\hat p} = \) 
+   \{$E->ans_rule(20)\}
+$PAR
+
+
+Give the \($c \%\) confidence interval for the population proportion \(p\).
+$BR
+\(\quad \Bigl( \)
+   \{ans_rule(25)\} 
+\(,\ \)
+   \{ans_rule(25)\} 
+\(\Bigr) \)
+$PAR
+
+If the total population is $N, then what is the \($c \%\) confidence interval
+for the total number of occurrences?
+$BR
+\(\quad \Bigl( \)
+   \{ans_rule(35)\} 
+\(,\ \)
+   \{ans_rule(35)\} 
+\(\Bigr) \)
+
+$PAR
+$HR
+$PAR
+You may use the embedded R window below to check your code and perform computations.$BR
+${BCENTER}
+$Rframe
+${ECENTER}
+
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+#  Answers
+
+$Rchecker = sub {
+  my ($c, $s, $ansHash) = @_;
+  if (($s->value =~ tr/(//) != ($s->value =~ tr/)//)) {
+    Value->Error("Missing parenthesis!");
+  }
+  my @s_ans = rserve_eval($s->value);
+  if (String($s_ans[0]) == String("NaN")) {
+    Value->Error("R code does not return a number!");
+  }
+  $s_ans = Real($s_ans[0]);
+  my $c_ans = Real(rserve_eval($c->value));
+  my $m = Real($ansHash->{m});
+  if ( abs($c_ans + $s_ans - 2*$m) < .02) {
+    Value->Error("Wrong sign for \(z\)!");
+  }
+  if (abs($c_ans) > .001) {
+    return ( (abs($c_ans - $s_ans) < .005*abs($c_ans)) ? 1 : 0);
+  } else {
+    return ( (abs($c_ans - $s_ans) < .001) ? 1 : 0);
+  } 
+};
+
+ANS($X_mu->cmp());    
+ANS($X_sd->cmp(checker=>sub{
+  my ($c, $s, $ansHash) = @_;
+  my $s_ans = Formula($s->value);
+  return ( ($s_ans == $X_sd) || ($s_ans == $X_sd2) ? 1 : 0)  
+})); 
+ANS($P_mu->cmp());
+ANS($P_sd->cmp(checker=>sub{
+  my ($c, $s, $ansHash) = @_;
+  my $s_ans = Formula($s->value);
+  return ( ($s_ans == $P_sd) || ($s_ans == $P_sd2) ? 1 : 0)  
+}));
+
+ANS($P->cmp());
+ANS($E->cmp());
+
+ANS($L->cmp(checker=>$Rchecker, m=>$Pn));
+ANS($R->cmp(checker=>$Rchecker, m=>$Pn));
+
+ANS($pop_L->cmp(checker=>$Rchecker, m=>$N*$Pn));
+ANS($pop_R->cmp(checker=>$Rchecker, m=>$N*$Pn));
+
+
+ENDDOCUMENT();

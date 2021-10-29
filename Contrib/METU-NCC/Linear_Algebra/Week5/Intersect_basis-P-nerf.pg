@@ -1,0 +1,184 @@
+## DESCRIPTION
+##  Extending basis of intersection to basis of full spaces in P_3
+##  --simplified version--
+## ENDDESCRIPTION
+
+## DBsubject(Linear algebra)
+## DBchapter(Abstract vector spaces)
+## DBsection(Basis and dimension)
+## Date(14/03/2020)
+## Institution(METU-NCC)
+## Author(Benjamin Walter & Satoshi Kondo)
+## Level(1)
+## MO(1)
+## Static(0)
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+"PGstandard.pl",
+"PGchoicemacros.pl",
+"PGcourse.pl",
+"MathObjects.pl",
+"MatrixCheckers.pl",
+);
+
+TEXT(beginproblem());
+
+COMMENT('zeroes are randomly chosen between -3 and 3$BR easy version');
+
+sub pick {
+  my ($k, @in) = @_;
+  my @out = ();
+  if ($k>1) {
+    while (@out < $k) { push( @out, splice(@in, random(0,$#in), 1) ); }
+  } elsif ($k==1) {
+    @out = ($in[random(0,$#in)]);
+  }
+  @out;
+}
+
+
+Context('Vector');
+Context()->variables->are(x=>'Real');
+Context()->lists->set(Vector=>{open=>"(",close=>")"});
+Context()->{cmpDefaults}{Vector} = {promotePoints=>1};
+Context()->noreduce('(-x)-y');
+
+@c = pick(2,(-3..-1,1..3));
+
+@expr  = ("p($c[0])","p($c[1])");
+
+#@basis = (List(Formula("   (x-$c[0])"), 
+#               Formula("  x(x-$c[0])"),
+#               Formula("x^2(x-$c[0])")),
+#          List(Formula("   (x-$c[1])"), 
+#               Formula("  x(x-$c[1])"),
+#               Formula("x^2(x-$c[1])")));
+
+$ScapT = List(Formula(" (x-$c[0])(x-$c[1])"),
+              Formula("x(x-$c[0])(x-$c[1])"));
+
+@addition = (List(Formula("x-$c[0]")->reduce),
+             List(Formula("x-$c[1]")->reduce));
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \(S\) and \(T\) be the following subspaces of \(\mathcal{P}_3(\mathbb{R})\).
+\[\begin{align}
+S &= \left\lbrace p(x) \Big|\  $expr[0]=0 \right\rbrace \\
+T &= \left\lbrace p(x) \Big|\  $expr[1]=0 \right\rbrace
+ \end{align}
+\]
+
+$BBOLD (A) $EBOLD 
+Find a basis for \(S\cap T\). 
+$BR
+\(\qquad \text{Basis}(S\cap T)  = \Bigl\lbrace\) 
+  \{ ans_rule(20) \} 
+\(\Bigr\rbrace\)
+
+$PAR
+
+$BBOLD (B) $EBOLD 
+What is the dimension 
+$BR
+\(\qquad \text{dim}(S\cap T) = \) \{ ans_rule(2) \} 
+
+$PAR
+
+$BBOLD (C) $EBOLD
+Extend your basis from $BBOLD(A)$EBOLD to be bases of \(S\) and \(T\). 
+$BR
+\(\qquad \text{Basis}(S) = \) $BBOLD(A)$EBOLD 
+  \(\,\cup\ \ \Bigl\lbrace\) \{ ans_rule(10) \}  \(\Bigr\rbrace\)
+$BR
+\(\qquad \text{Basis}(T) = \) $BBOLD(A)$EBOLD
+  \(\,\cup\ \ \Bigl\lbrace\) \{ ans_rule(10) \}  \(\Bigr\rbrace\)
+
+$PAR
+
+$BBOLD (D) $EBOLD
+What is the dimension
+$BR
+\(\qquad \text{dim}(S+T) = \) \{ ans_rule(2) \} 
+
+$PAR $SPACE $SPACE $BITALIC
+Enter your bases as comma separated lists of polynomials, for example $BR
+\(\qquad \fbox{x^2+2x+2 , x(x+1)} \)$EITALIC
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+$listBasis = sub { 
+  my ($correct,$student,$ansHash,$value) = @_;
+  my @C = @{$correct};
+  my @S = @{$student};
+
+  foreach (0..$#S) {
+    Value->Error("No zero polynomials in basis, fool!")
+        if ($S[$_]->isZero);
+    Value->Error("\(p($c[0])\neq 0\)") 
+       if ($S[$_]->eval(x=>$c[0]) != 0);
+    Value->Error("\(p($c[1])\neq 0\)") 
+       if ($S[$_]->eval(x=>$c[1]) != 0);
+    Value->Error("Wrong degree!")
+       if !($S[$_]->D('x')->D('x')->D('x')->D('x')->isZero);
+  }
+
+  Value->Error("Span too small!")  if ($#S < $#C);
+  Value->Error("Not independent!") 
+    if (($#S > $#C)
+     || ($S[0]->eval(x=>1.718)*$S[1]->eval(x=>2.143) == 
+         $S[1]->eval(x=>1.718)*$S[0]->eval(x=>2.143))
+    );
+
+  return ($#C+1,());
+};
+
+$addBasis = sub { 
+  my ($correct,$student,$ansHash,$value) = @_;
+  my @C = @{$correct};
+  my @S = @{$student};
+
+  my $vs = $ansHash->{vs};
+
+  foreach (0..$#S) { 
+    Value->Error("Wrong degree!")
+       if !($S[$_]->D('x')->D('x')->D('x')->D('x')->isZero);
+    Value->Error("No zero polynomials in basis, fool!")
+        if ($S[$_]->isZero);
+    if ($C[0]->eval(x=>$c[1]) == 0) {
+      Value->Error("Polynomial not in \($vs\)!") 
+         if ($S[$_]->eval(x=>$c[1]) != 0);
+      Value->Error("Not independent from (A)!")
+         if ($S[$_]->eval(x=>$c[0]) == 0);
+    } else {
+      Value->Error("Polynomial not in \($vs\)!") 
+         if ($S[$_]->eval(x=>$c[0]) != 0);
+      Value->Error("Not independent from (A)!")
+         if ($S[$_]->eval(x=>$c[1]) == 0);
+    }  
+  }
+  return 0 if ($#S != $#C);
+
+  return ($#C+1,());
+};
+
+
+ANS( $ScapT->cmp(list_checker=>$listBasis) );
+
+ANS( Real(2)->cmp() );
+
+ANS( $addition[0]->cmp(list_checker=>$addBasis, 
+  vs=>"S") );
+ANS( $addition[1]->cmp(list_checker=>$addBasis, 
+  vs=>"T") );
+
+ANS( Real(4)->cmp() );
+
+
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.
