@@ -30,13 +30,6 @@ $showPartialCorrectAnswers = 1;
 
 Context('Matrix');
 
-Context()->variables->are(
-'a1'=>["Vector3D",'TeX'=>'\mathbf{a_1}'],
-'a2'=>["Vector3D",'TeX'=>'\mathbf{a_2}'],
-'a3'=>["Vector3D",'TeX'=>'\mathbf{a_3}'],
-'a4'=>["Vector3D",'TeX'=>'\mathbf{a_4}'],
-);
-
 do {
   ($a,$b,$c,$d) = (non_zero_random(-5,5,1),non_zero_random(-5,5,1),non_zero_random(-5,5,1),non_zero_random(-5,5,1));
 } until ($a != $b  &&  $a != $c  &&  $c != $d  &&  $b != $d);
@@ -46,6 +39,47 @@ $rrefA = Matrix([
 [0,1,$c,$d],
 [0,0,0,0]
 ]);
+
+
+$P = Matrix([[1,0,0], [0,1,0], [0, 0, 1]]);
+
+$paddedA = $P*$rrefA;
+
+Context()->variables->are(
+'a1'=>['Vector3D','TeX'=>'\mathbf{a_1}'],
+'a2'=>['Vector3D','TeX'=>'\mathbf{a_2}'],
+'a3'=>['Vector3D','TeX'=>'\mathbf{a_3}'],
+'a4'=>['Vector3D','TeX'=>'\mathbf{a_4}'],
+);
+
+
+$list_checker = sub {
+  my ($correct, $student, $ansHash, $value) = @_;
+
+  # pull the column vectors into variables
+  my ($a1,$a2,$a3,$a4) = (
+    Vector($rrefA->column(1)),
+    Vector($rrefA->column(2)),
+    Vector($rrefA->column(3)),
+    Vector($rrefA->column(4))
+  );
+  
+  # loop through the student list and parse any formulas in the student response
+  my $parsed_student = [];
+  foreach my $el (@$student) {
+    my $parsed_el = $el;
+    if ($el->class eq 'Formula') {
+      $parsed_el = $el->eval(a1=>$a1,a2=>$a2,a3=>$a3,a4=>$a4);
+    } else {
+        return 0;
+    }
+    push @$parsed_student, $parsed_el;
+  }
+
+  # return the results of the current answer checker called with the parsed array
+  return basis_checker_list_of_vectors([Vector(1, 0, 0), Vector(0, 1, 0)], $parsed_student, $ansHash, $value);
+};
+
 
 $mc = new_checkbox_multiple_choice();
 $mc -> qa (
@@ -81,6 +115,8 @@ $ans4 = Compute("$b a1 + $d a2")->cmp(
 $w1 = WordCompletion(['1','2','3','4','R','R^2','R^3','R^4'],'R^3');
 $w2 = WordCompletion(['1','2','3','4','R','R^2','R^3','R^4'],'R^4');
 
+
+
 $x1 = Vector(-1*$a, -1*$c, 1, 0);
 $x2 = Vector(-1*$b, -1*$d, 0, 1);
 
@@ -102,13 +138,13 @@ c. If possible, write [` \mathbf{a_4} `] as a linear combination of [` \mathbf{a
 
 d. The dimension of the column space of [` A `] is [_____]{"2"}, and the column space of [` A `] is a subspace of [@ ANS($w1->cmp); $w1->ans_rule(5); @]*.
 
-e. Find a basis for the column space of [` A `].  Enter your answer as a comma separated list of vectors. If necessary, enter [| a1 |] for [` \mathbf{a_1} `], etc., or enter coordinate vectors of the form [| <1,2,3> |] or [| <1,2,3,4,5> |].
- 
-    A basis for the column space of [`A`] is [`\big\lbrace`] [_________________________]{List(a1,a2)} [`\big\rbrace`]
+e. Find a basis for the column space of of [` A `].  Enter your answer as a comma separated list of vectors.  Each vector should have the form [| <a,b,c> |] or [| <a,b,c,d> |] where a,b,... are numbers.  Do not use the symbols [` \mathbf{a_1, a_2, \ldots} `] in your answers.   
+
+    A basis for the column space of [`A`] is [`\big\lbrace`] [_________________________]{List(a1, a2)->cmp(list_checker=>$list_checker)} [`\big\rbrace`]
 
 f. The dimension of the null space of [` A `] is [_____]{"2"}, and the null space of [` A `] is a subspace of [@ ANS($w2->cmp); $w2->ans_rule(5); @]*.
 
-g. Find a basis for the null space of [` A `].  Enter your answer as a comma separated list of vectors of the form [| <a,b,c> |] or [| <a,b,c,d> |] where a,b,... are numbers.
+g. Find a basis for the null space of of [` A `].  Enter your answer as a comma separated list of vectors of the form [| <a,b,c> |] or [| <a,b,c,d> |] where a,b,... are numbers.
 
     A basis for the null space of [`A`] is [`\big\lbrace`] [_________________________]{List($x1,$x2)->cmp(list_checker=>~~&basis_checker_list_of_vectors)} [`\big\rbrace`]
 END_PGML
