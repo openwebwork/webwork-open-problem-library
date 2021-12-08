@@ -66,7 +66,7 @@ $list_checker = sub {
   foreach my $el (@$student) {
     my $parsed_el = $el;
     # Mark any answer involving explicit nonzero vectors as incorrect
-    if ($el->eval(a1=>$zero,a2=>$zero,a3=>$zero,a4=>$zero) ne $zero) {
+    if ($el->eval(a1=>$zero,a2=>$zero,a3=>$zero,a4=>$zero) != $zero) {
         return 0;
     }
     $parsed_el = $el->eval(a1=>$a1,a2=>$a2,a3=>$a3,a4=>$a4);
@@ -74,7 +74,7 @@ $list_checker = sub {
   }
 
   # return the results of the current answer checker called with the parsed array
-  return basis_checker_list_of_vectors([Vector(1, 0, 0), Vector(0, 1, 0)], $parsed_student, $ansHash, $value);
+  return basis_checker_list_of_vectors([$a1, $a2], $parsed_student, $ansHash, $value);
 };
 
 
@@ -94,17 +94,31 @@ $mc -> extra(
 );
 #$mc -> makeLast("None of the above");
 
-$ans3 = Compute("$a a1 + $c a2");
-#$ans4 = Compute("$b a1 + $d a2");
+$ans3 = Compute("$a a1 + $c a2")->cmp(
+  checker => sub{
+    my($correct,$student,$ansHash) = @_;
+    # Only answers in terms of a1 and a2 are allowed
+    foreach my $var (keys %{$student->{variables}}) {
+      Value::Error("You are not allowed to use '$var' in this answer.") if !(grep $_ eq $var,  ('a1','a2'));
+    }
+    if ($student->eval(a1=>$zero,a2=>$zero,a3=>$zero,a4=>$zero) != $zero) {
+      Value::Error("You are only allowed to use 'a1' and 'a2' in this answer.");
+    }
+    return $correct == $student;
+  }
+);
 
 $ans4 = Compute("$b a1 + $d a2")->cmp(
   checker => sub{
     my($correct,$student,$ansHash) = @_;
-    # Mark any answer involving explicit nonzero vectors as incorrect
-    if ($student->eval(a1=>$zero,a2=>$zero,a3=>$zero,a4=>$zero) ne $zero) {
-        return 0;
+    # Only answers in terms of a1, a2 and a3 are allowed
+    foreach my $var (keys %{$student->{variables}}) {
+      Value::Error("You are not allowed to use '$var' in this answer.") if !(grep $_ eq $var,  ('a1','a2','a3'));
     }
-    return $a4 == $student->substitute(a1=>$a1,a2=>$a2,a3=>$a3);
+    if ($student->eval(a1=>$zero,a2=>$zero,a3=>$zero,a4=>$zero) != $zero) {
+      Value::Error("You are only allowed to use 'a1', 'a2' and 'a3' in this answer.");
+    }
+    return $a4 == $student->eval(a1=>$a1,a2=>$a2,a3=>$a3);
   }
 );
 
