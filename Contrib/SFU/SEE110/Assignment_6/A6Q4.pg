@@ -1,0 +1,397 @@
+# DESCRIPTION
+# Energy chain to get a carrot  
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Energy Chain)
+## Level(5)
+## KEYWORDS('energy', 'energy chain', 'emissions')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "PGML.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "scaffold.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+#primary source
+$mealsPerWeek = Real(5); 
+$calPerCarrot = random(15,25,1); #cal
+$numCarrots = random(3,5,1);
+$weightPerCarrot = random(30,60,2); #g
+$calTotal = sprintf("%0.2f",$calPerCarrot*$numCarrots*$mealsPerWeek); #cal
+$weightTotal = sprintf("%0.2f",$numCarrots*$weightPerCarrot*$mealsPerWeek); #g
+
+#Cooler in Grocery Store
+$coolerPower = random(400,600,25); #W
+$emissionRateCooler = random(0.75,0.95,0.01); #lbs/kWh
+$hoursInCooler = random(26,48,1); #hrs
+$coolerMultiplier = random(30,40,1);
+$coolerCapacity = floor($weightTotal*$coolerMultiplier/1000); #kg
+$coolerEmissions = sprintf("%0.2f",$coolerPower*$hoursInCooler/1000*$emissionRateCooler/2.205*$weightTotal/1000/$coolerCapacity*1000); #g Co2
+
+#Truck Transport 
+$truckDistance = random(1100,1400,20); #km
+$truckEmissionRate = random(2.50,2.90,0.05); #kg CO2/L
+$truckFuelUseRate = random(4.0,5.0,0.1); #mpg
+$truckCapacity = random(4000,5000,20); #kg
+$truckEmissions = sprintf("%0.2f",$truckDistance/1.609/$truckFuelUseRate*3.785*$truckEmissionRate); #kg Co2
+$truckEmissionsPerCarrot = sprintf("%0.2f",$truckEmissions*$weightTotal/1000/$truckCapacity*1000); #g
+
+#Harvesting 
+$harvestingFuelUseRate = random(3.0,4.5,0.1); #L/m3
+$carrotsPerArea = random(6,10,1); #carrots/ft2
+$harvestingEmissionsPerHectare = sprintf("%0.2f",$harvestingFuelUseRate*10000*$truckEmissionRate); #kg
+$harvestingEmissionsPerCarrot = sprintf("%0.2f",$harvestingEmissionsPerHectare/10000/10.764/$carrotsPerArea*$numCarrots*$mealsPerWeek*1000); #g
+
+#Watering 
+$waterRequired = random(8000,12000,50); #m3/Hectare
+$pumpFlow = random(800,1400,10); #m3/hr
+$pumpPower = random(100,160,2); #kW
+$emissionRate = random(0.75,0.95,0.01); #lbs/kWh
+$wateringEmissionsPerHectare = sprintf("%0.2f",$waterRequired/$pumpFlow*$pumpPower*$emissionRate/2.205); #kg
+$wateringEmissionsPerCarrot = sprintf("%0.2f",$numCarrots*$mealsPerWeek/$carrotsPerArea/10.764/10000*$wateringEmissionsPerHectare*1000); #g
+
+#Planting 
+$fertilizerEmissions = random(3.0,4.0,0.1); #kg CO2/kg soil
+$fertilizerUsage = random(200,300,5); #kg/hectare
+$fertilizerEmissionsPerHectare = sprintf("%0.2f",$fertilizerUsage*$fertilizerEmissions); #kg CO2
+$fertilizerEmissionsPerCarrot = sprintf("%0.2f",$numCarrots*$mealsPerWeek/$carrotsPerArea/10.764/10000*$fertilizerEmissionsPerHectare*1000); #g CO2
+
+#Total emissions for carrots
+$totalEmissions = sprintf("%0.2f",$coolerEmissions+$truckEmissionsPerCarrot+$harvestingEmissionsPerCarrot+$wateringEmissionsPerCarrot+$fertilizerEmissionsPerCarrot); #kg CO2
+
+##########################################
+# Problem Statement 
+##########################################
+
+Scaffold::Begin(
+);
+
+BEGIN_PGML
+
+As part of a healthy diet, you regularly eat carrots with your meals. Curious 
+about how much CO2 is emitted to provide you with the calories from the 
+carrots, you create an energy chain. 
+
+END_PGML
+
+##########################################
+# Problem One 
+##########################################
+
+Section::Begin("Part 1: End Use Service",
+    is_open => "always",);
+
+BEGIN_PGML
+
+Assume you eat [$mealsPerWeek] meals per week that have carrots, and that 
+with each of these meals you eat [$numCarrots] carrots. Each carrot provides 
+you with [$calPerCarrot] calories and weighs [$weightPerCarrot] grams.
+
+How many total calories do you get from eating carrots *each week*? 
+
+[__________]{$calTotal}[`\text{ Calories}`]
+
+What is the total weight of carrots you eat *each week*?
+
+[__________]{$weightTotal}[`\text{ g}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\frac{[$numCarrots]\text{ Carrots}}{\text{Meal}} \cdot 
+\frac{[$calPerCarrot]\text{ Calories}}{\text{Carrrot}} \cdot 
+\frac{[$mealsPerWeek]\text{ Meals}}{\text{Week}} = 
+[$calTotal]\text{ Calories}``]
+
+[``\frac{[$numCarrots]\text{ Carrots}}{\text{Meal}} \cdot 
+\frac{[$weightPerCarrot]\text{ g}}{\text{Carrrot}} \cdot 
+\frac{[$mealsPerWeek]\text{ Meals}}{\text{Week}} = 
+[$weightTotal]\text{ g}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Two 
+##########################################
+
+Section::Begin("Part 2: Supermarket",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+You live next to a supermarket and walk to purchase your groceries, 
+therefore, there are no emissions associated with transporting the carrots 
+from the grocery store to your house. 
+
+The supermarket keeps all of their carrots in a dedicated refrigerated 
+cooler. The cooler can hold [$coolerCapacity][`\text{kg}`] of carrots and has 
+an average power draw of [$coolerPower][`\text{W}`]. You estimate that on 
+average the carrots spend [$hoursInCooler] hours in the cooler before you 
+purchase them, and that the electricity required to operate the cooler has an 
+emission rate of [$emissionRateCooler][`\frac{\text{lbs CO2}}{\text{kWh}}`]. 
+
+If the cooler is always filled at max capacity, what are the emissions 
+associated with keeping *only your* carrots cool each week?
+
+[__________]{$coolerEmissions}[`\text{ g CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$coolerPower]\text{W} \cdot 
+[$hoursInCooler]\text{hr} \cdot 
+\frac{\text{1 kWh}}{\text{1000 Wh}} \cdot 
+[$emissionRateCooler]\frac{\text{lbs CO2}}{\text{kWh}} \cdot 
+\frac{\text{1 kg}}{\text{2.205 lbs}} \cdot 
+\frac{[$weightTotal]\text{g} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}}}{[$coolerCapacity]\text{kg}} \cdot 
+\frac{\text{1000 g}}{\text{1 kg}} = 
+[$coolerEmissions]\text{ kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three 
+##########################################
+
+Section::Begin("Part 3: Truck Transportation",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+To transport the carrots to the supermarket, they are carried by a 
+refrigerated tractor trailer from a farm. The truck drives a distance of 
+[$truckDistance][`\text{km}`], has a fuel efficiency of [$truckFuelUseRate]
+[`\frac{\text{Miles}}{\text{Gallon}}`], and emits CO2 at a rate of 
+[$truckEmissionRate][`\frac{\text{kg CO2}}{\text{L Diesel}}`]. The truck 
+exclusively carries carrots and has a load capacity of [$truckCapacity]
+[`\text{kg}`]. 
+
+What are the *total* CO2 emissions released by the truck to make the trip?
+
+[__________]{$truckEmissions}[`\text{kg CO2}`]
+
+What are the CO2 emissions to transport *your* weekly servings of carrots? 
+
+[__________]{$truckEmissionsPerCarrot}[`\text{g CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$truckDistance]\text{ km} \cdot 
+\frac{\text{1 mile}}{\text{1.609 km}} \cdot 
+(\frac{[$truckFuelUseRate]\text{ miles}}{\text{gallon}})^{\text{-1}} \cdot 
+\frac{\text{3.785 L}}{\text{1 Gallon}} \cdot 
+\frac{[$truckEmissionRate]\text{ kg CO2}}{\text{L}} = 
+[$truckEmissions]\text{kg CO2}``]
+
+[``[$truckEmissions]\text{kg CO2} \cdot 
+\frac{[$weightTotal]\text{g} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}}}{[$truckCapacity]\text{kg}} \cdot 
+\frac{\text{1000 g}}{\text{1 kg}} = 
+[$truckEmissionsPerCarrot]\text{g CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Four 
+##########################################
+
+Section::Begin("Part 4: Harvesting",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+To save time, the farmer uses diesel powered harvesting machines to pick the 
+carrots and load them into the transport truck. The equipment consumes 
+[$harvestingFuelUseRate][`\text{L}`] of fuel for each square meter 
+[`(\text{m}^{\text{2}})`] of field harvested, and pollutes at a rate of 
+[$truckEmissionRate][`\frac{\text{kg CO2}}{\text{L Fuel}}`]. On average, the 
+farmer has planted carrots at a density of [$carrotsPerArea]
+[`\frac{\text{Carrots}}{\text{ft}^{2}}`]. 
+
+How much CO2 is emitted to harvest *one hectare* of crops? 
+
+[__________]{$harvestingEmissionsPerHectare}[`\text{kg CO2}`]
+
+What are the CO2 emissions to harvest your weekly servings of carrots? 
+
+[__________]{$harvestingEmissionsPerCarrot}[`\text{g CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$harvestingFuelUseRate]\frac{\text{L}}{\text{m}^{\text{2}}} \cdot 
+\frac{\text{10000 m}^{\text{2}}}{\text{Hectare}} \cdot 
+\frac{[$truckEmissionRate]\text{kg CO2}}{\text{L}} = 
+[$harvestingEmissionsPerHectare]\frac{\text{kg CO2}}{\text{Hectare}}``]
+
+[``[$harvestingEmissionsPerHectare]\frac{\text{kg CO2}}{\text{Hectare}} \cdot 
+\frac{\text{Hectare}}{\text{10000 m}^{\text{2}}} \cdot 
+\frac{\text{1 m}^{\text{2}}}{\text{10.764  ft}^{\text{2}}} \cdot 
+\frac{\text{ft}^{\text{2}}}{[$carrotsPerArea]\text{ Carrots}} \cdot 
+\frac{[$numCarrots]\text{ Carrots}}{\text{Meal}} \cdot 
+\frac{[$mealsPerWeek]\text{ Meals}}{\text{Week}} \cdot 
+\frac{\text{1000 g}}{\text{1 kg}} = 
+[$harvestingEmissionsPerCarrot]\text{ g CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Five 
+##########################################
+
+Section::Begin("Part 5: Watering",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Over the course of the growing season, each *hectare* of carrot crops will 
+require [$waterRequired][`\text{m}^{3}`] of water. The electric powered 
+irrigation pump has an output flow rate of [$pumpFlow]
+[`\frac{\text{m}^{\text{3}}}{\text{hr}}`] and draws [$pumpPower][`\text{kW}`] 
+of power to reach this flow rate. Assume the electricity to power the pump 
+has a emission rate of [$emissionRate][`\frac{\text{lbs CO2}}{\text{kWh}}`] 
+and that the density of the carrot crops is still [$carrotsPerArea]
+[`\frac{\text{Carrots}}{\text{ft}^{2}}`]. 
+
+How much CO2 is released to water *one heactre* of crops?
+
+[__________]{$wateringEmissionsPerHectare}[`\text{kg CO2}`]
+
+What are the CO2 emissions to water *your* weekly servings of carrots?
+
+[__________]{$wateringEmissionsPerCarrot}[`\text{g CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$waterRequired]\frac{\text{m}^{\text{3}}}{\text{Hectare}} \cdot 
+(\frac{[$pumpFlow]\text{m}^{\text{3}}}{\text{hr}})^{\text{-1}} \cdot 
+[$pumpPower]\text{kW} \cdot 
+\frac{[$emissionRate]\text{lbs CO2}}{\text{kWh}} \cdot 
+\frac{\text{1 kg}}{\text{2.205 lbs}} = 
+[$wateringEmissionsPerHectare]\frac{\text{kg CO2}}{\text{Hectare}}``]
+
+[``[$wateringEmissionsPerHectare]\frac{\text{kg CO2}}{\text{Hectare}} \cdot 
+\frac{\text{Hectare}}{\text{10000 m}^{\text{2}}} \cdot 
+\frac{\text{1 m}^{\text{2}}}{\text{10.764  ft}^{\text{2}}} \cdot 
+\frac{\text{ft}^{\text{2}}}{[$carrotsPerArea]\text{ Carrots}} \cdot 
+\frac{[$numCarrots]\text{ Carrots}}{\text{Meal}} \cdot 
+\frac{[$mealsPerWeek]\text{ Meals}}{\text{Week}} \cdot 
+\frac{\text{1000 g}}{\text{1 kg}} = 
+[$wateringEmissionsPerCarrot]\text{ kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Six 
+##########################################
+
+Section::Begin("Part 6: Planting",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+The farmer uses synthetic fertilizer to improve the crop yield. The 
+fertilizer has an emission rate of [$fertilizerEmissions]
+[`\frac{\text{kg CO2}}{\text{kg fertilizer}}`], and [$fertilizerUsage]
+[`\text{kg}`] of fertilizer is needed to cover each hectare of land. 
+
+How much CO2 is emitted to fertilize *one hectare* of crops?
+
+[__________]{$fertilizerEmissionsPerHectare}[`\text{kg CO2}`]
+
+What are the CO2 emissions to fertilize *your* weekly servings of carrots?
+
+[__________]{$fertilizerEmissionsPerCarrot}[`\text{g CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$fertilizerEmissions]\frac{\text{kg CO2}}{\text{kg fertilizer}} \cdot 
+\frac{[$fertilizerUsage]\text{kg fertilizer}}{\text{Hectare}} = 
+[$fertilizerEmissionsPerHectare]\frac{\text{kg CO2}}{\text{Hectare}}``]
+
+[``[$fertilizerEmissionsPerHectare]\frac{\text{kg CO2}}{\text{Hectare}} \cdot 
+\frac{\text{Hectare}}{\text{10000 m}^{\text{2}}} \cdot 
+\frac{\text{1 m}^{\text{2}}}{\text{10.764  ft}^{\text{2}}} \cdot 
+\frac{\text{ft}^{\text{2}}}{[$carrotsPerArea]\text{ Carrots}} \cdot 
+\frac{[$numCarrots]\text{ Carrots}}{\text{Meal}} \cdot 
+\frac{[$mealsPerWeek]\text{ Meals}}{\text{Week}} \cdot 
+\frac{\text{1000 g}}{\text{1 kg}} = 
+[$fertilizerEmissionsPerCarrot]\text{ g CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Seven 
+##########################################
+
+Section::Begin("Part 7: Total Emissions",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+What are the total CO2 emissions to grow and transport your weekly serving of 
+carrots? 
+
+[__________]{$totalEmissions}[`\text{g CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$coolerEmissions]\text{g} + 
+[$truckEmissionsPerCarrot]\text{g} + 
+[$harvestingEmissionsPerCarrot]\text{g} + 
+[$wateringEmissionsPerCarrot]\text{g}+
+[$fertilizerEmissionsPerCarrot]\text{g} = 
+[$totalEmissions]\text{g CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+###########################################
+
+Scaffold::End();
+ENDDOCUMENT();

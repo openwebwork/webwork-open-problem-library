@@ -1,0 +1,388 @@
+# DESCRIPTION
+# Find energy returned on energy invested for various technologies
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Applications)
+## Level(5)
+## KEYWORDS('energy', 'eroi')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "PGML.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "scaffold.pl",
+  "parserPopUp.pl",
+  "parserOneOf.pl",
+);
+
+#Values approximated from these sources
+# https://www.forbes.com/sites/jamesconca/2015/02/11/eroi-a-tool-to-predict-the-best-energy-mix/?sh=bd5d4daa0270
+# https://festkoerper-kernphysik.de/Weissbach_EROI_preprint.pdf
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+#capacity factors
+$spvCF = random(12,22,1); #%
+$wndCF = random(35,45,1); #%
+$bioCF = random(70,80,1); #%
+$hydCF = random(45,55,1); #%
+$coaCF = random(70,80,1); #%
+$gasCF = random(80,90,1); #%
+$nucCF = random(85,95,1); #%
+
+#lifetimes
+$spvLife = random(20,25,1); #yrs
+$wndLife = random(25,35,1); #yrs
+$bioLife = random(20,30,1); #yrs
+$hydLife = random(75,100,1); #yrs
+$coaLife = random(40,50,1); #yrs
+$gasLife = random(35,50,1); #yrs
+$nucLife = random(40,50,1); #yrs
+
+#capacity
+$capacity = random(400,800,5); #MW
+$spvCapacity = $capacity; #MW
+$wndCapacity = $capacity; #MW
+$bioCapacity = $capacity; #MW
+$hydCapacity = $capacity; #MW
+$coaCapacity = $capacity; #MW
+$gasCapacity = $capacity; #MW
+$nucCapacity = $capacity; #MW
+
+#embodied energy Fixed
+$spvEnergy = random(11.8, 17.3, 0.1); #GJ/kW
+$wndEnergy = random(22.2, 24.2, 0.1); #GJ/kW
+$bioEnergy = random(126.2,165.7,0.1); #GJ/kW
+$hydEnergy = random(26.5, 29.0, 0.1); #GJ/kW
+$coaEnergy = random(33.6, 36.8, 0.1); #GJ/kW
+$gasEnergy = random(35.5, 45.1, 0.1); #GJ/kW
+$nucEnergy = random(16.0, 17.9, 0.1); #GJ/kW
+
+#EROI
+$spvEROI = sprintf("%0.2f",$spvCapacity*8760*($spvCF/100)*3600*$spvLife/($spvEnergy*1000*$spvCapacity*1000));
+$wndEROI = sprintf("%0.2f",$wndCapacity*8760*($wndCF/100)*3600*$wndLife/($wndEnergy*1000*$wndCapacity*1000));
+$bioEROI = sprintf("%0.2f",$bioCapacity*8760*($bioCF/100)*3600*$bioLife/($bioEnergy*1000*$bioCapacity*1000));
+$hydEROI = sprintf("%0.2f",$hydCapacity*8760*($hydCF/100)*3600*$hydLife/($hydEnergy*1000*$hydCapacity*1000));
+$coaEROI = sprintf("%0.2f",$coaCapacity*8760*($coaCF/100)*3600*$coaLife/($coaEnergy*1000*$coaCapacity*1000));
+$gasEROI = sprintf("%0.2f",$gasCapacity*8760*($gasCF/100)*3600*$gasLife/($gasEnergy*1000*$gasCapacity*1000));
+$nucEROI = sprintf("%0.2f",$nucCapacity*8760*($nucCF/100)*3600*$nucLife/($nucEnergy*1000*$nucCapacity*1000));
+
+@popUpChoices = ("?","Solar","Wind","Biomass","Hydro","Coal","Gas","Nuclear");
+@EROI_names = ("Solar","Wind","Biomass","Hydro","Coal","Gas","Nuclear");
+@EROI_values = ($spvEROI,$wndEROI,$bioEROI,$bioEROI,$coaEROI,$gasEROI,$nucEROI);
+#opposite max/min on purpose. Corrected in for loop
+$EROImax = min(@EROI_values); 
+$EROImaxindex = 0;
+$EROImin = max(@EROI_values);
+$EROIminindex = 0;
+$counter = 0;
+for ( $i=0; $i<7; $i++ ) {
+    #set max
+	if($EROI_values[$i]>$EROImax){
+        $EROImaxindex = $i;
+        $EROImax = $EROI_values[$i];
+        }
+    #set min
+    if($EROI_values[$i]<$EROImin){
+        $EROIminindex = $counter;
+        $EROImin = $EROI_values[$i];
+        }
+}
+$EROIbest = $EROI_names[$EROImaxindex];
+$EROIworst = $EROI_names[$EROIminindex];
+
+#Answer for predictions overwritten by answer checker
+$popupPredictionBest = PopUp([@popUpChoices], $popUpChoices[0]);
+$popupPredictionWorst = PopUp([@popUpChoices], $popUpChoices[0]);
+$popupActualBest = PopUp([@popUpChoices], $EROIbest);
+$popupActualWorst = PopUp([@popUpChoices], $EROIworst);
+                              
+$DOLLARSYMBOL = '\$';
+$PERCENTSYMBOL = '\%';
+
+##########################################
+# Problem Statement 
+##########################################
+
+Scaffold::Begin(
+);
+
+BEGIN_PGML
+
+In an effort to better understand the environmental benefits/impacts caused 
+from different energy sources, you want to compare the energy return on 
+energy invested value (EROI). You conduct research to find average values 
+for seven different equivalently sized power 
+stations; 
+(1) Hydropower Dam, 
+(2) Photovoltaic Solar, 
+(3) Onshore Wind, 
+(4) Coal, 
+(5) Natural Gas, 
+(6) Biomass, and 
+(7) Nuclear. 
+
+END_PGML
+
+##########################################
+# Problem One 
+##########################################
+
+Section::Begin("Part 1: Predictions",
+    is_open => "always",);
+
+Context($popupPredictionBest->context);
+
+BEGIN_TEXT
+$PAR
+Before conducting your research you make predictions about what you expect 
+your results to be.
+$PAR
+The technology with the $BBOLD best $EBOLD EROI will be: $B
+\{ $popupPredictionBest->menu() \}
+$PAR
+The technology with the $BBOLD worst $EBOLD EROI will be: $B
+\{ $popupPredictionWorst->menu() \}
+$PAR
+END_TEXT
+
+ANS(OneOf(@popUpChoices[1,2,3,4,5,6,7])->cmp());
+ANS(OneOf(@popUpChoices[1,2,3,4,5,6,7])->cmp());
+
+Section::End();
+
+##########################################
+# Problem Two 
+##########################################
+
+Section::Begin("Part 2: EROI Calculations",
+    can_open => "when_previous_correct",);
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+BEGIN_PGML
+
+During your research you find average values for embodied energy, capacity 
+factor, capacity, and lifetime to populate the following table. Complete the 
+last column to find the EROI for each technology. Assume the generation 
+stations run all year for every year of their life. 
+
+END_PGML
+
+BEGIN_TEXT
+$PAR
+\{
+DataTable(
+  [
+    [['Technology', headerrow => 1],
+        'Capacity \((\text{MW})\)',
+        'Capacity Factor \(($PERCENTSYMBOL)\)',
+        'Embodied Energy \((\frac{\text{GJ}}{\text{kW}})\)',
+        'LifeSpan (Years)',
+        'EROI'],
+    ['Coal',
+        $coaCapacity,
+        $coaCF,
+        $coaEnergy,
+        $coaLife,
+        ans_rule(6)],
+    ['Natural Gas',
+        $gasCapacity,
+        $gasCF,
+        $gasEnergy,
+        $gasLife,
+        ans_rule(6)],
+    ['Nuclear',
+        $nucCapacity,
+        $nucCF,
+        $nucEnergy,
+        $nucLife,
+        ans_rule(6)],
+    ['Hydroelectric',
+        $hydCapacity,
+        $hydCF,
+        $hydEnergy,
+        $hydLife,
+        ans_rule(6)],
+    ['Wind',
+        $wndCapacity,
+        $wndCF,
+        $wndEnergy,
+        $wndLife,
+        ans_rule(6)],
+    ['Solar',
+        $spvCapacity,
+        $spvCF,
+        $spvEnergy,
+        $spvLife,
+        ans_rule(6)],
+    ['Biomass',
+        $bioCapacity,
+        $bioCF,
+        $bioEnergy,
+        $bioLife,
+        ans_rule(6)],
+  ], 
+);
+\}
+$PAR
+END_TEXT
+
+ANS(num_cmp($coaEROI, reltol=>2),
+    num_cmp($gasEROI, reltol=>2),
+    num_cmp($nucEROI, reltol=>2),
+    num_cmp($hydEROI, reltol=>2),
+    num_cmp($wndEROI, reltol=>2),
+    num_cmp($spvEROI, reltol=>2),
+    num_cmp($bioEROI, reltol=>2),
+);
+
+BEGIN_PGML_SOLUTION
+
+[``\text{EROI = }
+\frac{\text{Energy Delievered}}{\text{Energy Input to Deliever}}``]
+
+[``\text{EROI}_{\text{Coal}} = 
+\frac{[$coaCapacity]\text{ MW} \cdot 
+\frac{\text{8760 hr}}{\text{yr}} \cdot 
+\frac{\text{3600 sec}}{\text{hr}} \cdot 
+[$coaCF]% \cdot 
+([$coaLife]\text{ Years})}{[$coaEnergy]\frac{\text{GJ}}{\text{kW}} \cdot 
+\frac{\text{1000 MJ}}{\text{1 GJ}} \cdot 
+\frac{\text{1000 kW}}{\text{1 MW}} \cdot 
+[$coaCapacity]\text{ MW}} = 
+[$coaEROI]\text{ (Coal)}``]
+
+[``\text{EROI}_{\text{Gas}} = 
+\frac{[$gasCapacity]\text{ MW} \cdot 
+\frac{\text{8760 hr}}{\text{yr}} \cdot 
+\frac{\text{3600 sec}}{\text{hr}} \cdot 
+[$gasCF]% \cdot 
+([$gasLife]\text{ Years})}{[$gasEnergy]\frac{\text{GJ}}{\text{kW}} \cdot 
+\frac{\text{1000 MJ}}{\text{1 GJ}} \cdot 
+\frac{\text{1000 kW}}{\text{1 MW}} \cdot 
+[$gasCapacity]\text{ MW}} = 
+[$gasEROI]\text{ (Gas)}``]
+
+[``\text{EROI}_{\text{Nuclear}} = 
+\frac{[$nucCapacity]\text{ MW} \cdot 
+\frac{\text{8760 hr}}{\text{yr}} \cdot 
+\frac{\text{3600 sec}}{\text{hr}} \cdot 
+[$nucCF]% \cdot 
+([$nucLife]\text{ Years})}{[$nucEnergy]\frac{\text{GJ}}{\text{kW}} \cdot 
+\frac{\text{1000 MJ}}{\text{1 GJ}} \cdot 
+\frac{\text{1000 kW}}{\text{1 MW}} \cdot 
+[$nucCapacity]\text{ MW}} = 
+[$nucEROI]\text{ (Nuclear)}``]
+
+[``\text{EROI}_{\text{Hydro}} = 
+\frac{[$hydCapacity]\text{ MW} \cdot 
+\frac{\text{8760 hr}}{\text{yr}} \cdot 
+\frac{\text{3600 sec}}{\text{hr}} \cdot 
+[$hydCF]% \cdot 
+([$hydLife]\text{ Years})}{[$hydEnergy]\frac{\text{GJ}}{\text{kW}} \cdot 
+\frac{\text{1000 MJ}}{\text{1 GJ}} \cdot 
+\frac{\text{1000 kW}}{\text{1 MW}} \cdot 
+[$hydCapacity]\text{ MW}} = 
+[$hydEROI]\text{ (Hydro)}``]
+
+[``\text{EROI}_{\text{Wind}} = 
+\frac{[$wndCapacity]\text{ MW} \cdot 
+\frac{\text{8760 hr}}{\text{yr}} \cdot 
+\frac{\text{3600 sec}}{\text{hr}} \cdot 
+[$wndCF]% \cdot 
+([$wndLife]\text{ Years})}{[$wndEnergy]\frac{\text{GJ}}{\text{kW}} \cdot 
+\frac{\text{1000 MJ}}{\text{1 GJ}} \cdot 
+\frac{\text{1000 kW}}{\text{1 MW}} \cdot 
+[$wndCapacity]\text{ MW}} = 
+[$wndEROI]\text{ (Wind)}``]
+
+[``\text{EROI}_{\text{Solar}} = 
+\frac{[$spvCapacity]\text{ MW} \cdot 
+\frac{\text{8760 hr}}{\text{yr}} \cdot 3
+\frac{\text{3600 sec}}{\text{hr}} \cdot 
+[$spvCF]% \cdot 
+([$spvLife]\text{ Years})}{[$spvEnergy]\frac{\text{GJ}}{\text{kW}} \cdot 
+\frac{\text{1000 MJ}}{\text{1 GJ}} \cdot 
+\frac{\text{1000 kW}}{\text{1 MW}} \cdot 
+[$spvCapacity]\text{ MW}} = 
+[$spvEROI]\text{ (Solar)}``]
+
+[``\text{EROI}_{\text{Biomass}} = 
+\frac{[$bioCapacity]\text{ MW} \cdot 
+\frac{\text{8760 hr}}{\text{yr}} \cdot 
+\frac{\text{3600 sec}}{\text{hr}} \cdot 
+[$bioCF]% \cdot 
+([$bioLife]\text{ Years})}{[$bioEnergy]\frac{\text{GJ}}{\text{kW}} \cdot 
+\frac{\text{1000 MJ}}{\text{1 GJ}} \cdot 
+\frac{\text{1000 kW}}{\text{1 MW}} \cdot 
+[$bioCapacity]\text{ MW}} = 
+[$bioEROI]\text{ (Biomass)}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three 
+##########################################
+
+Section::Begin("Part 3: Results",
+    can_open => "when_previous_correct",);
+
+Context($popupActualBest->context);
+
+BEGIN_TEXT
+$PAR
+The technology with the $BBOLD best $EBOLD EROI is: $B
+\{ $popupActualBest->menu() \}
+$PAR
+The technology with the $BBOLD worst $EBOLD EROI is: $B
+\{ $popupActualWorst->menu() \}
+$PAR
+END_TEXT
+
+ANS($popupActualBest->cmp() );
+ANS($popupActualWorst->cmp() );
+
+BEGIN_PGML_SOLUTION
+
+The *best* EROI corresponds to the technology with the *largest* EROI
+
+[``[$EROIbest]\text{ with an EROI of }[$EROImax]``]
+
+The *worst* EROI corresponds to the technology with the *largest* EROI
+
+[``[$EROIworst]\text{ with an EROI of }[$EROImin]``]
+
+END_PGML_SOLUTION
+Section::End();
+###########################################
+
+Scaffold::End();
+ENDDOCUMENT();

@@ -1,0 +1,335 @@
+# DESCRIPTION
+# Find costs of a battery system to support your solar array
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Storage)
+## Level(5)
+## KEYWORDS('energy', 'storage')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "PGML.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "scaffold.pl",
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+#Increased tolerace as CRF loss increased valid answer range
+Context()->flags->set(tolerance => .05);
+
+##########################################
+# Problem Setup 
+##########################################
+
+#Battery
+$batteryCapacity = random(12,24,0.2); #kWh
+$batteryCostPerCapacity = random(400,500,10); #$/kWh
+$batteryCost = sprintf("%0.2f",$batteryCapacity*$batteryCostPerCapacity); #$
+$batteryLife = random(15,20,1); #years
+
+#Charge Controller
+$controllerMultiplier = random(1.05,1.1,0.01);
+$controllerCapacity = sprintf("%0.2f",$batteryCapacity*$controllerMultiplier); #kW
+$controllerCostPerCapacity = random(30,50,1); #$/kW
+$controllerCost = sprintf("%0.2f",$controllerCapacity*$controllerCostPerCapacity); #kW
+$controllerLife = random(20,30,1); #years
+
+#Inverter
+$inverterMultiplier = random(1.05,1.1,0.01);
+$inverterCapacity = sprintf("%0.2f",$batteryCapacity*$inverterMultiplier); #kW
+$inverterCostPerCapacity = random(150,250,5); #$
+$inverterCost = sprintf("%0.2f",$inverterCapacity*$inverterCostPerCapacity); #kW
+$inverterLife = random(15,20,1); #years
+
+#Other Variables
+$eff = random(92,98,1); #%
+$elcCost = random(8,14,1); #c/kWh
+$avgCharge = random(85,100,1); #%
+$discountRate = random(4.0,9.0,0.1); #%
+$discountRateDecimal = sprintf("%0.3f",$discountRate/100);
+$DOLLARSYMBOL = '\$';
+
+#Yearly equipment costs
+$CRFcontroller = sprintf("%0.3f",($discountRateDecimal*($discountRateDecimal+1)**($controllerLife))/(($discountRateDecimal+1)**($controllerLife)-1));
+$controllerCostYearly = sprintf("%0.2f",$CRFcontroller*$controllerCost);#$
+
+$CRFbattery = sprintf("%0.3f",($discountRateDecimal*($discountRateDecimal+1)**($batteryLife))/(($discountRateDecimal+1)**($batteryLife)-1));
+$batteryCostYearly = sprintf("%0.2f",$CRFbattery*$batteryCost);#$
+
+$CRFinverter = sprintf("%0.3f",($discountRateDecimal*($discountRateDecimal+1)**($inverterLife))/(($discountRateDecimal+1)**($inverterLife)-1));
+$inverterCostYearly = sprintf("%0.2f",$CRFinverter*$inverterCost);#$
+
+$yearlyEquipmentTotal = sprintf("%0.2f",$controllerCostYearly+$batteryCostYearly+$inverterCostYearly); #$
+
+#Yearly energy flow
+$yearlyEnergyFlow = sprintf("%0.2f",$batteryCapacity*($avgCharge/100)*($eff/100)*365); #kWh
+$yearlyEnergyLost = sprintf("%0.2f",$batteryCapacity*($avgCharge/100)*365*(1-($eff/100))); #kWh
+$costToReplace = sprintf("%0.2f",$yearlyEnergyLost*$elcCost/100); #$
+
+#Final Costs
+$yearlyTotalCost = sprintf("%0.2f",$yearlyEquipmentTotal+$costToReplace); #$
+$storageCost = sprintf("%0.2f",$yearlyTotalCost/$yearlyEnergyFlow); #$/kWh
+
+##########################################
+# Problem Statement  
+##########################################
+
+Scaffold::Begin(
+);
+
+BEGIN_PGML
+
+Sam lives in a detached home and wants to limit his carbon emissions. He 
+installs solar panels on his roof to generate renewable electricity. 
+Unfortunately, he works during the day and has no storage system attached to 
+his solar panels. Therefore, he is not able to use the electricity his solar 
+panels are generating.
+
+Wanting to correct this problem, Sam investigates installing a residential 
+battery pack. Before making the purchase, he wants to know the storage system 
+cost per unit of energy.
+
+END_PGML
+
+##########################################
+# Problem One  
+##########################################
+
+Section::Begin("Part 1: Equipment Cost",
+    is_open => "always",);
+
+BEGIN_PGML
+
+Sam researches the three main components he will need for his storage system: 
+a charge controller, a battery, and an inverter. He finds the capacity, cost 
+per unit of capacity, and lifespan of the components and compiles the table 
+below. Assume the discount rate Sam receives is [$discountRate]% for all 
+loans to purchase the equipment.
+
+Complete the remainder of the table calculating the individual capital cost 
+and yearly cost for the equipment, as well as the the average annual 
+equipment cost.
+
+END_PGML
+
+BEGIN_TEXT
+\{
+DataTable(
+  [
+    [['Equipment', headerrow => 1],
+        'Capacity',
+        'Cost',
+        'Lifespan (yrs)',
+        'Capital Cost \(($DOLLARSYMBOL)\)',
+        'Yearly Average Cost \((\frac{$DOLLARSYMBOL}{\text{Year}})\)'],
+    ['Controller',
+        '$controllerCapacity \((\text{kW})\)',
+        '$controllerCostPerCapacity \((\frac{$DOLLARSYMBOL}{\text{kW}})\)',
+        $controllerLife,
+        ans_rule(6),
+        ans_rule(6)],
+    ['Battery Pack',
+        '$batteryCapacity \((\text{kWh})\)',
+        '$batteryCostPerCapacity \((\frac{$DOLLARSYMBOL}{\text{kWh}})\)',
+        $batteryLife,
+        ans_rule(6),
+        ans_rule(6)],
+    ['Inverter',
+        '$inverterCapacity \((\text{kW})\)',
+        '$inverterCostPerCapacity \((\frac{$DOLLARSYMBOL}{\text{kW}})\)',
+        $inverterLife,
+        ans_rule(6),
+        ans_rule(6)],
+  ], 
+);
+\}
+$PAR
+END_TEXT
+
+ANS(num_cmp($controllerCost, reltol=>2),
+    num_cmp($controllerCostYearly, reltol=>2),
+    num_cmp($batteryCost, reltol=>2),
+    num_cmp($batteryCostYearly, reltol=>2),
+    num_cmp($inverterCost, reltol=>2),
+    num_cmp($inverterCostYearly, reltol=>2)
+);
+
+BEGIN_PGML
+
+What is the average yearly cost Sam will have to pay for the equipment?
+
+*$* [__________]{$yearlyEquipmentTotal}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+*Controller* 
+
+[``\text{CAPEX} = 
+[$controllerCapacity]\text{ kW} \cdot 
+[$controllerCostPerCapacity]\frac{[$DOLLARSYMBOL]}{\text{kW}} = 
+[$DOLLARSYMBOL][$controllerCost]``]
+
+[``\text{CRF} = 
+\frac{[$discountRateDecimal]([$discountRateDecimal]+1)^{[$controllerLife]}}
+{([$discountRateDecimal]+1)^{[$controllerLife]}-1} = 
+[$CRFcontroller]``]
+
+[``[$CRFcontroller] \cdot 
+[$DOLLARSYMBOL][$controllerCost] = 
+[$controllerCostYearly]\frac{[$DOLLARSYMBOL]}{\text{Year}}``]
+
+--------------------------------
+
+*Battery* 
+
+[``\text{CAPEX} = [$batteryCapacity]\text{ kWh} \cdot 
+[$batteryCostPerCapacity]\frac{[$DOLLARSYMBOL]}{\text{kWh}} = 
+[$DOLLARSYMBOL][$batteryCost]``]
+
+[``\text{CRF} = 
+\frac{[$discountRateDecimal]([$discountRateDecimal]+1)^{[$batteryLife]}}
+{([$discountRateDecimal]+1)^{[$batteryLife]}-1} = 
+[$CRFbattery]``]
+
+[``[$CRFbattery] \cdot 
+[$DOLLARSYMBOL][$batteryCost] = 
+[$batteryCostYearly]\frac{[$DOLLARSYMBOL]}{\text{Year}}``]
+
+--------------------------------
+
+*Inverter*
+
+[``\text{CAPEX} = [$inverterCapacity]\text{ kW} \cdot 
+[$inverterCostPerCapacity]\frac{[$DOLLARSYMBOL]}{\text{kW}} = 
+[$DOLLARSYMBOL][$inverterCost]``]
+
+[``\text{CRF} = \frac{[$discountRateDecimal]([$discountRateDecimal]+1)^{[$inverterLife]}}
+{([$discountRateDecimal]+1)^{[$inverterLife]}-1} = 
+[$CRFinverter]``]
+
+[``[$CRFinverter] \cdot 
+[$DOLLARSYMBOL][$inverterCost] = 
+[$inverterCostYearly]\frac{[$DOLLARSYMBOL]}{\text{Year}}``]
+
+--------------------------------
+
+*Total*
+
+[``([$controllerCostYearly] + 
+[$batteryCostYearly]+[$inverterCostYearly])\frac{[$DOLLARSYMBOL]}{\text{Year}} = 
+[$yearlyEquipmentTotal]\frac{[$DOLLARSYMBOL]}{\text{Year}}``]
+
+END_PGML_SOLUTION
+
+Section::End();
+
+##########################################
+# Problem Two  
+##########################################
+
+Section::Begin("Part 2: Energy Calculations",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Sam estimates that, on average, his solar panels will charge his battery to 
+[$avgCharge]% of its rated capacity. Moreover, everyday he will use *all* of 
+the stored electricity (ie. The battery will cycle once a day, everyday of 
+the year). 
+
+If the entire system (controller, battery, inverter) has an efficiency of 
+[$eff]%, how much energy is *delivered* by the system each year?
+
+[__________]{$yearlyEnergyFlow}[`\text{kWh}`]
+
+How much energy is *lost* due to efficiencies each year?
+
+[__________]{$yearlyEnergyLost}[`\text{kWh}`]
+
+If Sam has to replace this lost energy by buying it from the utility company 
+at a rate of [$elcCost][`\frac{\text{Cents}}{\text{kWh}}`], how much do the 
+efficiency losses cost Sam each year? 
+
+*$* [__________]{$costToReplace}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$batteryCapacity]\text{ kWh} \cdot 
+[$avgCharge]%\cdot[$eff]% \cdot 
+\frac{\text{365 Days}}{\text{1 Year}} = 
+[$yearlyEnergyFlow]\text{ kWh}``]
+
+[``[$batteryCapacity]\text{ kWh} \cdot 
+[$avgCharge]% \cdot 
+(\text{100}%-[$eff]%) \cdot 
+\frac{\text{365 Days}}{\text{1 Year}} = 
+[$yearlyEnergyLost]\text{ kWh}``]
+
+[``[$yearlyEnergyLost]\text{kWh} \cdot 
+\frac{[$elcCost]\text{ Cents}}{\text{kWh}} \cdot 
+\frac{[$DOLLARSYMBOL]}{\text{100 Cents}} = 
+[$DOLLARSYMBOL][$costToReplace]``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three  
+##########################################
+
+Section::Begin("Part 3: Storage cost",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Taking into account equipment costs, and costs from replacing electricity 
+lost to efficiency, how much does Sam pay each year for the storage system? 
+
+*$* [__________]{$yearlyTotalCost}
+
+What is the final storage cost, per unit of electricity stored? 
+
+[__________]{$storageCost}[`\frac{[$DOLLARSYMBOL]}{\text{kWh}}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$DOLLARSYMBOL][$yearlyEquipmentTotal] + 
+[$DOLLARSYMBOL][$costToReplace] = 
+[$DOLLARSYMBOL][$yearlyTotalCost]``]
+
+[``\frac{[$DOLLARSYMBOL][$yearlyTotalCost]}{[$yearlyEnergyFlow]\text{ kWh}} = 
+[$storageCost]\frac{[$DOLLARSYMBOL]}{\text{kWh}}``]
+
+END_PGML_SOLUTION
+
+Section::End();
+
+###########################################
+
+Scaffold::End();
+ENDDOCUMENT();
