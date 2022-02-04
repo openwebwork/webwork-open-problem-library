@@ -1,0 +1,337 @@
+# DESCRIPTION
+# Size a natural gas powerplant and find lcoe 
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Applications)
+## Level(5)
+## KEYWORDS('energy', 'supply', 'cost', 'lcoe')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "PGML.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "scaffold.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+$hours = random(3000,8000,20);
+$energy = random(10.0,15.0,0.1); #TWh
+$capFactor = random(75,85,1); #%
+$DOLLARSYMBOL = '\$';
+$PERCENTSYMBOL = '\%';
+$CAPEX = random(936,1054,1); #$/kW
+$operation = random(21,65,1); #$/kw
+$fuel = random(2.6,4.0,0.1); #$/MMBTU
+$var = random(2,6,0.25); #$/MWh
+
+$capacity = sprintf("%0.2f",$energy*1000/8760/($capFactor/100)); #GW
+$capitalCost = sprintf("%0.2f",$CAPEX*$capacity); #M$
+$operationPerYear = sprintf("%0.2f",$operation*$capacity); #M$
+$varPerYear = sprintf("%0.2f",$energy*1000*1000*$var/1000/1000); #M$
+$fuelPerYear = sprintf("%0.2f",$energy*1000*1000*1000/293.07*$fuel/1000000); #M$
+$yearCost = sprintf("%0.2f",$operationPerYear+$varPerYear+$fuelPerYear); #M$
+
+$emissionRate = random(0.80,0.95,0.01); #lb/kWh
+$yearEmissions = sprintf("%0.2f",$energy*1000*1000*1000*$emissionRate*0.4536/1000/1000000); #MTonne
+
+$lifeSpan = random(25,45,1); #years
+$carbonTaxLow = random(25,50,1); #$/Tonne
+$carbonTaxHigh = random(150,250,1); #$/Tonne
+$yearsAtLowCarbonTax = random(5,15,1);
+$discountRate = random(4.0,9.0,0.1); #percent
+$discountRateDecimal = sprintf("%0.3f",$discountRate/100);
+$CRF = sprintf("%0.3f",($discountRateDecimal*($discountRateDecimal+1)**($lifeSpan))/(($discountRateDecimal+1)**($lifeSpan)-1));
+$carbonPaymentLow = sprintf("%0.2f",$carbonTaxLow*$yearEmissions*1000000/$energy/1000/1000);
+$carbonPaymentHigh = sprintf("%0.2f",$carbonTaxHigh*$yearEmissions*1000000/$energy/1000/1000);
+$lcoeLow = sprintf("%0.2f",(($CRF*$capitalCost+$operationPerYear)/($energy*1000))+$var+$fuel/293.07*1000+$carbonPaymentLow);
+$lcoeHigh = sprintf("%0.2f",(($CRF*$capitalCost+$operationPerYear)/($energy*1000))+$var+$fuel/293.07*1000+$carbonPaymentHigh);
+$lcoeLife = sprintf("%0.2f",($lcoeLow*$yearsAtLowCarbonTax+$lcoeHigh*($lifeSpan-$yearsAtLowCarbonTax))/$lifeSpan);
+
+##########################################
+# Problem Statement 
+##########################################
+
+Scaffold::Begin(
+);
+
+BEGIN_TEXT
+
+The National Renewable Energy Laboratory publishes an 
+\{htmlLink( "https://atb.nrel.gov/", "Annual Technology Baseline Report (ATB)" ) \} to 
+provide a consistent set of technology cost and performance data for energy 
+analysis. In the report it provides the following information for $BBOLD 
+Natural Gas Power Plants $EBOLD: 
+$PAR
+\{
+DataTable(
+  [
+    [['Criteria', headerrow => 1],
+        'Value' ,
+        'Unit'],
+    ['Capital Cost',
+        '$CAPEX',
+        '\(\frac{$DOLLARSYMBOL}{\text{kW}}\)'],
+    ['Fixed Operation and Maintenance',
+        '$operation',
+        '\(\frac{$DOLLARSYMBOL}{\text{kW-yr}}\)'],
+    ['Variable Cost',
+        '$var',
+        '\(\frac{$DOLLARSYMBOL}{\text{MWh}}\)'],
+    ['Fuel Cost',
+        '$fuel',
+        '\(\frac{$DOLLARSYMBOL}{\text{MMBTU}}\)'],
+    ['Capacity Factor',
+        '$capFactor',
+        '\($PERCENTSYMBOL\)'],
+  ], 
+  caption => 'ATB Natural Gas Power Plant Information',
+);
+\}
+$PAR
+As a lead engineer working for a utilities company, you are asked to perform 
+preliminary calculations to spec a new natural gas power plant. The plant 
+will need to supply $BBOLD $energy \(\text{TWh}\) $EBOLD of electricity each 
+year. 
+$PAR
+END_TEXT
+
+##########################################
+# Problem One 
+##########################################
+
+Section::Begin("Part 1: Capital Cost of Power Plant",
+    is_open => "always",);
+
+BEGIN_PGML
+
+What will be the capacity of the power plant to meet this electricity demand?
+
+[__________]{$capacity}[`\text{GW}`]
+
+What will be the capital cost of the power plant in *million* dollars? 
+
+*M*$ [__________]{$capitalCost}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$energy]\text{TWh} \cdot 
+\frac{\text{1000 GWh}}{\text{1 TWh}} \cdot 
+\frac{\text{1}}{[$capFactor]%} \cdot 
+\frac{\text{1 Year}}{\text{8760 hrs}} = 
+[$capacity]\text{GW}``]
+
+[``[$capacity]\text{GW} \cdot 
+\frac{\text{1000 MW}}{\text{1 GW}} \cdot 
+\frac{\text{1000 kW}}{\text{1 MW}} \cdot 
+\frac{[$DOLLARSYMBOL][$CAPEX]}{\text{kW}} \cdot 
+\frac{\text{1 Million}[$DOLLARSYMBOL]}{[$DOLLARSYMBOL]\text{1000000}} = 
+\text{M}[$DOLLARSYMBOL][$capitalCost]``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Two 
+##########################################
+
+Section::Begin("Part 2: Yearly Operation Costs",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+How much will it cost to run the power plant in any given year in *million* 
+dollars, assuming it is operating at full capacity?
+
+*M*$ [__________]{$yearCost}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\frac{[$DOLLARSYMBOL]}{\text{year}} = 
+\text{Fixed Cost} + 
+\text{Variable Cost} + 
+\text{Fuel Cost}``]
+
+[``[$capacity]\text{GW} \cdot 
+\frac{\text{1000 MW}}{\text{1 GW}} \cdot 
+\frac{\text{1000 kW}}{\text{1 MW}} \cdot 
+\frac{[$DOLLARSYMBOL][$operation]}{\text{kW-yr}} \cdot 
+\frac{[$DOLLARSYMBOL]\text{M}}{[$DOLLARSYMBOL]\text{1000000}} = 
+\text{M}[$DOLLARSYMBOL][$operationPerYear]
+\text{ (Yearly Fixed Operation Cost)}``]
+
+[``[$energy]\text{TWh} \cdot 
+\frac{\text{1000 GWh}}{\text{1 TWh}} \cdot 
+\frac{\text{1000 MWh}}{\text{1 GWh}} \cdot 
+\frac{[$DOLLARSYMBOL][$var]}{\text{MWh}} \cdot 
+\frac{[$DOLLARSYMBOL]\text{M}}{[$DOLLARSYMBOL]\text{1000000}} = 
+\text{M}[$DOLLARSYMBOL][$varPerYear]\text{ (Yearly Variable Cost)}``]
+
+[``[$energy]\text{TWh} \cdot 
+\frac{\text{1000 GWh}}{\text{1 TWh}} \cdot 
+\frac{\text{1000 MWh}}{\text{1 GWh}} \cdot 
+\frac{\text{1000 kWh}}{\text{1 MWh}} \cdot 
+\frac{\text{1 MMBTU}}{\text{293.07 kWh}} \cdot 
+\frac{[$DOLLARSYMBOL][$fuel]}{\text{MMBTU}} \cdot 
+\frac{[$DOLLARSYMBOL]\text{M}}{[$DOLLARSYMBOL]\text{1000000}} = 
+\text{M}[$DOLLARSYMBOL][$fuelPerYear]\text{ (Yearly Fuel Cost)}``]
+
+[``\text{M}[$DOLLARSYMBOL][$operationPerYear] + 
+\text{M}[$DOLLARSYMBOL][$varPerYear] + 
+\text{M}[$DOLLARSYMBOL][$fuelPerYear] = 
+\text{M}[$DOLLARSYMBOL][$yearCost]``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three 
+##########################################
+
+Section::Begin("Part 3: Emissions",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Assuming an emission rate of [$emissionRate][`\frac{\text{lbs}}{\text{kWh}}`], 
+how many *million tonnes* of CO2 are produced each year by the power plant? 
+
+[__________]{$yearEmissions}[`\text{M Tonnes}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$energy]\text{TWh} \cdot 
+\frac{\text{1000 GWh}}{\text{1 TWh}} \cdot 
+\frac{\text{1000 MWh}}{\text{1 GWh}} \cdot 
+\frac{\text{1000 kWh}}{\text{1 MWh}} \cdot 
+\frac{[$emissionRate]\text{ lbs}}{\text{kWh}} \cdot 
+\frac{\text{0.4536 kg}}{\text{1 lb}} \cdot 
+\frac{\text{1 Tonne}}{\text{1000 kg}} \cdot 
+\frac{\text{1 MTonne}}{\text{1000000 Tonnes}} = 
+[$yearEmissions]\text{ MTonnes CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Four 
+##########################################
+
+Section::Begin("Part 4: Levelized Cost of Electricity",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Finally, you are asked to find the levelized cost of electricity. You can 
+assume a discount rate of [$discountRate][$PERCENT], and that the project 
+will last for [$lifeSpan] years. Furthermore, you know that the current 
+carbon tax is [$carbonTaxLow][`\frac{[$DOLLARSYMBOL]}{\text{Tonne}}`], but 
+expect it to rise to [$carbonTaxHigh][`\frac{[$DOLLARSYMBOL]}{\text{Tonne}}`] 
+after [$yearsAtLowCarbonTax] years.
+
+What is the yearly levelized cost of electricity for the *low* carbon tax 
+scenario? 
+
+[__________]{$lcoeLow}[`\frac{[$DOLLARSYMBOL]}{\text{MWh}}`]
+
+What is the yearly levelized cost of electricity for the *high* carbon tax 
+scenario? 
+
+[__________]{$lcoeHigh}[`\frac{[$DOLLARSYMBOL]}{\text{MWh}}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\text{LCOE} = 
+\frac{\text{CRF}\times\text{Capital Cost} + 
+\text{Operation Cost}}{\text{Energy Produced}} + 
+\text{ Variable Cost } + 
+\text{ Taxes}``]
+
+[``\text{CRF } = 
+\frac{[$discountRateDecimal]([$discountRateDecimal]+1)^{[$lifeSpan]}}
+{([$discountRateDecimal]+1)^{[$lifeSpan]}-1} = 
+[$CRF]``]
+
+-----------------------------
+
+[``[$carbonTaxLow]\frac{[$DOLLARSYMBOL]}{\text{Tonne}} \cdot 
+[$yearEmissions]\text{ MTonnes} \cdot 
+\frac{\text{1000000 Tonnes}}{\text{1 MTonne}} \cdot 
+\frac{\text{1}}{[$energy]\text{ TWh}} \cdot 
+\frac{\text{1 TWh}}{\text{1000 GWh}} \cdot 
+\frac{\text{1 GWh}}{\text{1000 MWh}} = 
+[$carbonPaymentLow]\frac{[$DOLLARSYMBOL]}{\text{MWh}}\text{ (Low Carbon Tax Payment)}``]
+
+[``(\frac{[$CRF]\cdot[$DOLLARSYMBOL][$capitalCost] + 
+[$DOLLARSYMBOL][$operationPerYear]}{[$energy]\text{TWh} \cdot 
+\frac{\text{1000 GWh}}{\text{1 TWh}} \cdot 
+\frac{\text{1000 MWh}}{\text{1 GWh}}}) + 
+([$var]\frac{[$DOLLARSYMBOL]}{\text{MWh}}) + 
+([$fuel]\frac{[$DOLLARSYMBOL]}{\text{MMBTU}} \cdot 
+\frac{\text{1 MMBTU}}{\text{293.07 kWh}} \cdot 
+\frac{\text{1000 kWh}}{\text{1 MWh}}) + 
+([$carbonPaymentLow]\frac{[$DOLLARSYMBOL]}{\text{MWh}}) = 
+[$lcoeLow]\frac{[$DOLLARSYMBOL]}{\text{MWh}}``]
+
+-----------------------------
+
+[``[$carbonTaxHigh]\frac{[$DOLLARSYMBOL]}{\text{Tonne}} \cdot 
+[$yearEmissions]\text{ MTonnes} \cdot 
+\frac{\text{1000000 Tonnes}}{\text{1 MTonne}} \cdot 
+\frac{\text{1}}{[$energy]\text{ TWh}} \cdot 
+\frac{\text{1 TWh}}{\text{1000 GWh}} \cdot 
+\frac{\text{1 GWh}}{\text{1000 MWh}} = 
+[$carbonPaymentHigh]\frac{[$DOLLARSYMBOL]}
+{\text{MWh}}\text{ (High Carbon Tax Payment)}``]
+
+[``(\frac{[$CRF] \cdot 
+[$DOLLARSYMBOL][$capitalCost] + 
+[$DOLLARSYMBOL][$operationPerYear]}{[$energy]\text{TWh} \cdot 
+\frac{\text{1000 GWh}}{\text{1 TWh}} \cdot 
+\frac{\text{1000 MWh}}{\text{1 GWh}}}) + 
+([$var]\frac{[$DOLLARSYMBOL]}{\text{MWh}}) + 
+([$fuel]\frac{[$DOLLARSYMBOL]}{\text{MMBTU}} \cdot 
+\frac{\text{1 MMBTU}}{\text{293.07 kWh}} \cdot 
+\frac{\text{1000 kWh}}{\text{1 MWh}}) + 
+([$carbonPaymentHigh]\frac{[$DOLLARSYMBOL]}{\text{MWh}}) = 
+[$lcoeHigh]\frac{[$DOLLARSYMBOL]}{\text{MWh}} ``]
+
+END_PGML_SOLUTION
+Section::End();
+###########################################
+
+Scaffold::End();
+ENDDOCUMENT();

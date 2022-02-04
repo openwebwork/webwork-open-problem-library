@@ -1,0 +1,586 @@
+# DESCRIPTION
+# Compare emissions for six different methods to travel across the country
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Energy Chain)
+## Level(5)
+## KEYWORDS('energy', 'energy chain', 'emissions')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGcourse.pl",
+  "scaffold.pl",
+  "niceTables.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .10);
+
+##########################################
+# Problem Setup 
+##########################################
+
+#gas car
+$driveDistance = Real(4450); #km
+$gasExtraDistance = random(2,4,1); #km/100km
+$gasMPG = random(30,45,1); #mpg
+$gaskmL = sprintf("%0.2f",$gasMPG*1.609/3.785); #km/L
+$gasEmissionRate = random(160,200,5); #g CO2/km
+$gasWellToTankEmissionRate = random(650,750,1); #g CO2/L
+$gasCarDistance = sprintf("%0.2f",$driveDistance+($driveDistance/100)*$gasExtraDistance); #km
+$gasLitersUsed = sprintf("%0.2f",$gasCarDistance/$gaskmL); #L
+$gasTotalEmissions = sprintf("%0.2f",($gasLitersUsed*$gasWellToTankEmissionRate + $gasCarDistance*$gasEmissionRate)/1000); #kg
+
+#ev
+$evExtraDistance = random(5,8,1); #km/100km
+$batterySize = random(54,82,1); #kWh
+$evEnergyUse = random(15,20,0.2); #kWh per 100km
+$fossilFuelSources = random(20,40,1); #percent
+$emissionToGenerate = random(0.91,2.21,0.01); #lbs per kWh
+$evCarDistance = sprintf("%0.2f",$driveDistance+($driveDistance/100)*$evExtraDistance); #km
+$evElecUsed = sprintf("%0.2f",$evCarDistance/100*$evEnergyUse); #kWh
+$evTotalEmissions = sprintf("%0.2f",$evElecUsed*$fossilFuelSources/100*$emissionToGenerate*0.4536); #kg
+
+#Bus
+$busExtraDistance = random(5,8,0.2); #percent
+$busDistance = floor($driveDistance+$driveDistance*$busExtraDistance/100); #km
+$busSeats = random(50,60,1);
+$dieselEmissionRate = random(2.5,2.9,0.1); #kg/L
+$dieselWellToTankEmissionRate = floor($gasWellToTankEmissionRate*0.9); #gCO2/L
+$busMPG = random(6.0,8.0,0.1); #mpg
+$buskmL = sprintf("%0.2f",$busMPG*1.609/3.785); #km/L
+$busPercentFullHalf = Real(100); #%
+$busPercentFullQ1 = random(70,90,1); #%
+$busPercentFullQ2 = random(45,65,1); #%
+$busLitersUsed = sprintf("%0.2f",$busDistance/$buskmL);
+$busTotalEmissions = sprintf("%0.2f",$busLitersUsed*$dieselWellToTankEmissionRate/1000+$busLitersUsed*$dieselEmissionRate);
+$busPersonalEmissions = sprintf("%0.2f",$busTotalEmissions*(0.5/$busSeats/($busPercentFullHalf/100)+0.25/$busSeats/($busPercentFullQ1/100)+0.25/$busSeats/($busPercentFullQ2/100)));
+
+#Train
+$trainExtraDistance = random(15,20,0.2); #percent
+$trainDistance = floor($driveDistance+$driveDistance*$trainExtraDistance/100); #km
+$trainFuelUseGallons = random(350,400,1); #Gallons
+$trainFuelUseMiles = random(150,175,1); #Miles
+$trainPercentFullHalf = random(90,95,1); #%
+$trainPercentFullQ1 = random(80,90,1); #%
+$trainPercentFullQ2 = random(65,75,1); #%
+$trainSeats = random(400,500,1);
+$trainkmL = sprintf("%0.2f",$trainFuelUseMiles/$trainFuelUseGallons*1.609/3.785); #km/L
+$trainLitersUsed = sprintf("%0.2f",$trainDistance/$trainkmL); #L
+$trainTotalEmissions = sprintf("%0.2f",$trainLitersUsed*$dieselWellToTankEmissionRate/1000+$trainLitersUsed*$dieselEmissionRate);
+$trainPersonalEmissions = sprintf("%0.2f",$trainTotalEmissions*(0.5/$trainSeats/($trainPercentFullHalf/100)+0.25/$trainSeats/($trainPercentFullQ1/100)+0.25/$trainSeats/($trainPercentFullQ2/100)));
+
+#Commercial Flight
+$planeDistance = Real(3540); #km
+$planeEmissionRate = Real(3.16); #kg CO2/kg Fuel
+$planeFuelDensity = random(775,840,1); #g/L
+$planeWellToTankEmissionRate = floor($gasWellToTankEmissionRate*1.25); #gCO2/L
+$planeEfficiency = random(11,15,1); #L/km
+$planeSeats = random(525,575,1);
+$planeFullPercentage = random(70,95,5); #percent
+$planeKgUsed = sprintf("%0.2f",$planeEfficiency*$planeDistance*$planeFuelDensity/1000); #kg
+$planeTotalEmissions = sprintf("%0.2f",$planeKgUsed*$planeEmissionRate+$planeKgUsed*1000/$planeFuelDensity*$planeWellToTankEmissionRate/1000); #kg
+$planePersonalEmissions = sprintf("%0.2f",$planeTotalEmissions/$planeSeats/($planeFullPercentage/100)); #kg
+
+#jet
+$jetDistance = $planeDistance; #km
+$jetSpeed = random(525,575,1); #mph
+$jetFuelConsumption = random(200,250,1); #gph
+$jetFuelEmission = random(2500,2750,1); # g CO2 per gallon
+$jetWellToTankEmissionRate = floor($planeWellToTankEmissionRate*0.5);#gCO2/L
+$jetSeats = Real(3);
+$jetLitersUsed = sprintf("%0.2f",$jetDistance*0.6214/$jetSpeed*$jetFuelConsumption*3.785); #L
+$jetTotalEmissions = sprintf("%0.2f",$jetLitersUsed*$jetWellToTankEmissionRate/1000+$jetLitersUsed*$jetFuelEmission/3.785/1000); #kg
+$jetPersonalEmissions = sprintf("%0.2f",$jetTotalEmissions/$jetSeats); #kg
+
+#Differences
+$evDifference = sprintf("%0.2f",($evTotalEmissions/$gasTotalEmissions-1)*100);
+$busDifference = sprintf("%0.2f",($busPersonalEmissions/$gasTotalEmissions-1)*100);
+$trainDifference = sprintf("%0.2f",($trainPersonalEmissions/$gasTotalEmissions-1)*100);
+$planeDifference = sprintf("%0.2f",($planePersonalEmissions/$gasTotalEmissions-1)*100);
+$jetDifference = sprintf("%0.2f",($jetPersonalEmissions/$gasTotalEmissions-1)*100);
+
+##########################################
+# Problem Statement  
+##########################################
+
+Scaffold::Begin(
+);
+
+BEGIN_PGML
+
+You are planning a trip from Vancouver to Ottawa and are considering 6 
+different methods to execute the trip.
+1. Driving your personal gas car
+2. Driving your personal electric car
+3. Buying a ticket on a diesel bus line
+4. Taking a diesel powered train
+5. Flying in a commercial airplane
+6. Flying in a private jet using biofuel
+
+Limiting your personal carbon emissions is a top priority for you, so you 
+want to find the method that has the least *personal* CO2 emissions.
+
+END_PGML
+
+##########################################
+# Problem One  
+##########################################
+
+Section::Begin("Part 1: Personal Gas Car",
+    is_open => "always",);
+
+BEGIN_PGML
+
+Mapping out your route, you see that it will require you to drive a 
+distance of [$driveDistance][`\text{ km}`]. You estimate that for every 
+[`\text{100 km}`] you drive, you will need to drive an extra 
+[$gasExtraDistance]`\text{ km}` to find gas stations. Looking up your car 
+online, you find it has an efficiency of [$gasMPG]
+[`\frac{\text{Miles}}{\text{Gallon}}`] and an emission rate of 
+[$gasEmissionRate][`\frac{\text{g CO2}}{\text{km}}`]. Furthermore, you 
+approximate that to pump, refine, and transport the gas to a fuel station, 
+requires [$gasWellToTankEmissionRate][`\frac{\text{g CO2}}{\text{L}}`].
+
+How far is your actual travel distance?
+
+[__________]{$gasCarDistance}[`\text{km}`]
+
+How many *Liters* of gas do you use?
+
+[__________]{$gasLitersUsed}[`\text{L}`]
+
+How many *kg* of CO2 will the trip emit? (Include emissions to produce and 
+transport the fuel)
+
+[__________]{$gasTotalEmissions}[`\text{kg CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$driveDistance]\text{km} + 
+[$driveDistance]\text{ km} \cdot 
+\frac{[$gasExtraDistance]\text{ km}}{\text{100 km}} = 
+[$gasCarDistance]\text{ km}``]
+
+[``[$gasCarDistance]\text{ km} \cdot 
+(\frac{[$gasMPG]\text{Miles}}{\text{Gallon}} \cdot 
+\frac{\text{1.609 km}}{\text{1 Mile}}\ cdot 
+\frac{\text{1 Gallon}}{\text{3.785 L}})^{\text{-1}} = 
+[$gasLitersUsed]\text{ L}``]
+
+[``([$gasCarDistance]\text{ km} \cdot 
+\frac{[$gasEmissionRate]\text{ g CO2}}{\text{km}} + 
+[$gasLitersUsed]\text{ L} \cdot 
+\frac{[$gasWellToTankEmissionRate]\text{ g CO2}}{\text{L}}) \cdot 
+\frac{\text{1 kg}}{\text{1000 g}} = 
+[$gasTotalEmissions]\text{ kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Two  
+##########################################
+
+Section::Begin("Part 2: Personal Electric Car",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Instead of driving a gas car, you want to understand the potential CO2 
+savings of driving your electric car. Your trip will still be 
+[$driveDistance][`\text{ km}`], however, you 
+estimate that for every [`\text{100 km}`] you drive you will need to drive an 
+extra [$evExtraDistance][`\text{ km}`] to find a charging station. Your 
+electric car has a battery of [$batterySize][`\text{kWh}`] and uses energy at 
+an average rate of [$evEnergyUse][`\frac{\text{kWh}}{\text{100 km}}`]. You 
+assume that, [$fossilFuelSources][$PERCENT] of electricity generated to 
+charge your car comes from fossil fuel sources that have an emission rate of 
+[$emissionToGenerate][`\frac{\text{lbs}}{\text{kWh}}`], while the rest is 
+generated from zero-emission sources. 
+
+How far is your actual travel distance?
+
+[__________]{$evCarDistance}[`\text{km}`]
+
+How much energy will you use charging your car?
+
+[__________]{$evElecUsed}[`\text{kWh}`]
+
+How many *kg* of CO2 will the trip emit?
+
+[__________]{$evTotalEmissions}[`\text{kg CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$driveDistance]\text{km} + 
+[$driveDistance]\text{ km} \cdot 
+\frac{[$evExtraDistance]\text{ km}}{\text{100 km}} = 
+[$evCarDistance]\text{ km}``]
+
+[``[$evCarDistance]\text{ km} \cdot 
+\frac{[$evEnergyUse]\text{kWh}}{\text{100 km}} = 
+[$evElecUsed]\text{ kWh}``]
+
+[``[$evElecUsed]\text{ kWh} \cdot 
+[$fossilFuelSources]% \cdot 
+\frac{[$emissionToGenerate]\text{ lb CO2}}{\text{kWh}} \cdot 
+\frac{\text{0.4536 kg}}{\text{1 lb}} = 
+[$evTotalEmissions]\text{ kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three  
+##########################################
+
+Section::Begin("Part 3: Diesel Bus",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Instead of taking your personal vehicle, you want to see if a shared 
+transportation option will reduce your emissions. Researching bus tickets 
+online, you see that a bus trip will be longer, at [$busDistance]
+[`\text{ km}`], to accommodate station stops. Each bus has [$busSeats] seats 
+(including the driver) and runs on a diesel engine which gets [$busMPG]
+[`\frac{\text{Miles}}{\text{Gallon}}`] and has an emission rate of 
+[$dieselEmissionRate][`\frac{\text{kg CO2}}{\text{L}}`]. You approximate that 
+to pump, refine, and transport diesel to the refueling stations it requires 
+[$dieselWellToTankEmissionRate][`\frac{\text{g CO2}}{\text{L}}`]. Finally, 
+looking at the historical data you estimate that for half the trip the bus 
+will be [$busPercentFullHalf][$PERCENT] full, for a quarter of the trip the 
+bus will be [$busPercentFullQ1][$PERCENT] full, and for another quarter of 
+the trip the bus will be [$busPercentFullQ2][$PERCENT] full. 
+
+How many *Liters* of diesel does the bus use?
+
+[__________]{$busLitersUsed}[`\text{L}`]
+
+How many *kg* of CO2 will the *BUS* emit to make the trip? (Include emissions 
+to produce and transport the fuel)
+
+[__________]{$busTotalEmissions}[`\text{kg CO2}`]
+
+What is your share of CO2 emissions? (Include emissions to produce and 
+transport the fuel)
+
+[__________]{$busPersonalEmissions}[`\text{kg CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$busDistance]\text{ km} \cdot 
+(\frac{[$busMPG]\text{ Miles}}{\text{Gallon}} \cdot 
+\frac{\text{1.609 km}}{\text{1 Mile}} \cdot 
+\frac{\text{1 Gallon}}{\text{3.785 L}})^{\text{-1}} = 
+[$busLitersUsed]\text{ L}``]
+
+[``[$busLitersUsed]\text{ L} \cdot 
+\frac{[$dieselEmissionRate]\text{ kg CO2}}{\text{L}} + 
+[$busLitersUsed]\text{ L} \cdot 
+\frac{[$dieselWellToTankEmissionRate]\text{ g CO2}}{\text{L}} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}} = 
+[$busTotalEmissions]\text{ kg CO2}``]
+
+[``[$busTotalEmissions]\text{ kg} \cdot 
+\frac{\text{1}}{[$busSeats]\text{ Seats}} \cdot 
+(\text{50}%\text{ Trip} \cdot 
+\frac{\text{1}}{[$busPercentFullHalf]% \text{ Full}} +
+\text{25}%\text{ Trip} \cdot 
+\frac{\text{1}}{[$busPercentFullQ1]% \text{ Full}} +
+\text{25}%\text{ Trip} \cdot 
+\frac{\text{1}}{[$busPercentFullQ2]% \text{ Full}}) = 
+[$busPersonalEmissions]\text{ kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Four  
+##########################################
+
+Section::Begin("Part 4: Diesel Train",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Another option you investigate is taking a passenger train across Canada. 
+The train trip travels a longer distance compared to driving, at 
+[$trainDistance][`\text{ km}`], but can carry [$trainSeats] passengers at any 
+one time. The train has the same engine emissions as the bus, at 
+[$dieselEmissionRate][`\frac{\text{kg CO2}}{\text{L}}`], as well as having 
+the same production and transportation emissions at 
+[$dieselWellToTankEmissionRate][`\frac{\text{g CO2}}{\text{L}}`]. You find a 
+recent study that estimates fuel consumption for a similar sized train to be 
+[$trainFuelUseGallons][`\text{ Gallons}`] of diesel consumed on a 
+[$trainFuelUseMiles][`\text{ Mile}`] long trip. Finally, much like the bus 
+trip, looking at historical data you estimate that for half the trip the 
+train will be [$trainPercentFullHalf][$PERCENT] full, for a quarter of the 
+trip the train will be [$trainPercentFullQ1][$PERCENT] full, and for another 
+quarter of the trip the train will be [$trainPercentFullQ2][$PERCENT] full. 
+
+How many *Liters* of diesel does the train use?
+
+[__________]{$trainLitersUsed}[`\text{L}`]
+
+How many *kg* of CO2 will the *TRAIN* emit to make the trip? 
+(Include emissions to produce and transport the fuel)
+
+[__________]{$trainTotalEmissions}[`\text{kg CO2}`]
+
+What is your share of CO2 emissions? (Include emissions to produce and 
+transport the fuel)
+
+[__________]{$trainPersonalEmissions}[`\text{kg CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$trainDistance]\text{ km} \cdot 
+(\frac{[$trainFuelUseMiles]\text{Miles}}{[$trainFuelUseGallons]\text{Gallon}} \cdot 
+\frac{\text{1.609 km}}{\text{1 Mile}} \cdot 
+\frac{\text{1 Gallon}}{\text{3.785 L}})^{\text{-1}} = 
+[$trainLitersUsed]\text{ L} ``]
+
+[``[$trainLitersUsed]\text{ L} \cdot 
+\frac{[$dieselEmissionRate]\text{ kg CO2}}{\text{L}} + 
+[$trainLitersUsed]\text{ L} \cdot 
+\frac{[$dieselWellToTankEmissionRate]\text{ g CO2}}{\text{L}} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}} = 
+[$trainTotalEmissions]\text{ kg CO2}``]
+
+[``[$trainTotalEmissions]\text{ kg} \cdot 
+\frac{\text{1}}{[$trainSeats]\text{ Seats}} \cdot 
+(\text{50}%\text{ Trip} \cdot 
+\frac{\text{1}}{[$trainPercentFullHalf]% \text{ Full}} + \text{25}%\text{ Trip} \cdot 
+\frac{\text{1}}{[$trainPercentFullQ1]% \text{ Full}} + \text{25}%\text{ Trip} \cdot 
+\frac{\text{1}}{[$trainPercentFullQ2]% \text{ Full}}) = 
+[$trainPersonalEmissions]\text{ kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Five  
+##########################################
+
+Section::Begin("Part 5: Commercial Plane",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Next, you investigate making the trip on a standard commercial flight. The 
+[$planeSeats] passanger plane is [$planeFullPercentage]% full and can make the 
+[$planeDistance][`\text{ km}`] trip as a direct flight (no layovers). The 
+plane burns fuel at a rate of [$planeEfficiency][`\frac{\text{L}}{\text{km}}`] 
+and emits CO2 at a rate of [$planeEmissionRate]
+[`\frac{\text{kg CO2}}{\text{kg Fuel}}`]. The fuel has a density of 
+[$planeFuelDensity][`\frac{\text{g}}{\text{L}}`] and generates 
+[$planeWellToTankEmissionRate][`\frac{\text{g CO2}}{\text{L}}`] to produce 
+and transport it to the airport. 
+
+How many *kg* of fuel does the plane use?
+
+[__________]{$planeKgUsed}[`\text{kg}`]
+
+How many *kg* of CO2 will the *PLANE* emit to make the trip? (Include 
+emissions to produce and transport the fuel)
+
+[__________]{$planeTotalEmissions}[`\text{kg CO2}`]
+
+What is your share of CO2 emissions? (Include emissions to produce and 
+transport the fuel)
+
+[__________]{$planePersonalEmissions}[`\text{kg CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$planeDistance]\text{ km} \cdot 
+\frac{[$planeEfficiency]\text{ L}}{\text{km}} \cdot 
+\frac{[$planeFuelDensity]\text{ g}}{\text{L}} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}} = 
+[$planeKgUsed]\text{ kg}``]
+
+[``[$planeKgUsed]\text{ kg Fuel} \cdot 
+\frac{[$planeEmissionRate]\text{ kg CO2}}{\text{kg Fuel}} + [$planeKgUsed]\text{ kg Fuel} \cdot 
+\frac{\text{1000 g}}{\text{1 kg}} \cdot 
+(\frac{[$planeFuelDensity]\text{ g}}{\text{L}})^{\text{-1}} \cdot 
+\frac{[$planeWellToTankEmissionRate]\text{ g CO2}}{\text{L}} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}} = 
+[$planeTotalEmissions]\text{ kg CO2}``]
+
+[``[$planeTotalEmissions]\text{ kg} \cdot 
+\frac{\text{1}}{[$planeSeats]\text{ Seats}} \cdot 
+\frac{\text{1}}{[$planeFullPercentage]% \text{ Full}} = 
+[$planePersonalEmissions]\text{ kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Six  
+##########################################
+
+Section::Begin("Part 6: Private Jet with BioFuel",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Finally, you want to know if taking a private jet that runs on renewable 
+produced jet biofuel will reduce your emissions. The flight distance will be 
+the same, at [$jetDistance][`\text{km}`], and the *average* speed of the jet 
+is [$jetSpeed][`\frac{\text{Miles}}{\text{hr}}`]. Including crew, the jet 
+will carry [$jetSeats] people on the flight. Production and transport of the 
+biofuel to the airport will emit [$jetWellToTankEmissionRate]
+[`\frac{\text{g CO2}}{\text{L}}`], burning the fuel emits [$jetFuelEmission]
+[`\frac{\text{g CO2}}{\text{Gallon}}`], and the jet consumes fuel at a rate 
+of [$jetFuelConsumption][`\frac{\text{Gallon}}{\text{hr}}`]. 
+
+How many *Liters* of fuel does the jet use?
+
+[__________]{$jetLitersUsed}[`\text{L}`]
+
+How many *kg* of CO2 will the *JET* emit to make the trip? 
+(Include emissions to produce and transport the fuel)
+
+[__________]{$jetTotalEmissions}[`\text{kg CO2}`]
+
+What is your share of CO2 emissions? (Include emissions to produce and 
+transport the fuel)
+
+[__________]{$jetPersonalEmissions}[`\text{kg CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$jetDistance]\text{ km} \cdot 
+\frac{\text{0.6214 Miles}}{\text{km}} \cdot 
+(\frac{[$jetSpeed]\text{ Miles}}{\text{hr}})^{\text{-1}} \cdot 
+\frac{[$jetFuelConsumption]\text{ Gallons}}{\text{hr}} \cdot 
+\frac{\text{3.785 Liter}}{\text{Gallon}} = 
+[$jetLitersUsed]\text{ L}``]
+
+[``[$jetLitersUsed]\text{ L} \cdot 
+\frac{[$jetFuelEmission]\text{ g CO2}}{\text{Gallon}} \cdot 
+\frac{\text{1 Gallon}}{\text{3.785 L}} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}}+[$jetLitersUsed]\text{ L} \cdot 
+\frac{[$jetWellToTankEmissionRate]\text{ g CO2}}{\text{L}} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}} = 
+[$jetTotalEmissions]\text{ kg CO2}``]
+
+
+[``[$jetTotalEmissions]\text{ kg} \cdot 
+\frac{\text{1}}{[$jetSeats]\text{ Passengers}} = 
+[$jetPersonalEmissions]\text{ kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Seven  
+##########################################
+
+Section::Begin("Part 7: Results",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+After the research, you compile the table below to determine the method of 
+transportation you should take. Using the *Gas Car* scenario as reference, 
+populate the right column with how much more or less personal kg of CO2 will 
+be released *as a percentage*.
+
+If the travel method uses less emissions, be sure to include the negative 
+sign. For example, if the electric car trip releases 20% *less* CO2 emissions 
+then the gas car, input the value as "-20".
+
+END_PGML
+
+BEGIN_TEXT
+$PAR
+\{
+DataTable(
+  [
+    [['Travel Method', headerrow => 1],'Percent Difference'],
+    ['Gas Car', '-' ],
+    ['Electric Car',ans_rule(6)],
+    ['Diesel Bus',ans_rule(6)],
+    ['Diesel Train',ans_rule(6)],
+    ['Commercial Plane',ans_rule(6)],
+    ['Private Jet Biofuel',ans_rule(6)]
+  ], 
+);
+\}
+$PAR
+END_TEXT
+
+ANS(num_cmp($evDifference, reltol=>2),
+    num_cmp($busDifference, reltol=>2),
+    num_cmp($trainDifference, reltol=>2),
+    num_cmp($planeDifference, reltol=>2),
+    num_cmp($jetDifference, reltol=>2)
+);
+
+BEGIN_PGML_SOLUTION
+
+[``(\frac{[$evTotalEmissions]\text{ kg CO2 EV}}
+{[$gasTotalEmissions]\text{ kg CO2 Gas Car}}-1) \cdot 
+\text{100}% = 
+[$evDifference]%``]
+
+[``(\frac{[$busPersonalEmissions]\text{ kg CO2 Bus}} 
+{[$gasTotalEmissions]\text{ kg CO2 Gas Car}}-1) \cdot 
+\text{100}% = 
+[$busDifference]%``]
+
+[``(\frac{[$trainPersonalEmissions]\text{ kg CO2 Train}}
+{[$gasTotalEmissions]\text{ kg CO2 Gas Car}}-1) \cdot 
+\text{100}% = 
+[$trainDifference]%``]
+
+[``(\frac{[$planePersonalEmissions]\text{ kg CO2 Plane}}
+{[$gasTotalEmissions]\text{ kg CO2 Gas Car}}-1) \cdot 
+\text{100}% = 
+[$planeDifference]%``]
+
+[``(\frac{[$jetPersonalEmissions]\text{ kg CO2 Jet}}
+{[$gasTotalEmissions]\text{ kg CO2 Gas Car}}-1) \cdot 
+\text{100}% = 
+[$jetDifference]%``]
+
+END_PGML_SOLUTION
+Section::End();
+###########################################
+
+Scaffold::End();
+ENDDOCUMENT();

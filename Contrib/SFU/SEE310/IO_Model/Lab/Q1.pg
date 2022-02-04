@@ -1,0 +1,343 @@
+# DESCRIPTION
+# Solve an Input-Output Energy Model  
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System Modelling)
+## DBsection(Input Output Models)
+## Level(5)
+## KEYWORDS('environmental impacts')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Sheena Tan and Jonn Axsen)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+# Question based on original problem developed in REM 658 by Jonn Axsen, 
+# Mark Jaccard, Paulus Mau and Rose Murphy at Simon Fraser University
+
+#########################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGanswermacros.pl",
+  "parserPopUp.pl",
+  "compoundProblem5.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "contextInequalities.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+  "niceTables.pl"
+);
+
+#  Setup
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+rserve_eval('
+# Load R Libraries
+library(plyr)');
+
+rserve_eval('
+# Inputs Purchased by Agriculture
+AgricultureInputAgriculture <- round_any(runif(1,15,25),5)
+AgricultureInputManufacturing <- round_any(runif(1,15,25),5)
+
+AgricultureInputHouseholds <- (100 - (AgricultureInputAgriculture + AgricultureInputManufacturing))*3/5
+AgricultureInputGovernment <- (100 - (AgricultureInputAgriculture + AgricultureInputManufacturing + AgricultureInputHouseholds))/2
+AgricultureInputImports <- (100 - (AgricultureInputAgriculture + AgricultureInputManufacturing + AgricultureInputHouseholds))/2
+
+# Inputs Purchased by Manufacturing
+ManufacturingInputAgriculture <- round_any(runif(1,35,45),5)
+ManufacturingInputManufacturing <- round_any(runif(1,15,25),5)
+ManufacturingInputServices <- round_any(runif(1,35,45),5)
+
+ManufacturingInputHouseholds <- (200 - (ManufacturingInputAgriculture + ManufacturingInputManufacturing + ManufacturingInputServices))*0.45
+ManufacturingInputGovernment <- (200 - (ManufacturingInputAgriculture + ManufacturingInputManufacturing + ManufacturingInputServices))*0.15
+ManufacturingInputImports <- (200 - (ManufacturingInputAgriculture + ManufacturingInputManufacturing + ManufacturingInputServices))*0.4
+
+# Inputs Purchased by Services
+ServicesInputManufacturing <- round_any(runif(1,5,15),5)
+ServicesInputServices <- round_any(runif(1,5,15),5)
+
+ServicesInputHouseholds <- (100 - (ServicesInputManufacturing + ServicesInputServices))- 10
+
+# Inputs Purchased by Households
+HouseholdsInputAgriculture <- (100 - (AgricultureInputAgriculture + ManufacturingInputAgriculture))/2
+HouseholdsInputManufacturing <- (200 - (AgricultureInputManufacturing + ManufacturingInputManufacturing + ServicesInputManufacturing))/2
+HouseholdsInputServices <- (100 - (ManufacturingInputServices + ServicesInputServices))/2
+
+# Inputs Purchased by Exports
+ExportsInputManufacturing <- (200 - (AgricultureInputManufacturing + ManufacturingInputManufacturing + ServicesInputManufacturing))/2.5
+
+# Inputs Purchased by Government
+GovernmentInputManufacturing <- 200 - (AgricultureInputManufacturing + ManufacturingInputManufacturing + ServicesInputManufacturing + HouseholdsInputManufacturing + ExportsInputManufacturing)
+GovernmentInputServices <- (100 - (ManufacturingInputServices + ServicesInputServices))/2.5
+
+# Inputs Purchased by Exports
+ExportsInputAgriculture <- (100 - (AgricultureInputAgriculture + ManufacturingInputAgriculture))/2
+ExportsInputServices <- 100 - (ManufacturingInputServices + ServicesInputServices + HouseholdsInputServices + GovernmentInputServices)
+
+');
+
+@AgricultureInputAgriculture = rserve_eval('AgricultureInputAgriculture');
+@AgricultureInputManufacturing = rserve_eval('AgricultureInputManufacturing');
+@ManufacturingInputAgriculture = rserve_eval('ManufacturingInputAgriculture');
+@ManufacturingInputManufacturing = rserve_eval('ManufacturingInputManufacturing');
+@ManufacturingInputServices = rserve_eval('ManufacturingInputServices');
+@ServicesInputManufacturing = rserve_eval('ServicesInputManufacturing');
+@ServicesInputServices = rserve_eval('ServicesInputServices');
+@HouseholdsInputAgriculture = rserve_eval('HouseholdsInputAgriculture');
+@HouseholdsInputManufacturing = rserve_eval('HouseholdsInputManufacturing');
+@HouseholdsInputServices = rserve_eval('HouseholdsInputServices');
+@GovernmentInputManufacturing = rserve_eval('GovernmentInputManufacturing');
+@GovernmentInputServices = rserve_eval('GovernmentInputServices');
+@ExportsInputAgriculture = rserve_eval('ExportsInputAgriculture');
+@ExportsInputManufacturing = rserve_eval('ExportsInputManufacturing');
+@ExportsInputServices = rserve_eval('ExportsInputServices');
+@AgricultureInputHouseholds = rserve_eval('AgricultureInputHouseholds');
+@AgricultureInputGovernment = rserve_eval('AgricultureInputGovernment');
+@AgricultureInputImports = rserve_eval('AgricultureInputImports');
+@ManufacturingInputHouseholds = rserve_eval('ManufacturingInputHouseholds');
+@ManufacturingInputGovernment = rserve_eval('ManufacturingInputGovernment');
+@ManufacturingInputImports = rserve_eval('ManufacturingInputImports');
+@ServicesInputHouseholds = rserve_eval('ServicesInputHouseholds');
+
+# Gross Inputs
+$GrossInputHouseholds = $HouseholdsInputAgriculture[0] + $HouseholdsInputManufacturing[0] + $HouseholdsInputServices[0];
+$GrossInputGovernment = $GovernmentInputManufacturing[0] + $GovernmentInputServices[0];
+$GrossInputExports = $ExportsInputAgriculture[0] + $ExportsInputManufacturing[0] + $ExportsInputServices[0];
+
+# Gross Outputs
+$GrossOutputHouseholds = $AgricultureInputHouseholds[0] + $ManufacturingInputHouseholds[0] + $ServicesInputHouseholds[0];
+$GrossOutputGovernment = $AgricultureInputGovernment[0] + $ManufacturingInputGovernment[0] + 5;
+$GrossOutputImports = $AgricultureInputImports[0] + $ManufacturingInputImports[0] + 5;
+
+# Total Inputs Outputs
+$Total1 = 400 + $GrossOutputHouseholds + $GrossOutputGovernment + $GrossOutputImports;
+$Total2 = 400 + $GrossInputHouseholds + $GrossInputGovernment + $GrossInputExports;
+
+if($Total1 == $Total2) {$Total = $Total1; }
+
+#Technical Coefficients
+$AgricultureInputAgricultureTC = $AgricultureInputAgriculture[0]/100;
+$ManufacturingInputAgricultureTC = $ManufacturingInputAgriculture[0]/100;
+$AgricultureInputManufacturingTC = $AgricultureInputManufacturing[0]/200;
+$ManufacturingInputManufacturingTC = $ManufacturingInputManufacturing[0]/200;
+$ServicesInputManufacturingTC = $ServicesInputManufacturing[0]/200;
+$ManufacturingInputServicesTC = $ManufacturingInputServices[0]/100;
+$ServicesInputServicesTC = $ServicesInputServices[0]/100;
+
+Context("Matrix");
+   
+$InputOutput = Matrix([$AgricultureInputAgricultureTC,$ManufacturingInputAgricultureTC,0],[$AgricultureInputManufacturingTC, $ManufacturingInputManufacturingTC, $ServicesInputManufacturingTC],[0,$ManufacturingInputServicesTC,$ServicesInputServicesTC]);
+$I = Value::Matrix->I(3);
+$Difference = $I - $InputOutput;
+$InverseofDifference = $Difference ->inverse;
+
+$AgricultureIncrease = ColumnVector(5,0,0);
+$ManufacturingIncrease = ColumnVector(0,5,0);
+$ServicesIncrease = ColumnVector(0,0,5);
+
+$AgricultureImpact = ColumnVector($InverseofDifference * $AgricultureIncrease);
+$ManufacturingImpact = ColumnVector($InverseofDifference * $ManufacturingIncrease);
+$ServicesImpact = ColumnVector($InverseofDifference * $ServicesIncrease);
+
+#Total Production Required
+$TotalProductionRequired = 5*$InverseofDifference;
+$TotalAgricultureInputAgricultureRequired = $TotalProductionRequired->element(1,1);
+$TotalManufacturingInputAgricultureRequired = $TotalProductionRequired->element(1,2);
+$TotalServicesInputAgricultureRequired = $TotalProductionRequired->element(1,3);
+$TotalAgricultureInputManufacturingRequired = $TotalProductionRequired->element(2,1);
+$TotalManufacturingInputManufacturingRequired = $TotalProductionRequired->element(2,2);
+$TotalServicesInputManufacturingRequired = $TotalProductionRequired->element(2,3);
+$TotalAgricultureInputServicesRequired = $TotalProductionRequired->element(3,1);
+$TotalManufacturingInputServicesRequired = $TotalProductionRequired->element(3,2);
+$TotalServicesInputServicesRequired = $TotalProductionRequired->element(3,3);
+
+$TotalAgricultureOutput = $TotalAgricultureInputAgricultureRequired + $TotalAgricultureInputManufacturingRequired + $TotalAgricultureInputServicesRequired;
+
+$TotalManufacturingOutput = $TotalManufacturingInputAgricultureRequired + $TotalManufacturingInputManufacturingRequired + $TotalManufacturingInputServicesRequired;
+
+$TotalServicesOutput = $TotalServicesInputAgricultureRequired + $TotalServicesInputManufacturingRequired + $TotalServicesInputServicesRequired;
+
+#Environmental Impact
+$ImpactAgricultureonEnergy = random(10, 13, 0.1);
+$ImpactManufacturingonEnergy = random(9, 11.5, 0.1);
+$ImpactServicesonEnergy = random(5, 7, 0.1);
+$ImpactAgricultureonGHG = random(700, 900, 1);
+$ImpactManufacturingonGHG = random(700, 900, 1);
+$ImpactServicesonGHG = random(400, 500, 1);
+$ImpactAgricultureonWater = random(2, 8, 0.25);
+$ImpactManufacturingonWater = random(4, 9, 0.25);
+$ImpactServicesonWater = random(0.5, 2.5, 0.1);
+
+#Total Environmental Impact
+Context("Matrix");
+   
+$EnvironmentalImpact = Matrix([$ImpactAgricultureonEnergy,$ImpactManufacturingonEnergy,$ImpactServicesonEnergy],[$ImpactAgricultureonGHG, $ImpactManufacturingonGHG, $ImpactServicesonGHG],[$ImpactAgricultureonWater,$ImpactManufacturingonWater, $ImpactServicesonWater]);
+
+$AgricultureInputVector = ColumnVector($TotalAgricultureInputAgricultureRequired, $TotalAgricultureInputManufacturingRequired, $TotalAgricultureInputServicesRequired);
+
+$ManufacturingInputVector = ColumnVector($TotalManufacturingInputAgricultureRequired, $TotalManufacturingInputManufacturingRequired, $TotalManufacturingInputServicesRequired);
+
+$ServicesInputVector = ColumnVector($TotalServicesInputAgricultureRequired, $TotalServicesInputManufacturingRequired, $TotalServicesInputServicesRequired);
+
+$AgricultureEnvironmentalImpact = $EnvironmentalImpact*$AgricultureInputVector;
+
+$ManufacturingEnvironmentalImpact =$EnvironmentalImpact*$ManufacturingInputVector;
+
+$ServicesEnvironmentalImpact = $EnvironmentalImpact*$ServicesInputVector;
+
+$TotalImpactAgricultureonEnergy = $AgricultureEnvironmentalImpact->element(1,1);
+$TotalImpactAgricultureonGHG = $AgricultureEnvironmentalImpact->element(2,1);
+$TotalImpactAgricultureonWater = $AgricultureEnvironmentalImpact->element(3,1);
+
+$TotalImpactManufacturingonEnergy = $ManufacturingEnvironmentalImpact->element(1,1);
+$TotalImpactManufacturingonGHG = $ManufacturingEnvironmentalImpact->element(2,1);
+$TotalImpactManufacturingonWater = $ManufacturingEnvironmentalImpact->element(3,1);
+
+$TotalImpactServicesonEnergy = $ServicesEnvironmentalImpact->element(1,1);
+$TotalImpactServicesonGHG = $ServicesEnvironmentalImpact->element(2,1);
+$TotalImpactServicesonWater = $ServicesEnvironmentalImpact->element(3,1);
+
+$RoundedTotalAgricultureInputAgricultureRequired = sprintf("%.3f", $TotalAgricultureInputAgricultureRequired);
+$RoundedTotalManufacturingInputAgricultureRequired = sprintf("%.3f", $TotalManufacturingInputAgricultureRequired);
+$RoundedTotalServicesInputAgricultureRequired = sprintf("%.3f", $TotalServicesInputAgricultureRequired);
+
+$RoundedTotalAgricultureInputManufacturingRequired = sprintf("%.3f", $TotalAgricultureInputManufacturingRequired);
+$RoundedTotalManufacturingInputManufacturingRequired = sprintf("%.3f", $TotalManufacturingInputManufacturingRequired);
+$RoundedTotalServicesInputManufacturingRequired = sprintf("%.3f", $TotalServicesInputManufacturingRequired);
+
+$RoundedTotalAgricultureInputServicesRequired = sprintf("%.3f", $TotalAgricultureInputServicesRequired);
+$RoundedTotalManufacturingInputServicesRequired = sprintf("%.3f", $TotalManufacturingInputServicesRequired);
+$RoundedTotalServicesInputServicesRequired = sprintf("%.3f", $TotalServicesInputServicesRequired);
+
+$RoundedTotalAgricultureOutput = sprintf("%.3f", $TotalAgricultureOutput);
+$RoundedTotalManufacturingOutput = sprintf("%.3f", $TotalManufacturingOutput);
+$RoundedTotalServicesOutput = sprintf("%.3f", $TotalServicesOutput);
+
+TEXT(beginproblem());
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+This table provides estimates of the environmental impact of one $ unit of each sector on Energy use, Greenhouse Gas emissions and Water use modified from the Carnegie Melon EIO-LCA 1992 US database.  
+
+$PAR
+
+\{
+DataTable(
+  [
+    [['', headerrow => 1], 'Agriculture', 'Manufacturing', 'Services'],
+    [['Energy (MJ/$)', b=>1], '$ImpactAgricultureonEnergy', '$ImpactManufacturingonEnergy', '$ImpactServicesonEnergy'],
+    [['GHG (kg CO2e/$)', b=>1], '$ImpactAgricultureonGHG', '$ImpactManufacturingonGHG', '$ImpactServicesonGHG'],
+    [['Water (Gal/$)', b=>1], '$ImpactAgricultureonWater', '$ImpactManufacturingonWater', '$ImpactServicesonWater'],
+    ],
+  caption => 'Impact of one $ unit of:',
+  midrules => 1,
+  align => '| X | c | c | c |',
+  );
+\}
+
+$BR
+$BR
+
+With this additional information we can compare the environmental impacts of a 5 $ units increase in demand for each of the sectors of our economy. Governments can use these sorts of models to make policy decisions. 
+$PAR
+
+By using the total production required to produce 5 $ units of Agricultural, Manufacturing and Services output, determine the environmental impacts on Energy, GHG and Water separately. 
+
+$BITALIC
+(Leave your answers to 3 decimal places.)
+$EITALIC
+
+
+$PAR
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '5 $ units of Agricultural output','5 $ units of Manufacturing output', '5 $ units of Services output'],
+    [['Agriculture', b=>1], '$RoundedTotalAgricultureInputAgricultureRequired', '$RoundedTotalManufacturingInputAgricultureRequired', '$RoundedTotalServicesInputAgricultureRequired'],
+    [['Manufacturing', b=>1], '$RoundedTotalAgricultureInputManufacturingRequired', '$RoundedTotalManufacturingInputManufacturingRequired', '$RoundedTotalServicesInputManufacturingRequired'],
+    [['Services', b=>1], '$RoundedTotalAgricultureInputServicesRequired', '$RoundedTotalManufacturingInputServicesRequired', '$RoundedTotalServicesInputServicesRequired'],
+    [['Gross Output', headerrow => 1], '$RoundedTotalAgricultureOutput', '$RoundedTotalManufacturingOutput', '$RoundedTotalServicesOutput'],
+    ],
+  caption => 'Total production required to produce',
+  midrules => 1,
+  align => '| p{1in} | c | c | c |',
+  );
+\}
+
+$PAR
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '5 $ units of Agricultural output','5 $ units of Manufacturing output', '5 $ units of Services output'],
+    [['Energy (MJ/$)', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    [['GHG (kg CO2e/$)', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    [['Water (Gal/$)', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ],
+  caption => 'Environmental Impacts',
+  midrules => 1,
+  align => '| X | c | c | c |',
+  );
+\}
+$PAR
+END_TEXT
+
+ANS(num_cmp($TotalImpactAgricultureonEnergy));
+ANS(num_cmp($TotalImpactManufacturingonEnergy));
+ANS(num_cmp($TotalImpactServicesonEnergy));
+ANS(num_cmp($TotalImpactAgricultureonGHG));
+ANS(num_cmp($TotalImpactManufacturingonGHG));
+ANS(num_cmp($TotalImpactServicesonGHG));
+ANS(num_cmp($TotalImpactAgricultureonWater));
+ANS(num_cmp($TotalImpactManufacturingonWater));
+ANS(num_cmp($TotalImpactServicesonWater));
+
+BEGIN_SOLUTION
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '5 $ units of Agricultural output','5 $ units of Manufacturing output', '5 $ units of Services output'],
+    [['Energy (MJ/$)', b=>1], '$TotalImpactAgricultureonEnergy', '$TotalImpactManufacturingonEnergy', '$TotalImpactServicesonEnergy'],
+    [['GHG (kg CO2e/$)', b=>1], '$TotalImpactAgricultureonGHG', '$TotalImpactManufacturingonGHG', '$TotalImpactServicesonGHG'],
+    [['Water (Gal/$)', b=>1], '$TotalImpactAgricultureonWater', '$TotalImpactManufacturingonWater', '$TotalImpactServicesonWater'],
+    ],
+  caption => 'Environmental Impacts',
+  midrules => 1,
+  align => '| p{1in} | c | c | c |',
+  );
+\}
+
+END_SOLUTION
+
+
+ENDDOCUMENT();       
+
+ 

@@ -1,0 +1,503 @@
+# DESCRIPTION
+# Solve a Linear Programming Model  
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System Modelling)
+## DBsection(Linear Programming Models)
+## Level(5)
+## KEYWORDS('problem setup', 'objective function', 'constraints')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Sheena Tan and Jonn Axsen)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+# Question based on original problem developed in REM 658 by Jonn Axsen, 
+# Mark Jaccard, Paulus Mau and Rose Murphy at Simon Fraser University
+
+#########################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGanswermacros.pl",
+  "parserPopUp.pl",
+  "compoundProblem5.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "contextInequalities.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+  "niceTables.pl"
+);
+
+#  Setup
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+rserve_eval('
+# Load R Libraries
+library(lpSolve)
+library(plyr)
+
+# Fixed Cost of Hydro
+HydroCost <- round_any(runif(1,1000,2000),50)
+
+# Variable Cost of Natural Gas
+NatGasCost <- round_any(runif(1,3,12),0.5)
+
+# Variable Cost of Renewables
+RenewCost <- round_any(runif(1,15,30),1)
+
+# Variable Cost of Albertan imports
+AlbImportCost <- round_any(runif(1,7,14),1)
+
+# Variable Cost of Exports
+ExportCost <- round_any(runif(1,-30,-10),1)
+
+# Emissions of Natural Gas
+NatGasEmis <- round_any(runif(1,50,70),1)
+
+# Emissions of Albertan imports
+AlbImportEmis <- round_any(runif(1,75,95),1)
+
+# Demand
+Demand <- round_any(runif(1,80,120),5)
+
+# Capacity of Hyrdo
+HydroCap <- round_any(runif(1,60,100),5)
+
+# Capacity of Natural Gas
+NatGasCap <- round_any(runif(1,40,80),5)
+
+# Capacity of Renewables
+RenewCap <- round_any(runif(1,10,50),5)
+
+# Carbon Emissions Level
+CarbonEmis <- round_any(runif(1,2.5,3.5),0.1)
+
+# Set coefficients of the objective function
+f.obj <- c(0, NatGasCost, RenewCost, AlbImportCost, ExportCost)
+
+# Set matrix corresponding to coefficients of constraints by rows
+# Do not consider the non-negative constraint; it is automatically assumed
+f.con <- matrix(c(1, 1, 1, 1, -1,
+                  0, NatGasEmis, 0, AlbImportEmis, 0,
+                  1, 0, 0, 0, 0,
+                  0, 1, 0, 0, 0,
+                  0, 0, 1, 0, 0,
+                  -1/3, 0, 0, 0, 1,
+                  -0.25, -0.25, -0.25, 1, 0), nrow = 7, byrow = TRUE)
+
+# Set unequality signs
+f.dir <- c(">=",
+           "<=",
+           "<=",
+           "<=",
+           "<=",
+           "<=",
+           "<=")
+
+# Set right hand side coefficients
+f.rhs <- c(Demand,
+           CarbonEmis*1000,
+           HydroCap,
+           NatGasCap,
+           RenewCap,
+           0,
+           0)
+
+# Final value (z)
+lp("min", f.obj, f.con, f.dir, f.rhs)
+
+lp("min", f.obj, f.con, f.dir, f.rhs)$objval
+
+# Variables final values
+lp("min", f.obj, f.con, f.dir, f.rhs)$solution
+
+finalcost <- lp("min", f.obj, f.con, f.dir, f.rhs)$objval + HydroCost
+
+');
+
+@finalvalues = rserve_eval('lp("min", f.obj, f.con, f.dir, f.rhs)$solution');
+@finalcost = rserve_eval('finalcost');
+
+@HydroCost = rserve_eval('HydroCost');
+@NatGasCost = rserve_eval('NatGasCost');
+@RenewCost = rserve_eval('RenewCost');
+@AlbImportCost = rserve_eval('AlbImportCost');
+@ExportCost = rserve_eval('ExportCost');
+@NatGasEmis = rserve_eval('NatGasEmis');
+@AlbImportEmis = rserve_eval('AlbImportEmis');
+@Demand = rserve_eval('Demand');
+@HydroCap = rserve_eval('HydroCap');
+@NatGasCap = rserve_eval('NatGasCap');
+@RenewCap = rserve_eval('RenewCap');
+@CarbonEmis = rserve_eval('CarbonEmis');
+$AbsExportCost = -$ExportCost[0];
+$CarbonEmisMega = 1000*$CarbonEmis[0];
+
+$scaffold = Scaffold();
+#$isInstructor =  ($envir{effectivePermissionLevel} >= $envir{ALWAYS_SHOW_SOLUTION_PERMISSION_LEVEL});
+$isInstructor=0;   # This variable changes what the user can see.
+INITIALIZE_SCAFFOLD('$scaffold');
+
+TEXT(beginproblem());
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+In a fictitious future British Columbia the Ministry of Energy has asked you to come up with an electricity strategy for BC Hydro that will maximize profits (to pay for other government initiatives) by minimizing its costs while at the same time meeting specified environmental conditions.
+$BR
+$BR
+The expected demand is @Demand PJ, which can be satisfied with a mix of hydro, natural gas, renewables and imports.  Exports at peak times are permitted.  Each option has different costs and emissions as summarised in the following table.
+
+$BR
+$BR
+
+$PAR
+\{
+DataTable(
+  [
+    [['Generation Source', headerrow => 1],'Fixed Cost', 'Variable Cost', 'Emissions'],
+    [['Hydro', b=>1],'M$ @HydroCost', '', '0 kt CO2 / PJ'],
+    [['Natural Gas', b=>1],'', 'M$ @NatGasCost / PJ', '@NatGasEmis kt CO2 / PJ'], 
+    [['Renewables', b=>1], '', 'M$ @RenewCost / PJ', '0 kt CO2 / PJ'],
+    [['Albertan Imports', b=>1], '', 'M$ @AlbImportCost / PJ', '@AlbImportEmis kt CO2 / PJ'],
+    [['Exports',b=>1], '', 'M$ @ExportCost / PJ', 'Not applicable']],
+  caption => 'Table of Costs and Emissions',
+  midrules => 1,
+  align => '| X | p{1in} | p{1in} | p{1in} |',
+);
+\}
+
+$BR
+$BR
+For the purpose of tracking emissions, we will consider the emissions intensity of imports in the model as emitted by BC Hydro but, due to the difficulty of tracking the emissions level, no credit will be given for exported emissions.
+
+$BR
+$BR
+
+The government is not considering changing the regulations that exist restricting BC Hydro from exporting more than one third of hydro generation and importing more than one quarter of total generation.
+
+$BR
+$BR
+
+In addition, the maximum installed capacity of hydro is @HydroCap PJ, natural gas is @NatGasCap PJ and renewables is @RenewCap PJ due to construction times and resource availability.
+Finally, the government wants to freeze carbon emissions from the electricity sector at the 2005 level of @CarbonEmis mega tonnes.
+
+$BR
+$BR
+
+Complete the following blanks to set up the optimization problem, where the variables \(x_1\), \(x_2\), \(x_3\), \(x_4\), \(x_5\) represent the quantity of Hydro, Natural Gas, Renewables, Albertan Import and Exports respectively. The constraints should be in standard form (ie, variables on the left and constants on the right of the inequality sign). 
+$PAR
+
+$BITALIC
+Type x1, x2, x3, x4 and x5 to represent the respective variables and <= or >= to represent the respective inequalities.
+$EITALIC
+$PAR
+
+END_TEXT
+
+Context()->normalStrings;
+$popup1 = PopUp(["Maximize","Minimize"],"Minimize");
+$popup2 = PopUp(["<=",">="],">=");
+$popup3 = PopUp(["<=",">="],"<=");
+
+##############
+#  Section 1
+##############
+Context()->texStrings;
+DISPLAY_SECTION(  {  name=>"1: Objective Function", 
+             canshow =>1,  #always true
+             iscorrect=>$scaffold->requireCorrect(1,2,3,4,5,6,7), 
+             section=>1 #designates that this is the first section
+} , <<'END_SECTION'); 
+
+$PAR
+
+Objective Function
+$PAR
+\{ $popup1->menu() \} Total Cost = \{ans_rule(4)\} + \{ans_rule(2)\}\(x_1\)+ \{ans_rule(2)\}\(x_2\) + \{ans_rule(2)\}\(x_3\) + \{ans_rule(2)\}\(x_4\) + \{ans_rule(3)\}\(x_5\)
+$PAR
+END_SECTION
+
+SECTION_ANS($popup1->cmp);
+SECTION_ANS(num_cmp(@HydroCost));
+SECTION_ANS(num_cmp(0));
+SECTION_ANS(num_cmp(@NatGasCost));
+SECTION_ANS(num_cmp(@RenewCost));
+SECTION_ANS(num_cmp(@AlbImportCost));
+SECTION_ANS(num_cmp(@ExportCost));
+
+SECTION_SOLUTION({section=>1},<<'END_SOLUTION');
+\{ $popup1->correct_ans() \} @HydroCost + @NatGasCost \(x_2\) + @RenewCost \(x_3\) + @AlbImportCost \(x_4\) - $AbsExportCost \(x_5\)
+
+END_SOLUTION
+
+###############
+#  Section 2
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"2: Demand Constraint", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6,7). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(8,9,10,11,12,13,14), 
+             section=>2
+},   <<'END_SECTION'); 
+
+\{
+DataTable(
+  [
+    [['Minimize', b => 1],'@HydroCost', '+', '', '', '@NatGasCost \(x_2\)', '+' , '@RenewCost \(x_3\)', '+', '@AlbImportCost \(x_4\)', '-', '$AbsExportCost \(x_5\)', '', '']  
+    ],
+  caption => 'Problem Setup',
+  center => 0,
+  align => 'r X r p{2cm} r p{1cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{1cm} r p{2cm} r p{2cm}',
+);
+\}
+
+$PAR
+Demand Constraint: \{ans_rule(1)\}\(x_1\) + \{ans_rule(1)\}\(x_2\) + \{ans_rule(1)\}\(x_3\) + \{ans_rule(1)\}\(x_4\) + \{ans_rule(1)\}\(x_5\) \{ $popup2->menu() \} \{ans_rule(3)\}
+$PAR
+END_SECTION
+
+SECTION_ANS(num_cmp(1));
+SECTION_ANS(num_cmp(1));
+SECTION_ANS(num_cmp(1));
+SECTION_ANS(num_cmp(1));
+SECTION_ANS(num_cmp(-1));
+SECTION_ANS($popup2->cmp);
+SECTION_ANS(num_cmp(@Demand));
+
+#########################################################
+
+SECTION_SOLUTION({section=>2},<<'END_SOLUTION');
+Demand Constraint: \(x_1\) + \(x_2\) + \(x_3\) + \(x_4\) - \(x_5\) \(\geq\)  @Demand
+END_SOLUTION
+
+###############
+#  Section 3
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"3: Hydro Capacity Constraint", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6,7,8,9,10,11,12,13,14). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(15,16), 
+             section=>3
+},   <<'END_SECTION'); 
+
+
+\{
+DataTable(
+  [
+    [['Minimize', b => 1],'@HydroCost', '+', '', '', '@NatGasCost \(x_2\)', '+' , '@RenewCost \(x_3\)', '+', '@AlbImportCost \(x_4\)', '-', '$AbsExportCost \(x_5\)', '', ''],
+    [['Demand Constraint', b=>1], '', '', '\(x_1\)', '+', '\(x_2\)', '+', '\(x_3\)', '+', '\(x_4\)', '-', '\(x_5\)', '\(\geq\)',  '@Demand']
+    ],
+  caption => 'Problem Setup',
+  center => 0,
+  align => 'r X r p{2cm} r p{1cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{1cm} r p{2cm} r p{2cm}',
+);
+\}
+
+$PAR
+
+Hydro Capacity Constraint: \(x_1\) \{ $popup3->menu() \} \{ans_rule(2)\}
+$PAR
+END_SECTION
+
+SECTION_ANS($popup3->cmp);
+SECTION_ANS(num_cmp(@HydroCap));
+
+#########################################################
+
+SECTION_SOLUTION({section=>3},<<'END_SOLUTION');
+Hydro Capacity Constraint: \(x_1\) \(\leq\)  @HydroCap
+END_SOLUTION
+
+###############
+#  Section 4
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"4: Natural Gas Capacity Constraint", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(17,18), 
+             section=>4
+},   <<'END_SECTION'); 
+
+\{
+DataTable(
+  [
+    [['Minimize', b => 1],'@HydroCost', '+', '', '', '@NatGasCost \(x_2\)', '+' , '@RenewCost \(x_3\)', '+', '@AlbImportCost \(x_4\)', '-', '$AbsExportCost \(x_5\)', '', ''],
+    [['Demand Constraint', b=>1], '', '', '\(x_1\)', '+', '\(x_2\)', '+', '\(x_3\)', '+', '\(x_4\)', '-', '\(x_5\)', '\(\geq\)',  '@Demand'],
+    [['Hydro Capacity Constraint', b=>1], '','', '\(x_1\)', '', '', '', '', '', '', '', '', '\(\leq\)', '@HydroCap']
+    ],
+  caption => 'Problem Setup',
+  center => 0,
+  align => 'r X r p{2cm} r p{1cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{1cm} r p{2cm} r p{2cm}',
+);
+\}
+
+$PAR
+
+Natural Gas Capacity Constraint: \{ans_rule(4)\} \{ans_rule(4)\} @NatGasCap
+$PAR
+END_SECTION
+
+Context("Inequalities");
+Context()->variables->add(x2 => ['Real',TeX=>"x_2"]);
+SECTION_ANS(str_cmp(x2));
+SECTION_ANS(str_cmp("<="));
+
+#########################################################
+
+SECTION_SOLUTION({section=>4},<<'END_SOLUTION');
+Natural Gas Capacity Constraint: \(x_2\) \(\leq\) @NatGasCap
+END_SOLUTION
+
+###############
+#  Section 5
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"5: Renewables Capacity Constraint", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(19), 
+             section=>5
+},   <<'END_SECTION'); 
+
+\{
+DataTable(
+  [
+    [['Minimize', b => 1],'@HydroCost', '+', '', '', '@NatGasCost \(x_2\)', '+' , '@RenewCost \(x_3\)', '+', '@AlbImportCost \(x_4\)', '-', '$AbsExportCost \(x_5\)', '', ''],
+    [['Demand Constraint', b=>1], '', '', '\(x_1\)', '+', '\(x_2\)', '+', '\(x_3\)', '+', '\(x_4\)', '-', '\(x_5\)', '\(\geq\)',  '@Demand'],
+    [['Hydro Capacity Constraint', b=>1], '','', '\(x_1\)', '', '', '', '', '', '', '', '', '\(\leq\)', '@HydroCap'],
+    [['Natural Gas Capacity Constraint', b=>1], '','', '', '', '\(x_2\)', '', '', '', '', '', '', '\(\leq\)', '@NatGasCap']
+       ],
+  caption => 'Problem Setup',
+  center => 0,
+  align => 'r X r p{2cm} r p{1cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{1cm} r p{2cm} r p{2cm}',
+);
+\}
+
+$PAR
+
+Renewables Capacity Constraint: \{ans_rule(10)\} 
+$PAR
+END_SECTION
+
+Context("Inequalities");
+Context()->variables->add(x3 => ['Real',TeX=>"x_3"]);
+$inequality1 = Compute("x3 <= @RenewCap");
+Context()->variables->remove("x");
+SECTION_ANS($inequality1->cmp());
+
+#########################################################
+
+SECTION_SOLUTION({section=>5},<<'END_SOLUTION');
+Renewables Capacity Constraint: \(x_3\) \(\leq\) @RenewCap
+END_SOLUTION
+
+###############
+#  Section 6
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"6: Greenhouse Gas Constraint", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(20), 
+             section=>6
+},   <<'END_SECTION'); 
+
+$PAR
+
+\{
+DataTable(
+  [
+    [['Minimize', b => 1],'@HydroCost', '+', '', '', '@NatGasCost \(x_2\)', '+' , '@RenewCost \(x_3\)', '+', '@AlbImportCost \(x_4\)', '-', '$AbsExportCost \(x_5\)', '', ''],
+    [['Demand Constraint', b=>1], '', '', '\(x_1\)', '+', '\(x_2\)', '+', '\(x_3\)', '+', '\(x_4\)', '-', '\(x_5\)', '\(\geq\)',  '@Demand'],
+    [['Hydro Capacity Constraint', b=>1], '','', '\(x_1\)', '', '', '', '', '', '', '', '', '\(\leq\)', '@HydroCap'],
+    [['Natural Gas Capacity Constraint', b=>1], '','', '', '', '\(x_2\)', '', '', '', '', '', '', '\(\leq\)', '@NatGasCap'],
+    [['Renewables Capacity Constraint', b=>1], '','', '', '', '', '', '\(x_3\)', '', '', '', '', '\(\leq\)', '@RenewCap']
+       ],
+  caption => 'Problem Setup',
+  center => 0,
+  align => 'r X r p{2cm} r p{1cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{1cm} r p{2cm} r p{2cm}',
+);
+\}
+$PAR
+
+Greenhouse Gas Constraint: \{ans_rule(15)\} \{ans_rule(5)\} \{ans_rule(5)\}
+$PAR
+
+END_SECTION
+
+Context()->variables->add(x2 => ['Real',TeX=>"x_2"]);
+Context()->variables->add(x4 => ['Real',TeX=>"x_4"]);
+
+SECTION_ANS(fun_cmp("@NatGasEmis x2 + @AlbImportEmis x4", var => ['x2', 'x4']));
+SECTION_ANS(str_cmp("<=", filters => ['remove_whitespace','ignore_case']));
+SECTION_ANS(num_cmp($CarbonEmisMega));
+
+SECTION_SOLUTION({section=>6},<<'END_SOLUTION');
+Greenhouse Gas Constraint: @NatGasEmis \(x_2\) + @AlbImportEmis \(x_4\) \(\leq\)  $CarbonEmisMega
+END_SOLUTION
+
+###############
+#  Section 7
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"7: Summary", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(20), 
+             section=>7
+},   <<'END_SECTION'); 
+
+\{
+DataTable(
+  [
+    [['Minimize', b => 1],'@HydroCost', '+', '', '', '@NatGasCost \(x_2\)', '+' , '@RenewCost \(x_3\)', '+', '@AlbImportCost \(x_4\)', '-', '$AbsExportCost \(x_5\)', '', ''],
+    [['Demand Constraint', b=>1], '', '', '\(x_1\)', '+', '\(x_2\)', '+', '\(x_3\)', '+', '\(x_4\)', '-', '\(x_5\)', '\(\geq\)',  '@Demand'],
+    [['Hydro Capacity Constraint', b=>1], '','', '\(x_1\)', '', '', '', '', '', '', '', '', '\(\leq\)', '@HydroCap'],
+    [['Natural Gas Capacity Constraint', b=>1], '','', '', '', '\(x_2\)', '', '', '', '', '', '', '\(\leq\)', '@NatGasCap'],
+    [['Renewables Capacity Constraint', b=>1], '','', '', '', '', '', '\(x_3\)', '', '', '', '', '\(\leq\)', '@RenewCap'],
+    [['Greenhouse Gas Constraint', b=>1], '','', '', '', '@NatGasEmis\(x_2\)', '+', '', '', '@AlbImportEmis\(x_4\)', '', '', '\(\leq\)', '$CarbonEmisMega']
+       ],
+  caption => 'Problem Setup',
+  center => 0,
+  align => 'r X r p{2cm} r p{1cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{1cm} r p{2cm} r p{2cm}',
+);
+\}
+END_SECTION
+
+PROCESS_ANSWERS();
+
+$last_correct_section = PROCESS_SECTIONS();
+
+$opensection = $last_correct_section + 1;
+$scaffold->openSections($opensection);
+
+TEXT($END_ONE_COLUMN);
+ENDDOCUMENT();       
+
+ 
+       
