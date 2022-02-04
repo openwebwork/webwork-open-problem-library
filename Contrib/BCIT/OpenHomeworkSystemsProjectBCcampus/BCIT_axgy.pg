@@ -1,0 +1,132 @@
+# DESCRIPTION
+# WeBWorK problem written by Stefan Lukits 
+# <slukits(at)bcit(dot)ca>
+# DBsubject(Linear algebra)
+# DBchapter(Inner products)
+# DBsection(Projection and distance)
+# Date(2021/11/15)
+# Institution(British Columbia Institute of Technology)
+# Author(Stefan Lukits)
+# supported by the BCcampus Open Homework Systems Project Grant
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+  "PGstandard.pl",
+  "RserveClient.pl",
+  "MathObjects.pl"
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+### Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 39 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+### Call R server
+rserve_eval("set.seed($seed)"); 
+
+$dozf=random(0.01,0.99,0.01);
+$xxmx=random(201,499,1);
+$refp=$xxmx+$dozf;
+@a2=("A","B","C","D");
+$i1=random(0,3,1);
+$d1=random(2,12,0.01);
+$dt=random(21,29,0.01);
+$d2=-$dt;
+$d3=random(11,19,0.01);
+$d4=random(11,19,0.01);
+$ab=$d2-$d1;
+$ac=$d3-$d1;
+$ad=$d4-$d1;
+$bc=$d3-$d2;
+$bd=$d4-$d2;
+$cd=$d4-$d3;
+@error=rserve_eval('
+a1<-round(rnorm(10,mean=0,sd=0.2),2);
+');
+$d1we=$d1+$error[0];
+$d2we=$d2+$error[1];
+$d3we=$d3+$error[2];
+$d4we=$d4+$error[3];
+$abwe=$ab+$error[4];
+$acwe=$ac+$error[5];
+$adwe=$ad+$error[6];
+$bcwe=$bc+$error[7];
+$bdwe=$bd+$error[8];
+$cdwe=$cd+$error[9];
+Context("Matrix");
+$A=Matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1],[-1,1,0,0],[-1,0,1,0],[-1,0,0,1],[0,-1,1,0],[0,-1,0,1],[0,0,-1,1]]);
+$At=$A->transpose;
+$Yt=Matrix([[$d1we,$d2we,$d3we,$d4we,$abwe,$acwe,$adwe,$bcwe,$bdwe,$cdwe]]);
+$Y=$Yt->transpose;
+$AtA=$At*$A;
+$AtAi=$AtA->inverse;
+$V=$AtAi*$At*$Y;
+$d1u=$V->element(1,1);
+$d2u=$V->element(2,1);
+$d3u=$V->element(3,1);
+$d4u=$V->element(4,1);
+if ($i1==0)
+{
+$answer=$refp+$d1u;
+}
+elsif ($i1==1)
+{
+$answer=$refp+$d2u;
+}
+elsif ($i1==2)
+{
+$answer=$refp+$d3u;
+}
+else
+{
+$answer=$refp+$d4u;
+}
+
+BEGIN_TEXT
+You are trying to find the elevation of four points \(A,B,C,D\) near a reference point \(P\). The elevation of the reference point \(P\) is known to be \($refp\) metres above sea level. You measure the elevation differences between each pair of points according to the following table (for example, according to your measurement, the elevation of \(A\) is \($d1we\) metres higher than the elevation of \(P\)). 
+$BR
+\[
+\begin{array}{lrrrr}
+\mbox{from/to} & A & B & C & D \\
+P & $d1we & $d2we & $d3we & $d4we \\
+A &     & $abwe & $acwe & $adwe \\
+B &     &     & $bcwe & $bdwe \\
+C &     &     &     & $cdwe \\
+\end{array}
+\]
+$BR
+What is the least-squares adjusted elevation in metres above sea level of point \($a2[$i1]\)?
+$PAR
+Answer: \{ans_rule(12)\}
+
+END_TEXT
+
+ANS(num_cmp($answer,
+  tolType => 'absolute',
+    tolerance => .01,
+    ));
+
+COMMENT('This problem requires WeBWorK integration of R statistical software. See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.
+$BR
+\[
+\begin{array}{lrrrr}
+\mbox{from/to} & A & B & C & D \\
+P & $d1 & $d2 & $d3 & $d4 \\
+A &     & $ab & $ac & $ad \\
+B &     &     & $bc & $bd \\
+C &     &     &     & $cd \\
+\end{array}
+\]
+ The correct answer is \($answer\).

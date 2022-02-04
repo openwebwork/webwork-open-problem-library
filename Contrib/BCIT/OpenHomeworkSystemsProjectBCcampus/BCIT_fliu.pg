@@ -1,0 +1,78 @@
+# DESCRIPTION
+# WeBWorK problem written by Stefan Lukits 
+# <slukits(at)bcit(dot)ca>
+# DBsubject(Linear algebra)
+# DBchapter(Inner products)
+# DBsection(Projection and distance)
+# Date(2018/11/06)
+# Institution(British Columbia Institute of Technology)
+# Author(Stefan Lukits)
+# supported by the BCcampus Open Homework Systems Project Grant
+
+DOCUMENT();        # This should be the first executable line in the problem.
+
+loadMacros(
+  "PGstandard.pl",
+  "RserveClient.pl",
+  "MathObjects.pl"
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+### Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+### Call R server
+rserve_eval("set.seed($seed)"); 
+
+@e=rserve_eval("
+rnorm(6,0,1);
+");
+@d=rserve_eval("
+runif(6,150,350);
+");
+
+$m[0]=sprintf("%.3f",$d[0]+$e[0]);
+$m[1]=sprintf("%.3f",$d[1]+$e[1]);
+$m[2]=sprintf("%.3f",$d[2]+$e[2]);
+$m[3]=sprintf("%.3f",$d[0]+$d[1]+$e[3]);
+$m[4]=sprintf("%.3f",$d[0]+$d[1]+$d[2]+$e[4]);
+$m[5]=sprintf("%.3f",$d[1]+$d[2]+$e[5]);
+
+Context("Matrix");
+$A=Matrix([[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,1,1],[0,1,1]]);
+$At=$A->transpose;
+$Yt=Matrix([[$m[0],$m[1],$m[2],$m[3],$m[4],$m[5]]]);
+$Y=$Yt->transpose;
+$AtA=$At*$A;
+$AtAi=$AtA->inverse;
+$V=$AtAi*$At*$Y;
+$ab=$V->element(1,1);
+$bc=$V->element(2,1);
+$cd=$V->element(3,1);
+$ad=$ab+$bc+$cd;
+
+BEGIN_TEXT
+Let \(A,B,C,D\) be collinear (all four points are on a straight line), where \(B\) and \(C\) are between \(A\) and \(D\); and \(B\) is between \(A\) and \(C\). Six geomatics students measure parts of this straight line. The first student measures the line segment \(AB=$m[0]\) metres; The second student measures the line segment \(BC=$m[1]\) metres; The third student measures the line segment \(CD=$m[2]\) metres; The fourth student measures the line segment \(AC=$m[3]\) metres; The fifth student measures the line segment \(AD=$m[4]\) metres; The sixth student measures the line segment \(BD=$m[5]\) metres. Find the length of \(AD\) using least squares adjustment. Round your answer to three places after the decimal point.
+$PAR
+Answer: \{ans_rule(12)\}.
+
+END_TEXT
+
+ANS(num_cmp($ad,
+  tolType => 'absolute',
+    tolerance => .001,
+    ));
+
+COMMENT('This problem requires WeBWorK integration of R statistical software. See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.
