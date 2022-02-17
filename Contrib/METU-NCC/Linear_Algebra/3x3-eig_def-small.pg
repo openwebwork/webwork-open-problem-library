@@ -1,0 +1,239 @@
+## DESCRIPTION
+## Eigenvalues and eigenvectors of 3x3 matrix (distinct, real)
+## ENDDESCRIPTION
+
+
+## DBsubject(Linear algebra)
+## DBchapter(Eigenvalues and eigenvectors)
+## DBsection(Computing eigenvalues and eigenvectors)
+## Date(11/06/2015)
+## Institution(METU-NCC)
+## Author(Benjamin Walter)
+## Level(4)
+## Static(0)
+## MO(1)
+
+
+
+
+##################################
+#  Initialization
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGmatrixmacros.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl"
+);
+
+
+TEXT(beginproblem());
+
+#####################################
+#  Setup
+
+# Construct random matrix with one known eigenvector/eigenvalue
+#
+# 1) pick eigenvectors [ x x +-1]
+#
+# 2) extend to basis of eigenspace  S
+#
+# 3) pick random matrix  R  with eigenvalue in correct location
+#
+# 4) use "block diagonalization" to construct A = S M S^{-1}
+#
+
+Context("Numeric");
+
+$v11=non_zero_random(-3,3,1);  $v21=non_zero_random(-3,3,1);
+$v12=non_zero_random(-3,3,1);  $v22=non_zero_random(-3,3,1);
+$v13=non_zero_random(-1,1,1);  $v23=non_zero_random(-1,1,1);
+
+$l1=Real(non_zero_random(-3,3,1));   $l2=non_zero_random(-4,4,1);
+
+Context("Matrix");
+
+do {
+ $S1 = Matrix([[1,0,$v11],[0,1,$v12],[0,0,$v13]]);               # eigenvect 
+ $R1 = Matrix([                                                  # block Jordan 
+        [non_zero_random(-3,3,1),non_zero_random(-3,3,1),  0],
+        [non_zero_random(-3,3,1),non_zero_random(-3,3,1),  0],
+        [non_zero_random(-3,3,1),non_zero_random(-3,3,1),$l1]
+ ]);
+ $A = $S1*$R1*$S1->inverse;
+} until (small_nonzero($A) );
+
+do {
+ $S2 = Matrix([[1,0,$v21],[0,1,$v22],[0,0,$v23]]);
+ $R2 = Matrix([
+        [non_zero_random(-3,3,1),non_zero_random(-3,3,1),  0],
+        [non_zero_random(-3,3,1),non_zero_random(-3,3,1),  0],
+        [non_zero_random(-3,3,1),non_zero_random(-3,3,1),$l2]
+ ]);
+ $B = $S2*$R2*$S2->inverse;
+} until (small_nonzero($B) );
+
+sub small_nonzero {
+  my $M = shift; 
+
+  if ($A->typeMatch($M)) {
+    my $pass = 1;
+    my $zeros = 0;
+    for (my $i=1; $i<4; $i=$i+1) {
+      for (my $j=1; $j<4; $j=$j+1) {
+        if (abs($M->element($i,$j)) > 8) {
+           $pass = 0;
+        } if (($i != $j) && ($M->element($i,$j) == 0)) {
+          $zeros = $zeros + 1;
+        }
+      }
+    }
+    return (($pass == 1) && ($zeros < 2));
+  }
+}
+
+$A11=$A->element(1,1); $A12=$A->element(1,2); $A13=$A->element(1,3);
+$A21=$A->element(2,1); $A22=$A->element(2,2); $A23=$A->element(2,3);
+$A31=$A->element(3,1); $A32=$A->element(3,2); $A33=$A->element(3,3);
+
+$B11=$B->element(1,1); $B12=$B->element(1,2); $B13=$B->element(1,3);
+$B21=$B->element(2,1); $B22=$B->element(2,2); $B23=$B->element(2,3);
+$B31=$B->element(3,1); $B32=$B->element(3,2); $B33=$B->element(3,3);
+
+Context("Numeric");
+
+$multians = MultiAnswer($v21,$v22,$v23)->with(
+    singleResult => 1,
+    checkTypes => 0,
+    allowBlankAnswers => 1,
+    format =>  
+      "<table border='0' cellspacing='5'>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+          <tr><td> %s </td></tr>
+       </table>",
+    tex_format =>  
+      "\left\lbrack \begin{array}{r} %s \\ %s \\ %s\end{array}\right\rbrack",  
+
+    checker => sub {
+        my ($correct, $student, $answerHash ) = @_;
+        my @c = @{$correct};
+	my @s = @{$student};
+
+        my $flag  = 0;
+
+        if (($s[0] == 0) && ($s[1] == 0) && ($s[2] == 0)) {
+          Value::Error("Eigenvector cannot be all zero!"); 
+        } else { 
+          if ( $c[0]->typeMatch($s[0]) && 
+               $c[1]->typeMatch($s[1]) && 
+               $c[2]->typeMatch($s[2]) ) 
+          {
+            if ( ( $B11*$s[0] + $B12*$s[1] + $B13*$s[2] == $l2*$s[0]) &&
+                 ( $B21*$s[0] + $B22*$s[1] + $B23*$s[2] == $l2*$s[1]) &&
+                 ( $B31*$s[0] + $B32*$s[1] + $B33*$s[2] == $l2*$s[2]) ) 
+            {
+              $flag=1;
+            }
+          } else {
+            Value::Error("Not a $l2-eigenvector!"); 
+          }
+        }
+        return $flag; 
+    }
+);
+
+
+
+
+#####################################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+
+
+The matrix 
+\( 
+\displaystyle
+\mathrm{A} = 
+\left\lbrack
+\begin{array}{rrr}
+ $B11 & $B12 & $B13  \\
+ $B21 & $B22 & $B23  \\
+ $B31 & $B32 & $B33 
+\end{array}
+\right\rbrack
+\)
+has an eigenvalue
+\( 
+\displaystyle
+\lambda = $l2.
+\)
+$BR
+Find an eigenvector for this eigenvalue.
+$BR
+\{ mbox( [
+'$SPACE $SPACE \( \boldsymbol{\vec{v}} =  \) ', 
+display_matrix([[$multians->ans_rule(5)],[$multians->ans_rule(5)],[$multians->ans_rule(5)]]),
+] ) \}
+
+
+$PAR
+$HR
+$PAR
+
+$BBOLD Note: $EBOLD You should solve the following problem $BBOLD WITHOUT $EBOLD computing all eigenvalues.
+$PAR
+The matrix 
+\( 
+\displaystyle
+\mathrm{B} = 
+\left\lbrack
+\begin{array}{rrr}
+ $A11 & $A12 & $A13  \\
+ $A21 & $A22 & $A23  \\
+ $A31 & $A32 & $A33 
+\end{array}
+\right\rbrack
+\)
+has an eigenvector 
+\( 
+\displaystyle
+\boldsymbol{\vec{v}} = 
+\left\lbrack
+\begin{array}{r}
+ $v11  \\
+ $v12  \\
+ $v13  
+\end{array}
+\right\rbrack.
+\)
+$BR
+Find the eigenvalue for this eigenvector.
+$BR
+\{ mbox( [ 
+'$SPACE $SPACE \( \lambda = \) ',
+$l1->ans_rule(5)
+] ) \}
+
+
+END_TEXT
+Context()->normalStrings;
+
+#####################################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+Context("Numeric");
+
+ANS( $multians->cmp() );
+ANS( $l1->cmp );
+
+COMMENT('MathObject version. Generates random 3x3 matrices with eigenvectors of form [ x x +-1 ].  Eigenvalues and eigenvectors between -4 and 4. ');
+
+ENDDOCUMENT(); 
