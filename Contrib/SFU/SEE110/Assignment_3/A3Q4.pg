@@ -1,0 +1,367 @@
+# DESCRIPTION
+# Find generation, costs, and lcoe from a solar panel array 
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Applications)
+## Level(5)
+## KEYWORDS('energy', 'supply', 'cost', 'lcoe')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "AnswerFormatHelp.pl",
+  "PGcourse.pl",
+  "scaffold.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+$lifespan = random(15,25,1);
+$installCost = random(4000,12000,250);
+$capacity = random(4,9,0.25); #kW
+$yearlyOperation = random(100,250,25);
+$electricityCost = random(7,14,1); #cents/kWh
+
+$hoursWinter = random(100,500,20);
+$hoursSpring = random(400,800,20);
+$hoursSummer = random(600,1200,20);
+$hoursFall = random(400,800,20);
+$hoursTotal = $hoursWinter + $hoursSpring + $hoursSummer + $hoursFall;
+
+$energyWinterkWh = sprintf("%0.2f",$capacity * $hoursWinter);
+$energySpringkWh = sprintf("%0.2f",$capacity * $hoursSpring);
+$energySummerkWh = sprintf("%0.2f",$capacity * $hoursSummer);
+$energyFallkWh = sprintf("%0.2f",$capacity * $hoursFall);
+$energyWinterMJ = sprintf("%0.2f",$capacity * $hoursWinter * 3600 / 1000);
+$energySpringMJ = sprintf("%0.2f",$capacity * $hoursSpring * 3600 / 1000);
+$energySummerMJ = sprintf("%0.2f",$capacity * $hoursSummer * 3600 / 1000);
+$energyFallMJ = sprintf("%0.2f",$capacity * $hoursFall * 3600 / 1000);
+$energyYearlykWh = $energyWinterkWh + $energySpringkWh + $energySummerkWh + $energyFallkWh;
+$energyYearlyMJ = $energyWinterMJ + $energySpringMJ + $energySummerMJ + $energyFallMJ;
+
+$hoursInYear = 8760;
+$theoryGenMWh = sprintf("%0.2f",$capacity * $hoursInYear/1000);
+$theoryGenGJ = sprintf("%0.2f",$theoryGenMWh * 3600 / 1000);
+$capFactor = sprintf("%0.2f",($energyWinterkWh + $energySpringkWh + $energySummerkWh + $energyFallkWh)/($theoryGenMWh*1000) * 100);
+
+$savingsYear = sprintf("%0.2f",$energyYearlykWh*$electricityCost*(1/100));
+$paybackTime = sprintf("%0.2f",$installCost/$savingsYear);
+
+$discountRate = random(3.0,5.0,0.1); #percent
+$discountRateDecimal = sprintf("%0.3f",$discountRate/100);
+$CRF = sprintf("%0.3f",($discountRateDecimal*($discountRateDecimal+1)**($lifespan))/(($discountRateDecimal+1)**($lifespan)-1));
+#$operationCost = random(150,400,25); #$
+$operationCost = $yearlyOperation;
+$lcoe = sprintf("%0.2f",($CRF*$installCost+$operationCost)/($energyYearlykWh/1000));
+$DOLLARSYMBOL = '\$';
+
+##########################################
+# Problem Statement 
+##########################################
+
+Scaffold::Begin(
+);
+
+BEGIN_PGML
+
+Tim installs solar panels on his roof in an effort to make his home more 
+sustainable. He calls a solar panel installation company and they give him 
+the following quote:
+
+END_PGML
+
+BEGIN_TEXT
+\{
+DataTable(
+  [
+    ['Installed Capacity',
+        '\($capacity\)',
+        'kW'],
+    ['Installation Cost',
+        '\($installCost\)',
+        '$'],
+    ['Yearly Inspection',
+        '\($yearlyOperation\)',
+        '$'],
+    ['Lifespan',
+        '\($lifespan\)',
+        'Years'],
+  ], 
+  caption => 'Quote from Solar Company',
+);
+\}
+$PAR
+END_TEXT
+
+##########################################
+# Problem One 
+##########################################
+Section::Begin("Part 1: Energy Calculation",
+    is_open => "always",);
+
+BEGIN_PGML
+
+Tim first wants to get a better understanding of how the system will perform. 
+He knows that solar generation varies throughout the year as daily sunlight 
+hours change. He looks at the average number of sunny hours for each season 
+from the previous year, and compiles the table below. 
+
+Find the energy generated for each season if Tim installs the system quoted. 
+Assume that during sunlight hours the panel operates at max capacity, and 
+during non-sunny hours the panel does not generate electricity.
+
+END_PGML
+
+BEGIN_TEXT
+\{
+DataTable(
+  [
+    [['Season', headerrow => 1],
+        'Hours of Sunlight',
+        'Energy (kWh)',
+        'Energy (MJ)'],
+    ['Winter',
+        '\($hoursWinter\)',
+        ans_rule(6),
+        ans_rule(6)],
+    ['Spring',
+        '\($hoursSpring\)',
+        ans_rule(6),
+        ans_rule(6)],
+    ['Summer',
+        '\($hoursSummer\)',
+        ans_rule(6),
+        ans_rule(6)],
+    ['Fall',
+        '\($hoursFall\)',
+        ans_rule(6),
+        ans_rule(6)],
+    ['\( \displaystyle Total \)',
+        '\($hoursTotal\)',
+        ans_rule(6),
+        ans_rule(6)]
+  ], 
+  caption => 'Energy Generation per season',
+);
+
+\}
+END_TEXT
+
+ANS(num_cmp($energyWinterkWh, reltol=>2),
+    num_cmp($energyWinterMJ, reltol=>2),
+    num_cmp($energySpringkWh, reltol=>2),
+    num_cmp($energySpringMJ, reltol=>2),
+    num_cmp($energySummerkWh, reltol=>2),
+    num_cmp($energySummerMJ, reltol=>2),
+    num_cmp($energyFallkWh, reltol=>2),
+    num_cmp($energyFallMJ, reltol=>2),
+    num_cmp($energyYearlykWh, reltol=>2),
+    num_cmp($energyYearlyMJ, reltol=>2)
+);
+
+BEGIN_PGML_SOLUTION
+
+[``[$capacity]\text{kW} \cdot 
+[$hoursWinter]\text{hours} = 
+[$energyWinterkWh]\text{ kWh in the Winter}``]
+
+[``[$energyWinterkWh]\text{kWh} \cdot 
+\frac{\text{3600 sec}}{\text{1 hr}} \cdot 
+\frac{\text{1 MJ}}{\text{1000 kJ}} = 
+[$energyWinterMJ]\text{ MJ in the Winter}``]
+
+------------------------------------
+
+[``[$capacity]\text{kW} \cdot 
+[$hoursSpring]\text{hours} = 
+[$energySpringkWh]\text{ kWh in the Spring}``]
+
+[``[$energySpringkWh]\text{kWh} \cdot 
+\frac{\text{3600 sec}}{\text{1 hr}} \cdot 
+\frac{\text{1 MJ}}{\text{1000 kJ}} = 
+[$energySpringMJ]\text{ MJ in the Spring}``]
+
+------------------------------------
+
+[``[$capacity]\text{kW} \cdot 
+[$hoursSummer]\text{hours} = 
+[$energySummerkWh]\text{ kWh in the Summer}``]
+
+[``[$energySummerkWh]\text{kWh} \cdot 
+\frac{\text{3600 sec}}{\text{1 hr}} \cdot 
+\frac{\text{1 MJ}}{\text{1000 kJ}} = 
+[$energySummerMJ]\text{ MJ in the Summer}``]
+
+------------------------------------
+
+[``[$capacity]\text{kW} \cdot 
+[$hoursFall]\text{hours} = 
+[$energyFallkWh]\text{ kWh in the Fall}``]
+
+[``[$energyFallkWh]\text{kWh} \cdot 
+\frac{\text{3600 sec}}{\text{1 hr}} \cdot 
+\frac{\text{1 MJ}}{\text{1000 kJ}} = 
+[$energyFallMJ]\text{ MJ in the Fall}``]
+
+------------------------------------
+
+[``[$capacity]\text{kW} \cdot 
+[$hoursTotal]\text{hours} = 
+[$energyYearlykWh]\text{ kWh Total}``]
+
+[``[$energyYearlykWh]\text{kWh} \cdot 
+\frac{\text{3600 sec}}{\text{1 hr}} \cdot 
+\frac{\text{1 MJ}}{\text{1000 kJ}} = 
+[$energyYearlyMJ]\text{ MJ Total}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Two 
+##########################################
+Section::Begin("Part 2: Capacity Factor",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Curious about how this compares to the theoretical yearly electricity 
+generation, Tim calculates the yearly max possible electricity generation 
+from the solar panels.
+
+[__________]{$theoryGenMWh}[`\text{MWh}`]
+
+[__________]{$theoryGenGJ}[`\text{GJ}`]
+
+What is the yearly capacity factor of the solar panel? 
+
+[__________]{$capFactor} %
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$capacity]\text{kW} \cdot 
+\frac{\text{8760 hrs}}{\text{year}} \cdot 
+\frac{\text{1 MWh}}{\text{1000 kWh}} = 
+[$theoryGenMWh]\text{ MWh} ``]
+
+[``[$theoryGenMWh]\text{ MWh} \cdot 
+\frac{\text{3600 sec}}{\text{1 hr}} \cdot 
+\frac{\text{1 GJ}}{\text{1000 MJ}} = 
+[$theoryGenGJ]\text{ GJ} ``]
+
+[``\frac{\text{Actual Generation}}{\text{Theoretical Generation}} = 
+\frac{[$energyYearlykWh]\text{ kWh}}{[$theoryGenMWh]\text{ MWh} \cdot 
+\frac{\text{1000 kWh}}{\text{1 MWh}}} = 
+[$capFactor]% ``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three 
+##########################################
+Section::Begin("Part 3: Cost Savings",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Tim next wants to understand how long it will take him to repay his inital 
+investment. Looking at his most recent electricity bill, he is charged at a 
+rate of [$electricityCost][`\frac{\text{cents}}{\text{kWh}}`]. Tim assumes 
+this cost of electricity never changes, and that he can always use all the 
+electricity he generates from the solar panel.
+
+How much does he save during one year of operation?
+
+*$* [__________]{$savingsYear}
+
+If the number of sunlight hours is the same every year, how long does it take 
+Tim to recoup the *capital cost* of the solar panels based *only* on annual 
+electricity savings?
+
+[__________]{$paybackTime} *years*
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$energyYearlykWh]\text{ kWh} \cdot 
+\frac{[$electricityCost]\text{ cents}}{\text{kWh}} \cdot 
+\frac{[$DOLLARSYMBOL]\text{1}}{\text{100 cents}} = 
+[$DOLLARSYMBOL][$savingsYear]``]
+
+[``\frac{[$DOLLARSYMBOL][$installCost]\text{ CAPEX}}
+{[$DOLLARSYMBOL][$savingsYear]\text{ saved per year}} = 
+[$paybackTime]\text{ years}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Four 
+##########################################
+Section::Begin("Part 4: Levelized Cost of Electricity",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Finally, if Tim assumes a discount rate of [$discountRate][$PERCENT] and that 
+he does not pay taxes on the project, what is the levelized cost of 
+electricity?
+
+[__________]{$lcoe}[`\frac{[$DOLLARSYMBOL]}{\text{MWh}}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\text{LCOE} = 
+\frac{\text{CRF}\times\text{Capital Cost} +
+\text{Operation Cost}}{\text{Energy Produced}} + 
+\text{ Fuel Cost } + 
+\text{ Taxes}``]
+
+[``\text{CRF } = 
+\frac{[$discountRateDecimal]([$discountRateDecimal]+1)^{[$lifespan]}}
+{([$discountRateDecimal]+1)^{[$lifespan]}-1} = 
+[$CRF]``]
+
+[``\text{LCOE } = 
+\frac{[$CRF]\cdot[$DOLLARSYMBOL][$installCost] + 
+[$DOLLARSYMBOL][$operationCost]}{[$energyYearlykWh]\text{kWh} \cdot 
+\frac{\text{1 MWh}}{\text{1000 kWh}}} = 
+[$lcoe]\frac{[$DOLLARSYMBOL]}{\text{MWh}}``]
+
+END_PGML_SOLUTION
+Section::End();
+###########################################
+
+Scaffold::End();
+ENDDOCUMENT();

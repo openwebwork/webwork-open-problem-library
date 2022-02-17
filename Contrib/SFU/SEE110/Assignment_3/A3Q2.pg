@@ -1,0 +1,676 @@
+# DESCRIPTION
+# Compare emission contributions from different industries 
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Energy Supply)
+## Level(5)
+## KEYWORDS('energy', 'supply', 'emissions')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "PGML.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "scaffold.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+$DOLLARSYMBOL = '\$';
+$PERCENTSYMBOL = '\%';
+
+#PART ONE
+$year = random(2005,2019,1);
+%ghgEmissions = (
+    2005 => "739",
+    2006 => "730",
+    2007 => "752",
+    2008 => "736",
+    2009 => "694",
+    2010 => "703",
+    2011 => "714",
+    2012 => "717",
+    2013 => "725",
+    2014 => "723",
+    2015 => "723",
+    2016 => "707",
+    2017 => "716",
+    2018 => "728",
+    2019 => "730",
+);
+$percentEnergyGeneration = random(25.0,28.0,0.2); #%
+$percentTransportation = random(28.0,30.0,0.2); #%
+$percentIndustry = random(20.0,25.0,0.2); #%
+$percentTotal = sprintf("%0.2f",$percentEnergyGeneration+$percentTransportation+$percentIndustry);
+$carbonTax = random(30,50,1); #$/MT
+$emissionsEnergyGeneration = sprintf("%0.2f",$ghgEmissions{$year}*$percentEnergyGeneration/100); #MT
+$emissionsTransportation = sprintf("%0.2f",$ghgEmissions{$year}*$percentTransportation/100); #MT
+$emissionsIndustry = sprintf("%0.2f",$ghgEmissions{$year}*$percentIndustry/100); #MT
+$emissionsTotal = sprintf("%0.2f",$ghgEmissions{$year}*$percentTotal/100); #MT
+$taxEnergyGeneration = sprintf("%0.2f",$emissionsEnergyGeneration*$carbonTax); #$
+$taxTransportation = sprintf("%0.2f",$emissionsTransportation*$carbonTax); #$
+$taxIndustry = sprintf("%0.2f",$emissionsIndustry*$carbonTax); #$
+$taxTotal = sprintf("%0.2f",$emissionsTotal*$carbonTax); #$
+
+#PART TWO
+%demand = (
+    2005 => "1830",
+    2006 => "1816",
+    2007 => "1856",
+    2008 => "1859",
+    2009 => "1790",
+    2010 => "1812",
+    2011 => "1849",
+    2012 => "1839",
+    2013 => "1862",
+    2014 => "1895",
+    2015 => "1892",
+    2016 => "1896",
+    2017 => "1928",
+    2018 => "1999",
+    2019 => "1984",
+); #PJ
+$coal_MillionkWh = Real(947891);
+$coal_MillionTon = Real(952);
+$ng_MillionkWh = Real(1358047);
+$ng_MillionTon = Real(560);
+$oil_MillionkWh = Real(15471);
+$oil_MillionTon = Real(15);
+$coalPercentage = random(8.0,11.0,0.2);
+$ngPercentage = random(15.0,20.0,0.2);
+$oilPercentage = random(1.0,2.0,0.1);
+$coalCF = random(45,65,2);
+$ngCF = random(60,80,2);
+$oilCF = random(15,25,2);
+
+$coalEmissionRate = sprintf("%0.2f",$coal_MillionTon/$coal_MillionkWh*1000);#MT/TWh
+$coalGeneration = sprintf("%0.2f",$demand{$year}*$coalPercentage/100*1000/3600); #TWh
+$coalEmission = sprintf("%0.2f",$coalGeneration*$coalEmissionRate); #MT
+$coalTax = sprintf("%0.2f",$carbonTax*$coalEmission); #M$
+$coalCapacity = sprintf("%0.2f",$coalGeneration/8760/($coalCF/100)*1000); #GW
+
+$ngEmissionRate = sprintf("%0.2f",$ng_MillionTon/$ng_MillionkWh*1000);#MT/TWh
+$ngGeneration = sprintf("%0.2f",$demand{$year}*$ngPercentage/100*1000/3600); #TWh
+$ngEmission = sprintf("%0.2f",$ngGeneration*$ngEmissionRate); #MT
+$ngTax = sprintf("%0.2f",$carbonTax*$ngEmission); #M$
+$ngCapacity = sprintf("%0.2f",$ngGeneration/8760/($ngCF/100)*1000); #GW
+
+$oilEmissionRate = sprintf("%0.2f",$oil_MillionTon/$oil_MillionkWh*1000);#MT/TWh
+$oilGeneration = sprintf("%0.2f",$demand{$year}*$oilPercentage/100*1000/3600); #TWh
+$oilEmission = sprintf("%0.2f",$oilGeneration*$oilEmissionRate); #MT
+$oilTax = sprintf("%0.2f",$carbonTax*$oilEmission); #M$
+$oilCapacity = sprintf("%0.2f",$oilGeneration/8760/($oilCF/100)*1000); #GW
+
+#PART THREE
+$carPercentage = Real(58);
+$truckPercentage = Real(24);
+$trainPercentage = Real(2);
+$planePercentage = Real(10);
+$boatPercentage = Real(2);
+
+$carFuelEmissions = random(18.0,21.0,0.1); #lbs/gallon
+$truckFuelEmissions = random(2.5,2.7,0.1); #kg CO2 / L
+$trainFuelEmissions = $truckFuelEmissions; 
+$planeFuelEmissions = Real(3.15); #g CO2 / g fuel
+$boatFuelEmissions= random(3.0,3.3,0.1); #T CO2/T Fuel
+
+$carDensity = Real(800); #kg/m3
+$truckDensity = Real(850); #kg/m3
+$trainDensity = $truckDensity; #kg/m3
+$planeDensity = Real(800); #kg/m3
+$boatDensity = Real(1010); #kg/m3
+
+$carEmissions = sprintf("%0.2f",$emissionsTransportation*$carPercentage/100); #MT
+$truckEmissions = sprintf("%0.2f",$emissionsTransportation*$truckPercentage/100); #MT
+$trainEmissions = sprintf("%0.2f",$emissionsTransportation*$trainPercentage/100); #MT
+$planeEmissions = sprintf("%0.2f",$emissionsTransportation*$planePercentage/100); #MT
+$boatEmissions = sprintf("%0.2f",$emissionsTransportation*$boatPercentage/100); #MT
+
+$carFuel = sprintf("%0.2f",$carEmissions*1000*2.205/$carFuelEmissions*3.78/1000); #Mm3
+$truckFuel = sprintf("%0.2f",$truckEmissions*1000/$truckFuelEmissions/1000); #Mm3
+$trainFuel = sprintf("%0.2f",$trainEmissions*1000/$trainFuelEmissions/1000); #Mm3
+$planeFuel = sprintf("%0.2f",$planeEmissions*1000/$planeFuelEmissions/$planeDensity); #Mm3
+$boatFuel = sprintf("%0.2f",$boatEmissions*1000/$boatFuelEmissions/$boatDensity); #Mm3
+
+$carTax = sprintf("%0.2f",$carEmissions*$carbonTax); #M$
+$truckTax = sprintf("%0.2f",$truckEmissions*$carbonTax); #M$
+$trainTax = sprintf("%0.2f",$trainEmissions*$carbonTax); #M$
+$planeTax = sprintf("%0.2f",$planeEmissions*$carbonTax); #M$
+$boatTax = sprintf("%0.2f",$boatEmissions*$carbonTax); #M$
+
+##########################################
+# Problem Statement 
+##########################################
+
+BEGIN_TEXT
+$PAR
+Over the past 15 years, Canada's greenhouse gas emissions has remained 
+relatively constant, fluctuating between 694 and 752 Mega Tonnes (MT) annually 
+\{htmlLink( "https://www.canada.ca/en/environment-climate-change/services/environmental-indicators/greenhouse-gas-emissions.html", "(Reference)" ) \}. 
+
+END_TEXT
+
+Scaffold::Begin(
+);
+
+##########################################
+# Problem One 
+##########################################
+
+Section::Begin("Part 1: Energy Generation Sources",
+    is_open => "always",);
+
+BEGIN_TEXT
+In $year, Canada's total greenhouse gas emissions were $ghgEmissions{$year} 
+MT, with significant contribution coming from the Energy Generation, 
+Transportation, and Industry sectors. Assume the carbon tax in $year was 
+$carbonTax \(\frac{$DOLLARSYMBOL}{\text{Tonne}}\).
+$PAR
+The following table is separated into four columns. The first and second 
+column list the industry and percentage of the total emissions that industry 
+contributed to greenhouse gas emissions. Complete the third and fourth 
+columns to determine how many MT of CO2 were generated by each industry and 
+how much that industry paid in carbon taxes.
+$PAR
+\{
+DataTable(
+  [
+    [['Sector', headerrow => 1],
+        'Percent Contributuion ($PERCENTSYMBOL)',
+        'CO2 Emissions (MT)',
+        'Taxes (M$DOLLARSYMBOL)'],
+    ['Energy Generation',
+        '$percentEnergyGeneration',
+        ans_rule(6),
+        ans_rule(6)],
+    ['Transportation',
+        '$percentTransportation',
+        ans_rule(6),
+        ans_rule(6)],
+    ['Industry',
+        '$percentIndustry',
+        ans_rule(6),
+        ans_rule(6)],
+    ['Total',
+        '$percentTotal',
+        ans_rule(6),
+        ans_rule(6)]
+  ], 
+  caption => 'CO2 Emissions by Industry',
+);
+\}
+
+END_TEXT
+
+ANS(num_cmp($emissionsEnergyGeneration, reltol=>2),
+    num_cmp($taxEnergyGeneration, reltol=>2),
+    num_cmp($emissionsTransportation, reltol=>2),
+    num_cmp($taxTransportation, reltol=>2),
+    num_cmp($emissionsIndustry, reltol=>2),
+    num_cmp($taxIndustry, reltol=>2),
+    num_cmp($emissionsTotal, reltol=>2),
+    num_cmp($taxTotal, reltol=>2)
+);
+
+BEGIN_PGML_SOLUTION
+
+[``[$ghgEmissions{$year}]\text{ MT} \cdot 
+[$percentEnergyGeneration]% = 
+[$emissionsEnergyGeneration]\text{ MT from Energy Generartion}``]
+
+[``[$emissionsEnergyGeneration]\text{ MT} \cdot 
+\frac{[$DOLLARSYMBOL][$carbonTax]}{\text{Tonne}} \cdot 
+\frac{\text{1000000 T}}{\text{1 MT}} \cdot 
+\frac{\text{M}[$DOLLARSYMBOL]}{[$DOLLARSYMBOL]\text{1000000}} = 
+[$taxEnergyGeneration]\text{ M}[$DOLLARSYMBOL]``]
+
+------------------------------
+
+[``[$ghgEmissions{$year}]\text{ MT} \cdot 
+[$percentTransportation]% = 
+[$emissionsTransportation]\text{ MT from Transportation}``]
+
+[``[$emissionsTransportation]\text{ MT} \cdot 
+\frac{[$DOLLARSYMBOL][$carbonTax]}{\text{Tonne}} \cdot 
+\frac{\text{1000000 T}}{\text{1 MT}} \cdot 
+\frac{\text{M}[$DOLLARSYMBOL]}{[$DOLLARSYMBOL]\text{1000000}} = 
+[$taxTransportation]\text{ M}[$DOLLARSYMBOL]``]
+
+------------------------------
+
+[``[$ghgEmissions{$year}]\text{ MT} \cdot 
+[$percentIndustry]% = 
+[$emissionsIndustry]\text{ MT from Industry}``]
+
+[``[$emissionsIndustry]\text{ MT} \cdot 
+\frac{[$DOLLARSYMBOL][$carbonTax]}{\text{Tonne}} \cdot 
+\frac{\text{1000000 T}}{\text{1 MT}} \cdot 
+\frac{\text{M}[$DOLLARSYMBOL]}{[$DOLLARSYMBOL]\text{1000000}} = 
+[$taxIndustry]\text{ M}[$DOLLARSYMBOL]``]
+
+------------------------------
+
+[``[$ghgEmissions{$year}]\text{ MT} \cdot 
+[$percentTotal]% = 
+[$emissionsTotal]\text{ MT from all three sectors}``]
+
+[``[$emissionsTotal]\text{ MT} \cdot 
+\frac{[$DOLLARSYMBOL][$carbonTax]}{\text{Tonne}} \cdot 
+\frac{\text{1000000 T}}{\text{1 MT}} \cdot 
+\frac{\text{M}[$DOLLARSYMBOL]}{[$DOLLARSYMBOL]\text{1000000}} = 
+[$taxTotal]\text{ M}[$DOLLARSYMBOL]``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Two 
+##########################################
+
+Section::Begin("Part 2: Energy Generation",
+    can_open => "when_previous_correct",);
+
+BEGIN_TEXT
+$PAR
+Wanting to break down emissions from the energy generation sector further, 
+you look online and find that in $year, Canada's total $BBOLD electricity 
+demand $EBOLD was $demand{$year} PJ. Moreover, you find the following 
+suggested emission rates for power plants published by the 
+\{htmlLink( "https://www.eia.gov/tools/faqs/faq.php?id=74&t=11", "EIA" ) \}.
+
+$PAR
+\{
+DataTable(
+  [
+    [['Technology', headerrow => 1],
+        'Electricity Generation (Million kWh)',
+        'CO2 Emissions (MT)'],
+    ['Coal',
+        $coal_MillionkWh,
+        $coal_MillionTon],
+    ['Natural Gas',
+        $ng_MillionkWh,
+        $ng_MillionTon],
+    ['Petroleum',
+        $oil_MillionkWh,
+        $oil_MillionTon]
+  ], 
+  caption => 'Electricity generation and resulting CO2 emissions by fuel in 2019',
+);
+\}
+$PAR
+The following table breaks down approximately how much each of these fuels 
+contributed to meeting Canada's $BBOLD electricity demand $EBOLD in the 
+first and second column. Complete the remainder of the table by finding each 
+technology's emission rate in the units specified, its total generation, its 
+emissions for $year, its payment due to carbon taxes, and finally how much 
+capacity of the technology exists assuming the provided capacity factors. 
+$PAR
+\{
+DataTable(
+  [
+    [['Technology', headerrow => 1],
+        'Contribution ($PERCENT)',
+        'Emission rate \((\frac{\text{MT}}{\text{TWh}})\)',
+        'Generation (TWh)',
+        'Emissions (MT)',
+        'Tax Payment (M$DOLLAR)',
+        'Capacity Factor ($PERCENT)',
+        'Capacity (GW)'],
+    ['Coal',
+        '$coalPercentage',
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),
+        '$coalCF',
+        ans_rule(6),],
+    ['Natural Gas',
+        '$ngPercentage',
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),
+        '$ngCF',
+        ans_rule(6),],
+    ['Petroleum',
+        '$oilPercentage',
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),
+        '$oilCF',
+        ans_rule(6),],
+  ], 
+);
+\}
+END_TEXT
+
+ANS(num_cmp($coalEmissionRate, reltol=>2),
+    num_cmp($coalGeneration, reltol=>2),
+    num_cmp($coalEmission, reltol=>2),
+    num_cmp($coalTax, reltol=>2),
+    num_cmp($coalCapacity, reltol=>2),
+    num_cmp($ngEmissionRate, reltol=>2),
+    num_cmp($ngGeneration, reltol=>2),
+    num_cmp($ngEmission, reltol=>2),
+    num_cmp($ngTax, reltol=>2),
+    num_cmp($ngCapacity, reltol=>2),
+    num_cmp($oilEmissionRate, reltol=>2),
+    num_cmp($oilGeneration, reltol=>2),
+    num_cmp($oilEmission, reltol=>2),
+    num_cmp($oilTax, reltol=>2),
+    num_cmp($oilCapacity, reltol=>2),
+);
+
+BEGIN_PGML_SOLUTION
+
+*COAL*
+
+[``\frac{[$coal_MillionTon]\text{ Million Tons}}
+{[$coal_MillionkWh]\text{ Million kWh (=GWh)}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 GWh}} = 
+[$coalEmissionRate]\frac{\text{MT CO2}}{\text{TWh}}``]
+
+[``[$demand{$year}]\text{ PJ}\cdot\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} \cdot 
+[$coalPercentage]% = 
+[$coalGeneration]\text{ TWh}``]
+
+[``[$coalGeneration]\text{ TWh} \cdot 
+\frac{[$coalEmissionRate]\text{ MT CO2}}{\text{TWh}} = 
+[$coalEmission]\text{ MT CO2}``]
+
+[``[$coalEmission]\text{ MT} \cdot 
+\frac{\text{[$carbonTax] M}[$DOLLARSYMBOL]}{\text{MT}} = 
+[$coalTax]\text{ M}[$DOLLARSYMBOL]``]
+
+[``[$coalGeneration]\text{ TWh} \cdot 
+\frac{\text{1 year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} \cdot 
+\frac{\text{1}}{[$coalCF]%} = 
+[$coalCapacity]\text{GW}``]
+
+------------------------------------------
+
+*NATURAL GAS*
+
+[``\frac{[$ng_MillionTon]\text{ Million Tons}}
+{[$ng_MillionkWh]\text{ Million kWh (=GWh)}} 
+\cdot\frac{\text{1000 TWh}}{\text{1 GWh}} 
+= [$ngEmissionRate]\frac{\text{MT CO2}}{\text{TWh}}``]
+
+[``[$demand{$year}]\text{ PJ} \cdot 
+\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} \cdot 
+[$ngPercentage]% = 
+[$ngGeneration]\text{ TWh}``]
+
+[``[$ngGeneration]\text{ TWh} \cdot 
+\frac{[$ngEmissionRate]\text{ MT CO2}}{\text{TWh}} = 
+[$ngEmission]\text{ MT CO2}``]
+
+[``[$ngEmission]\text{ MT} \cdot 
+\frac{\text{[$carbonTax] M}[$DOLLARSYMBOL]}{\text{MT}} = 
+[$ngTax]\text{ M}[$DOLLARSYMBOL]``]
+
+[``[$ngGeneration]\text{ TWh} \cdot 
+\frac{\text{1 year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} \cdot 
+\frac{\text{1}}{[$ngCF]%} = 
+[$ngCapacity]\text{GW}``]
+
+------------------------------------------
+
+*OIL*
+
+[``\frac{[$oil_MillionTon]\text{ Million Tons}}
+{[$oil_MillionkWh]\text{ Million kWh (=GWh)}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 GWh}} = 
+[$oilEmissionRate]\frac{\text{MT CO2}}{\text{TWh}}``]
+
+[``[$demand{$year}]\text{ PJ} \cdot 
+\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} \cdot 
+[$oilPercentage]% = 
+[$oilGeneration]\text{ TWh}``]
+
+[``[$oilGeneration]\text{ TWh} \cdot 
+\frac{[$oilEmissionRate]\text{ MT CO2}}{\text{TWh}} = 
+[$oilEmission]\text{ MT CO2}``]
+
+[``[$oilEmission]\text{ MT} \cdot 
+\frac{\text{[$carbonTax] M}[$DOLLARSYMBOL]}{\text{MT}} = 
+[$oilTax]\text{ M}[$DOLLARSYMBOL]``]
+
+[``[$oilGeneration]\text{ TWh} \cdot 
+\frac{\text{1 year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} \cdot 
+\frac{\text{1}}{[$oilCF]%} = 
+[$oilCapacity]\text{GW}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three 
+##########################################
+
+Section::Begin("Part 3: Transportation",
+    can_open => "when_previous_correct",);
+
+BEGIN_TEXT
+To further break down transportation emissions, you group the emissions into 
+five different categories: (1) Cars (2) Heavy duty trucks (3) Trains 
+(4) Planes (5) Boats. The US 
+\{htmlLink( "https://www.epa.gov/greenvehicles/fast-facts-transportation-greenhouse-gas-emissions", "Environmental Protection Agency" ) \} 
+provides breakdowns of how much each category contributed to $BBOLD 
+transportation emissions $EBOLD, and you use these figures to approximate 
+Canada's breakdown as well. (Transportation emissions are a sub-answer from 
+part one.)
+$PAR
+$PAR
+Finish the table by calculating how much fuel was used by each transportation 
+method, the emissions from each transportation method, and the taxes 
+attributed to each transportation method. 
+$PAR
+\{
+DataTable(
+  [
+    [['Transport Method', headerrow => 1],
+        'Contribution ($PERCENT)',
+        'Emission Rate',
+        'Fuel Density \((\frac{\text{kg}}{\text{m}^3})\)',
+        'Emissions (MT)',
+        'Fuel Used \((\text{Million m}^3)\)',
+        'Tax Payment (M$DOLLAR)'],
+    ['Cars',
+        '$carPercentage',
+        '$carFuelEmissions \((\frac{\text{lbs CO2}}{\text{Gal Fuel}})\)',
+        '$carDensity',
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),],
+    ['Heavy Duty Trucks',
+        '$truckPercentage',
+        '$truckFuelEmissions \((\frac{\text{kg CO2}}{\text{L Fuel}})\)',
+        '$truckDensity',
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),],
+    ['Trains',
+        '$trainPercentage',
+        '$trainFuelEmissions \((\frac{\text{kg CO2}}{\text{L Fuel}})\)',
+        '$trainDensity',
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),],
+    ['Planes',
+        '$planePercentage',
+        '$planeFuelEmissions \((\frac{\text{g CO2}}{\text{g Fuel}})\)',
+        '$planeDensity',
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),],
+    ['Boats',
+        '$boatPercentage',
+        '$boatFuelEmissions \((\frac{\text{T CO2}}{\text{T Fuel}})\)',
+        '$boatDensity',
+        ans_rule(6),
+        ans_rule(6),
+        ans_rule(6),],
+  ], 
+);
+\}
+
+END_TEXT
+
+ANS(num_cmp($carEmissions, reltol=>2),
+    num_cmp($carFuel, reltol=>2),
+    num_cmp($carTax, reltol=>2),
+    num_cmp($truckEmissions, reltol=>2),
+    num_cmp($truckFuel, reltol=>2),
+    num_cmp($truckTax, reltol=>2),
+    num_cmp($trainEmissions, reltol=>2),
+    num_cmp($trainFuel, reltol=>2),
+    num_cmp($trainTax, reltol=>2),
+    num_cmp($planeEmissions, reltol=>2),
+    num_cmp($planeFuel, reltol=>2),
+    num_cmp($planeTax, reltol=>2),
+    num_cmp($boatEmissions, reltol=>2),
+    num_cmp($boatFuel, reltol=>2),
+    num_cmp($boatTax, reltol=>2)
+);
+
+BEGIN_PGML_SOLUTION
+
+*CAR*
+
+[``[$emissionsTransportation]\text{ MT} \cdot 
+[$carPercentage]% = 
+[$carEmissions]\text{ MT}``]
+
+[``[$carEmissions]\text{ MT} \cdot 
+\frac{\text{1000000 T}}{\text{1 MT}} \cdot 
+\frac{\text{1000 kg}}{\text{1 Tonne}} \cdot 
+\frac{\text{2.205 lbs}}{\text{1 kg}} \cdot 
+(\frac{[$carFuelEmissions]\text{ lbs}}{\text{Gallon}})^{\text{-1}} \cdot 
+\frac{\text{3.78 L}}{\text{Gallon}} \cdot 
+\frac{\text{1 m}^3}{\text{1000 L}} \cdot 
+\frac{\text{1M m}^3}{\text{1000000 m}^3} = 
+[$carFuel]\text{ Million m}^3``]
+
+[``[$carEmissions]\text{ MT} \cdot 
+\frac{\text{[$carbonTax] M}[$DOLLARSYMBOL]}{\text{MT}} =
+[$carTax]\text{ M}[$DOLLARSYMBOL]``]
+
+---------------------------
+
+*TRUCK*
+
+[``[$emissionsTransportation]\text{ MT} \cdot 
+[$truckPercentage]% = 
+[$truckEmissions]\text{ MT}``]
+
+[``[$truckEmissions]\text{ MT} \cdot 
+\frac{\text{1000000 T}}{\text{1 MT}} \cdot 
+\frac{\text{1000 kg}}{\text{1 Tonne}} \cdot 
+(\frac{[$truckFuelEmissions]\text{ kg}}{\text{L}})^{\text{-1}} \cdot 
+\frac{\text{1 m}^3}{\text{1000 L}} \cdot 
+\frac{\text{1M m}^3}{\text{1000000 m}^3} = 
+[$truckFuel]\text{ Million m}^3``]
+
+[``[$truckEmissions]\text{ MT} \cdot 
+\frac{\text{[$carbonTax] M}[$DOLLARSYMBOL]}{\text{MT}} = 
+[$truckTax]\text{ M}[$DOLLARSYMBOL]``]
+
+---------------------------
+
+*TRAIN*
+
+[``[$emissionsTransportation]\text{ MT} \cdot 
+[$trainPercentage]% = 
+[$trainEmissions]\text{ MT}``]
+
+[``[$trainEmissions]\text{ MT} \cdot 
+\frac{\text{1000000 T}}{\text{1 MT}} \cdot 
+\frac{\text{1000 kg}}{\text{1 Tonne}} \cdot 
+(\frac{[$trainFuelEmissions]\text{ kg}}{\text{L}})^{\text{-1}} \cdot 
+\frac{\text{1 m}^3}{\text{1000 L}} \cdot 
+\frac{\text{1M m}^3}{\text{1000000 m}^3} = 
+[$trainFuel]\text{ Million m}^3``]
+
+[``[$trainEmissions]\text{ MT} \cdot 
+\frac{\text{[$carbonTax] M}[$DOLLARSYMBOL]}{\text{MT}} = 
+[$trainTax]\text{ M}[$DOLLARSYMBOL]``]
+
+---------------------------
+
+*PLANE*
+
+[``[$emissionsTransportation]\text{ MT} \cdot 
+[$planePercentage]% = 
+[$planeEmissions]\text{ MT}``]
+
+[``[$planeEmissions]\text{ MT} \cdot 
+\frac{\text{1000000 T}}{\text{1 MT}} \cdot 
+\frac{\text{1000 kg}}{\text{1 Tonne}} \cdot 
+(\frac{[$planeFuelEmissions]\text{kg CO2}}{\text{kg Fuel}})^{\text{-1}} \cdot 
+(\frac{[$planeDensity]\text{kg Fuel}}{\text{m}^3})^{\text{-1}} \cdot 
+\frac{\text{1M m}^3}{\text{1000000 m}^3} = 
+[$planeFuel]\text{ Million m}^3``]
+
+[``[$planeEmissions]\text{ MT} \cdot 
+\frac{\text{[$carbonTax] M}[$DOLLARSYMBOL]}{\text{MT}} = 
+[$planeTax]\text{ M}[$DOLLARSYMBOL]``]
+
+---------------------------
+
+*BOAT*
+
+[``[$emissionsTransportation]\text{ MT} \cdot 
+[$boatPercentage]% = 
+[$boatEmissions]\text{ MT}``]
+
+[``[$boatEmissions]\text{ MT} \cdot 
+\frac{\text{1000000 T}}{\text{1 MT}} \cdot 
+\frac{\text{1000 kg}}{\text{1 Tonne}} \cdot 
+(\frac{[$boatFuelEmissions]\text{kg CO2}}{\text{kg Fuel}})^{\text{-1}} \cdot 
+(\frac{[$planeDensity]\text{kg Fuel}}{\text{m}^3})^{\text{-1}} \cdot 
+\frac{\text{1M m}^3}{\text{1000000 m}^3} = 
+[$boatFuel]\text{ Million m}^3``]
+
+[``[$boatEmissions]\text{ MT} \cdot 
+\frac{\text{[$carbonTax] M}[$DOLLARSYMBOL]}{\text{MT}} = 
+[$boatTax]\text{ M}[$DOLLARSYMBOL]``]
+
+END_PGML_SOLUTION
+Section::End();
+
+############################################
+
+Scaffold::End();
+ENDDOCUMENT();

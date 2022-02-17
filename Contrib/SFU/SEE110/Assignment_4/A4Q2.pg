@@ -1,0 +1,393 @@
+# DESCRIPTION
+# Compare a wind and solar farm on energy density, and lcoe
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Applications)
+## Level(5)
+## KEYWORDS('energy', 'supply', 'cost', 'lcoe')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGcourse.pl",
+  "scaffold.pl",
+  "niceTables.pl",
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+$landArea = random(1.21,2.01,0.02); #km2
+$hoursInYear = 8760;
+
+$solarSize = random(1.5,2.5,0.1); #m2
+$solarSizeExtra = random(0.05,0.2,0.05); #m2
+$solarCapacity = random(250,400,25); #W
+$numSolarUnrounded = sprintf("%0.2f",$landArea*(1000000) / ($solarSize + $solarSizeExtra));
+$numSolar = floor($numSolarUnrounded);
+$energySolarYear = sprintf("%0.2f",$numSolar*$solarCapacity*$hoursInYear/1000000000); #GWh
+$capFactorSolarSummer = random(20,35,5); #percent
+$capFactorSolarWinter = random(8,16,2); #percent
+$energySolarYearWeather = sprintf("%0.2f",($energySolarYear*0.5*$capFactorSolarSummer/100) + ($energySolarYear*0.5*$capFactorSolarWinter/100)); #GWh
+$densitySolar = sprintf("%0.2f",$energySolarYearWeather*(1/$hoursInYear)*(1000000000)*(1/($landArea*(1000000)))); #W/m2
+
+$windSize = random(130,180,10); #m2
+$windCapacity = random(6000,8000,100); #W
+$numWindUnrounded = sprintf("%0.2f",$landArea*(1000000) / ($windSize));
+$numWind = floor($numWindUnrounded);
+$energyWindYear = sprintf("%0.2f",$numWind*$windCapacity*$hoursInYear/1000000000); #GWh
+$capFactorWind = random(40,65,5); #percent
+$energyWindYearWeather = sprintf("%0.2f",$energyWindYear*($capFactorWind/100)); #GWh
+$densityWind = sprintf("%0.2f",$energyWindYearWeather*(1/$hoursInYear)*(1000000000)*(1/($landArea*(1000000)))); #W/m2
+
+$DOLLARSYMBOL = '\$';
+$timePeriod = random(15,25,1); #years
+$discountRate = random(3.0,5.0,0.1); #percent
+$discountRateDecimal = sprintf("%0.3f",$discountRate/100);
+$capitalCostWind = random(1573,1713,1); #$/kW
+$capitalCostSolar = random(2014,2465,1); #$/kW
+$operationCostWind = random(40,60,1); #$/kW-yr
+$operationCostSolar = random(15,25,1); #$/kW-yr
+
+$CRF = sprintf("%0.3f",($discountRateDecimal*($discountRateDecimal+1)**($timePeriod))/(($discountRateDecimal+1)**($timePeriod)-1));
+$totalCapWind = sprintf("%0.2f",$numWind*$windCapacity/1000); #kW
+$totalCapSolar = sprintf("%0.2f",$numSolar*$solarCapacity/1000); #kW
+$totalCapCostWind = sprintf("%0.2f",$totalCapWind*$capitalCostWind);
+$totalCapCostSolar = sprintf("%0.2f",$totalCapSolar*$capitalCostSolar);
+$totalOperationCostWind = sprintf("%0.2f",$totalCapWind*$operationCostWind);
+$totalOperationCostSolar = sprintf("%0.2f",$totalCapSolar*$operationCostSolar);
+$lcoeWind = sprintf("%0.2f",($CRF*$totalCapCostWind+$totalOperationCostWind)/($energyWindYearWeather*1000));
+$lcoeSolar = sprintf("%0.2f",($CRF*$totalCapCostSolar+$totalOperationCostSolar)/($energySolarYearWeather*1000));
+
+##########################################
+# Problem Statement 
+##########################################
+
+Scaffold::Begin(
+);
+
+BEGIN_PGML
+
+Kyla and Taylor are tasked with building a renewable generation facility. 
+They have [$landArea][`\text{km}^2`] of land. Taylor thinks they should build 
+wind turbines, while Kyla wants to install solar panels. 
+
+END_PGML
+
+##########################################
+# Problem One 
+##########################################
+
+Section::Begin("Part 1: Land Requirements",
+    is_open => "always",);
+
+BEGIN_PGML
+
+Taylor researches wind power and finds that each turbine will need a space 
+allowance of [$windSize][`\text{m}^2`]. Kyla researches solar energy and 
+finds that each solar panel will be [$solarSize][`\text{m}^2`] and requires 
+an extra [$solarSizeExtra][`\text{m}^2 `] of space to account for walking 
+paths and other infrastructure.
+
+How many wind turbines can be fit into the area? [__________]{$numWind} 
+*Turbines*
+
+How many solar panels can be fit into the area? [__________]{$numSolar} 
+*Panels*
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\frac{[$landArea]\text{km}^2 \cdot 
+\frac{\text{1000000}\text{m}^2}{\text{1}\text{km}^2}}{[$windSize]\text{m}^2} =
+[$numWindUnrounded] \text{ turbines}``]
+
+If we have a fraction of a wind turbine, we need to round *down* to the 
+nearest integer:
+
+[``\text{Number of Wind Turbines = }[$numWind]\text{ turbines}``]
+
+---------------------------
+
+[``\frac{[$landArea]\text{km}^2 \cdot 
+\frac{\text{1000000}\text{m}^2}{\text{1}\text{km}^2}}{[$solarSize]\text{m}^2 + 
+[$solarSizeExtra]\text{m}^2} = 
+[$numSolarUnrounded]\text{ panels}``]
+
+If we have a fraction of a solar panel, we need to round *down* to the nearest integer:
+
+[``\text{Number of Solar Panels = }[$numSolar]\text{ panels}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Two 
+##########################################
+
+Section::Begin("Part 2: Theoretical Yearly Energy Generation",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Each wind turbine has a rated capacity of [$windCapacity][`\text{W}`], while 
+each solar panel has a rated capacity of [$solarCapacity][`\text{W}`]. 
+Assuming each turbine and solar panel run at max capacity all day, every day, 
+how much energy is generated by *the entire farm* in a year?
+
+The theoretical yearly energy generation from the *wind* farm is 
+[__________]{$energyWindYear}[`\text{GWh}`].
+
+The theoretical yearly energy generation from the *solar* farm is 
+[__________]{$energySolarYear}[`\text{GWh}`].
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$numWind] \text{ wind turbines} \cdot 
+[$windCapacity]\text{ W} \cdot 
+\frac{\text{1 GW}}{\text{1,000,000,000 W}} \cdot 
+\frac{\text{8760 hours}}{\text{1 year}} = 
+[$energyWindYear]\frac{\text{GWh}}{\text{yr}}\text{ (Wind)}``]
+
+[``[$numSolar] \text{ solar panels} \cdot 
+[$solarCapacity]\text{ W} \cdot 
+\frac{\text{1 GW}}{\text{1,000,000,000 W}} \cdot 
+\frac{\text{8760 hours}}{\text{1 year}} = 
+[$energySolarYear]\frac{\text{GWh}}{\text{yr}}\text{ (Solar)}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three 
+##########################################
+
+Section::Begin("Part 3: Geographical Restrictions",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Kyla and Taylor continue researching how the local geography will effect 
+generation from each source. Taylor finds that there is sufficient wind to 
+generate electricity [$capFactorWind][$PERCENT] of the time throughout the 
+entire year. While Kyla finds that there is sufficient sunlight in the six 
+summer months (April to September) to generate electricity 
+[$capFactorSolarSummer][$PERCENT] of the time, and in the six winter months 
+(October to March) to generate electricity [$capFactorSolarWinter][$PERCENT] 
+of the time. Assume that if there is sufficient natural resources to generate 
+electricity, the turbine/solar panel will generate at max capacity. 
+
+The yearly energy generation from the *wind* farm, taking into account 
+geographical restrictions, is [__________]{$energyWindYearWeather}[`\text{GWh}`].
+
+The yearly energy generation from the *solar* farm, taking into account 
+weather conditions, is [__________]{$energySolarYearWeather}[`\text{GWh}`].
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$energyWindYear]\text{ GWh} \cdot 
+[$capFactorWind]% = 
+[$energyWindYearWeather]\text{ GWh per year from wind}``]
+
+[``([$energySolarYear]\text{ GWh} \cdot 
+\frac{\text{6 months}}{\text{12 months}} \cdot 
+[$capFactorSolarSummer]%) + 
+([$energySolarYear]\text{ GWh} \cdot 
+\frac{\text{6 months}}{\text{12 months}}\cdot[$capFactorSolarWinter]%) = 
+[$energySolarYearWeather]\text{ GWh per year from solar}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Four 
+##########################################
+
+Section::Begin("Part 4: Power Density",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Kyla and Taylor decide to find the power density for each technology after 
+the full year of operation. They want to use actual power, rather then rated 
+power, because the geographical differences shown in the last part will 
+effect how much energy can actually be produced. 
+
+The *actual* power density for the *wind* farm is: 
+[__________]{$densityWind} [`\frac{\text{W}}{\text{m}^2}`]
+
+The *actual* power density for the *solar* farm is: 
+[__________]{$densitySolar}[`\frac{\text{W}}{\text{m}^2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$energyWindYearWeather]\text{ GWh} \cdot 
+\frac{\text{1x10}^9\text{ Wh}}{\text{1 GWh}} \cdot 
+\frac{\text{1 year}}{\text{8760 hours}} \cdot 
+\frac{1}{[$landArea]\text{ km}^2 \cdot 
+\frac{\text{1x10}^6\text{m}^2}{\text{1 km}^2}} = 
+[$densityWind]\frac{\text{W}}{\text{m}^2}\text{ for the Wind Farm}``]
+
+[``[$energySolarYearWeather]\text{ GWh} \cdot 
+\frac{\text{1x10}^9\text{ Wh}}{\text{1 GWh}} \cdot 
+\frac{\text{1 year}}{\text{8760 hours}} \cdot 
+\frac{1}{[$landArea]\text{ km}^2 \cdot 
+\frac{\text{1x10}^6\text{m}^2}{\text{1 km}^2}} = 
+[$densitySolar]\frac{\text{W}}{\text{m}^2}\text{ for the Solar Farm}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Five 
+##########################################
+
+Section::Begin("Part 5: Levelized Cost of Electricity",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Finally, Kyla and Taylor want to compare costs between the two proposed 
+options. Researching online, they find the following cost breakdowns:
+
+END_PGML
+
+BEGIN_TEXT
+$PAR
+\{
+DataTable(
+  [
+    [['Cost Type', headerrow => 1],
+        'Wind Power',
+        'Solar Power',
+        'Unit'],
+    ['Capital Cost',
+        '$capitalCostWind',
+        '$capitalCostSolar',
+        '\(\frac{$DOLLARSYMBOL}{\text{kW}}\)'],
+    ['Fixed Operation and Maintenance',
+        '$operationCostWind',
+        '$operationCostSolar',
+        '\(\frac{$DOLLARSYMBOL}{\text{kW-yr}}\)'],
+    ['Variable Cost',
+        '0',
+        '0',
+        '\(\frac{$DOLLARSYMBOL}{\text{MWh}}\)'],
+    ['Fuel Cost',
+        '0',
+        '0',
+        '\(\frac{$DOLLARSYMBOL}{\text{MWh}}\)'],
+  ], 
+);
+\}
+$PAR
+$PAR
+END_TEXT
+
+BEGIN_PGML
+
+If they analyze the projects over a *[$timePeriod] year* time period, and 
+assume a discount rate of *[$discountRate][$PERCENT] *, what is the levelized 
+cost of electricity (LCOE) for each project? Assume there are no taxes or 
+regulatory fees associated with the projects.
+
+The LCOE for the *wind* project is: 
+[__________]{$lcoeWind}[`\frac{[$DOLLARSYMBOL]}{\text{MWh}}`]
+
+The LCOE for the *solar* project is: 
+[__________]{$lcoeSolar}[`\frac{[$DOLLARSYMBOL]}{\text{MWh}}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\text{LCOE} = 
+\frac{\text{CRF}\times\text{Capital Cost} + 
+\text{Operation Cost}}{\text{Energy Produced}} + 
+\text{ Fuel Cost } + 
+\text{ Taxes}``]
+
+[``\text{CRF } = 
+\frac{[$discountRateDecimal]([$discountRateDecimal]+1)^{[$timePeriod]}}
+{([$discountRateDecimal]+1)^{[$timePeriod]}-1} = 
+[$CRF]``]
+
+---------------------------
+
+[``[$numWind] \text{ wind turbines} \cdot 
+[$windCapacity]\frac{\text{W}}{\text{Turbine}} \cdot 
+\frac{\text{1 kW}}{\text{1000 W}} = 
+[$totalCapWind]\text{kW}``]
+
+[``[$totalCapWind]\text{kW} \cdot 
+\frac{[$DOLLARSYMBOL][$capitalCostWind]}{\text{kW}} = 
+[$DOLLARSYMBOL][$totalCapCostWind]\text{ (Capital Cost Wind)}``]
+
+[``[$totalCapWind]\text{kW} \cdot 
+\frac{[$DOLLARSYMBOL][$operationCostWind]}{\text{kW}} = 
+[$DOLLARSYMBOL][$totalOperationCostWind]\text{ (Operation Cost Wind)}``]
+
+[``\text{LCOE}_{\text{wind}} = 
+\frac{[$CRF] \cdot [$DOLLARSYMBOL][$totalCapCostWind] + 
+[$DOLLARSYMBOL][$totalOperationCostWind]}{[$energyWindYearWeather]\text{GWh} \cdot 
+\frac{\text{1000 MWh}}{\text{1 GWh}}} = 
+[$lcoeWind]\frac{[$DOLLARSYMBOL]}{\text{MWh}}``]
+
+---------------------------
+
+[``[$numSolar] \text{ Solar Panels} \cdot 
+[$solarCapacity]\frac{\text{W}}{\text{Panel}} \cdot 
+\frac{\text{1 kW}}{\text{1000 W}} = 
+[$totalCapSolar]\text{kW}``]
+
+[``[$totalCapSolar]\text{kW} \cdot 
+\frac{[$DOLLARSYMBOL][$capitalCostSolar]}{\text{kW}} = 
+[$DOLLARSYMBOL][$totalCapCostSolar]\text{ (Capital Cost Solar)}``]
+
+[``[$totalCapSolar]\text{kW} \cdot 
+\frac{[$DOLLARSYMBOL][$operationCostSolar]}{\text{kW}} = 
+[$DOLLARSYMBOL][$totalOperationCostSolar]\text{ (Operation Cost Solar)}``]
+
+[``\text{LCOE}_{\text{solar}} = 
+\frac{[$CRF] \cdot [$DOLLARSYMBOL][$totalCapCostSolar] + 
+[$DOLLARSYMBOL][$totalOperationCostSolar]}{[$energySolarYearWeather]\text{GWh} \cdot 
+\frac{\text{1000 MWh}}{\text{1 GWh}}} = 
+[$lcoeSolar]\frac{[$DOLLARSYMBOL]}{\text{MWh}}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+###########################################
+
+Scaffold::End();
+ENDDOCUMENT();

@@ -11,109 +11,78 @@
 ## Institution(Rochester)
 ## Author(Mark Schmitt)
 ## Level(3)
+## MO(1)
 ## KEYWORDS('Matrix', 'Inconsistent', 'Independant')
 
 DOCUMENT() ;
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGmatrixmacros.pl",
+  "MathObjects.pl",
+  "parserPopUp.pl",
   "PGcourse.pl"
 );
 #####################################
 ## Build a non-singular 3x3 matrix ##
 #####################################
-$det=0;
-$safety_switch=0;
-$A = new Matrix(3,3);
-$A_lr = new Matrix(3,3);
-$det = 0;    # decompose into LR form.
-while ($det == 0 and $safety_switch < 6) {
-        foreach $i (1..3) {
 
-           foreach $j (1..3) {
-                           $A->assign($i,$j, random(-9,9,1) );
-                   }
-        }
-        $A_lr = $A->decompose_LR();
-        $det = $A_lr->det_LR();
+Context("Matrix");
+
+$det=0;
+
+while ($det==0){
+  $A=Matrix(
+     [ [random(-9,9,1),random(-9,9,1),random(-9,9,1)],
+       [random(-9,9,1),random(-9,9,1),random(-9,9,1)],
+       [random(-9,9,1),random(-9,9,1),random(-9,9,1)] ])->with(close => '|');
+  $det = $A->det();
 }
 
 ####################################
 ## Build a random constant matrix ##
 ####################################
 
-$const = new Matrix(3,1);
-foreach $i (1..3) {
-        $const->assign($i,1, random(-9,9,1));
-        }
-
-##
-## We now have a consistent system since the coefficient matrix is non-singular
-##
-
-#####################################################
-## Define answers here.  We may modify this later. ##
-#####################################################
-
-$A_LR = $A->decompose_LR();
-($dimension, $solution, $base_matrix) = $A_LR->solve_LR($const);
-$x_ans = 0;
-$y_ans = 0;
-$z_ans = 0;
-$type_ans = "Independent";
-
+$const = Matrix([[random(-9,9,1)],[random(-9,9,1)],[random(-9,9,1)]])->with(open =>'.');
 
 ###########################################################################
 ## Decide if the system should be independent, dependent or inconsistent ##
 ###########################################################################
 
-$style = random(1, 3, 1)
+$style = random(1, 3, 1);  # independent, dependent, inconsistent
+
 $j = non_zero_random(-9,9,1);
 $k = non_zero_random(-9,9,1);
-$m = non_zero_random(-9,9,1);
-while ($m == $k) {$m = non_zero_random(-9,9,1);}
 
-if ($style == 3) {## System needs to be made inconsistent
-                ### This is done by making row two of the coefficient matrix
-                ### into a linear combination of rows 1 and 3, and making
-                ### the second row of the constant matrix a different linear
-                ### combination.
-        foreach $i (1..3) {
-                $A->assign(2,$i, $j*(element $A(1,$i)) + $k*(element $A(3,$i)));
-                }
-        $const->assign(2,1, $j*(element $const(1,1)) + $m*(element $const(3,1)));
+$B = Matrix([[1,0,0],[$j,0,$k],[0,0,1]]);
+
+if ($style == 1) { 
+  $type_ans = "independent"; 
+}
+
+if ($style == 2) {    
+  $type_ans = "dependent";
+  $A = $B*$A;
+  $const = $B*$const;
+}
+  
+if ($style == 3){  # inconsistent: make dependent then mess up constant
+  $type_ans = "inconsistent"; 
+  $A = $B*$A;
+  $const = $B*$const;
+  # now mess up the second component of const
+  do {
+    $m=non_zero_random(-9,9);
+  } until( $m != $const->element(2,1) );
+  $const = Matrix(
+    [ [ $const->element(1,1) ], [ $m ], [ $const->element(3,1) ] ]
+  )->with(open => '.');
+}
 
         #########################################################
         ### Set the answers here                               ##
         #########################################################
 
-        $x_ans = "No Solution";
-        $y_ans = "No Solution";
-        $z_ans = "No Solution";
-        $type_ans = "Inconsistent";
-}
-elsif ($style == 2) { ## System needs to be made dependent
-                ### This is done by making row two of the coefficient matrix
-                ### into a linear combination of rows 1 and 3, and making
-                ### the second row of the constant matrix the same linear
-                ### combination.
-        foreach $i (1..3) {
-                $A->assign(2,$i, $j*(element $A(1,$i)) + $k*(element $A(3,$i)));
-                }
-        $const->assign(2,1, $j*(element $const(1,1)) + $k*(element $const(3,1)));
-
-
-        #########################################################
-        ### Set the answers here                               ##
-        #########################################################
-
-        $x_ans = "No Solution";
-        $y_ans = "No Solution";
-        $z_ans = "No Solution";
-        $type_ans = "Dependent";
-}
+$pu = PopUp(["??","independent", "dependent","inconsistent"],$type_ans);
 
 
 TEXT(beginproblem()) ;
@@ -121,17 +90,20 @@ TEXT(beginproblem()) ;
 
 $showPartialCorrectAnswers = 1 ;
 
+Context()->texStrings;
 BEGIN_TEXT
 Given the augmented matrix below, determine if the associated system of
-equations is independent, dependent, or inconsistent.$PAR
-
-\[ \{display_matrix_mm($A)\} \{display_matrix_mm($const)\}
-\]
+equations is independent, dependent, or inconsistent.
 $BR
-The system is \{ans_rule(10)\}.
+
+\[ $A $const\]
+$PAR
+The system is \{$pu->menu()\}.
 
 END_TEXT
-ANS(str_cmp($type_ans));
+Context()->normalStrings;
+
+ANS($pu->cmp());
 
 ENDDOCUMENT() ;
 

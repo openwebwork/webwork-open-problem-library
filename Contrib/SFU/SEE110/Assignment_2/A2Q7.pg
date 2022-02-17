@@ -1,0 +1,286 @@
+# DESCRIPTION
+# Compare a gas, electric, and hydrogen power vehical emissions to make a trip
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Energy Chain)
+## Level(5)
+## KEYWORDS('energy', 'energy chain', 'emissions')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGcourse.pl",
+  "scaffold.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+$dist = random(150,300,2); #km
+$totDist = 2*$dist; #km
+$carEnergy = random(15,20,0.2); #kWh per 100km
+$speed = random(60,80,1); #km/hr
+
+$elcCost = random(8,14,1); #cents/kWh
+$emissionRate = random(200,500,5); #gCO2/kWh
+$timeDriving = sprintf("%0.2f",$totDist/$speed);
+$batteryEnergy = sprintf("%0.2f",$carEnergy*$totDist/100);
+$costToCharge = sprintf("%0.2f",$carEnergy*$totDist/100*$elcCost/100);
+$EVemissions = sprintf("%0.2f",$carEnergy*$totDist/100*$emissionRate/1000);
+
+$hydrogenTank = random(5,6,0.1); #kg
+$hydrogenCost = random(10,12,0.1); #$/kg
+$hydrogenRange = random(650,700,2); #km
+$hydrogenElec = random(45,55,2); #kWh
+$hydrogenUsed = sprintf("%0.2f",$hydrogenTank/$hydrogenRange*$totDist); #kg
+$hydrogenCostToFill = sprintf("%0.2f", $hydrogenCost*$hydrogenUsed); #$
+$HydrogenEmissions = sprintf("%0.2f", $hydrogenUsed*$hydrogenElec*$emissionRate/1000);
+
+$gasFuelUsage = random(6.5,8.0,0.1); #L/100km
+$gasEmissionRate = random(160,200,5); #g CO2/km
+$tankerEmissionRate = random(700,900,20); #g CO2/km
+$tankerSize = random(20000,25000,1000); #L
+$stationDistance = random(60,300,20); #km
+$gasPrice = random(1.30,1.70,0.01); #$/L
+$gasUsed = sprintf("%0.2f",$gasFuelUsage*$totDist/100); #L
+$gasCostToFill = sprintf("%0.2f",$gasUsed*$gasPrice);
+$tankerEmissions = sprintf("%0.2f",$gasUsed/$tankerSize*$tankerEmissionRate*$stationDistance/1000);#kg
+$gasCarEmissions = sprintf("%0.2f",$gasEmissionRate*$totDist/1000); #kg
+$emissionsPerBarrel = random(150,200,5); #kg/barrel
+$pumpRefineEmissions = sprintf("%0.2f",$emissionsPerBarrel/42/3.785*$gasUsed);
+$totalGasCarEmissions = $gasCarEmissions+$tankerEmissions+$pumpRefineEmissions;
+
+$EVreduction = sprintf("%0.2f",(1-$EVemissions/$totalGasCarEmissions)*100);
+$HydrogenReduction = sprintf("%0.2f",(1-($HydrogenEmissions/$totalGasCarEmissions))*100);
+
+$DOLLARSIGN = '\$';
+
+##########################################
+# Problem Statement  
+##########################################
+
+Scaffold::Begin(
+);
+
+BEGIN_PGML
+
+In an effort to limit carbon emissions, Mike decides to swap out his gasoline 
+powered car for a more environmentally friendly option. He wants to compare 
+an electric vehicle against a hydrogen powered vehicle.
+
+END_PGML
+
+##########################################
+# Problem One  
+##########################################
+
+Section::Begin("Part 1: Electric Vehicle",
+    is_open => "always");
+
+BEGIN_PGML
+
+Mike first looks up specifications for an electric vehicle. He wants to be 
+able to travel *to and from* his friends house, located *[$dist]
+[`\text{ km}`]* away, on a single charge. The car Mike is looking at has an 
+energy usage rate of *[$carEnergy][`\frac{\text{kWh}}{\text{100 km}}`]*. 
+Assume Mike's cost of electricity is [$elcCost]
+[`\frac{\text{cents}}{\text{kWh}}`] and that the emission rate to generate 
+his residential electricity is *[$emissionRate]
+[`\frac{\text{g CO2}}{\text{kWh}}`]*.
+
+What is the minimum battery capacity Mike will need?
+
+[__________]{$batteryEnergy}[`\text{kWh}`]
+
+How much will the round trip to his friends house cost Mike using the 
+*electric* car? 
+
+*$* [__________]{$costToCharge}
+
+How many *kg* of CO2 will be emitted to charge his electric car?
+
+[__________]{$EVemissions}[`\text{kg CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$carEnergy]\frac{\text{kWh}}{\text{100 km}} \cdot 
+\frac{[$dist]\text{km} \cdot 
+(\text{2 ways})}{\text{100}} = 
+[$batteryEnergy]\text{ kWh}``]
+
+[``[$batteryEnergy]\text{ kWh} \cdot 
+\frac{[$elcCost]\text{ cents}}{\text{kWh}} \cdot 
+\frac{[$DOLLARSIGN]\text{1}}{\text{100 cents}} = 
+[$DOLLARSIGN][$costToCharge]``]
+
+[``[$batteryEnergy]\text{ kWh} \cdot 
+\frac{[$emissionRate]\text{g CO2}}{\text{kWh}} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}} = 
+[$EVemissions]\text{ kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Two  
+##########################################
+
+Section::Begin("Part 2: Hydrogen Vehicle",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Next, Mike researches Hydrogen powered cars. He finds one that has a fuel 
+tank capacity of *[$hydrogenTank][`\text{ kg}`]* with a range of 
+*[$hydrogenRange][`\text{ km}`]*. He also knows that his local Hydrogen 
+refueling station charges *[$hydrogenCost]
+[`\frac{[$DOLLARSIGN]}{\text{kg}}`]*. Assume that producing *1 kg* of 
+Hydrogen requires *[$hydrogenElec][`\text{ kWh}`]* of electricity, and that 
+the emission rate to generate electricity is still *[$emissionRate]
+[`\frac{\text{g CO2}}{\text{kWh}}`]*.
+
+How much will the round trip to his friends house cost Mike using the 
+*hydrogen* car? 
+
+*$* [__________]{$hydrogenCostToFill}
+
+How many *kg* of CO2 will be emitted to fill his Hydrogen car? 
+
+[__________]{$HydrogenEmissions}[`\text{kg CO2}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\frac{[$hydrogenTank]\text{kg}}{[$hydrogenRange]\text{km}} \cdot 
+[$dist]\text{km} \cdot 
+(\text{2 ways}) = 
+[$hydrogenUsed]\text{kg H2 Used}``]
+
+[``[$hydrogenUsed]\text{kg} \cdot 
+\frac{[$DOLLARSIGN][$hydrogenCost]}{\text{kg}} = 
+[$DOLLARSIGN][$hydrogenCostToFill]``]
+
+[``[$hydrogenUsed]\text{kg} \cdot 
+\frac{[$hydrogenElec]\text{ kWh}}{\text{1 kg}} \cdot 
+\frac{[$emissionRate]\text{g CO2}}{\text{kWh}} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}} = 
+[$HydrogenEmissions]\text{kg CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three  
+##########################################
+
+Section::Begin("Part 3: Comparison to Gas Car",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+To better understand the results, Mike compares the electric and hydrogen 
+powered cars against his current gas car. He knows his small sedan has a fuel 
+usage rate of *[$gasFuelUsage][`\frac{\text{L}}{\text{100 km}}`]* and an 
+emission rate of *[$gasEmissionRate][`\frac{\text{g CO2}}{\text{km}}`]*. 
+
+In addition to his vehicles emissions, Mike factors in the emissions to pump, 
+refine, and transport the gas to his local fuel station. He assumes an 
+emission rate of *[$emissionsPerBarrel]
+[`\frac{\text{kg CO2}}{\text{Barrel}}`]* to pump and refine the oil into gas 
+(42 gallons to a barrel). Furthermore, he assumes that the heavy duty 
+transport truck has a capacity of [$tankerSize][`\text{L}`], emits 
+*[$tankerEmissionRate][`\frac{\text{g CO2}}{\text{km}}`]*, and the delivery 
+to Mike's local station is a  *[$stationDistance][`\text{km}`]* trip. The 
+average price of fuel is *[$gasPrice][`\frac{[$DOLLARSIGN]}{\text{L}}`]*.
+
+How much will the round trip to his friends house cost Mike using the *gas* 
+car? 
+
+*$* [__________]{$gasCostToFill}
+
+How many *kg* of CO2 are emitted for *Mike* to make the round trip?
+
+[__________]{$totalGasCarEmissions} `\text{kg CO2}`
+
+What *percentage* reduction in emissions occurs through using the *electric* 
+vehicle? 
+
+[__________]{$EVreduction} [$PERCENT]
+
+What *percentage* reduction in emissions occurs through using the *hydrogen* 
+vehicle? 
+
+[__________]{$HydrogenReduction} [$PERCENT]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$gasFuelUsage]\frac{\text{ L}}{\text{100 km}} \cdot 
+\frac{[$dist]\text{km} \cdot 
+(\text{2 ways})}{\text{100}} = 
+[$gasUsed]\text{ L gas used}``]
+
+[``[$gasUsed]\text{ L} \cdot 
+\frac{[$DOLLARSIGN][$gasPrice]}{\text{ L}} = 
+[$DOLLARSIGN][$gasCostToFill ]``]
+
+[``\frac{[$gasUsed]\text{ L}}{[$tankerSize]\text{ L}} \cdot 
+\frac{[$tankerEmissionRate]\text{g CO2}}{\text{km}} \cdot 
+[$stationDistance]\text{km} \cdot 
+\frac{\text{1 kg}}{\text{1000 g}} = 
+[$tankerEmissions]\text{ kg CO2 from Tanker}``]
+
+[``[$gasEmissionRate]\frac{\text{g CO2}}{\text{km}} \cdot [$dist]\text{ km} \cdot 
+(\text{2 ways}) \cdot \frac{\text{1 kg}}{\text{1000 g}} 
+= [$gasCarEmissions]\text{ kg CO2 from Car}``]
+
+[``[$emissionsPerBarrel]\frac{\text{ kg CO2}}{\text{Barrel}} \cdot 
+\frac{\text{1 Barrel}}{\text{42 Gal}} \cdot 
+\frac{\text{1 Gal}}{\text{3.785 L}} \cdot 
+[$gasUsed]\text{L gas used} = 
+[$pumpRefineEmissions]\text{kg CO2 from Pumping and Refining}``]
+
+[``[$tankerEmissions]\text{ kg CO2 from Tanker} + 
+[$gasCarEmissions]\text{ kg CO2 from Car} + 
+[$pumpRefineEmissions]\text{ kg CO2 from Pumping and Refining} = 
+[$totalGasCarEmissions]\text{ kg CO2 Total}``]
+
+[``(1-\frac{[$EVemissions]\text{ kg CO2}}{[$totalGasCarEmissions]\text{ kg CO2}}) \cdot 
+\text{100}% = [$EVreduction]\text{100}%``]
+
+[``(1-\frac{[$HydrogenEmissions]\text{ kg CO2}}{[$totalGasCarEmissions]\text{ kg CO2}}) \cdot 
+\text{100}% = [$HydrogenReduction]\text{100}%``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+
+Scaffold::End();
+ENDDOCUMENT();

@@ -1,0 +1,390 @@
+# DESCRIPTION
+# Find energy supply requirements, emissions, and cost to meet provincial energy demand
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Applications)
+## Level(5)
+## KEYWORDS('energy', 'supply', 'emissions', 'cost')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "PGML.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
+  "scaffold.pl",
+  "niceTables.pl",
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+$index = random(0,9,1);
+@province = (
+     BC,
+     Alberta,
+     Saskatchewan,
+     Manitoba,
+     Ontario,
+     Quebec,
+     Newfoundland,
+     NovaScotia,
+     NewBrunswick,
+     PEI);
+%provinceDemand2030 = (
+    BC  => "290.28",
+    Alberta => "367.94",
+    Saskatchewan  => "96.38",
+    Manitoba => "84.30",
+    Ontario  => "526.19",
+    Quebec => "715.14",
+    Newfoundland  => "38.38",
+    NovaScotia => "35.98",
+    NewBrunswick  => "49.05",
+    PEI => "6.52",
+);
+
+$provinceDemand = $provinceDemand2030{$province[$index]};
+$electrictyCost = random(8,14,1); #c/kWh
+$deamndTWh = sprintf("%0.2f",$provinceDemand2030{$province[$index]}/3600*1000); #TWh
+$capacity = sprintf("%0.2f",$deamndTWh/8760*1000); #GW
+$indexPercentage = random(0,2,1);
+
+@percentageGas =   (12,16, 8);
+@percentageCoal =  ( 8, 4,12);
+@percentageNuc =   (18,22,14);
+@percentageWind =  (16,12,20);
+@percentageSolar = ( 8,12, 4);
+@percentageHydro = (38,34,42);
+
+$capFactorGas = random(80,95,1);
+$capFactorCoal = random(70,85,1);
+$capFactorNuc = random(90,97,1);
+$capFactorWind = random(30,50,1);
+$capFactorSolar = random(15,30,1);
+$capFactorHydro = random(80,90,1);
+
+$capGas = sprintf("%0.2f",$provinceDemand/3600*1000/8760*1000*1000*$percentageGas[$indexPercentage]/100/($capFactorGas/100)); #MW
+$capCoal = sprintf("%0.2f",$provinceDemand/3600*1000/8760*1000*1000*$percentageCoal[$indexPercentage]/100/($capFactorCoal/100)); #MW
+$capNuc = sprintf("%0.2f",$provinceDemand/3600*1000/8760*1000*1000*$percentageNuc[$indexPercentage]/100/($capFactorNuc/100)); #MW
+$capSolar = sprintf("%0.2f",$provinceDemand/3600*1000/8760*1000*1000*$percentageSolar[$indexPercentage]/100/($capFactorSolar/100)); #MW
+$capWind = sprintf("%0.2f",$provinceDemand/3600*1000/8760*1000*1000*$percentageWind[$indexPercentage]/100/($capFactorWind/100)); #MW
+$capHydro = sprintf("%0.2f",$provinceDemand/3600*1000/8760*1000*1000*$percentageHydro[$indexPercentage]/100/($capFactorHydro/100)); #MW
+$capTotal = $capGas+$capCoal+$capNuc+$capWind+$capSolar+$capHydro;
+
+$cost = sprintf("%0.2f",$deamndTWh*1000*1000*1000*$electrictyCost/100/1000000); #M$
+$emissionRate = Real(0.91); #lbCo2/kWh
+$emissions =  sprintf("%0.2f",$deamndTWh*1000*1000*1000*$emissionRate*0.4536/1000/1000000);
+$DOLLARSIGN = '\$';
+
+Scaffold::Begin(
+);
+
+##########################################
+# Problem Statement  
+##########################################
+
+BEGIN_TEXT
+$PAR
+You recently read about the 2030 emission targets that the Canadian 
+government has committed to meeting. Interested in how Canada's 2030 energy 
+demand compares to current levels, you go to the Canadian Energy Regulator 
+website where they forecast provincial demand out to 2050. 
+\{htmlLink( "https://apps.cer-rec.gc.ca/ftrppndc/dflt.aspx?GoCTemplateCulture=en-CA", "(Reference)" ) \}.
+$PAR
+You live in $BBOLD $province[$index] $EBOLD and see that the forecasted 2030 
+$BBOLD electricity $EBOLD demand is $BBOLD 
+$provinceDemand2030{$province[$index]} PJ $EBOLD. 
+$PAR
+END_TEXT
+
+##########################################
+# Problem One  
+##########################################
+
+Section::Begin("Part 1: Energy Conversion",
+    is_open => "always",);
+
+BEGIN_PGML
+
+What is [$province[$index]]`s 2030 electricity demand in TeraWatt-hours?
+
+[__________]{$deamndTWh}[`\text{TWh}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$provinceDemand]\text{ PJ} \cdot 
+\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} = 
+[$deamndTWh]\text{ TWh} ``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Two  
+##########################################
+
+Section::Begin("Part 2: Cost of Electricity",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+If the cost of electricity is [$electrictyCost]
+[`\frac{\text{cents}}{\text{kWh}}`](for all customers), what will be the 
+total payment by [$province[$index]] to meet their electricity demand in 
+*million* dollars? 
+
+*M$* [__________]{$cost}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$deamndTWh]\text{ TWh} \cdot 
+\frac{\text{1000 GWh}}{\text{1 TWh}} \cdot 
+\frac{\text{1000 MWh}}{\text{1 GWh}} \cdot 
+\frac{\text{1000 kWh}}{\text{1 MWh}} \cdot 
+\frac{[$electrictyCost]\text{cents}}{\text{kWh}} \cdot 
+\frac{[$DOLLARSIGN]\text{1}}{\text{100 cents}} \cdot 
+\frac{\text{M}[$DOLLARSIGN]}{[$DOLLARSIGN]\text{1,000,000}} = 
+\text{M}[$DOLLARSIGN][$cost]``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three  
+##########################################
+
+Section::Begin("Part 3: Emissions",
+    can_open => "when_previous_correct",);
+
+BEGIN_TEXT
+$PAR
+To understand the impact exclusive fossil fuel generation could have, you 
+assume all the electricity generation in 2030 will be met through natural 
+gas power plants. Looking up the emission rate on US Energy Information 
+Administration Website 
+\{htmlLink( "https://www.eia.gov/tools/faqs/faq.php?id=74&t=11", "(EIA)") \}, 
+it says that natural gas releases CO2 at a rate of 
+\( \text{0.91}\frac{\text{lbs CO2}}{\text{kWh}} \). 
+$PAR
+END_TEXT
+BEGIN_PGML
+How many *million tonnes* of CO2 will be released if all of 
+[$province[$index]]'s electricity demand in 2030 is met through natural gas? 
+
+[__________]{$emissions}[`\text{Million Tonnes}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$deamndTWh]\text{ TWh} \cdot 
+\frac{\text{1x10}^9\text{ kWh}}{\text{1 TWh}} \cdot 
+\frac{[$emissionRate]\text{ lbs CO2}}{\text{kWh}} \cdot 
+\frac{\text{0.4536 kg}}{\text{1 lbs}} \cdot 
+\frac{\text{1 M Tonne}}{\text{10}^9\text{kg}} = 
+[$emissions]\text{ M Tonnes CO2}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Four  
+##########################################
+
+Section::Begin("Part 4: Theoretical Installed Capacity",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+What is the minimum energy capacity needed to meet this demand? Assume a 
+capacity factor of 100% and that all power plants can run at max capacity 
+year round.
+
+[__________]{$capacity}[`\text{GWh}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$deamndTWh]\text{ TWh} \cdot 
+\frac{\text{1 year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} = 
+[$capacity]\text{ GW}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Five  
+##########################################
+
+Section::Begin("Part 5: Installed Capacity with Capacity Factor",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+The following (fictional) scenario table shows what percentage each 
+generation technology contributes towards meeting the total electricity 
+demand of [$provinceDemand][`\text{PJ}`]. The technology's average capacity 
+factor is also shown in the third column.
+
+Finish the table by calculating installed capacities of each technology, and 
+the total installed capacity in the last row.
+
+END_PGML
+
+BEGIN_TEXT
+$PAR
+\{
+DataTable(
+  [
+    [['Technology', headerrow => 1],
+        'Generation Contribution (\($PERCENT\))' ,
+        'Capacity Factor (\($PERCENT\))',
+        'Capacity (MW)'],
+    ['Natural Gas',
+        '$percentageGas[$indexPercentage]',
+        '$capFactorGas',
+        ans_rule(6)],
+    ['Coal Power',
+        '$percentageCoal[$indexPercentage]',
+        '$capFactorCoal',
+        ans_rule(6)],
+    ['Nuclear Power',
+        '$percentageNuc[$indexPercentage]',
+        '$capFactorNuc',
+        ans_rule(6)],
+    ['Wind Power',
+        '$percentageWind[$indexPercentage]',
+        '$capFactorWind',
+        ans_rule(6)],
+    ['Solar Power',
+        '$percentageSolar[$indexPercentage]',
+        '$capFactorSolar',
+        ans_rule(6)],
+    ['Hydro Power',
+        '$percentageHydro[$indexPercentage]',
+        '$capFactorHydro',
+        ans_rule(6)],
+    ['Total',
+        '100',
+        'na',
+        ans_rule(6)]
+  ], 
+);
+\}
+$PAR
+END_TEXT
+
+ANS(num_cmp($capGas),
+    num_cmp($capCoal),
+    num_cmp($capNuc),
+    num_cmp($capWind),
+    num_cmp($capSolar),
+    num_cmp($capHydro),
+    num_cmp($capTotal),
+);
+
+BEGIN_PGML_SOLUTION
+
+[``[$provinceDemand]\text{ PJ} \cdot 
+\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} \cdot
+[$percentageGas[$indexPercentage]]% \cdot 
+\frac{\text{1 Year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} \cdot 
+\frac{\text{1000 MW}}{\text{1 GW}} \cdot 
+\frac{\text{1}}{[$capFactorGas]%} = 
+[$capGas]\text{ MW (Gas)}``]
+
+[``[$provinceDemand]\text{ PJ} \cdot 
+\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} \cdot 
+[$percentageCoal[$indexPercentage]]% \cdot 
+\frac{\text{1 Year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} \cdot 
+\frac{\text{1000 MW}}{\text{1 GW}} \cdot 
+\frac{\text{1}}{[$capFactorCoal]%} = 
+[$capCoal]\text{ MW (Coal)}``]
+
+[``[$provinceDemand]\text{ PJ} \cdot 
+\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} \cdot 
+[$percentageNuc[$indexPercentage]]% \cdot 
+\frac{\text{1 Year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} \cdot 
+\frac{\text{1000 MW}}{\text{1 GW}} \cdot 
+\frac{\text{1}}{[$capFactorNuc]%} = 
+[$capNuc]\text{ MW (Nuclear)}``]
+
+[``[$provinceDemand]\text{ PJ} \cdot 
+\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} \cdot
+[$percentageWind[$indexPercentage]]% \cdot 
+\frac{\text{1 Year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} \cdot 
+\frac{\text{1000 MW}}{\text{1 GW}} \cdot 
+\frac{\text{1}}{[$capFactorWind]%} = 
+[$capWind]\text{ MW (Wind)}``]
+
+[``[$provinceDemand]\text{ PJ} \cdot 
+\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} \cdot 
+[$percentageSolar[$indexPercentage]]% \cdot 
+\frac{\text{1 Year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} \cdot 
+\frac{\text{1000 MW}}{\text{1 GW}} \cdot 
+\frac{\text{1}}{[$capFactorSolar]%} = 
+[$capSolar]\text{ MW (Solar)}``]
+
+[``[$provinceDemand]\text{ PJ} \cdot 
+\frac{\text{1 hr}}{\text{3600 sec}} \cdot 
+\frac{\text{1000 TWh}}{\text{1 PWh}} \cdot 
+[$percentageHydro[$indexPercentage]]% \cdot 
+\frac{\text{1 Year}}{\text{8760 hrs}} \cdot 
+\frac{\text{1000 GW}}{\text{1 TW}} \cdot 
+\frac{\text{1000 MW}}{\text{1 GW}} \cdot 
+\frac{\text{1}}{[$capFactorHydro]%} = 
+[$capHydro]\text{ MW (Hydro)}``]
+
+[``[$capGas]\text{ MW} + 
+[$capCoal]\text{ MW} + 
+[$capNuc]\text{ GW} + 
+[$capWind]\text{ MW} + 
+[$capSolar]\text{ MW} + 
+[$capHydro]\text{ GW} = 
+[$capTotal]\text{ MW}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+
+Scaffold::End();
+ENDDOCUMENT();
