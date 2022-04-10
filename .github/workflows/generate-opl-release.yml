@@ -1,0 +1,62 @@
+name: Generate OPL METADATA Release
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    services:
+      mariadb:
+        image: mariadb:10.4
+        ports:
+          - 3306
+        env:
+          MYSQL_USER: opl_user
+          MYSQL_PASSWORD: opl_passwd
+          MYSQL_DATABASE: OPL
+          MYSQL_ROOT_PASSWORD: unused
+        options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y libdbi-perl libjson-perl libdbd-mariadb-perl
+
+      - name: Verify MariaDB connection
+        env:
+          MYSQL_TCP_PORT: ${{ job.services.mariadb.ports[3306] }}
+        run: |
+          while ! mysqladmin ping -h 127.0.0.1 -P $MYSQL_TCP_PORT --silent; do sleep 1; done
+
+      - name: Generate OPL METADATA
+        env:
+          MYSQL_TCP_PORT: ${{ job.services.mariadb.ports[3306] }}
+          MYSQL_PWD: opl_passwd
+        run: |
+          .github/workflows/bin/generate-OPL-tables.pl
+          .github/workflows/bin/generate-OPL-set-def-lists.pl
+          tar czf webwork-open-problem-library-METADATA.tar.gz webwork-open-problem-library
+          tar cjf webwork-open-problem-library-METADATA.tar.bz2 webwork-open-problem-library
+          zip -r9 --quiet webwork-open-problem-library-METADATA.zip webwork-open-problem-library
+
+      - name: Publish METADATA Release
+        uses: "ncipollo/release-action@v1"
+        with:
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          artifacts: "webwork-open-problem-library-METADATA.tar.gz,\
+                      webwork-open-problem-library-METADATA.tar.bz2,\
+                      webwork-open-problem-library-METADATA.zip"
