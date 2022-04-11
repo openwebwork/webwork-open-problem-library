@@ -1,0 +1,516 @@
+# DESCRIPTION
+# Solve a Linear Programming Model  
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System Modelling)
+## DBsection(Linear Programming Models)
+## Level(5)
+## KEYWORDS('problem setup', 'appropriate generation mix', 'constraints', 'solve')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Sheena Tan and Jonn Axsen)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+# Question based on original problem developed in REM 658 by Jonn Axsen, 
+# Mark Jaccard, Paulus Mau and Rose Murphy at Simon Fraser University
+
+#########################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGanswermacros.pl",
+  "parserPopUp.pl",
+  "compoundProblem5.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "contextInequalities.pl",
+  "contextInequalitiesAllowStrings.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "contextArbitraryString.pl"
+  );
+
+#  Setup
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+rserve_eval('
+# Load R Libraries
+library(lpSolve)
+library(plyr)
+library(dplyr)
+
+# Fixed Cost of Hydro
+HydroCost <- round_any(runif(1,1000,2000),50)
+
+# Variable Cost of Natural Gas
+NatGasCost <- round_any(runif(1,3,12),0.5)
+
+# Variable Cost of Renewables
+RenewCost <- round_any(runif(1,15,30),1)
+
+# Variable Cost of Albertan imports
+AlbImportCost <- round_any(runif(1,7,14),1)
+
+# Variable Cost of Exports
+ExportCost <- round_any(runif(1,-30,-10),1)
+
+# Emissions of Natural Gas
+NatGasEmis <- round_any(runif(1,50,60),1)
+
+# Emissions of Albertan imports
+AlbImportEmis <- round_any(runif(1,75,95),1)
+
+# Demand
+Demand <- round_any(runif(1,80,120),5)
+
+# Capacity of Hyrdo
+HydroCap <- round_any(runif(1,60,100),5)
+
+# Capacity of Natural Gas
+NatGasCap <- round_any(runif(1,40,80),5)
+
+# Capacity of Renewables
+RenewCap <- round_any(runif(1,10,50),5)
+RenewCap1 = ifelse(RenewCap + HydroCap >= Demand, RenewCap, abs(Demand - HydroCap) + round_any(runif(1,5,15),5))
+
+# Carbon Emissions Level
+CarbonEmis <- round_any(runif(1,2.5,3.5),0.1)
+
+
+# Set coefficients of the objective function
+f.obj <- c(0, NatGasCost, RenewCost, AlbImportCost, ExportCost)
+
+# Set matrix corresponding to coefficients of constraints by rows
+# Do not consider the non-negative constraint; it is automatically assumed
+f.con <- matrix(c(1, 1, 1, 1, -1,
+                  0, NatGasEmis, 0, AlbImportEmis, 0,
+                  1, 0, 0, 0, 0,
+                  0, 1, 0, 0, 0,
+                  0, 0, 1, 0, 0,
+                  -1/3, 0, 0, 0, 1,
+                  -0.25, -0.25, -0.25, 1, 0), nrow = 7, byrow = TRUE)
+
+# Set unequality signs
+f.dir <- c(">=",
+           "<=",
+           "<=",
+           "<=",
+           "<=",
+           "<=",
+           "<=")
+
+# Set right hand side coefficients
+f.rhs <- c(Demand,
+           CarbonEmis*1000,
+           HydroCap,
+           NatGasCap,
+           RenewCap1,
+           0,
+           0)
+
+# Final value (z)
+lp("min", f.obj, f.con, f.dir, f.rhs)
+
+lp("min", f.obj, f.con, f.dir, f.rhs)$objval
+
+# Variables final values
+lp("min", f.obj, f.con, f.dir, f.rhs)$solution
+
+finalcost <- lp("min", f.obj, f.con, f.dir, f.rhs)$objval + HydroCost
+
+####################################################
+# Scenario 1: Set coefficients of the objective function
+f.obj1 <- c(0, NatGasCost, RenewCost, AlbImportCost, ExportCost)
+
+# Set matrix corresponding to coefficients of constraints by rows
+# Do not consider the non-negative constraint; it is automatically assumed
+f.con1 <- matrix(c(1, 1, 1, 1, -1,
+                  0, NatGasEmis, 0, AlbImportEmis, 0,
+                  1, 0, 0, 0, 0,
+                  0, 1, 0, 0, 0,
+                  0, 0, 1, 0, 0,
+                  -1/3, 0, 0, 0, 1,
+                  -0.25, -0.25, -0.25, 1, 0), nrow = 7, byrow = TRUE)
+
+# Set unequality signs
+f.dir1 <- c(">=",
+           "<=",
+           "<=",
+           "<=",
+           "<=",
+           "<=",
+           "<=")
+
+# Set right hand side coefficients
+f.rhs1 <- c(Demand,
+           CarbonEmis*1000/3,
+           HydroCap,
+           NatGasCap,
+           RenewCap1,
+           0,
+           0)
+
+# Final value (z)
+lp("min", f.obj1, f.con1, f.dir1, f.rhs1)
+
+lp("min", f.obj1, f.con1, f.dir1, f.rhs1)$objval
+
+# Variables final values
+lp("min", f.obj1, f.con1, f.dir1, f.rhs1)$solution
+
+finalcost1 <- lp("min", f.obj1, f.con1, f.dir1, f.rhs1)$objval + HydroCost
+#########################################################
+
+# Scenario2: Set coefficients of the objective function
+f.obj2 <- c(0, NatGasCost, RenewCost, AlbImportCost, ExportCost)
+
+# Set matrix corresponding to coefficients of constraints by rows
+# Do not consider the non-negative constraint; it is automatically assumed
+f.con2 <- matrix(c(1, 1, 1, 1, -1,
+                  0, NatGasEmis, 0, AlbImportEmis, 0,
+                  1, 0, 0, 0, 0,
+                  0, 1, 0, 0, 0,
+                  0, 0, 1, 0, 0,
+                  -1/3, 0, 0, 0, 1,
+                  -0.25, -0.25, -0.25, 1, 0), nrow = 7, byrow = TRUE)
+
+# Set unequality signs
+f.dir2 <- c(">=",
+           "<=",
+           "<=",
+           "<=",
+           "<=",
+           "<=",
+           "<=")
+
+# Set right hand side coefficients
+f.rhs2 <- c(Demand,
+           0,
+           HydroCap,
+           NatGasCap,
+           RenewCap1,
+           0,
+           0)
+
+# Final value (z)
+lp("min", f.obj2, f.con2, f.dir2, f.rhs2)
+
+lp("min", f.obj2, f.con2, f.dir2, f.rhs2)$objval
+
+# Variables final values
+lp("min", f.obj2, f.con2, f.dir2, f.rhs2)$solution
+
+finalcost2 <- lp("min", f.obj2, f.con2, f.dir2, f.rhs2)$objval + HydroCost
+');
+
+@finalvalues = rserve_eval('lp("min", f.obj, f.con, f.dir, f.rhs)$solution');
+@finalcost = rserve_eval('finalcost');
+
+@HydroCost = rserve_eval('HydroCost');
+@NatGasCost = rserve_eval('NatGasCost');
+@RenewCost = rserve_eval('RenewCost');
+@AlbImportCost = rserve_eval('AlbImportCost');
+@ExportCost = rserve_eval('ExportCost');
+@NatGasEmis = rserve_eval('NatGasEmis');
+@AlbImportEmis = rserve_eval('AlbImportEmis');
+@Demand = rserve_eval('Demand');
+@HydroCap = rserve_eval('HydroCap');
+@NatGasCap = rserve_eval('NatGasCap');
+@RenewCap = rserve_eval('RenewCap1');
+@CarbonEmis = rserve_eval('CarbonEmis');
+$AbsExportCost = -$ExportCost[0];
+$CarbonEmisMega = 1000*$CarbonEmis[0];
+
+$HydroValue = sprintf("%0.2f", @finalvalues[0]);
+$NaturalGasValue = sprintf("%0.2f", @finalvalues[1]);
+$RenewablesValue = sprintf("%0.2f", @finalvalues[2]);
+$AlbertanImportsValue = sprintf("%0.2f", @finalvalues[3]);
+$ExportsValue = sprintf("%0.2f", @finalvalues[4]);
+$FinalCost = sprintf("%0.2f", @finalcost); 
+
+#########################################################
+#FirstScenario
+@finalvalues1 = rserve_eval('lp("min", f.obj1, f.con1, f.dir1, f.rhs1)$solution');
+@finalcost1 = rserve_eval('finalcost1');
+
+@HydroCost1 = rserve_eval('HydroCost');
+@NatGasCost1 = rserve_eval('NatGasCost');
+@RenewCost1 = rserve_eval('RenewCost');
+@AlbImportCost1 = rserve_eval('AlbImportCost');
+@ExportCost1 = rserve_eval('ExportCost');
+@NatGasEmis1 = rserve_eval('NatGasEmis');
+@AlbImportEmis1 = rserve_eval('AlbImportEmis');
+@Demand1 = rserve_eval('Demand');
+@HydroCap1 = rserve_eval('HydroCap');
+@NatGasCap1 = rserve_eval('NatGasCap');
+@RenewCap1 = rserve_eval('RenewCap1');
+@CarbonEmis1 = rserve_eval('CarbonEmis');
+$AbsExportCost1 = -$ExportCost1[0];
+$CarbonEmisMega1 = 1000/3*$CarbonEmis1[0];
+
+$HydroValue1 = sprintf("%0.2f", @finalvalues1[0]);
+$NaturalGasValue1 = sprintf("%0.2f", @finalvalues1[1]);
+$RenewablesValue1 = sprintf("%0.2f", @finalvalues1[2]);
+$AlbertanImportsValue1 = sprintf("%0.2f", @finalvalues1[3]);
+$ExportsValue1 = sprintf("%0.2f", @finalvalues1[4]);
+$FinalCost1 = sprintf("%0.2f", @finalcost1); 
+
+#########################################################
+#SecondScenario
+@finalvalues2 = rserve_eval('lp("min", f.obj2, f.con2, f.dir2, f.rhs2)$solution');
+@finalcost2 = rserve_eval('finalcost2');
+
+@HydroCost2 = rserve_eval('HydroCost');
+@NatGasCost2 = rserve_eval('NatGasCost');
+@RenewCost2 = rserve_eval('RenewCost');
+@AlbImportCost2 = rserve_eval('AlbImportCost');
+@ExportCost2 = rserve_eval('ExportCost');
+@NatGasEmis2 = rserve_eval('NatGasEmis');
+@AlbImportEmis2 = rserve_eval('AlbImportEmis');
+@Demand2 = rserve_eval('Demand');
+@HydroCap2 = rserve_eval('HydroCap');
+@NatGasCap2 = rserve_eval('NatGasCap');
+@RenewCap2 = rserve_eval('RenewCap1');
+@CarbonEmis2 = rserve_eval('CarbonEmis');
+$AbsExportCost2 = -$ExportCost1[0];
+
+$HydroValue2 = sprintf("%0.2f", @finalvalues2[0]);
+$NaturalGasValue2 = sprintf("%0.2f", @finalvalues2[1]);
+$RenewablesValue2 = sprintf("%0.2f", @finalvalues2[2]);
+$AlbertanImportsValue2 = sprintf("%0.2f", @finalvalues2[3]);
+$ExportsValue2 = sprintf("%0.2f", @finalvalues2[4]);
+$FinalCost2 = sprintf("%0.2f", @finalcost2); 
+
+#########################################################
+
+$scaffold = Scaffold();
+#$isInstructor =  ($envir{effectivePermissionLevel} >= $envir{ALWAYS_SHOW_SOLUTION_PERMISSION_LEVEL});
+$isInstructor=0;   # This variable changes what the user can see.
+INITIALIZE_SCAFFOLD('$scaffold');
+
+TEXT(beginproblem());
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+
+In a fictitious future British Columbia the Ministry of Energy has asked you to come up with an electricity strategy for BC Hydro that will maximize profits (to pay for other government initiatives) by minimizing its costs while at the same time meeting specified environmental conditions.
+$BR
+$BR
+The expected demand is @Demand PJ, which can be satisfied with a mix of hydro, natural gas, renewables and imports.  Exports at peak times are permitted.  Each option has different costs and emissions as summarised in the following table.
+
+$BR
+$BR
+
+$PAR
+\{
+DataTable(
+  [
+    [['Generation Source', headerrow => 1],'Fixed Cost', 'Variable Cost', 'Emissions'],
+    [['Hydro', b=>1],'M$ @HydroCost', '', '0 kt CO2 / PJ'],
+    [['Natural Gas', b=>1],'', 'M$ @NatGasCost / PJ', '@NatGasEmis kt CO2 / PJ'], 
+    [['Renewables', b=>1], '', 'M$ @RenewCost / PJ', '0 kt CO2 / PJ'],
+    [['Albertan Imports', b=>1], '', 'M$ @AlbImportCost / PJ', '@AlbImportEmis kt CO2 / PJ'],
+    [['Exports',b=>1], '', 'M$ @ExportCost / PJ', 'Not applicable']],
+  caption => 'Table of Costs and Emissions',
+  midrules => 1,
+  align => '| X | p{1in} | p{1in} | p{1in} |',
+);
+\}
+
+$BR
+$BR
+
+For the purpose of tracking emissions, we will consider the emissions intensity of imports in the model as emitted by BC Hydro but, due to the difficulty of tracking the emissions level, no credit will be given for exported emissions.
+
+$BR
+$BR
+
+The government is not considering changing the regulations that exist restricting BC Hydro from exporting more than one third of hydro generation and importing more than one quarter of total generation.
+
+$BR
+$BR
+
+In addition, the maximum installed capacity of hydro is @HydroCap PJ, natural gas is @NatGasCap PJ and renewables is @RenewCap PJ due to construction times and resource availability.
+Finally, the government wants to freeze carbon emissions from the electricity sector at the 2005 level of @CarbonEmis mega tonnes.
+
+$BR
+$BR
+This is the complete set up for the original optimization problem:
+$PAR
+
+\{
+DataTable(
+  [
+    [['Minimize', b => 1],'@HydroCost', '+', '', '', '@NatGasCost \(x_2\)', '+' , '@RenewCost \(x_3\)', '+', '@AlbImportCost \(x_4\)', '-', '$AbsExportCost \(x_5\)', '', ''],
+    [['Demand Constraint', b=>1], '', '', '\(x_1\)', '+', '\(x_2\)', '+', '\(x_3\)', '+', '\(x_4\)', '-', '\(x_5\)', '\(\geq\)',  '@Demand'],
+    [['Hydro Capacity Constraint', b=>1], '','', '\(x_1\)', '', '', '', '', '', '', '', '', '\(\leq\)', '@HydroCap'],
+    [['Natural Gas Capacity Constraint', b=>1], '','', '', '', '\(x_2\)', '', '', '', '', '', '', '\(\leq\)', '@NatGasCap'],
+    [['Renewables Capacity Constraint', b=>1], '','', '', '', '', '', '\(x_3\)', '', '', '', '', '\(\leq\)', '@RenewCap'],
+    [['Greenhouse Gas Constraint', b=>1], '','', '', '', '@NatGasEmis\(x_2\)', '+', '', '', '@AlbImportEmis\(x_4\)', '', '', '\(\leq\)', '$CarbonEmisMega'],
+    [['Exports Constraint', b=>1], '','-', '\(\frac{1}{3}\) \(x_1\)', '', '', '', '', '', '', '+', '\(x_5\)', '\(\leq\)', '0'],
+    [['Albertan Imports Constraint', b=>1], '','-', '\(\frac{1}{4}\) \(x_1\)', '-', '\(\frac{1}{4}\) \(x_2\)', '-', ' \(\frac{1}{4}\) \(x_3\)', '+', '\(x_4\)', '', '', '\(\leq\)', '0']
+       ],
+  caption => 'Problem Setup',
+  align => 'r X r p{2cm} r p{1cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{2cm} r p{1cm} r p{2cm} r p{2cm}',
+);
+\}
+$PAR
+with the generation mix:
+$PAR
+Hydro: $HydroValue PJ
+$PAR
+Natural Gas: $NaturalGasValue PJ
+$PAR
+Renewables: $RenewablesValue PJ
+$PAR
+Albertan Imports: $AlbertanImportsValue PJ
+$PAR
+Exports: $ExportsValue PJ
+$PAR
+Total Cost: M$ $FinalCost 
+$PAR
+END_TEXT
+
+
+##############
+#  Section 1
+##############
+Context()->texStrings;
+DISPLAY_SECTION(  {  name=>"Scenario 1", 
+             canshow =>1,  #always true
+             iscorrect=>$scaffold->requireCorrect(1,2,3,4,5,6), 
+             section=>1 #designates that this is the first section
+} , <<'END_SECTION'); 
+
+$PAR
+
+What is the appropriate generation mix if the carbon emission level is reduced to one third? Give your answer to 2 decimal place.
+$PAR
+Hydro: \{ ans_rule(5) \} PJ
+$PAR
+Natural Gas: \{ ans_rule(5) \} PJ
+$PAR
+Renewables: \{ ans_rule(5) \} PJ
+$PAR
+Albertan Imports: \{ ans_rule(5) \} PJ
+$PAR
+Exports: \{ ans_rule(5) \} PJ
+$PAR
+Total Cost: M$ \{ ans_rule(5) \}
+$PAR
+END_SECTION
+
+SECTION_ANS(num_cmp(@finalvalues1[0]));
+SECTION_ANS(num_cmp(@finalvalues1[1]));
+SECTION_ANS(num_cmp(@finalvalues1[2]));
+SECTION_ANS(num_cmp(@finalvalues1[3]));
+SECTION_ANS(num_cmp(@finalvalues1[4]));
+SECTION_ANS(num_cmp(@finalcost1));
+
+#########################################################
+
+SECTION_SOLUTION({section=>1},<<'END_SOLUTION');
+Hydro: $HydroValue1 PJ
+$PAR
+Natural Gas: $NaturalGasValue1 PJ
+$PAR
+Renewables: $RenewablesValue1 PJ
+$PAR
+Albertan Imports: $AlbertanImportsValue1 PJ
+$PAR
+Exports: $ExportsValue1 PJ
+$PAR
+Total Cost: M$ $FinalCost1 
+END_SOLUTION
+
+###############
+#  Section 2
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"Scenario 2", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(7,8,9,10,11,12), 
+             section=>2
+},   <<'END_SECTION'); 
+
+$PAR
+What is the appropriate generation mix if the carbon emission level is 0? Give your answer to 2 decimal place.
+$PAR
+Hydro: \{ ans_rule(5) \} PJ
+$PAR
+Natural Gas: \{ ans_rule(5) \} PJ
+$PAR
+Renewables: \{ ans_rule(5) \} PJ
+$PAR
+Albertan Imports: \{ ans_rule(5) \} PJ
+$PAR
+Exports: \{ ans_rule(5) \} PJ
+$PAR
+Total Cost: M$ \{ ans_rule(5) \}
+$PAR
+END_SECTION
+
+
+SECTION_ANS(num_cmp(@finalvalues2[0]));
+SECTION_ANS(num_cmp(@finalvalues2[1]));
+SECTION_ANS(num_cmp(@finalvalues2[2]));
+SECTION_ANS(num_cmp(@finalvalues2[3]));
+SECTION_ANS(num_cmp(@finalvalues2[4]));
+SECTION_ANS(num_cmp(@finalcost2));
+
+#########################################################
+
+SECTION_SOLUTION({section=>2},<<'END_SOLUTION');
+
+Hydro: $HydroValue2 PJ
+$PAR
+Natural Gas: $NaturalGasValue2 PJ
+$PAR
+Renewables: $RenewablesValue2 PJ
+$PAR
+Albertan Imports: $AlbertanImportsValue2 PJ
+$PAR
+Exports: $ExportsValue2 PJ
+$PAR
+Total Cost: M$ $FinalCost2 
+END_SOLUTION
+
+PROCESS_ANSWERS();
+
+$last_correct_section = PROCESS_SECTIONS();
+
+$opensection = $last_correct_section + 1;
+$scaffold->openSections($opensection);
+
+TEXT($END_ONE_COLUMN);
+ENDDOCUMENT();       
+
+ 
+       

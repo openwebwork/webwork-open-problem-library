@@ -1,0 +1,144 @@
+# DESCRIPTION
+# DBsubject(Statistics)
+# DBchapter(Hypothesis tests)
+# DBsection(One sample variance)
+# Date(2018/04/10)
+# Institution(British Columbia Institute of Technology)
+# Author(Stefan Lukits)
+# KEYWORDS('Statistical inference')
+# supported by the BCcampus Open Homework Systems Project Grant
+
+DOCUMENT();
+## Initializations:
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects
+
+### Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 39 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+### Call R server
+rserve_eval("set.seed($seed)"); 
+## The critical value is \($chicrit[0]\). Chistar is \($chistar\).
+
+$i1=random(0,4,1);
+$claim=random(2.3,2.8,0.1);
+@siglevel=rserve_eval('
+sls<-c(0.1,0.05,0.025,0.01,0.005);
+## do this in pg perl instead
+## i1<-sample(x=seq(1,5),size=1,replace=F);
+## sl<-sls[i1];
+');
+## next line only needed if you randomize sample in R
+## $SignificanceLevel=$sl[0]; 
+
+@heights=rserve_eval('
+h<-round(rnorm(10,mean=69.825,sd=0.8),1);
+');
+
+@stdev=rserve_eval('
+s<-sd(h);
+');
+
+@chicrit=rserve_eval("
+cc<-qchisq($siglevel[$i1],df=9);
+");
+
+$chistar=(9*($stdev[0]**2))/($claim**2);
+
+$null = RadioButtons(
+[
+["The null hypothesis is \(\sigma=$claim\)","The null hypothesis is \(\sigma<$claim\)","The alternative hypothesis is \(\sigma=$claim\)","The alternative hypothesis is \(\sigma>$claim\)"],
+],
+"The null hypothesis is \(\sigma=$claim\)"
+);
+
+$tail = RadioButtons(
+[
+"This is a one-tailed test","This is a two-tailed test"],
+"This is a one-tailed test"
+);
+
+if ($chistar<$chicrit[0])
+{
+$incorr="not enough data to suggest that the height of supermodels varies less than the height of women in general (fail to ";
+$corr="enough data to suggest that the height of supermodels varies less than the height of women in general (";
+}
+else
+{
+$corr="not enough data to suggest that the height of supermodels varies less than the height of women in general (fail to ";
+$incorr="enough data to suggest that the height of supermodels varies less than the height of women in general (";
+}
+
+$reject = RadioButtons(
+[
+["${corr}reject \(H_{0}\))","${incorr}reject \(H_{0}\))"]
+],
+"${corr}reject \(H_{0}\))"
+);
+
+#########################################################
+## Main Text: where all text goes
+Context()->texStrings;
+BEGIN_TEXT
+Listed below are the heights in inches for the simple random sample of
+supermodels Lima, Bundchen, Ambrosio, Ebanks, Iman, Rubik, Kurkova,
+Kerr, Kroes, and Swanepoel. Consider the claim that supermodels have
+heights that have less variation than heights of women in the general
+population. Assume a normal distribution for the population. Use a $siglevel[$i1] significance level to test the claim
+that supermodels have heights with a standard deviation that is less
+than $claim inches for the population of women.
+$BR
+\[$heights[0],$heights[1],$heights[2],$heights[3],$heights[4],$heights[5],$heights[6],$heights[7],$heights[8],$heights[9]\]
+$BR
+$BBOLD Part (a) $EBOLD
+$BR
+\{ $null->buttons() \}
+$BR
+$BR
+$BBOLD Part (b) $EBOLD 
+$BR
+\{ $tail->buttons() \}
+$BR
+$BR
+$BBOLD Part (c) $EBOLD
+The test statistic is approximately \{ ans_rule(7) \}.
+$BR
+$BR
+$BBOLD Part (d) $EBOLD
+The decision is that there is
+\{ $reject->buttons() \}
+END_TEXT
+
+## Answers evaluation
+$showPartialCorrectAnswers = 1;
+ANS($null->cmp());
+ANS($tail->cmp());
+ANS(num_cmp($chistar,
+  tolType => 'absolute',
+    tolerance => .01,
+    ));
+ANS($reject->cmp());
+
+#########################################################
+COMMENT('This problem requires WeBWorK integration of R statistical software. See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

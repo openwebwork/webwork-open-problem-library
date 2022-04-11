@@ -45,7 +45,7 @@ loadMacros(
 );
 
 Context("Numeric");
-Context()->variables->are( t=>'Real' );
+Context()->variables->add( t=>'Real' );
 $showPartialCorrectAnswers = 1;
 
 $a = random(1,9,1);
@@ -53,7 +53,8 @@ $b = non_zero_random(-5,5,1);
 $r = list_random(3,4);
 $z0 = non_zero_random(-5,5,1);
 $t0 = random(-3,3,1);
-$ycurve = ( $b < 0 ) ? "$a $b x^{$r}" : "$a + $b x^{$r}";
+#$ycurve = ( $b < 0 ) ? "$a $b x^{$r}" : "$a + $b x^{$r}";
+$ycurve = Formula("$a + $b x^{$r}")->reduce;
 
 $pchk = MultiAnswer( Compute( "t-$t0" ), Compute( "$a + $b*(t-($t0))^{$r}" ),
 		     Compute( "$z0" ) )->with(
@@ -62,31 +63,41 @@ $pchk = MultiAnswer( Compute( "t-$t0" ), Compute( "$a + $b*(t-($t0))^{$r}" ),
 	my ( $c, $s, $ans ) = @_;
 	my ($xs, $ys, $zs) = @{$s};
 
-	my @ret = (0,0,0);
-	$ret[2] = ( $c->[2] == $zs ) ? 1 : 0;
-
-	my $ycheck = Compute( "$a + $b*$xs^{$r}" );
-
-	if ( $ycheck == $ys && $xs->eval(t=>$t0) == 0 &&
-	     $ys->eval(t=>$t0) == $a ) {
-	    $ret[0] = 1;
-	    $ret[1] = 1;
-	} elsif ( $ycheck == $ys ) {
-	    $ans->setMessage(1, 'Check that your parameterization ' .
-			     'passes through the indicated point.');
-	}
-	return [ @ret ];
+        if ( Formula($xs)->eval(t=>$t0) != Formula(0) or 
+	     Formula($ys)->eval(t=>$t0) != Formula($a) or
+             Formula($zs)->eval(t=>$t0) != Formula($zs) )
+        { $ans->setMessage(1,"Check that your parametrization passes ".
+             "through \( (0, $a , $z0) \) when \(t = $t0\).");
+          return (0,0,0);
+        }
+        if ( $xs->D(t)->eval(t=>$t0) == Formula(0) ) 
+        {
+           $ans->setMessage(1,"Check that \(x'($t0)\neq 0\)");
+           return (0,0,0);
+        }
+        if ( $c->[2] != $zs )
+        {
+           $ans->setMessage(3,"Is your curve parallel to the \(x,y\)-plane?");
+           return (0,0,0);  
+        }
+        if (Compute( "$a + $b*$xs^{$r}" )!=$ys) {
+           $ans->setMessage(2,"Your curve doesn't follow the right path.");
+           return (1,0,1);
+        }
+        else { return (1,1,1);}
 } );
+
+
 
 Context()->texStrings;
 TEXT(beginproblem());
 BEGIN_TEXT
 
-Find a parameterization for the
+Find a parameterization \( (x(t),y(t),z(t)) \) for the
 curve
-\( y = $ycurve \) that passes through the point
-\( (0, $a , $z0) \) when \(t = $t0\) and is parallel to
-the \( xy \)-plane.
+\( y = $ycurve \) that is parallel to
+the \( xy \)-plane.  Your parametrized curve should pass through the point
+\( (0, $a , $z0) \) when \(t = $t0\), and have \(x'($t0)\neq 0\).  
 
 $PAR
 \( x(t) = \) \{ $pchk->ans_rule(35) \}, $BR
@@ -98,21 +109,21 @@ Context()->normalStrings;
 
 ANS($pchk->cmp() );
 
-$targ = ( $t0 == 0 ) ? "t" : Compute("t - $t0")->reduce();
-$s = ( $b < 0 ) ? '-' : '+';
-$bd = abs($b);
+$xtarg = Compute("t-$t0")->reduce;
+$ytarg = Compute("$a+$b($xtarg)^{$r}")->reduce;
+#$s = ( $b < 0 ) ? '-' : '+';
+#$bd = abs($b);
 
 Context()->texStrings;
 SOLUTION(EV3(<<'END_SOLUTION'));
 $PAR SOLUTION $PAR
-
-Since the curve is parallel to the \(xy\)-plane, \(z\) is constant, and
-since it passes through \((0,$a,$z0)\), we have \(z=$z0\). One possible answer
+\(z\) is constant since the curve is parallel to the \(xy\)-plane, so \(z=$z0\) 
+since it passes through \((0,$a,$z0)\). One possible answer
 is
 \[
-x = $targ, \quad y = $a $s $bd ($targ)^{$r}, \quad z=$z0,
+x = $xtarg, \quad y = $ytarg, \quad z=$z0,
 \]
-which passes through the indicated point when \(t = $t0\).
+which passes through the indicated point, with \(x'($t0)=1\).
 
 END_SOLUTION
 Context()->normalStrings;

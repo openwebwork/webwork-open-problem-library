@@ -1,0 +1,191 @@
+# DESCRIPTION
+# WeBWorK problem written by Stefan Lukits 
+# <slukits(at)bcit(dot)ca>
+# DBsubject(Statistics)
+# DBchapter(Exploratory data analysis/descriptive statistics)
+# DBsection(Graphical representations)
+# Date(2019/11/20)
+# Institution(British Columbia Institute of Technology)
+# Author(Stefan Lukits)
+# supported by the BCcampus Open Homework Systems Project Grant
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "RserveClient.pl",
+  "MathObjects.pl"
+);
+
+TEXT(beginproblem());
+$showPartialCorrectAnswers = 1;
+
+### Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+### Call R server
+rserve_eval("set.seed($seed)"); 
+
+$oma=random(90,95,97.5,99,99.5);
+if ($oma==90)
+{
+$ccrit=4.605;
+}
+elsif ($oma==95)
+{
+$ccrit=5.991;
+}
+elsif ($oma==97.5)
+{
+$ccrit=7.378;
+}
+elsif ($oma==99)
+{
+$ccrit=9.210;
+}
+else
+{
+$ccrit=10.597;
+}
+@x=rserve_eval('
+x<-round(rnorm(26,386,111),2);
+');
+@y=rserve_eval('
+y<-round((1/11)*x-5.555+rnorm(26,0,10),2);
+');
+@mux=rserve_eval('
+mux<-mean(x);
+');
+@muy=rserve_eval('
+muy<-mean(y);
+');
+@covxy=rserve_eval('
+covxy<-cov(x,y);
+');
+@varx=rserve_eval('
+varx<-var(x);
+');
+@vary=rserve_eval('
+vary<-var(y);
+');
+@B=rserve_eval('
+B<-as.matrix(data.frame(c(var(x),cov(x,y)),c(cov(x,y),var(y))));
+e<-eigen(B);
+');
+@ll=rserve_eval('
+ll<-e$values;
+');
+@w=rserve_eval('
+ww<-e$vectors;
+w<-c(ww[1,1],ww[1,2],ww[2,1],ww[2,2]);
+');
+
+$mx=$mux[0];
+$my=$muy[0];
+$cov=$covxy[0];
+$vx=$varx[0];
+$vy=$vary[0];
+$a=$vy;
+$b=-$cov;
+$c=$b;
+$d=$vx;
+$A=$a;
+$B=$b+$c;
+$C=$d;
+$D=(-2)*$mx*$a-$my*$c-$my*$b;
+$E=(-2)*$my*$d-$mx*$c-$mx*$b;
+$F=(($mx**2)*$a)+($mx*$my*$c)+(($my**2)*$d)+($mx*$my*$b)-($ccrit*$ll[0]*$ll[1]);
+$As=sprintf("%.0f",$A);
+$Bs=sprintf("%.0f",$B);
+$Cs=sprintf("%.0f",$C);
+$Ds=sprintf("%.0f",$D);
+$Es=sprintf("%.0f",$E);
+$Fs=sprintf("%.0f",$F);
+
+# for ($i1=0;$i1<=25;++$i1)
+# {
+# $x[$i1]=sprintf("%.2f",$x[$i1]);
+# $y[$i1]=sprintf("%.2f",$y[$i1]);
+# }
+
+# $eqn = Formula("$A*x**2+$B*x*y+$C*y**2+$D*x+$E*y+$F=0");
+
+# The mean of \(x\) is \(\bar{x}=$mx\), the mean of \(y\) is
+# \(\bar{y}=$my\), the covariance is \(\operatorname{cov}(x,y)=$c\), the
+# variance of \(x\) is \(s_{x}^{2}=$vx\), the variance of \(y\) is
+# \(s_{y}^{2}=$vy\). The eigenvalues are \($ll[0],$ll[1]\), the matrix
+# of eigenvectors is \($w[0],$w[1],$w[2],$w[3]\). The critical value
+# \(s=$ccrit\). The equation of the ellipse is
+# \(${A}x^{2}+${B}xy+${C}y^{2}+${D}x+${E}y+${F}=0\).
+# The equation of the ellipse is \(${As}x^{2}+${Bs}xy+${Cs}y^{2}+${Ds}x+${Es}y+${Fs}=0\).
+
+BEGIN_TEXT
+
+You are studying the relationship between monthly e-commerce sales and
+online advertising costs (in thousands of dollars, negative values are
+OK). Copy the following data into a statistics program. Provide the
+equation for the error ellipse as a function of \(x\) and \(y\),
+capturing \($oma\) percent of the data given the usual assumptions
+about error ellipses (bivariate normal distribution of variables
+etc.).
+
+$PAR
+
+The equation for the error ellipse is (round all coefficients to whole numbers):
+
+$BR
+
+\{ans_rule(10)\}\(x^{2}+\)\{ans_rule(10)\}\(xy+\)\{ans_rule(10)\}\(y^{2}+\)\{ans_rule(10)\}\(x+\)\{ans_rule(10)\}\(y+\)\{ans_rule(10)\}\(=0\).
+
+$PAR
+
+\{begintable(2)\}
+\{row('e-commerce sales','advertising')\}
+\{row($x[0],$y[0])\}
+\{row($x[1],$y[1])\}
+\{row($x[2],$y[2])\}
+\{row($x[3],$y[3])\}
+\{row($x[4],$y[4])\}
+\{row($x[5],$y[5])\}
+\{row($x[6],$y[6])\}
+\{row($x[7],$y[7])\}
+\{row($x[8],$y[8])\}
+\{row($x[9],$y[9])\}
+\{row($x[10],$y[10])\}
+\{row($x[11],$y[11])\}
+\{row($x[12],$y[12])\}
+\{row($x[13],$y[13])\}
+\{row($x[14],$y[14])\}
+\{row($x[15],$y[15])\}
+\{row($x[16],$y[16])\}
+\{row($x[17],$y[17])\}
+\{row($x[18],$y[18])\}
+\{row($x[19],$y[19])\}
+\{row($x[20],$y[20])\}
+\{row($x[21],$y[21])\}
+\{row($x[22],$y[22])\}
+\{row($x[23],$y[23])\}
+\{row($x[24],$y[24])\}
+\{row($x[25],$y[25])\}
+\{endtable()\}
+
+END_TEXT
+
+ANS(num_cmp($As));
+ANS(num_cmp($Bs));
+ANS(num_cmp($Cs));
+ANS(num_cmp($Ds));
+ANS(num_cmp($Es));
+ANS(num_cmp($Fs));
+
+COMMENT('This problem requires WeBWorK integration of R statistical software. See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

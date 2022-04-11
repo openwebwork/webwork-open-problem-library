@@ -1,0 +1,374 @@
+# DESCRIPTION
+# Calculate costs of a hydrogen storage system 
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Storage)
+## Level(5)
+## KEYWORDS('energy', 'storage')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "PGML.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "scaffold.pl",
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+#other values
+$h2Energy = random(50.2,55.8,0.2); #kWh/kg 
+$elcCost = random(8,14,1); #c/kWh
+$avgCharge = random(85,100,1); #%
+$cyclesPerWeek = random(2,3,1); 
+$DOLLARSYMBOL = '\$';
+$PERCENTSYMBOL = '\%';
+
+#storage tank
+$tankCapacitykWh = random(800,1100,20); #kWh
+$tankCapacitykg = sprintf("%0.2f",$tankCapacitykWh/$h2Energy); #kg
+$tankCostPerCapacitykg = random(200,300,2); #$/kg
+$tankCostPerCapacitykWh = sprintf("%0.2f",$tankCostPerCapacity*$h2Energy); #$/kWh
+$tankCost = sprintf("%0.2f",$tankCapacitykg*$tankCostPerCapacitykg); #$
+$tankLife = random(15,20,1); #years
+$tankEff = Real(100); #%
+$tankDiscountRate = random(4.0,9.0,0.1); #%
+$tankDiscountRateDecimal = sprintf("%0.3f",$tankDiscountRate/100);
+
+#electrolyzer
+$electroMultiplier = random(1.05,1.1,0.01);
+$electroCapacity = sprintf("%0.2f",$tankCapacitykWh*$electroMultiplier); #kW
+$electroCostPerCapacity = random(240,460,5); #$/kW
+$electroCost = sprintf("%0.2f",$electroCapacity*$electroCostPerCapacity);#kW
+$electroLife = random(20,40,2); #years
+$electroEff = random(75,85,1); #%
+$electroDiscountRate = random(4.0,9.0,0.1); #%
+$electroDiscountRateDecimal = sprintf("%0.3f",$electroDiscountRate/100);
+
+#fuel cell
+$fcMultiplier = random(1.05,1.1,0.01);
+$fcCapacity = sprintf("%0.2f",$tankCapacitykWh*$fcMultiplier); #kW
+$fcCostPerCapacity = random(1500,2000,25); #$/kW
+$fcCost = sprintf("%0.2f",$fcCapacity*$fcCostPerCapacity); #kW
+$fcLife = random(20,25,1); #years
+$fcEff = random(40,60,1); #%
+$fcDiscountRate = random(4.0,9.0,0.1); #%
+$fcDiscountRateDecimal = sprintf("%0.3f",$fcDiscountRate/100);
+
+#Yearly equipment costs
+$CRFelectro = sprintf("%0.3f",($electroDiscountRateDecimal*($electroDiscountRateDecimal+1)**($electroLife))/(($electroDiscountRateDecimal+1)**($electroLife)-1));
+$electroCostYearly = sprintf("%0.2f",$CRFelectro*$electroCost);#$
+
+$CRFtank = sprintf("%0.3f",($tankDiscountRateDecimal*($tankDiscountRateDecimal+1)**($tankLife))/(($tankDiscountRateDecimal+1)**($tankLife)-1));
+$tankCostYearly = sprintf("%0.2f",$CRFtank*$tankCost);#$
+
+$CRFfc = sprintf("%0.3f",($fcDiscountRateDecimal*($fcDiscountRateDecimal+1)**($fcLife))/(($fcDiscountRateDecimal+1)**($fcLife)-1));
+$fcCostYearly = sprintf("%0.2f",$CRFfc*$fcCost);#$
+
+$yearlyEquipmentTotal = sprintf("%0.2f",$electroCostYearly+$tankCostYearly+$fcCostYearly); #$
+
+#Yearly energy flow
+$yearlyEnergyFlowIn = sprintf("%0.2f",$tankCapacitykg*$h2Energy*($avgCharge/100)/($electroEff/100)*$cyclesPerWeek*52/1000); #MWh
+$yearlyEnergyFlowOut = sprintf("%0.2f",$tankCapacitykg*$h2Energy*($avgCharge/100)*($fcEff/100)*$cyclesPerWeek*52/1000); #MWh
+$yearlyEnergyLost = sprintf("%0.2f",$yearlyEnergyFlowIn-$yearlyEnergyFlowOut); #MWh
+$costToReplace = sprintf("%0.2f",$yearlyEnergyLost*1000*$elcCost/100); #$
+
+#Final Costs
+$yearlyTotalCost = sprintf("%0.2f",$yearlyEquipmentTotal+$costToReplace); #$
+$storageCost = sprintf("%0.2f",$yearlyTotalCost/$yearlyEnergyFlowOut/1000); #$/kWh
+
+##########################################
+# Problem Setup 
+##########################################
+
+Scaffold::Begin(
+);
+
+BEGIN_PGML
+
+To reduce emissions related to energy generation, your municipality has 
+invested in wind and solar farms to meet the electricity demand. Due to 
+variability in generation profiles, the city proposes to invest in hydrogen 
+storage facilities to store excess energy. Before investing, you are tasked 
+with determining the cost of the storage system per unit of energy.
+
+Researching Hydrogen storage, you learn there are three main components to 
+the system.  
+1) The electrolysis system to produce the hydrogen.  
+2) The storage medium for the hydrogen.  
+3) The hydrogen fuel cell to produce electricity using the hydrogen.  
+
+END_PGML
+
+##########################################
+# Problem One 
+##########################################
+
+Section::Begin("Part 1: Equipment Cost",
+    is_open => "always",);
+
+BEGIN_PGML
+
+Your first objective is to find the yearly payment cost of all the equipment 
+required for the system. You research to find the following values. Complete 
+the remainder of the table by finding the capital cost of each component and 
+the yearly cost. 
+
+END_PGML
+
+BEGIN_TEXT
+\{
+DataTable(
+  [
+    [['Equipment', headerrow => 1],
+        'Capacity',
+        'Cost',
+        'Lifespan (yrs)',
+        'Discount Rate \(($PERCENTSYMBOL)\)',
+        'Capital Cost \(($DOLLARSYMBOL)\)',
+        'Yearly Average Cost \((\frac{$DOLLARSYMBOL}{\text{Year}})\)'],
+    ['Electrolyzer',
+        '$electroCapacity \((\text{kW})\)',
+        '$electroCostPerCapacity \((\frac{$DOLLARSYMBOL}{\text{kW}})\)',
+        '$electroLife',
+        '$electroDiscountRate',
+        ans_rule(6),
+        ans_rule(6)],
+    ['Storage Tank',
+        '$tankCapacitykg \((\text{kg})\)',
+        '$tankCostPerCapacitykg \((\frac{$DOLLARSYMBOL}{\text{kg}})\)',
+        '$tankLife',
+        '$tankDiscountRate',
+        ans_rule(6),
+        ans_rule(6)],
+    ['Fuel Cell',
+        '$fcCapacity \((\text{kW})\)',
+        '$fcCostPerCapacity \((\frac{$DOLLARSYMBOL}{\text{kW}})\)',
+        '$fcLife',
+        '$fcDiscountRate',
+        ans_rule(6),
+        ans_rule(6)],
+  ], 
+);
+\}
+$PAR
+END_TEXT
+
+ANS(num_cmp($electroCost, reltol=>2),
+    num_cmp($electroCostYearly, reltol=>2),
+    num_cmp($tankCost, reltol=>2),
+    num_cmp($tankCostYearly, reltol=>2),
+    num_cmp($fcCost, reltol=>2),
+    num_cmp($fcCostYearly, reltol=>2)
+);
+
+BEGIN_PGML
+
+What is the average yearly cost of the equipment?
+
+*$* [__________]{$yearlyEquipmentTotal}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+*Electrolyzer* 
+
+[``\text{CAPEX} = 
+[$electroCapacity]\text{ kW} \cdot 
+[$electroCostPerCapacity]\frac{[$DOLLARSYMBOL]}{\text{kW}} = 
+[$DOLLARSYMBOL][$electroCost]``]
+
+[``\text{CRF} = 
+\frac{[$electroDiscountRateDecimal]([$electroDiscountRateDecimal]+1)^{[$electroLife]}}
+{([$electroDiscountRateDecimal]+1)^{[$electroLife]}-1} = 
+[$CRFelectro]``]
+
+[``[$CRFelectro]\cdot[$DOLLARSYMBOL][$electroCost] = 
+[$electroCostYearly]\frac{[$DOLLARSYMBOL]}{\text{Year}}``]
+
+--------------------------------
+
+*Storage Tank*
+
+[``\text{CAPEX} = 
+[$tankCapacitykg]\text{ kg} \cdot 
+\frac{[$DOLLARSYMBOL][$tankCostPerCapacitykg]}{\text{kg}} = 
+[$DOLLARSYMBOL][$tankCost]``]
+
+[``\text{CRF} = 
+\frac{[$tankDiscountRateDecimal]([$tankDiscountRateDecimal]+1)^{[$tankLife]}}
+{([$tankDiscountRateDecimal]+1)^{[$tankLife]}-1} = 
+[$CRFtank]``]
+
+[``[$CRFtank]\cdot[$DOLLARSYMBOL][$tankCost] = 
+[$tankCostYearly]\frac{[$DOLLARSYMBOL]}{\text{Year}}``]
+
+--------------------------------
+
+*Fuel Cell*
+
+[``\text{CAPEX} = 
+[$fcCapacity]\text{ kW} \cdot 
+[$fcCostPerCapacity]\frac{[$DOLLARSYMBOL]}{\text{kW}} = 
+[$DOLLARSYMBOL][$fcCost]``]
+
+[``\text{CRF} = 
+\frac{[$fcDiscountRateDecimal]([$fcDiscountRateDecimal]+1)^{[$fcLife]}}
+{([$fcDiscountRateDecimal]+1)^{[$fcLife]}-1} = 
+[$CRFfc]``]
+
+[``[$CRFfc]\cdot[$DOLLARSYMBOL][$fcCost] = 
+[$fcCostYearly]\frac{[$DOLLARSYMBOL]}{\text{Year}}``]
+
+--------------------------------
+
+*Total*
+
+[``([$electroCostYearly] + 
+[$tankCostYearly] + 
+[$fcCostYearly])\frac{[$DOLLARSYMBOL]}{\text{Year}} = 
+[$yearlyEquipmentTotal]\frac{[$DOLLARSYMBOL]}{\text{Year}}``]
+
+END_PGML_SOLUTION
+
+Section::End();
+
+##########################################
+# Problem Two 
+##########################################
+
+Section::Begin("Part 2: Energy Calculations",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+You estimate that, on average, the tank will cycle [$cyclesPerWeek] times a 
+week, being charged to [$avgCharge]% of its capacity for each cycle. The 
+electrolyzer has an efficiency of [$electroEff]%, the fuel cell has an 
+efficiency of [$fcEff]%, and assume the tank is 100% efficient. The energy 
+content of hydrogen is [$h2Energy][`\frac{\text{kWh}}{\text{kg}}`]
+
+How much energy does the system *output* each *year*?
+
+[__________]{$yearlyEnergyFlowOut}[`\text{MWh}`]
+
+How much energy does the system *require* each *year*?
+
+[__________]{$yearlyEnergyFlowIn}[`\text{MWh}`]
+
+How much energy is *lost* due to efficiencies each *year*?
+
+[__________]{$yearlyEnergyLost}[`\text{MWh}`]
+
+If the utility company has to replace the lost energy each year by buying it 
+from a neighboring region at a rate of [$elcCost]
+[`\frac{\text{ Cents}}{\text{kWh}}`], how much will it cost each *year*? 
+
+*$* [__________]{$costToReplace}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$tankCapacitykg]\text{ kg} \cdot 
+\frac{[$h2Energy]\text{kWh}}{\text{kg}} \cdot 
+[$fcEff]%\cdot[$avgCharge]% \cdot 
+\frac{[$cyclesPerWeek]\text{ Cycles}}{\text{Week}} \cdot 
+\frac{\text{52 Weeks}}{\text{Year}} \cdot 
+\frac{\text{1 MWh}}{\text{1000 kWh}} = 
+[$yearlyEnergyFlowOut]\text{ kWh}``]
+
+[``[$tankCapacitykg]\text{ kg} \cdot 
+\frac{[$h2Energy]\text{kWh}}{\text{kg}} \cdot 
+\frac{\text{1}}{[$electroEff]%}\cdot[$avgCharge]% \cdot 
+\frac{[$cyclesPerWeek]\text{ Cycles}}{\text{Week}} \cdot 
+\frac{\text{52 Weeks}}{\text{Year}} \cdot 
+\frac{\text{1 MWh}}{\text{1000 kWh}} = 
+[$yearlyEnergyFlowIn]\text{ kWh}``]
+
+[``\text{(Method 1)  }
+([$yearlyEnergyFlowIn]-[$yearlyEnergyFlowOut])\text{ MWh} = 
+[$yearlyEnergyLost]\text{ MWh}``]
+
+[``\text{(Method 2)  }
+[$tankCapacitykg]\text{ kg} \cdot 
+\frac{[$h2Energy]\text{kWh}}{\text{kg}} \cdot 
+[$avgCharge]% \cdot 
+(\frac{\text{1}}{[$electroEff]%}-[$fcEff]%) \cdot 
+\frac{[$cyclesPerWeek]\text{ Cycles}}{\text{Week}} \cdot 
+\frac{\text{52 Weeks}}{\text{Year}} \cdot 
+\frac{\text{1 MWh}}{\text{1000 kWh}} = 
+[$yearlyEnergyLost]\text{ MWh}``]
+
+[``[$yearlyEnergyLost]\text{MWh} \cdot 
+\frac{\text{1000 kWh}}{\text{1 MWh}} \cdot 
+\frac{[$elcCost]\text{ Cents}}{\text{kWh}} \cdot 
+\frac{[$DOLLARSYMBOL]}{\text{100 Cents}} = 
+[$DOLLARSYMBOL][$costToReplace]``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three 
+##########################################
+
+Section::Begin("Part 3: Storage cost",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Taking into account equipment costs, and costs from replacing electricity 
+lost to efficiency, how much will the hydrogen storage system cost each year?
+
+*$* [__________]{$yearlyTotalCost}
+
+What is the final storage cost, per unit of energy stored? 
+
+[__________]{$storageCost} [`\frac{[$DOLLARSYMBOL]}{\text{kWh}}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``[$DOLLARSYMBOL][$yearlyEquipmentTotal] + 
+[$DOLLARSYMBOL][$costToReplace] = 
+[$DOLLARSYMBOL][$yearlyTotalCost]``]
+
+[``\frac{[$DOLLARSYMBOL][$yearlyTotalCost]}
+{[$yearlyEnergyFlowOut]\text{ MWh}} \cdot 
+\frac{\text{1 MWh}}{\text{1000 kWh}} = 
+[$storageCost]\frac{[$DOLLARSYMBOL]}{\text{kWh}}``]
+
+END_PGML_SOLUTION
+
+Section::End();
+
+##########################################
+
+Scaffold::End();
+ENDDOCUMENT();

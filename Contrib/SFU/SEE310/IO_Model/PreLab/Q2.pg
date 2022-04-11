@@ -1,0 +1,412 @@
+# DESCRIPTION
+# Solve an Input-Output Energy Model  
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System Modelling)
+## DBsection(Input Output Models)
+## Level(5)
+## KEYWORDS('leontief inverse matrix', 'type I multipliers')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Sheena Tan and Jonn Axsen)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+# Question based on original problem developed in REM 658 by Jonn Axsen, 
+# Mark Jaccard, Paulus Mau and Rose Murphy at Simon Fraser University
+
+#########################################################
+# DESCRIPTION
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy Systems Modelling and Analysis)
+## DBsection(Input Output Model)
+## Author(Taco Niet and Sheena Tan)
+## Level(5)
+## KEYWORDS('Leontief Inverse Matrix', 'Type I multipliers')
+## License(CC-BY-4.0 Taco Niet, Sheena Tan, Jonn Axsen based on original problems developed in REM 658 by Jonn Axsen, Mark Jaccard, Paulus Mau and Rose Murphy)
+
+#########################################################
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGanswermacros.pl",
+  "parserPopUp.pl",
+  "compoundProblem5.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "contextInequalities.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+  "niceTables.pl"
+);
+
+#  Setup
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+rserve_eval('
+# Load R Libraries
+library(plyr)
+');
+
+rserve_eval('
+# Inputs Purchased by Agriculture
+AgricultureInputAgriculture <- round_any(runif(1,15,25),5)
+AgricultureInputManufacturing <- round_any(runif(1,15,25),5)
+
+AgricultureInputHouseholds <- (100 - (AgricultureInputAgriculture + AgricultureInputManufacturing))*3/5
+AgricultureInputGovernment <- (100 - (AgricultureInputAgriculture + AgricultureInputManufacturing + AgricultureInputHouseholds))/2
+AgricultureInputImports <- (100 - (AgricultureInputAgriculture + AgricultureInputManufacturing + AgricultureInputHouseholds))/2
+
+# Inputs Purchased by Manufacturing
+ManufacturingInputAgriculture <- round_any(runif(1,35,45),5)
+ManufacturingInputManufacturing <- round_any(runif(1,15,25),5)
+ManufacturingInputServices <- round_any(runif(1,35,45),5)
+
+ManufacturingInputHouseholds <- (200 - (ManufacturingInputAgriculture + ManufacturingInputManufacturing + ManufacturingInputServices))*0.45
+ManufacturingInputGovernment <- (200 - (ManufacturingInputAgriculture + ManufacturingInputManufacturing + ManufacturingInputServices))*0.15
+ManufacturingInputImports <- (200 - (ManufacturingInputAgriculture + ManufacturingInputManufacturing + ManufacturingInputServices))*0.4
+
+# Inputs Purchased by Services
+ServicesInputManufacturing <- round_any(runif(1,5,15),5)
+ServicesInputServices <- round_any(runif(1,5,15),5)
+
+ServicesInputHouseholds <- (100 - (ServicesInputManufacturing + ServicesInputServices))- 10
+
+# Inputs Purchased by Households
+HouseholdsInputAgriculture <- (100 - (AgricultureInputAgriculture + ManufacturingInputAgriculture))/2
+HouseholdsInputManufacturing <- (200 - (AgricultureInputManufacturing + ManufacturingInputManufacturing + ServicesInputManufacturing))/2
+HouseholdsInputServices <- (100 - (ManufacturingInputServices + ServicesInputServices))/2
+
+# Inputs Purchased by Exports
+ExportsInputManufacturing <- (200 - (AgricultureInputManufacturing + ManufacturingInputManufacturing + ServicesInputManufacturing))/2.5
+
+# Inputs Purchased by Government
+GovernmentInputManufacturing <- 200 - (AgricultureInputManufacturing + ManufacturingInputManufacturing + ServicesInputManufacturing + HouseholdsInputManufacturing + ExportsInputManufacturing)
+GovernmentInputServices <- (100 - (ManufacturingInputServices + ServicesInputServices))/2.5
+
+# Inputs Purchased by Exports
+ExportsInputAgriculture <- (100 - (AgricultureInputAgriculture + ManufacturingInputAgriculture))/2
+ExportsInputServices <- 100 - (ManufacturingInputServices + ServicesInputServices + HouseholdsInputServices + GovernmentInputServices)
+
+');
+
+@AgricultureInputAgriculture = rserve_eval('AgricultureInputAgriculture');
+@AgricultureInputManufacturing = rserve_eval('AgricultureInputManufacturing');
+@ManufacturingInputAgriculture = rserve_eval('ManufacturingInputAgriculture');
+@ManufacturingInputManufacturing = rserve_eval('ManufacturingInputManufacturing');
+@ManufacturingInputServices = rserve_eval('ManufacturingInputServices');
+@ServicesInputManufacturing = rserve_eval('ServicesInputManufacturing');
+@ServicesInputServices = rserve_eval('ServicesInputServices');
+@HouseholdsInputAgriculture = rserve_eval('HouseholdsInputAgriculture');
+@HouseholdsInputManufacturing = rserve_eval('HouseholdsInputManufacturing');
+@HouseholdsInputServices = rserve_eval('HouseholdsInputServices');
+@GovernmentInputManufacturing = rserve_eval('GovernmentInputManufacturing');
+@GovernmentInputServices = rserve_eval('GovernmentInputServices');
+@ExportsInputAgriculture = rserve_eval('ExportsInputAgriculture');
+@ExportsInputManufacturing = rserve_eval('ExportsInputManufacturing');
+@ExportsInputServices = rserve_eval('ExportsInputServices');
+@AgricultureInputHouseholds = rserve_eval('AgricultureInputHouseholds');
+@AgricultureInputGovernment = rserve_eval('AgricultureInputGovernment');
+@AgricultureInputImports = rserve_eval('AgricultureInputImports');
+@ManufacturingInputHouseholds = rserve_eval('ManufacturingInputHouseholds');
+@ManufacturingInputGovernment = rserve_eval('ManufacturingInputGovernment');
+@ManufacturingInputImports = rserve_eval('ManufacturingInputImports');
+@ServicesInputHouseholds = rserve_eval('ServicesInputHouseholds');
+
+# Gross Inputs
+$GrossInputHouseholds = $HouseholdsInputAgriculture[0] + $HouseholdsInputManufacturing[0] + $HouseholdsInputServices[0];
+$GrossInputGovernment = $GovernmentInputManufacturing[0] + $GovernmentInputServices[0];
+$GrossInputExports = $ExportsInputAgriculture[0] + $ExportsInputManufacturing[0] + $ExportsInputServices[0];
+
+# Gross Outputs
+$GrossOutputHouseholds = $AgricultureInputHouseholds[0] + $ManufacturingInputHouseholds[0] + $ServicesInputHouseholds[0];
+$GrossOutputGovernment = $AgricultureInputGovernment[0] + $ManufacturingInputGovernment[0] + 5;
+$GrossOutputImports = $AgricultureInputImports[0] + $ManufacturingInputImports[0] + 5;
+
+# Total Inputs Outputs
+$Total1 = 400 + $GrossOutputHouseholds + $GrossOutputGovernment + $GrossOutputImports;
+$Total2 = 400 + $GrossInputHouseholds + $GrossInputGovernment + $GrossInputExports;
+
+if($Total1 == $Total2) {$Total = $Total1; }
+
+#Technical Coefficients
+$AgricultureInputAgricultureTC = $AgricultureInputAgriculture[0]/100;
+$ManufacturingInputAgricultureTC = $ManufacturingInputAgriculture[0]/100;
+$AgricultureInputManufacturingTC = $AgricultureInputManufacturing[0]/200;
+$ManufacturingInputManufacturingTC = $ManufacturingInputManufacturing[0]/200;
+$ServicesInputManufacturingTC = $ServicesInputManufacturing[0]/200;
+$ManufacturingInputServicesTC = $ManufacturingInputServices[0]/100;
+$ServicesInputServicesTC = $ServicesInputServices[0]/100;
+
+$scaffold = Scaffold();
+#$isInstructor =  ($envir{effectivePermissionLevel} >= $envir{ALWAYS_SHOW_SOLUTION_PERMISSION_LEVEL});
+$isInstructor=0;   # This variable changes what the user can see.
+INITIALIZE_SCAFFOLD('$scaffold');
+
+TEXT(beginproblem());
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+Context("Matrix");
+   
+$InputOutput = Matrix([$AgricultureInputAgricultureTC,$ManufacturingInputAgricultureTC,0],[$AgricultureInputManufacturingTC, $ManufacturingInputManufacturingTC, $ServicesInputManufacturingTC],[0,$ManufacturingInputServicesTC,$ServicesInputServicesTC]);
+$I = Value::Matrix->I(3);
+$Difference = $I - $InputOutput;
+$InverseofDifference = $Difference ->inverse;
+
+$InverseofDifferenceTolerance = $InverseofDifference->with(tolerance => .01, tolType => 'absolute');
+
+$AgricultureIncrease = ColumnVector(5,0,0);
+$ManufacturingIncrease = ColumnVector(0,5,0);
+$ServicesIncrease = ColumnVector(0,0,5);
+
+$AgricultureImpact = ColumnVector($InverseofDifference * $AgricultureIncrease);
+$ManufacturingImpact = ColumnVector($InverseofDifference * $ManufacturingIncrease);
+$ServicesImpact = ColumnVector($InverseofDifference * $ServicesIncrease);
+
+Context("Numeric");
+Context()->flags->set(
+  tolerance => 0.1,
+  tolType => "absolute",);
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+This is an input output table simplified from Harvey Armstrong and Jim Taylor Regional Economics and Policy 1988. This table represents a very simple version of a three part economy based on Agriculture, Manufacturing and Services.
+$BR
+
+$PAR
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '', '', 'Inputs purchased by:', '', '', 'Final demand sectors:', '', 'Gross Ouput'],
+    [['', headerrow => 1], '','Agriculture', 'Manufacturing', 'Services', 'Households', 'Government', 'Exports', ''],
+    [['Output produced by:', b=>1],'', '', '', '', '', '', '', ''], 
+    ['', ['Agriculture', b=>1], '@AgricultureInputAgriculture', '@ManufacturingInputAgriculture', '0', '@HouseholdsInputAgriculture', '0', '@ExportsInputAgriculture', ['100',b=>1]],
+    ['', ['Manufacturing', b=>1], '@AgricultureInputManufacturing', '@ManufacturingInputManufacturing', '@ServicesInputManufacturing', '@HouseholdsInputManufacturing', '@GovernmentInputManufacturing', '@ExportsInputManufacturing', ['200', b=>1]],
+    ['', ['Services', b=>1], '0', '@ManufacturingInputServices', '@ServicesInputServices', '@HouseholdsInputServices', '@GovernmentInputServices', '@ExportsInputServices', ['100', b=>1]],
+    [['Payments for:', b=>1],'', '', '', '', '', '', '', ''], 
+    ['', ['Household Services (Wages, etc.)', b=>1], '@AgricultureInputHouseholds', '@ManufacturingInputHouseholds', '@ServicesInputHouseholds', '', '', '', ['$GrossOutputHouseholds', b=>1]],
+    ['', ['Government Services (Taxes)', b=>1], '@AgricultureInputGovernment', '@ManufacturingInputGovernment', '5', '', '', '', ['$GrossOutputGovernment', b=>1]],
+    ['', ['Imports', b=>1], '@AgricultureInputImports', '@ManufacturingInputImports', '5', '', '', '', ['$GrossOutputImports', b=>1]],
+    [['Gross Inputs', headerrow =>1],'', '100', '200', '100', '$GrossInputHouseholds', '$GrossInputGovernment', '$GrossInputExports', ['$Total', b=>1]],
+    ],
+  caption => 'Transactions Table',
+  midrules => 1,
+  align => '| p{1in} p{1.5in} | c c c | c c c | c |',
+);
+\}
+
+$PAR
+$PAR
+As we saw with the second level of calculations in the previous problem, when we increase the demand for Agriculture by 5 units, we need more than 5 units of Agriculture to meet that demand, this requires additional Agriculture, Manufacturing and Services, which then require their own additional inputs. 
+$PAR
+We will determine the Leontief Inverse Matrix, which can be used to determine the Type I multipliers. 
+$PAR
+
+END_TEXT
+
+##############
+#  Section 1
+##############
+Context()->texStrings;
+DISPLAY_SECTION(  {  name=>"1: The Input-Output Matrix", 
+             canshow =>1,  #always true
+             iscorrect=>$scaffold->requireCorrect(1), 
+             section=>1 #designates that this is the first section
+} , <<'END_SECTION'); 
+
+$PAR
+To calculate the Leontief Inverse Matrix, we will first need to determine the input-output matrix \(A\), where the columns of the matrix represent the technical coefficients of Agriculture, Manufacturing and Services respectively. 
+$PAR
+
+\(A\) = \{$InputOutput->ans_array\}
+
+$PAR
+END_SECTION
+
+SECTION_ANS($InputOutput->cmp);
+#########################################################
+
+SECTION_SOLUTION({section=>1},<<'END_SOLUTION');
+
+\(A\) = \($InputOutput\)
+
+END_SOLUTION
+
+###############
+#  Section 2
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"2: Leontief Inverse Matrix", 
+             canshow =>$scaffold->requireCorrect(1). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(2,3), 
+             section=>2
+},   <<'END_SECTION'); 
+
+$PAR
+Next, we need to calculate the matrix, \((I - A)\), where \(I\) is the 3x3 identity matrix. 
+$PAR
+
+\((I - A)\) = \{$Difference->ans_array\}
+
+$PAR
+
+Finally, the Leontief inverse matrix is given by the inverse of \((I - A)\). 
+$BITALIC
+(Leave your answers to 3 decimal places.)
+$EITALIC
+$PAR
+
+\((I-A)^{-1}\) = \{$InverseofDifferenceTolerance->ans_array\}
+
+$PAR
+END_SECTION
+
+
+
+SECTION_ANS($Difference->cmp);
+SECTION_ANS($InverseofDifferenceTolerance->cmp);
+
+#########################################################
+
+SECTION_SOLUTION({section=>2},<<'END_SOLUTION');
+\(I - A\) = \($Difference\)
+$PAR
+\((I-A)^{-1}\) = \($InverseofDifference\)
+
+END_SOLUTION
+
+###############
+#  Section 3
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"3: Impact of Increase in Output", 
+             canshow =>$scaffold->requireCorrect(1,2,3). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(4,5,6,7,8,9,10,11,12,13,14,15), 
+             section=>3
+},   <<'END_SECTION'); 
+
+$PAR
+Using the Leontief inverse matrix, determine the total amount of Agriculture, Manufacturing and Services required to produce 5 additional units of Agriculture, Manufacturing and Services output separately. 
+$BITALIC
+(Leave your answers to 3 decimal places.) 
+$EITALIC
+$PAR
+
+$PAR
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '5 units of Agricultural output','5 units of Manufacturing output', '5 units of Services output'],
+    [['Agriculture', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    [['Manufacturing', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    [['Services', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    [['Gross Output', headerrow => 1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ],
+  caption => 'Total production required to produce',
+  midrules => 1,
+  align => '| p{1in} | c | c | c |',
+  );
+\}
+$PAR
+
+END_SECTION
+
+#Total Production Required
+$TotalProductionRequired = 5*$InverseofDifference;
+$TotalAgricultureInputAgricultureRequired = $TotalProductionRequired->element(1,1);
+$TotalManufacturingInputAgricultureRequired = $TotalProductionRequired->element(1,2);
+$TotalServicesInputAgricultureRequired = $TotalProductionRequired->element(1,3);
+$TotalAgricultureInputManufacturingRequired = $TotalProductionRequired->element(2,1);
+$TotalManufacturingInputManufacturingRequired = $TotalProductionRequired->element(2,2);
+$TotalServicesInputManufacturingRequired = $TotalProductionRequired->element(2,3);
+$TotalAgricultureInputServicesRequired = $TotalProductionRequired->element(3,1);
+$TotalManufacturingInputServicesRequired = $TotalProductionRequired->element(3,2);
+$TotalServicesInputServicesRequired = $TotalProductionRequired->element(3,3);
+
+$TotalAgricultureOutput = $TotalAgricultureInputAgricultureRequired + $TotalAgricultureInputManufacturingRequired + $TotalAgricultureInputServicesRequired;
+
+$TotalManufacturingOutput = $TotalManufacturingInputAgricultureRequired + $TotalManufacturingInputManufacturingRequired + $TotalManufacturingInputServicesRequired;
+
+$TotalServicesOutput = $TotalServicesInputAgricultureRequired + $TotalServicesInputManufacturingRequired + $TotalServicesInputServicesRequired;
+
+ 
+SECTION_ANS(num_cmp($TotalAgricultureInputAgricultureRequired));
+SECTION_ANS(num_cmp($TotalManufacturingInputAgricultureRequired));
+SECTION_ANS($TotalServicesInputAgricultureRequired->cmp(
+  tolType => 'absolute',
+  tolerance => .01,
+));
+SECTION_ANS($TotalAgricultureInputManufacturingRequired->cmp(
+  tolType => 'absolute',
+  tolerance => .01,
+));
+SECTION_ANS(num_cmp($TotalManufacturingInputManufacturingRequired));
+SECTION_ANS($TotalServicesInputManufacturingRequired->cmp(
+  tolType => 'absolute',
+  tolerance => .01,
+));
+SECTION_ANS($TotalAgricultureInputServicesRequired->cmp(
+  tolType => 'absolute',
+  tolerance => .01,
+));
+SECTION_ANS(num_cmp($TotalManufacturingInputServicesRequired));
+SECTION_ANS(num_cmp($TotalServicesInputServicesRequired));
+SECTION_ANS(num_cmp($TotalAgricultureOutput));
+SECTION_ANS(num_cmp($TotalManufacturingOutput));
+SECTION_ANS(num_cmp($TotalServicesOutput));
+
+#########################################################
+
+SECTION_SOLUTION({section=>3},<<'END_SOLUTION');
+
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '5 units of Agricultural output','5 units of Manufacturing output', '5 units of Services output'],
+    [['Agriculture', b=>1], '$TotalAgricultureInputAgricultureRequired', '$TotalManufacturingInputAgricultureRequired', '$TotalServicesInputAgricultureRequired'],
+    [['Manufacturing', b=>1], '$TotalAgricultureInputManufacturingRequired', '$TotalManufacturingInputManufacturingRequired', '$TotalServicesInputManufacturingRequired'],
+    [['Services', b=>1], '$TotalAgricultureInputServicesRequired', '$TotalManufacturingInputServicesRequired', '$TotalServicesInputServicesRequired'],
+    [['Gross Output', headerrow => 1], '$TotalAgricultureOutput', '$TotalManufacturingOutput', '$TotalServicesOutput'],
+    ],
+  caption => 'Total production required to produce',
+  midrules => 1,
+  align => '| p{1in} | c | c | c |',
+  );
+\}
+
+END_SOLUTION
+
+
+PROCESS_ANSWERS();
+
+$last_correct_section = PROCESS_SECTIONS();
+
+$opensection = $last_correct_section + 1;
+$scaffold->openSections($opensection);
+
+TEXT($END_ONE_COLUMN);
+ENDDOCUMENT();     

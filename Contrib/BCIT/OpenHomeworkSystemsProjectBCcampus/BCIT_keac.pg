@@ -1,0 +1,204 @@
+# DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Nonparametric methods)
+## DBsection(Kolmogorov-Smirnov test)
+## Date(2018/05/02)
+## Institution(British Columbia Institute of Technology)
+## Author(Stefan Lukits)
+## KEYWORDS('Statistical inference')
+## supported by the BCcampus Open Homework Systems Project Grant
+
+DOCUMENT();
+## Initializations:
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects
+
+### Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+### Call R server
+rserve_eval("set.seed($seed)"); 
+
+$i1=random(0,4,1);
+@siglevel=rserve_eval('
+sls<-c(0.1,0.05,0.025,0.01,0.005);
+## do this in pg perl instead
+## i1<-sample(x=seq(1,5),size=1,replace=F);
+## sl<-sls[i1];
+');
+$sigf=$siglevel[$i1];
+$conf=1-$siglevel[$i1];
+
+@tta=rserve_eval("
+rta<-round(runif(15,36.5,37.8),3);
+");
+
+@ttb=rserve_eval("
+rtb<-round(rta+rnorm(15,mean=0,sd=3.5),3);
+");
+
+@asam=rserve_eval('
+alphabet<-c("A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z");
+asamr<-sample(alphabet,16);
+');
+$a1=$asam[0].",".$asam[1].",".$asam[2].",".$asam[3];
+$a2=$asam[4].",".$asam[5].",".$asam[6].",".$asam[7];
+$a3=$asam[8].",".$asam[9].",".$asam[10].",".$asam[11];
+$a4=$asam[12].",".$asam[13].",".$asam[14].",".$asam[15];
+
+@rcodea=rserve_eval("
+asama<-toString(c(asamr[[1]],asamr[[2]],asamr[[3]],asamr[[4]]));
+asamb<-toString(c(asamr[[5]],asamr[[6]],asamr[[7]],asamr[[8]]));
+asamc<-toString(c(asamr[[9]],asamr[[10]],asamr[[11]],asamr[[12]]));
+asamd<-toString(c(asamr[[13]],asamr[[14]],asamr[[15]],asamr[[16]]));
+");
+
+@t1=rserve_eval("
+z<-ks.test((rta-mean(rta))/sd(rta),pnorm);
+t1<-z[[1]];
+");
+$tstat=$t1[0];
+
+@t2=rserve_eval("
+t2<-z[[2]];
+");
+$pvalue=$t2[0];
+
+$imga=rserve_start_plot('png');
+rserve_eval('qqnorm(rta,col="blue",xlab="",ylab="",main=asama);qqline(rta,col="red")');
+$image_patha=rserve_finish_plot($imga);
+
+$imgb=rserve_start_plot('png');
+rserve_eval('plot(rta,rtb,xlab="",ylab="",main=asamb,col="blue");abline(lm(rtb~rta),col="red")');
+$image_pathb=rserve_finish_plot($imgb);
+
+$imgc=rserve_start_plot('png');
+rserve_eval('v<-rnorm(7,500,40);s<-append(v,rnorm(8,300,40));qqnorm(s,col="blue",xlab="",ylab="",main=asamc);qqline(s,col="red")');
+$image_pathc=rserve_finish_plot($imgc);
+
+$imgd=rserve_start_plot('png');
+rserve_eval('w<-rnorm(15,0,20);ww<-100-(((abs(w)/w)*50)-w);qqnorm(ww,col="blue",xlab="",ylab="",main=asamd);qqline(ww,col="red")');
+$image_pathd=rserve_finish_plot($imgd);
+
+$null = RadioButtons(
+[
+[
+"the null hypothesis is that the population is normally distributed",
+"the null hypothesis is that the sample is normally distributed",
+"the alternative hypothesis is that the sample is normally distributed",
+"the alternative hypothesis is that the population is normally distributed",
+],
+],
+"the null hypothesis is that the population is normally distributed",
+);
+
+$qqnorm = RadioButtons(
+[
+[
+"$a1",
+"$a2",
+"$a3",
+"$a4",
+],
+],
+"$a1",
+);
+
+if ($pvalue<$sigf)
+{
+$incorr="not sufficient evidence to support the claim that the population is not normally distributed (fail to ";
+$corr="sufficient evidence to support the claim that the population is not normally distributed (";
+}
+else
+{
+$incorr="sufficient evidence to support the claim that the population is not normally distributed (";
+$corr="not sufficient evidence to support the claim that the population is not normally distributed (fail to ";
+}
+
+$reject = RadioButtons(
+[
+["${corr}reject \(H_{0}\))","${incorr}reject \(H_{0}\))"]
+],
+"${corr}reject \(H_{0}\))"
+);
+
+## $ss=sprintf("%.2f", $stdev[0]);
+
+#########################################################
+## Main Text: where all text goes
+## Solution: the test statistic is $tstat and the \(p\)-value is $pvalue.
+Context()->texStrings;
+BEGIN_TEXT
+The following table shows the results of taking the body temperature of healthy adults.
+$PAR
+\[
+\begin{array}{cccccc}
+    $tta[0] & $tta[1] & $tta[2] & $tta[3] & $tta[4] \\
+    $tta[5] & $tta[6] & $tta[7] & $tta[8] & $tta[9] \\
+    $tta[10] & $tta[11] & $tta[12] & $tta[13] & $tta[14] \\
+\end{array}
+\]
+$PAR
+Performing the Kolmogorov-Smirnov test at a $conf confidence level,
+$BR
+(i) select the correct description of null or alternative hypothesis
+\{ $null->buttons() \}
+$BR
+(ii) the test statistic is approximately \{ ans_rule(20) \}
+$BR
+(iii) the \(p\)-value is approximately \{ ans_rule(20) \}
+$BR
+(iv) the decision is that there is
+\{ $reject->buttons() \}
+$BR
+(v) select the corresponding normal quantile plot
+$PAR
+\{ $qqnorm->buttons() \}
+$PAR
+\{ image($image_pathc,width=>300,height=>300) \}
+$BR
+\{ image($image_pathb,width=>300,height=>300) \}
+$BR
+\{ image($image_patha,width=>300,height=>300) \}
+$BR
+\{ image($image_pathd,width=>300,height=>300) \}
+END_TEXT
+
+## Answers evaluation
+$showPartialCorrectAnswers = 1;
+ANS($null->cmp());
+ANS(num_cmp($tstat,
+  tolType => 'absolute',
+    tolerance => .001,
+    ));
+ANS(num_cmp($pvalue,
+  tolType => 'absolute',
+    tolerance => .001,
+    ));
+ANS($reject->cmp());
+ANS($qqnorm->cmp());
+
+#########################################################
+COMMENT('This problem requires WeBWorK integration of R statistical software. See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();
+

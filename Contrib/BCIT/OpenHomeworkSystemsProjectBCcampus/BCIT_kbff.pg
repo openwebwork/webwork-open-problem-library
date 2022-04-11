@@ -1,0 +1,167 @@
+## DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Hypothesis tests)
+## DBsection(One sample variance)
+## Date(2018/04/10)
+## Institution(British Columbia Institute of Technology)
+## Author(Stefan Lukits)
+## KEYWORDS('Statistical inference')
+## supported by the BCcampus Open Homework Systems Project Grant
+
+DOCUMENT();
+## Initializations:
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl"
+);
+
+#########################################################
+## Setup: this is where we use Perl and PG objects
+
+### Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+# warn("seed: " . $seed);
+
+### Call R server
+rserve_eval("set.seed($seed)"); 
+## The critical values are \($chicritl[0],$chicritr[0]\). Chistar is \($chistar\).
+
+$i1=random(0,4,1);
+$claim=random(0.11,0.19,0.01);
+$t2=random(0.21,0.49,0.01);
+@siglevel=rserve_eval('
+sls<-c(0.1,0.05,0.025,0.01,0.005);
+## do this in pg perl instead
+## i1<-sample(x=seq(1,5),size=1,replace=F);
+## sl<-sls[i1];
+');
+## next line only needed if you randomize sample in R
+## $SignificanceLevel=$sl[0]; 
+
+@vol=rserve_eval("
+v<-round(rnorm(36,mean=12.19,sd=$t2),1);
+");
+
+@mean=rserve_eval('
+m<-mean(v);
+');
+
+@stdev=rserve_eval('
+s<-sd(v);
+');
+
+@chicritl=rserve_eval("
+ccl<-qchisq($siglevel[$i1],df=35);
+");
+
+$t1=1-$siglevel[$i1];
+@chicritr=rserve_eval("
+ccr<-qchisq($t1,df=35);
+");
+
+$null = RadioButtons(
+[
+["The null hypothesis is \(\sigma>$claim\)","The null hypothesis is \(\sigma<$claim\)","The alternative hypothesis is \(\sigma\neq{}$claim\)","The alternative hypothesis is \(\sigma=$claim\)"],
+],
+"The alternative hypothesis is \(\sigma\neq{}$claim\)"
+);
+
+$tail = RadioButtons(
+[
+"This is a one-tailed test","This is a two-tailed test"],
+"This is a two-tailed test"
+);
+
+if (($chistar<$chicritl[0]) || ($chistar>$chicritr[0]))
+{
+$incorr="not sufficient evidence to support the claim that the manufacturer's assertion about the standard deviation of the filling machine is false (fail to ";
+$corr="sufficient evidence to support the claim that the manufacturer's assertion about the standard deviation of the filling machine is false (";
+}
+else
+{
+$corr="not sufficient evidence to support the claim that the manufacturer's assertion about the standard deviation of the filling machine is false (fail to ";
+$incorr="sufficient evidence to support the claim that the manufacturer's assertion about the standard deviation of the filling machine is false (";
+}
+
+$reject = RadioButtons(
+[
+["${corr}reject \(H_{0}\))","${incorr}reject \(H_{0}\))"]
+],
+"${corr}reject \(H_{0}\))"
+);
+$mm=sprintf("%.2f", $mean[0]);
+$ss=sprintf("%.2f", $stdev[0]);
+## $chistar=(35*($stdev[0]**2))/($claim**2);
+
+$chistar=(35*($ss**2))/($claim**2);
+
+#########################################################
+## Main Text: where all text goes
+Context()->texStrings;
+BEGIN_TEXT
+The following data shows volumes in ounces of a simple random sample
+of 36 cans of regular Coke. Those volumes have a mean of $mm
+ounces and a standard deviation of $ss ounces, and they appear
+to be from a normally distributed population. The manufacturer of the
+filling machine claims that the standard deviation is $claim ounces. Use
+the sample data to test the claim that the manufacturer is correct and
+that the population of volumes has a standard deviation equal to $claim
+ounces. Use a $t1 confidence level.
+$BR
+\[
+\begin{array}{cccccc}
+    $vol[0] & $vol[1] & $vol[2] & $vol[3] & $vol[4] &  $vol[5] \\
+    $vol[6] & $vol[7] & $vol[8] & $vol[9] & $vol[10] &  $vol[11] \\
+    $vol[12] & $vol[13] & $vol[14] & $vol[15] & $vol[16] &  $vol[17] \\
+    $vol[18] & $vol[19] & $vol[20] & $vol[21] & $vol[22] &  $vol[23] \\
+    $vol[24] & $vol[25] & $vol[26] & $vol[27] & $vol[28] &  $vol[29] \\
+    $vol[30] & $vol[31] & $vol[32] & $vol[33] & $vol[34] &  $vol[35] \\
+\end{array}
+\]
+$BR
+$BBOLD Part (a) $EBOLD
+$BR
+\{ $null->buttons() \}
+$BR
+$BR
+$BBOLD Part (b) $EBOLD 
+$BR
+\{ $tail->buttons() \}
+$BR
+$BR
+$BBOLD Part (c) $EBOLD
+The test statistic is approximately \{ ans_rule(7) \}.
+$BR
+$BR
+$BBOLD Part (d) $EBOLD
+The decision is that there is
+\{ $reject->buttons() \}
+END_TEXT
+
+## Answers evaluation
+$showPartialCorrectAnswers = 1;
+ANS($null->cmp());
+ANS($tail->cmp());
+ANS(num_cmp($chistar,
+  tolType => 'absolute',
+    tolerance => .01,
+    ));
+ANS($reject->cmp());
+
+#########################################################
+COMMENT('This problem requires WeBWorK integration of R statistical software. See the WeBWorK wiki for documentation.');
+
+ENDDOCUMENT();

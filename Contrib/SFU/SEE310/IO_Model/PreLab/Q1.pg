@@ -1,0 +1,476 @@
+# DESCRIPTION
+# Solve an Input-Output Energy Model  
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System Modelling)
+## DBsection(Input Output Models)
+## Level(5)
+## KEYWORDS('transaction table', 'technical coefficients')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Sheena Tan and Jonn Axsen)
+## Resources()
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+# Question based on original problem developed in REM 658 by Jonn Axsen, 
+# Mark Jaccard, Paulus Mau and Rose Murphy at Simon Fraser University
+
+#########################################################
+
+DOCUMENT();
+## Initializations: (Required)
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "PGanswermacros.pl",
+  "parserPopUp.pl",
+  "compoundProblem5.pl",
+  "parserRadioButtons.pl",
+  "MathObjects.pl",
+  "contextInequalities.pl",
+  "parserMultiAnswer.pl",
+  "RserveClient.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+  "niceTables.pl"
+);
+
+#  Setup
+
+###Random number generator seed based on student's login. No need to change.
+Context("Numeric");
+# warn("Student name: $studentName, login: $studentLogin, id: $studentID");
+my $hash = crypt($studentLogin, 'a1');
+# warn("crypt: $hash");
+@nums = (0..9,'a'..'z','A'..'Z');
+my %nums = map { $nums[$_] => $_ } 0..$#nums;
+my $seed = 0;
+$seed = $seed * 62 + $nums{$_} foreach split(//, substr($hash, -5, 5));
+##warn("seed: " . $seed);
+
+####Call R server
+rserve_eval("set.seed($seed)"); ## can not combine with the rest
+
+rserve_eval('
+# Load R Libraries
+library(plyr)
+');
+
+rserve_eval('
+# Inputs Purchased by Agriculture
+AgricultureInputAgriculture <- round_any(runif(1,15,25),5)
+AgricultureInputManufacturing <- round_any(runif(1,15,25),5)
+
+AgricultureInputHouseholds <- (100 - (AgricultureInputAgriculture + AgricultureInputManufacturing))*3/5
+AgricultureInputGovernment <- (100 - (AgricultureInputAgriculture + AgricultureInputManufacturing + AgricultureInputHouseholds))/2
+AgricultureInputImports <- (100 - (AgricultureInputAgriculture + AgricultureInputManufacturing + AgricultureInputHouseholds))/2
+
+# Inputs Purchased by Manufacturing
+ManufacturingInputAgriculture <- round_any(runif(1,35,45),5)
+ManufacturingInputManufacturing <- round_any(runif(1,15,25),5)
+ManufacturingInputServices <- round_any(runif(1,35,45),5)
+
+ManufacturingInputHouseholds <- (200 - (ManufacturingInputAgriculture + ManufacturingInputManufacturing + ManufacturingInputServices))*0.45
+ManufacturingInputGovernment <- (200 - (ManufacturingInputAgriculture + ManufacturingInputManufacturing + ManufacturingInputServices))*0.15
+ManufacturingInputImports <- (200 - (ManufacturingInputAgriculture + ManufacturingInputManufacturing + ManufacturingInputServices))*0.4
+
+# Inputs Purchased by Services
+ServicesInputManufacturing <- round_any(runif(1,5,15),5)
+ServicesInputServices <- round_any(runif(1,5,15),5)
+
+ServicesInputHouseholds <- (100 - (ServicesInputManufacturing + ServicesInputServices))- 10
+
+# Inputs Purchased by Households
+HouseholdsInputAgriculture <- (100 - (AgricultureInputAgriculture + ManufacturingInputAgriculture))/2
+HouseholdsInputManufacturing <- (200 - (AgricultureInputManufacturing + ManufacturingInputManufacturing + ServicesInputManufacturing))/2
+HouseholdsInputServices <- (100 - (ManufacturingInputServices + ServicesInputServices))/2
+
+# Inputs Purchased by Exports
+ExportsInputManufacturing <- (200 - (AgricultureInputManufacturing + ManufacturingInputManufacturing + ServicesInputManufacturing))/2.5
+
+# Inputs Purchased by Government
+GovernmentInputManufacturing <- 200 - (AgricultureInputManufacturing + ManufacturingInputManufacturing + ServicesInputManufacturing + HouseholdsInputManufacturing + ExportsInputManufacturing)
+GovernmentInputServices <- (100 - (ManufacturingInputServices + ServicesInputServices))/2.5
+
+# Inputs Purchased by Exports
+ExportsInputAgriculture <- (100 - (AgricultureInputAgriculture + ManufacturingInputAgriculture))/2
+ExportsInputServices <- 100 - (ManufacturingInputServices + ServicesInputServices + HouseholdsInputServices + GovernmentInputServices)
+
+');
+
+@AgricultureInputAgriculture = rserve_eval('AgricultureInputAgriculture');
+@AgricultureInputManufacturing = rserve_eval('AgricultureInputManufacturing');
+@ManufacturingInputAgriculture = rserve_eval('ManufacturingInputAgriculture');
+@ManufacturingInputManufacturing = rserve_eval('ManufacturingInputManufacturing');
+@ManufacturingInputServices = rserve_eval('ManufacturingInputServices');
+@ServicesInputManufacturing = rserve_eval('ServicesInputManufacturing');
+@ServicesInputServices = rserve_eval('ServicesInputServices');
+@HouseholdsInputAgriculture = rserve_eval('HouseholdsInputAgriculture');
+@HouseholdsInputManufacturing = rserve_eval('HouseholdsInputManufacturing');
+@HouseholdsInputServices = rserve_eval('HouseholdsInputServices');
+@GovernmentInputManufacturing = rserve_eval('GovernmentInputManufacturing');
+@GovernmentInputServices = rserve_eval('GovernmentInputServices');
+@ExportsInputAgriculture = rserve_eval('ExportsInputAgriculture');
+@ExportsInputManufacturing = rserve_eval('ExportsInputManufacturing');
+@ExportsInputServices = rserve_eval('ExportsInputServices');
+@AgricultureInputHouseholds = rserve_eval('AgricultureInputHouseholds');
+@AgricultureInputGovernment = rserve_eval('AgricultureInputGovernment');
+@AgricultureInputImports = rserve_eval('AgricultureInputImports');
+@ManufacturingInputHouseholds = rserve_eval('ManufacturingInputHouseholds');
+@ManufacturingInputGovernment = rserve_eval('ManufacturingInputGovernment');
+@ManufacturingInputImports = rserve_eval('ManufacturingInputImports');
+@ServicesInputHouseholds = rserve_eval('ServicesInputHouseholds');
+
+# Gross Inputs
+$GrossInputHouseholds = $HouseholdsInputAgriculture[0] + $HouseholdsInputManufacturing[0] + $HouseholdsInputServices[0];
+$GrossInputGovernment = $GovernmentInputManufacturing[0] + $GovernmentInputServices[0];
+$GrossInputExports = $ExportsInputAgriculture[0] + $ExportsInputManufacturing[0] + $ExportsInputServices[0];
+
+# Gross Outputs
+$GrossOutputHouseholds = $AgricultureInputHouseholds[0] + $ManufacturingInputHouseholds[0] + $ServicesInputHouseholds[0];
+$GrossOutputGovernment = $AgricultureInputGovernment[0] + $ManufacturingInputGovernment[0] + 5;
+$GrossOutputImports = $AgricultureInputImports[0] + $ManufacturingInputImports[0] + 5;
+
+# Total Inputs Outputs
+$Total1 = 400 + $GrossOutputHouseholds + $GrossOutputGovernment + $GrossOutputImports;
+$Total2 = 400 + $GrossInputHouseholds + $GrossInputGovernment + $GrossInputExports;
+
+if($Total1 == $Total2) {$Total = $Total1; }
+
+#Technical Coefficients
+$AgricultureInputAgricultureTC = $AgricultureInputAgriculture[0]/100;
+$ManufacturingInputAgricultureTC = $ManufacturingInputAgriculture[0]/100;
+$AgricultureInputManufacturingTC = $AgricultureInputManufacturing[0]/200;
+$ManufacturingInputManufacturingTC = $ManufacturingInputManufacturing[0]/200;
+$ServicesInputManufacturingTC = $ServicesInputManufacturing[0]/200;
+$ManufacturingInputServicesTC = $ManufacturingInputServices[0]/100;
+$ServicesInputServicesTC = $ServicesInputServices[0]/100;
+
+
+$scaffold = Scaffold();
+#$isInstructor =  ($envir{effectivePermissionLevel} >= $envir{ALWAYS_SHOW_SOLUTION_PERMISSION_LEVEL});
+$isInstructor=0;   # This variable changes what the user can see.
+INITIALIZE_SCAFFOLD('$scaffold');
+
+TEXT(beginproblem());
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+#########################################################
+## Main Text: where all text goes (Required)
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+This is an input output table simplified from Harvey Armstrong and Jim Taylor Regional Economics and Policy 1988. This table represents a very simple version of a three part economy based on Agriculture, Manufacturing and Services.
+$BR
+
+$PAR
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '', '', 'Inputs purchased by:', '', '', 'Final demand sectors:', '', 'Gross Ouput'],
+    [['', headerrow => 1], '','Agriculture', 'Manufacturing', 'Services', 'Households', 'Government', 'Exports', ''],
+    [['Output produced by:', b=>1],'', '', '', '', '', '', '', ''], 
+    ['', ['Agriculture', b=>1], '@AgricultureInputAgriculture', '@ManufacturingInputAgriculture', '0', '@HouseholdsInputAgriculture', '0', '@ExportsInputAgriculture', ['100',b=>1]],
+    ['', ['Manufacturing', b=>1], '@AgricultureInputManufacturing', '@ManufacturingInputManufacturing', '@ServicesInputManufacturing', '@HouseholdsInputManufacturing', '@GovernmentInputManufacturing', '@ExportsInputManufacturing', ['200', b=>1]],
+    ['', ['Services', b=>1], '0', '@ManufacturingInputServices', '@ServicesInputServices', '@HouseholdsInputServices', '@GovernmentInputServices', '@ExportsInputServices', ['100', b=>1]],
+    [['Payments for:', b=>1],'', '', '', '', '', '', '', ''], 
+    ['', ['Household Services (Wages, etc.)', b=>1], '@AgricultureInputHouseholds', '@ManufacturingInputHouseholds', '@ServicesInputHouseholds', '', '', '', ['$GrossOutputHouseholds', b=>1]],
+    ['', ['Government Services (Taxes)', b=>1], '@AgricultureInputGovernment', '@ManufacturingInputGovernment', '5', '', '', '', ['$GrossOutputGovernment', b=>1]],
+    ['', ['Imports', b=>1], '@AgricultureInputImports', '@ManufacturingInputImports', '5', '', '', '', ['$GrossOutputImports', b=>1]],
+    [['Gross Inputs', headerrow =>1],'', '100', '200', '100', '$GrossInputHouseholds', '$GrossInputGovernment', '$GrossInputExports', ['$Total', b=>1]],
+    ],
+  caption => 'Transactions Table',
+  midrules => 1,
+  align => '| p{1in} p{1.5in} | c c c | c c c | c |',
+);
+\}
+
+$BR
+$BR
+
+END_TEXT
+
+##############
+#  Section 1
+##############
+Context()->texStrings;
+DISPLAY_SECTION(  {  name=>"1: Direct Requirements (Technical Coefficients)", 
+             canshow =>1,  #always true
+             iscorrect=>$scaffold->requireCorrect(1,2,3,4,5,6,7,8,9), 
+             section=>1 #designates that this is the first section
+} , <<'END_SECTION'); 
+
+$PAR
+Complete the following table of the technical coefficients (direct requirements). They represent the direct impacts of a 
+$BBOLD 
+1 unit
+$EBOLD
+increase in demand for each industry.
+$PAR
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '', '', 'Inputs purchased by:', ''],
+    [['', headerrow => 1], '','Agriculture', 'Manufacturing', 'Services'],
+    [['Output produced by:', b=>1],'', '', '', ''], 
+    ['', ['Agriculture', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ['', ['Manufacturing', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ['', ['Services', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ],
+  caption => 'Direct Requirements (Technical Coefficients)',
+  midrules => 1,
+  align => '| X X | c c c |',
+  );
+\}
+$PAR
+END_SECTION
+
+SECTION_ANS(num_cmp($AgricultureInputAgricultureTC));
+SECTION_ANS(num_cmp($ManufacturingInputAgricultureTC));
+SECTION_ANS(num_cmp(0));
+SECTION_ANS(num_cmp($AgricultureInputManufacturingTC));
+SECTION_ANS(num_cmp($ManufacturingInputManufacturingTC));
+SECTION_ANS(num_cmp($ServicesInputManufacturingTC));
+SECTION_ANS(num_cmp(0));
+SECTION_ANS(num_cmp($ManufacturingInputServicesTC));
+SECTION_ANS(num_cmp($ServicesInputServicesTC));
+
+SECTION_SOLUTION({section=>1},<<'END_SOLUTION');
+
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '', '', 'Inputs purchased by:', ''],
+    [['', headerrow => 1], '','Agriculture', 'Manufacturing', 'Services'],
+    [['Output produced by:', b=>1],'', '', '', ''], 
+    ['', ['Agriculture', b=>1], '$AgricultureInputAgricultureTC', '$ManufacturingInputAgricultureTC', '0'],
+    ['', ['Manufacturing', b=>1], '$AgricultureInputManufacturingTC', '$ManufacturingInputManufacturingTC', '$ServicesInputManufacturingTC'],
+    ['', ['Services', b=>1], '0', '$ManufacturingInputServicesTC', '$ServicesInputServicesTC'],
+    ],
+  caption => 'Direct Requirements (Technical Coefficients)',
+  midrules => 1,
+  align => '| X X | c c c |',
+ );
+\}
+
+END_SOLUTION
+
+###############
+#  Section 2
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"2: Direct Production Required to Produce 5 units of Agriculture", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6,7,8,9). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(10,11,12,13,14,15), 
+             section=>2
+},   <<'END_SECTION'); 
+
+If the demand for Agriculture increases by 5 units, determine the amount of direct input required from Agriculture, Manufacturing and Services to meet that demand.
+
+$PAR
+
+\{
+DataTable(
+  [
+    [['', headerrow => 1], 'Inputs Required for 5 units of Agriculture ', 'Total Inputs Required'],
+    [['Agriculture', b=>1], ans_rule(5), ans_rule(5)],
+    [['Manufacturing', b=>1], ans_rule(5), ans_rule(5)],
+    [['Services', b=>1], ans_rule(5), ans_rule(5)],
+    ],
+  caption => 'Direct Production required to produce 5 units of Agriculture',
+  midrules => 1,
+  align => '| X | c | c |',
+  );
+\}
+
+$PAR
+END_SECTION
+
+#Direct Production Required
+$AgricultureInputAgricultureRequired = 5*$AgricultureInputAgricultureTC;
+$TotalAgricultureInputAgricultureRequired = 5*$AgricultureInputAgricultureTC + 5;
+$AgricultureInputManufacturingRequired = 5*$AgricultureInputManufacturingTC;
+
+SECTION_ANS(num_cmp($AgricultureInputAgricultureRequired));
+SECTION_ANS(num_cmp($TotalAgricultureInputAgricultureRequired));
+SECTION_ANS(num_cmp($AgricultureInputManufacturingRequired));
+SECTION_ANS(num_cmp($AgricultureInputManufacturingRequired));
+SECTION_ANS(num_cmp(0));
+SECTION_ANS(num_cmp(0));
+
+#########################################################
+
+SECTION_SOLUTION({section=>2},<<'END_SOLUTION');
+\{
+DataTable(
+  [
+    [['', headerrow => 1], 'Inputs Required for 5 units of Agriculture ', 'Total Inputs Required'],
+    [['Agriculture', b=>1], '$AgricultureInputAgricultureRequired', '$TotalAgricultureInputAgricultureRequired'],
+    [['Manufacturing', b=>1], '$AgricultureInputManufacturingRequired', '$AgricultureInputManufacturingRequired'],
+    [['Services', b=>1], '0', '0'],
+    ],
+  caption => 'Direct Production required to produce 5 units of Agriculture',
+  midrules => 1,
+  align => '| X | c | c |',
+);
+\}
+END_SOLUTION
+
+###############
+#  Section 3
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"3: Second Level Requirements", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(16,17,18,19,20,21,22,23,24), 
+             section=>3
+},   <<'END_SECTION'); 
+
+Using the technical coefficients and the inputs required for the direct production, determine the second level requirements to produce these 5 units of Agricultural output. In this case you need to do the calculation for Agriculture, Manufacturing and Services.  
+
+$PAR
+
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '', '', 'Inputs purchased by:', ''],
+    [['', headerrow => 1], '','Agriculture', 'Manufacturing', 'Services'],
+    [['Output produced by:', b=>1],'', '', '', ''], 
+    ['', ['Agriculture', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ['', ['Manufacturing', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ['', ['Services', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ],
+  caption => 'Second Level Requirements',
+  midrules => 1,
+  align => '| X X | c c c |',
+  );
+\}
+$PAR
+END_SECTION
+
+#Second Level Requirements
+$AgricultureInputAgricultureSL = 5*$AgricultureInputAgricultureTC*$AgricultureInputAgricultureTC;
+$ManufacturingInputAgricultureSL = 5*$AgricultureInputManufacturingTC*$ManufacturingInputAgricultureTC;
+$AgricultureInputManufacturingSL = 5*$AgricultureInputAgricultureTC*$AgricultureInputManufacturingTC;
+$ManufacturingInputManufacturingSL = 5*$AgricultureInputManufacturingTC*$ManufacturingInputManufacturingTC;
+$ManufacturingInputServicesSL = 5*$AgricultureInputManufacturingTC*$ManufacturingInputServicesTC;
+
+
+SECTION_ANS(num_cmp($AgricultureInputAgricultureSL));
+SECTION_ANS(num_cmp($ManufacturingInputAgricultureSL));
+SECTION_ANS(num_cmp(0));
+SECTION_ANS(num_cmp($AgricultureInputManufacturingSL));
+SECTION_ANS(num_cmp($ManufacturingInputManufacturingSL));
+SECTION_ANS(num_cmp(0));
+SECTION_ANS(num_cmp(0));
+SECTION_ANS(num_cmp($ManufacturingInputServicesSL));
+SECTION_ANS(num_cmp(0));
+
+#########################################################
+
+SECTION_SOLUTION({section=>3},<<'END_SOLUTION');
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '', '', 'Inputs purchased by:', ''],
+    [['', headerrow => 1], '','Agriculture', 'Manufacturing', 'Services'],
+    [['Output produced by:', b=>1],'', '', '', ''], 
+    ['', ['Agriculture', b=>1], '$AgricultureInputAgricultureSL', '$ManufacturingInputAgricultureSL', '0'],
+    ['', ['Manufacturing', b=>1], '$AgricultureInputManufacturingSL', '$ManufacturingInputManufacturingSL', '0'],
+    ['', ['Services', b=>1], '0', '$ManufacturingInputServicesSL', '0'],
+    ],
+  caption => 'Second Level Requirements',
+  midrules => 1,
+  align => '| X X | c c c |',
+ );
+\}
+END_SOLUTION
+
+###############
+#  Section 4
+###############
+Context()->texStrings;
+DISPLAY_SECTION( { name=>"4: Second Level Multiplier", 
+             canshow =>$scaffold->requireCorrect(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24). " or $isInstructor",
+             iscorrect=>$scaffold->requireCorrect(25,26,27,28,29,30,31,32,33), 
+             section=>4
+},   <<'END_SECTION'); 
+
+To determine the second level multipliers, we would need to first determine the total second level requirements, add them with the direct requirements, before dividing by the 5 units increment. 
+
+$PAR
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '','Total Inputs for Second Level', 'Total Inputs after Second Level', 'Second Level Multipliers'],
+    ['', ['Agriculture', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ['', ['Manufacturing', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ['', ['Services', b=>1], ans_rule(5), ans_rule(5), ans_rule(5)],
+    ],
+  caption => 'Second Level Multiplier',
+  midrules => 1,
+  align => '| X X | c | c | c |',
+  );
+\}
+$PAR
+END_SECTION
+
+#Second Level Total
+$AgricultureSLTotal = $AgricultureInputAgricultureSL + $ManufacturingInputAgricultureSL;
+$ManufacturingSLTotal = $AgricultureInputManufacturingSL + $ManufacturingInputManufacturingSL;
+
+#Total after Second Level
+$AgricultureTotalAfterSL = $AgricultureSLTotal + $TotalAgricultureInputAgricultureRequired;
+$ManufacturingTotalAfterSL = $ManufacturingSLTotal + $AgricultureInputManufacturingRequired;
+
+#Second Level Multiplier
+$AgricultureSLM = $AgricultureTotalAfterSL/5;
+$ManufacturingSLM = $ManufacturingTotalAfterSL/5;
+$ServicesSLM = $ManufacturingInputServicesSL/5;
+
+SECTION_ANS(num_cmp($AgricultureSLTotal));
+SECTION_ANS(num_cmp($AgricultureTotalAfterSL));
+SECTION_ANS(num_cmp($AgricultureSLM));
+SECTION_ANS(num_cmp($ManufacturingSLTotal));
+SECTION_ANS(num_cmp($ManufacturingTotalAfterSL));
+SECTION_ANS(num_cmp($ManufacturingSLM));
+SECTION_ANS(num_cmp($ManufacturingInputServicesSL));
+SECTION_ANS(num_cmp($ManufacturingInputServicesSL));
+SECTION_ANS(num_cmp($ServicesSLM));
+
+#########################################################
+
+SECTION_SOLUTION({section=>4},<<'END_SOLUTION');
+$PAR
+\{
+DataTable(
+  [
+    [['', headerrow => 1], '','Total Inputs for Second Level', 'Total Inputs after Second Level', 'Second Level Multipliers'],
+    ['', ['Agriculture', b=>1], '$AgricultureSLTotal', '$AgricultureTotalAfterSL', '$AgricultureSLM'],
+    ['', ['Manufacturing', b=>1], '$ManufacturingSLTotal', '$ManufacturingTotalAfterSL', '$ManufacturingSLM'],
+    ['', ['Services', b=>1], '$ManufacturingInputServicesSL', '$ManufacturingInputServicesSL', '$ServicesSLM'],
+    ],
+  caption => 'Second Level Multiplier',
+  midrules => 1,
+  align => '| X X | c | c | c |',
+  );
+\}
+$PAR
+END_SOLUTION
+
+PROCESS_ANSWERS();
+
+$last_correct_section = PROCESS_SECTIONS();
+
+$opensection = $last_correct_section + 1;
+$scaffold->openSections($opensection);
+
+TEXT($END_ONE_COLUMN);
+ENDDOCUMENT();       
+
+ 
+       

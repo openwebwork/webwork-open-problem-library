@@ -1,0 +1,317 @@
+# DESCRIPTION
+# Find energy generation and consumption parameters for a pumped hydro station 
+# ENDDESCRIPTION
+
+## DBsubject(Sustainable Energy Engineering)
+## DBchapter(Energy System)
+## DBsection(Storage)
+## Level(5)
+## KEYWORDS('energy', 'storage')
+## Institution(Simon Fraser University)
+## Author(Taco Niet and Trevor Barnes)
+## Resources(PumpedHydropower.png)
+
+# This work is licensed under
+# Creative Commons Attribution 4.0 International 
+# CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+##########################################
+# Initialization 
+##########################################
+
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "PGML.pl",
+  "MathObjects.pl",
+  "parserMultiAnswer.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "scaffold.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->flags->set(tolerance => .02);
+
+##########################################
+# Problem Setup 
+##########################################
+
+$numGenerators = Real(6);
+$capPerGenerator = Real(362); #MW
+$installedCapacity = $numGenerators*$capPerGenerator; #MW
+$storageCapacity = Real(19548); #MWh
+$storageCapacityHours = Real(9); #hours
+$eff = Real(70); #Percent
+
+###
+$downedGenerators = random(1,4,1);
+$usableCapacity = ($numGenerators-$downedGenerators)*$capPerGenerator; #MW
+$timeToGenerate = sprintf("%0.2f",$storageCapacity/$usableCapacity); #hrs
+$inputEnergy =  sprintf("%0.2f",$storageCapacity*(1/($eff/100))); #MWh
+
+###
+$generationHoursNew = random(4.5,7.5,0.25);
+$newCapacity = sprintf("%0.2f",$storageCapacity/$generationHoursNew/1000); #GW 
+
+###
+$cycleTime = random(8.0,14.0);
+$numCyclesUnrounded = sprintf("%0.2f", 8760/($generationHoursNew+$generationHoursNew*$cycleTime));
+$numCycles=floor($numCyclesUnrounded);
+$yearlyEnergy = sprintf("%0.2f",$numCycles*$storageCapacity/1000);
+$yearlyEnergyLost = sprintf("%0.2f",($inputEnergy-$storageCapacity)*$numCycles/1000);
+
+###
+$chargeTime = sprintf("%0.2f",$generationHoursNew*$cycleTime);
+$renewableFarmCapacityTheory = sprintf("%0.2f",$inputEnergy/$chargeTime); #MW
+$capFactorWind = random(35,45,1); #%
+$capFactorSolar = random(15,25,1); #%
+$energyPerFarm = sprintf("%0.2f",$inputEnergy/2); #MW
+$capacityWind = sprintf("%0.2f",$energyPerFarm/$chargeTime/($capFactorWind/100)); #MW
+$capacitySolar = sprintf("%0.2f",$energyPerFarm/$chargeTime/($capFactorSolar/100)); #MW
+$DOLLARSYMBOL = '\$';
+$PERCENTSYMBOL = '\%';
+
+##########################################
+# Problem Statement 
+##########################################
+
+Scaffold::Begin(
+);
+
+#\{htmlLink( "https://doi.org/10.1016/B978-0-12-803440-8.00002-6", " (Reference)" ) \} (Picture Reference)
+
+BEGIN_TEXT
+
+Pumped hydro power storage is a method to store excess electrical energy. 
+During peak generation hours, there can be more supply then demand due to 
+weather variability. Instead of wasting the excess energy, it is used to 
+power pumps that transport water up an elevation. At a later time when 
+energy is needed, the stored water flows down the elevation powering 
+turbines. The figure below demonstrates this process.
+$PAR
+$PAR
+\{ image("PumpedHydropower.png", width=>300, height=>250,  
+tex_size=>700, extra_html_tags=>'alt="Pumped Hydropower Schematic"' ) \}
+$PAR
+$PAR
+The Ludington Pumped Storage Power Plant is a large storage facility located 
+in Ludington, Michigan. According to its 
+\{htmlLink( "https://en.wikipedia.org/wiki/Ludington_Pumped_Storage_Power_Plant", "Wikipedia page" ) \}, 
+it has the following specifications: 
+$PAR
+\{
+DataTable(
+  [
+    ['Pump Generators',
+        '\($numGenerators\) x \($capPerGenerator\)',
+        'MW'],
+    ['Installed Capacity',
+        '\($installedCapacity\)',
+        'MW'],
+    ['Storage Capacity',
+        '\($storageCapacity\)  \(($storageCapacityHours\)  hours)',
+        'MWh'],
+    ['Overall Efficiency',
+        '\($eff\)',
+        '\($PERCENT\)'],
+  ], 
+  caption => 'The Ludington Pumped Storage Power Plant Specifications',
+);
+\}
+$PAR
+$PAR
+END_TEXT
+
+##########################################
+# Problem One 
+##########################################
+
+Section::Begin("Part 1: Existing Capacity",
+    is_open => "always",);
+
+BEGIN_PGML
+
+The nearby city of Ludington has a need to draw power from storage medium, 
+however, *[$downedGenerators] of the 6 turbines* are currently out of 
+commission.
+
+How much *usable* installed capacity remains?
+
+[__________]{$usableCapacity}[`\text{MW}`]
+
+How long will it take to generate the *[$storageCapacity] MWh* of 
+electricity with the remaining turbines? 
+
+[__________]{$timeToGenerate}[`\text{hrs}`]
+
+How much *input energy* is needed to be able to generate the 
+*[$storageCapacity] MWh* of electricity?
+
+[__________]{$inputEnergy}[`\text{MWh}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``([$numGenerators]-[$downedGenerators])\text{ Turbines} \cdot 
+[$capPerGenerator]\text{ MW} = 
+[$usableCapacity]\text{ MW}``]
+
+[``\frac{[$storageCapacity]\text{ MWh}}{[$usableCapacity]\text{ MW}} = 
+[$timeToGenerate]\text{ hours}``]
+
+[``\frac{[$storageCapacity]\text{ MWh}}{[$eff]%} = 
+[$inputEnergy]\text{ MWh}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Two 
+##########################################
+
+Section::Begin("Part 2: Energy Upgrade",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+Worried about electricity shortfalls, the city of Ludington wants to 
+understand upgrade opportunities for the storage facility. If instead of over 
+a [$storageCapacityHours] hour period, the goal is to generate the same 
+[$storageCapacity][`\text{MWh}`] of electricity over a *[$generationHoursNew] 
+hour period*, what total capacity is needed? 
+
+[__________]{$newCapacity}[`\text{GW}`]
+
+Assuming the overall efficiency does not change, how much *input energy* is 
+needed to be able to generate the [$storageCapacity][`\text{MWh}`] of 
+electricity?
+
+[__________]{$inputEnergy}[`\text{MWh}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\frac{[$storageCapacity]\text{ MWh}}{[$generationHoursNew]\text{ hours}} \cdot 
+\frac{\text{1 GW}}{\text{1000 MW}} = 
+[$newCapacity]\text{ GW}``]
+
+[``\frac{[$storageCapacity]\text{ MWh}}{[$eff]%} = 
+[$inputEnergy]\text{ MWh}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Three 
+##########################################
+
+Section::Begin("Part 3: Yearly Energy",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+If it takes *[$cycleTime] times longer* to fill the reservoir then to drain 
+it, how many *complete* cycles can the *new equipment* perform in a year? 
+(Consider a cycle to be filling the reservoir to max capacity and completely 
+draining the reservoir)
+
+[__________]{$numCycles}[`\text{ Cycles}`]
+
+What is the total energy generated from these cycles? 
+
+[__________]{$yearlyEnergy}[`\text{GWh}`]
+
+How much energy is *lost* during these cycles? 
+
+[__________]{$yearlyEnergyLost}[`\text{GWh}`]
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\frac{\text{1 Cycle}}{[$generationHoursNew]\text{ hours} + 
+([$generationHoursNew]\text{ hours} \cdot 
+[$cycleTime])} \cdot 
+\frac{\text{8760 hrs}}{\text{1 year}} = 
+[$numCyclesUnrounded]\frac{\text{Cycles}}{\text{Year}}``]
+
+[``\text{If we have a partial cycle, we round DOWN to the nearest integer to 
+find the number of complete cycles}``]
+
+[``[$numCycles]\frac{\text{Cycles}}{\text{Year}}``]
+
+-------------------------------------------
+
+[``([$storageCapacity]\text{ MWh}) \cdot 
+([$numCycles]\text{ Cycles}) \cdot 
+\frac{\text{1 GWh}}{\text{1000 MWh}} = 
+[$yearlyEnergy]\text{ GWh}``]
+
+[``([$inputEnergy]\text{ MWh} - [$storageCapacity]\text{ MWh}) \cdot 
+([$numCycles]\text{ Cycles}) \cdot 
+\frac{\text{1 GWh}}{\text{1000 MWh}} = 
+[$yearlyEnergyLost]\text{ GWh}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+# Problem Four 
+##########################################
+
+Section::Begin("Part 4: Input Energy Generation",
+    can_open => "when_previous_correct",);
+
+BEGIN_PGML
+
+To generate the electricity needed to power the system, the city of Ludington 
+suggests building a dedicated renewable energy farm. What is the *minimum 
+theoretical* sized capacity system needed to completely fill the reservoir? 
+(Still assuming it takes [$cycleTime] times longer to fill the reservoir 
+then to drain it)
+
+[__________]{$renewableFarmCapacityTheory}[`\text{MW}`]
+
+The city plans to construct both wind turbines and solar panels to meet this 
+demand. The yearly average capacity factor for *wind* is [$capFactorWind]
+[$PERCENT], while the yearly average capacity factor for *solar* is 
+[$capFactorSolar][$PERCENT]. If over the year they want *equal energy 
+generation* from both farms, what capacity farms are needed?
+
+[__________]{$capacityWind}[`\text{MW}`] for *Wind*
+
+[__________]{$capacitySolar}[`\text{MW}`] for *Solar*
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+[``\frac{[$inputEnergy]\text{ MWh}}{[$chargeTime]\text{ hours}} = 
+[$renewableFarmCapacityTheory]\text{MW}``]
+
+---------------------------------------
+
+[``\frac{[$inputEnergy]\text{ MWh}}{\text{2 Farms}} = 
+\frac{[$energyPerFarm]\text{ MWh}}{\text{Farm}}``]
+
+[``\frac{[$energyPerFarm]\text{MWh}}{[$chargeTime]\text{ hrs}} \cdot 
+\frac{\text{1}}{[$capFactorWind]%} = 
+[$capacityWind]\text{ MW of Wind}``]
+
+[``\frac{[$energyPerFarm]\text{MWh}}{[$chargeTime]\text{ hrs}} \cdot 
+\frac{\text{1}}{[$capFactorSolar]%} = 
+[$capacitySolar]\text{ MW of Solar}``]
+
+END_PGML_SOLUTION
+Section::End();
+
+##########################################
+
+Scaffold::End();
+ENDDOCUMENT();
