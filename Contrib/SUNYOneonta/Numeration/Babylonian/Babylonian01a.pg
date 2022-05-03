@@ -1,0 +1,204 @@
+#Description
+#Math for Elementary Education
+#End Description
+
+# DBsubject(Historical Systems)
+# DBchapter(Arithmetic)
+# DBsection(Converting)
+# Date(2/28/22)
+# Institution(SUNY Oneonta)
+# Level(2)
+# KEYWORDS('Babylonian', 'Numeration')
+# RESOURCES('babylonian1_01a.png', 'babylonian10_01a.png')
+
+###################################
+
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "AnswerFormatHelp.pl",
+  "PGcourse.pl",
+  "niceTables.pl",
+  "contextArbitraryString.pl",
+);
+
+TEXT(beginproblem());
+
+
+###########################
+#  Setup
+
+Context("ArbitraryString");
+Context()->strings->add('<'=>{});
+$AddMe = String('<'); # For some reason this has to exist for the problem to be read in properly
+# Context()->strings->add(True=>{},False=>{});
+
+# Presents student with number value that must be converted to Babylonian numeral string for answer
+$var01 = random(1, 1);
+$var02 = random(1, 59);
+$var03 = random(1, 59);
+$ShownValue = ($var01 * 3600) + ($var02*60) + $var03; # Value shown to the student
+
+$strAns = (' ');  # Creates a string for storing variables in
+chop $strAns;
+
+while ($var01 > 9) {
+  $strAns = join '', $strAns, $AddMe; # push X value into front of array, 1000s value
+  $var01 -= 10;
+}
+
+while ($var01 > 0) {
+  $strAns = join '', $strAns, 'V'; # push X value into front of array, 1000s value
+  $var01 -= 1;
+}
+
+$strAns = join '', $strAns, ' '; # separate 3600s place and 60s place
+
+while ($var02 > 9) {
+  $strAns = join '', $strAns, $AddMe; # push X value into front of array, 1000s value
+  $var02 -= 10;
+}
+
+while ($var02 > 0) {
+  $strAns = join '', $strAns, 'V'; # push X value into front of array, 1000s value
+  $var02 -= 1;
+}
+
+$strAns = join '', $strAns, ' '; # separate 60s place and 1s place
+
+while ($var03 > 9) {
+  $strAns = join '', $strAns, $AddMe; # push X value into front of array, 1000s value
+  $var03 -= 10;
+}
+
+while ($var03 > 0) {
+  $strAns = join '', $strAns, 'V'; # push X value into front of array, 1000s value
+  $var03 -= 1;
+}
+
+###########################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+$PAR
+ Write $ShownValue as a Babylonian numeral. Use the following key to input
+your answer:
+$BR 
+
+$BR
+$BR 
+\{ 
+DataTable(
+  [
+    [['Babylonian Symbol', headerrow => 1],'Keyboard Input'],
+    [image("babylonian1_01a.png",width=>23,height=>32,tex_size=>40, extra_html_tags=>'alt="Babylonian Numeral 1."'),'V'],
+    [image("babylonian10_01a.png",width=>23,height=>32,tex_size=>40, extra_html_tags=>'alt="Babylonian Numeral 10."'), '\( \lt \)' ]
+  ], 
+  caption => ' ',
+);
+\}
+$BR $BR 
+$BCENTER
+$ShownValue = \{ ans_rule(58) \}
+$ECENTER
+$BR
+
+END_TEXT
+Context()->normalStrings;
+#\{ AnswerFormatHelp("numbers") \} Use this in texStrings to allows students to see formulas
+
+############################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+#ANS( Compute($strAns)->cmp());
+
+ANS(Compute($strAns)->cmp(checker => sub{
+	my ($correct, $student, $ansHash) = @_;
+    
+    $student = uc $student; # Convert student answer to uppercase
+	
+    @resultA = split(' ', $student, length($student)); # Used to check entire string placement
+	@resultB = split(' ', $strAns, length($strAns));
+    
+    $arrSize = @resultA; # Size of array
+    $altCorrect = $correct; # copy of correct answer
+    $altCorrect =~ s/ //g; # Removes spaces from correct answer!
+	
+	@resultC = split('', $student, length($student)); # Used solely for checking spaces/typos
+    #@resultD = split('', $strAns, length($student)); # Used solely for checking spaces/typos 
+    
+	if($arrSize == 1 && $student eq $altCorrect) # Student didn't use spaces but has right answer
+	{
+		Value->Error("Place values must be separated with a single space");
+	}
+    
+    for($var01 = 0; $var01 < length($student); $var01++) #Check for any additional spaces that aren't needed
+    {
+        if($resultC[$var01] eq ' ')
+        {
+            $var03 += 1; # Count each space being used
+        }
+    }
+	
+    if($var03 == 1) # Not enough spaces are being used. IN THIS VERSION, there are either 0 or 2 spaces
+    {
+        Value->Error("Place values must be separated with a single space");
+    }
+    elsif($var03 > 2) # Too many spaces are being used.
+    {
+        Value->Error("You have too many spaces in your answer! Double check your answer for unnecessary spaces");
+    }
+           
+    $var03 = 0; # This value MUST equal the number of symbols - 1 by the end of the loop
+    
+    for($var01 = 0; $var01 < length($student); $var01++) #Check for any additional spaces that aren't needed
+    {
+        if($resultC[$var01] eq ' ')
+        {
+            $var03 += 1;
+        }
+
+        if($var01 < (length($student) - 1))   #Check to see if there's a minor typo, compares current char with next char
+        {        
+            if($resultC[$var01] eq 'V' && $resultC[$var01+1] eq $AddMe)# && $resultD[$var01] eq $AddMe && $resultD[$var01+1] eq 'V') # V then <
+            {
+                Value->Error("Symbols must be in decreasing order.");
+            }
+        }
+
+    } # End of For loop
+    
+    if($resultB[0] ne $resultB[2]) # First and last symbol in the answer aren't the same symbol
+    {
+        if($resultA[0] eq $resultB[2] || $resultA[2] eq $resultB[0]) # Student's answer is in wrong order
+        {
+            Value->Error("Symbols must be in decreasing order!"); 
+        }
+    }
+    
+	if($student ne $correct) # If all other checks fail, directly check strings
+	{
+		Value->Error(); # No error message
+	}
+	
+	return 1;
+
+}));
+
+############################
+#  Solution
+
+Context()->texStrings;
+#BEGIN_SOLUTION
+
+#< = 10, V = 1, $strAns
+#END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
