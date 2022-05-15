@@ -57,6 +57,7 @@ my $dbh = DBI->connect("DBI:MariaDB:database=OPL;host=127.0.0.1;port=$ENV{MYSQL_
 $dbh->prepare("SET NAMES 'utf8mb4'")->execute();
 
 my $libraryRoot = "$ENV{GITHUB_WORKSPACE}/OpenProblemLibrary";
+my $contribRoot = "$ENV{GITHUB_WORKSPACE}/Contrib";
 
 my $verbose = 0;
 my $cnt2    = 0;
@@ -123,6 +124,7 @@ my @create_tables = (
 	DBsection_id int(15) NOT NULL,
 	author_id int(15),
 	institution tinyblob,
+	libraryroot varchar(255) NOT NULL,
 	path_id int(15) NOT NULL,
 	filename varchar(255) NOT NULL,
 	morelt_id int(127) DEFAULT 0 NOT NULL,
@@ -273,8 +275,6 @@ sub isvalid {
 	}
 	return 1;
 }
-
-my ($name, $pgfile, $pgpath);
 
 # First read in textbook information
 if (open(my $fh, '<:encoding(UTF-8)', "$libraryRoot/Textbooks")) {
@@ -463,7 +463,8 @@ print "Converting data from tagged pgfiles into mysql.\n";
 print "Number of files processed:\n";
 
 # Now search for tagged problems
-File::Find::find({ wanted => \&pgfiles, follow_fast => 1 }, $libraryRoot);
+File::Find::find( { wanted => \&pgfiles, follow_fast => 1 }, $libraryRoot );
+File::Find::find( { wanted => \&pgfiles, follow_fast => 1 }, $contribRoot );
 
 sub trim {
 	return shift =~ s/^\s+|\s+$//gr;
@@ -503,13 +504,16 @@ sub pgfiles {
 	my @textproblems = (-1);
 
 	if ($name =~ /\.pg$/) {
-		$pgfile = basename($name);
-		$pgpath = dirname($name);
 		++$cnt2;
 		printf('%6d', $cnt2) if ($cnt2 % 100) == 0;
 		print "\n"           if ($cnt2 % 1000) == 0;
 
-		$pgpath =~ s|^$libraryRoot/||;
+		my $pgfile = basename($name);
+		dirname($name) =~ m|^([^/]*)/(.*)|;
+		my ($pglib, $pgpath) = ($1, $2);
+		$pglib =~ s|^$libraryRoot|Library|;
+		$pglib =~ s|^$contribRoot|Contrib|;
+
 		my $tags = Tags->new($name);
 
 		if ($tags->istagged()) {
@@ -624,9 +628,9 @@ sub pgfiles {
 			for my $DBsection_id (@DBsection_ids) {
 				my $pgfile_id = safe_get_id(
 					$tables{pgfile}, 'pgfile_id',
-					qq(WHERE filename = ? AND path_id = ? AND DBsection_id = ? ),
-					[ $pgfile, $path_id, $DBsection_id ], 1, '', $DBsection_id, $author_id, $tags->{Institution},
-					$path_id, $pgfile, 0, $level, $lang, $static, $mathobj
+					qq(WHERE filename = ? AND path_id = ? AND DBsection_id = ? AND libraryroot = ?),
+					[ $pgfile, $path_id, $DBsection_id, $pglib ], 1, '', $DBsection_id, $author_id, $tags->{Institution},
+					$pglib, $path_id, $pgfile, 0, $level, $lang, $static, $mathobj
 				);
 				push @pgfile_ids, $pgfile_id;
 			}
