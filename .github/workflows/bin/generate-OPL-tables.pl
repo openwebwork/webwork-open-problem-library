@@ -509,10 +509,11 @@ sub pgfiles {
 		print "\n"           if ($cnt2 % 1000) == 0;
 
 		my $pgfile = basename($name);
-		dirname($name) =~ m|^([^/]*)/(.*)|;
+		my $pgpath = dirname($name);
+		$pgpath =~ s|^$libraryRoot|Library|;
+		$pgpath =~ s|^$contribRoot|Contrib|;
+		$pgpath =~ m|^([^/]*)/(.*)|;
 		my ($pglib, $pgpath) = ($1, $2);
-		$pglib =~ s|^$libraryRoot|Library|;
-		$pglib =~ s|^$contribRoot|Contrib|;
 
 		my $tags = Tags->new($name);
 
