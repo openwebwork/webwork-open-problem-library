@@ -566,7 +566,7 @@ sub pgfiles {
 			} else {
 				# Tags are not valid, error printed by validation part.
 				#print "File $name\n";
-				next;
+				return; # next is not valid for subs
 			}
 
 			my @DBsection_ids = ($aDBsection_id);
@@ -705,16 +705,18 @@ sub pgfiles {
 					$edition = 0 unless $edition;
 					$dbh->do(qq{INSERT INTO `$tables{textbook}`
 						VALUES( NULL, "$text", "$edition", "$textauthor", NULL, NULL, NULL)});
-					dbug qq{INSERT INTO textbook VALUES("", "$text", "$edition", "$textauthor", "", "", "")\n};
-					dbug qq{\nLate add into $tables{textbook} "$text", "$edition", "$textauthor"\n}, 1;
 					$textbook_id = $dbh->selectrow_array($textbook_id_query);
+					unless ($textbook_id) {
+						warn qq{INSERT INTO textbook VALUES("", "$text", "$edition", "$textauthor", "", "", "")\n};
+						warn qq{\nLate add into $tables{textbook} "$text", "$edition", "$textauthor"\n};
+					}
 				}
 
 				# chapter weak table of textbook
 				my $chapter_id_query = qq{SELECT chapter_id FROM `$tables{chapter}`
 					WHERE textbook_id="$textbook_id" AND number="$chapnum"};
 				my $chapter_id = $dbh->selectrow_array($chapter_id_query);
-				if (!defined($chapter_id)) {
+				if (!defined($chapter_id) && defined($textbook_id)) {
 					$dbh->do(qq{INSERT INTO `$tables{chapter}`
 						VALUES(NULL, "$textbook_id", "$chapnum", "$tags->{DBchapter}", NULL)});
 					dbug qq{\nLate add into $tables{chapter} "$text", "$edition",
@@ -728,7 +730,7 @@ sub pgfiles {
 				my $section_id_query = qq{SELECT section_id FROM `$tables{section}`
 					WHERE chapter_id="$chapter_id" AND number="$secnum"};
 				my $section_id = $dbh->selectrow_array($section_id_query);
-				if (!defined($section_id)) {
+				if (!defined($section_id) && defined($chapter_id) && defined($textbook_id)) {
 					$dbh->do(qq{INSERT INTO `$tables{section}`
 						VALUES(NULL, "$chapter_id", "$secnum", "$tags->{DBsection}", NULL)});
 					dbug qq{INSERT INTO section VALUES("", "$textbook_id", "$secnum", "$tags->{DBsection}", "" )\n};
@@ -738,23 +740,25 @@ sub pgfiles {
 				}
 
 				@textproblems = @{ $texthashref->{problems} };
-				for my $tp (@textproblems) {
-					my $problem_id_query = qq{SELECT problem_id FROM `$tables{problem}`
-						WHERE section_id="$section_id" AND number="$tp"};
-					my $problem_id = $dbh->selectrow_array($problem_id_query);
-					if (!defined($problem_id)) {
-						$dbh->do(qq{INSERT INTO `$tables{problem}` VALUES(NULL, "$section_id", "$tp", NULL)});
-						dbug qq{INSERT INTO problem VALUES("", "$section_id", "$tp", "")\n};
-						$problem_id = $dbh->selectrow_array($problem_id_query);
-					}
+				if ($section_id) {
+					for my $tp (@textproblems) {
+						my $problem_id_query = qq{SELECT problem_id FROM `$tables{problem}`
+							WHERE section_id="$section_id" AND number="$tp"};
+						my $problem_id = $dbh->selectrow_array($problem_id_query);
+						if (!defined($problem_id)) {
+							$dbh->do(qq{INSERT INTO `$tables{problem}` VALUES(NULL, "$section_id", "$tp", NULL)});
+							dbug qq{INSERT INTO problem VALUES("", "$section_id", "$tp", "")\n};
+							$problem_id = $dbh->selectrow_array($problem_id_query);
+						}
 
-					# pgfile_problem table associates pgfiles with textbook problems
-					for my $pgfile_id (@pgfile_ids) {
-						my $pg_problem_id = $dbh->selectrow_array(qq{SELECT problem_id FROM `$tables{pgfile_problem}`
-							WHERE problem_id="$problem_id" AND pgfile_id="$pgfile_id"});
-						if (!defined($pg_problem_id)) {
-							$dbh->do(qq{INSERT INTO `$tables{pgfile_problem}` VALUES("$pgfile_id", "$problem_id")});
-							dbug qq{INSERT INTO pgfile_problem VALUES("$pgfile_id", "$problem_id")\n};
+						# pgfile_problem table associates pgfiles with textbook problems
+						for my $pgfile_id (@pgfile_ids) {
+							my $pg_problem_id = $dbh->selectrow_array(qq{SELECT problem_id FROM `$tables{pgfile_problem}`
+								WHERE problem_id="$problem_id" AND pgfile_id="$pgfile_id"});
+							if (!defined($pg_problem_id)) {
+								$dbh->do(qq{INSERT INTO `$tables{pgfile_problem}` VALUES("$pgfile_id", "$problem_id")});
+								dbug qq{INSERT INTO pgfile_problem VALUES("$pgfile_id", "$problem_id")\n};
+							}
 						}
 					}
 				}
