@@ -260,17 +260,17 @@ sub safe_get_id {
 sub isvalid {
 	my $tags = shift;
 	if (!defined $taxo->{ $tags->{DBsubject} }) {
-		print "\nInvalid subject $tags->{DBsubject}\n";
+		#print "\nInvalid subject $tags->{DBsubject}\n";
 		return 0;
 	}
 	if (!($tags->{DBchapter} eq 'Misc.') && !defined $taxo->{ $tags->{DBsubject} }{ $tags->{DBchapter} }) {
-		print "\nInvalid chapter $tags->{DBchapter}\n";
+		#print "\nInvalid chapter $tags->{DBchapter}\n";
 		return 0;
 	}
 	if (!($tags->{DBsection} eq 'Misc.')
 		&& !defined $taxo->{ $tags->{DBsubject} }{ $tags->{DBchapter} }{ $tags->{DBsection} })
 	{
-		print "\nInvalid section $tags->{DBsection}\n";
+		#print "\nInvalid section $tags->{DBsection}\n";
 		return 0;
 	}
 	return 1;
@@ -519,8 +519,9 @@ sub pgfiles {
 
 		if ($tags->istagged()) {
 			# Fill in missing data with Misc. instead of blank
-			print "\nNO SUBJECT $name\n" unless ($tags->{DBsubject} =~ /\S/);
+			#print "\nNO SUBJECT $name\n" unless ($tags->{DBsubject} =~ /\S/);
 
+			$tags->{DBsubject} = 'Misc.' unless $tags->{DBchapter} =~ /\S/;
 			$tags->{DBchapter} = 'Misc.' unless $tags->{DBchapter} =~ /\S/;
 			$tags->{DBsection} = 'Misc.' unless $tags->{DBsection} =~ /\S/;
 
@@ -564,7 +565,7 @@ sub pgfiles {
 				}
 			} else {
 				# Tags are not valid, error printed by validation part.
-				print "File $name\n";
+				#print "File $name\n";
 				next;
 			}
 
@@ -615,17 +616,15 @@ sub pgfiles {
 			my $path_id = safe_get_id($tables{path}, 'path_id', qq(WHERE path = ?), [$pgpath], 1, '', $pgpath, '', '');
 
 			# pgfile table -- set 4 defaults first
-
-			# TODO this is where we have to deal with crosslists, and pgfileid will be an array of id's
-			# Make an array of DBsection-id's above
-			my $level = $tags->{Level} || 0;
-			# Default language is English
+			my $level   = ($tags->{Level} =~ /\d/) ? $tags->{Level} || 0;
 			my $lang    = $tags->{Language} || 'en';
 			my $mathobj = $tags->{MO}       || 0;
 			my $static  = $tags->{Static}   || 0;
 
-			my @pgfile_ids;
 
+			# TODO this is where we have to deal with crosslists, and pgfileid will be an array of id's
+			# Make an array of DBsection-id's above
+			my @pgfile_ids;
 			for my $DBsection_id (@DBsection_ids) {
 				my $pgfile_id = safe_get_id(
 					$tables{pgfile}, 'pgfile_id',
