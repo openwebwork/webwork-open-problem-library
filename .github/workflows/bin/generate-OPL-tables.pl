@@ -616,7 +616,7 @@ sub pgfiles {
 			my $path_id = safe_get_id($tables{path}, 'path_id', qq(WHERE path = ?), [$pgpath], 1, '', $pgpath, '', '');
 
 			# pgfile table -- set 4 defaults first
-			my $level   = ($tags->{Level} =~ /\d/) ? $tags->{Level} || 0;
+			my $level   = ($tags->{Level} =~ /\d/) ? $tags->{Level} : 0;
 			my $lang    = $tags->{Language} || 'en';
 			my $mathobj = $tags->{MO}       || 0;
 			my $static  = $tags->{Static}   || 0;
