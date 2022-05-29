@@ -57,6 +57,7 @@ my $dbh = DBI->connect("DBI:MariaDB:database=OPL;host=127.0.0.1;port=$ENV{MYSQL_
 $dbh->prepare("SET NAMES 'utf8mb4'")->execute();
 
 my $libraryRoot = "$ENV{GITHUB_WORKSPACE}/OpenProblemLibrary";
+my $contribRoot = "$ENV{GITHUB_WORKSPACE}/Contrib";
 
 my $verbose = 0;
 my $cnt2    = 0;
@@ -123,6 +124,7 @@ my @create_tables = (
 	DBsection_id int(15) NOT NULL,
 	author_id int(15),
 	institution tinyblob,
+	libraryroot varchar(255) NOT NULL,
 	path_id int(15) NOT NULL,
 	filename varchar(255) NOT NULL,
 	morelt_id int(127) DEFAULT 0 NOT NULL,
@@ -258,23 +260,21 @@ sub safe_get_id {
 sub isvalid {
 	my $tags = shift;
 	if (!defined $taxo->{ $tags->{DBsubject} }) {
-		print "\nInvalid subject $tags->{DBsubject}\n";
+		#print "\nInvalid subject $tags->{DBsubject}\n";
 		return 0;
 	}
 	if (!($tags->{DBchapter} eq 'Misc.') && !defined $taxo->{ $tags->{DBsubject} }{ $tags->{DBchapter} }) {
-		print "\nInvalid chapter $tags->{DBchapter}\n";
+		#print "\nInvalid chapter $tags->{DBchapter}\n";
 		return 0;
 	}
 	if (!($tags->{DBsection} eq 'Misc.')
 		&& !defined $taxo->{ $tags->{DBsubject} }{ $tags->{DBchapter} }{ $tags->{DBsection} })
 	{
-		print "\nInvalid section $tags->{DBsection}\n";
+		#print "\nInvalid section $tags->{DBsection}\n";
 		return 0;
 	}
 	return 1;
 }
-
-my ($name, $pgfile, $pgpath);
 
 # First read in textbook information
 if (open(my $fh, '<:encoding(UTF-8)', "$libraryRoot/Textbooks")) {
@@ -463,7 +463,8 @@ print "Converting data from tagged pgfiles into mysql.\n";
 print "Number of files processed:\n";
 
 # Now search for tagged problems
-File::Find::find({ wanted => \&pgfiles, follow_fast => 1 }, $libraryRoot);
+File::Find::find( { wanted => \&pgfiles, follow_fast => 1 }, $libraryRoot );
+File::Find::find( { wanted => \&pgfiles, follow_fast => 1 }, $contribRoot );
 
 sub trim {
 	return shift =~ s/^\s+|\s+$//gr;
@@ -503,19 +504,24 @@ sub pgfiles {
 	my @textproblems = (-1);
 
 	if ($name =~ /\.pg$/) {
-		$pgfile = basename($name);
-		$pgpath = dirname($name);
 		++$cnt2;
 		printf('%6d', $cnt2) if ($cnt2 % 100) == 0;
 		print "\n"           if ($cnt2 % 1000) == 0;
 
-		$pgpath =~ s|^$libraryRoot/||;
+		my $pgfile = basename($name);
+		my $pgpath = dirname($name);
+		$pgpath =~ s|^$libraryRoot|Library|;
+		$pgpath =~ s|^$contribRoot|Contrib|;
+		$pgpath =~ m|^([^/]*)/(.*)|;
+		my ($pglib, $pgpath) = ($1, $2);
+
 		my $tags = Tags->new($name);
 
 		if ($tags->istagged()) {
 			# Fill in missing data with Misc. instead of blank
-			print "\nNO SUBJECT $name\n" unless ($tags->{DBsubject} =~ /\S/);
+			#print "\nNO SUBJECT $name\n" unless ($tags->{DBsubject} =~ /\S/);
 
+			$tags->{DBsubject} = 'Misc.' unless $tags->{DBchapter} =~ /\S/;
 			$tags->{DBchapter} = 'Misc.' unless $tags->{DBchapter} =~ /\S/;
 			$tags->{DBsection} = 'Misc.' unless $tags->{DBsection} =~ /\S/;
 
@@ -559,8 +565,8 @@ sub pgfiles {
 				}
 			} else {
 				# Tags are not valid, error printed by validation part.
-				print "File $name\n";
-				next;
+				#print "File $name\n";
+				return; # next is not valid for subs
 			}
 
 			my @DBsection_ids = ($aDBsection_id);
@@ -610,23 +616,21 @@ sub pgfiles {
 			my $path_id = safe_get_id($tables{path}, 'path_id', qq(WHERE path = ?), [$pgpath], 1, '', $pgpath, '', '');
 
 			# pgfile table -- set 4 defaults first
-
-			# TODO this is where we have to deal with crosslists, and pgfileid will be an array of id's
-			# Make an array of DBsection-id's above
-			my $level = $tags->{Level} || 0;
-			# Default language is English
+			my $level   = ($tags->{Level} =~ /\d/) ? $tags->{Level} : 0;
 			my $lang    = $tags->{Language} || 'en';
 			my $mathobj = $tags->{MO}       || 0;
 			my $static  = $tags->{Static}   || 0;
 
-			my @pgfile_ids;
 
+			# TODO this is where we have to deal with crosslists, and pgfileid will be an array of id's
+			# Make an array of DBsection-id's above
+			my @pgfile_ids;
 			for my $DBsection_id (@DBsection_ids) {
 				my $pgfile_id = safe_get_id(
 					$tables{pgfile}, 'pgfile_id',
-					qq(WHERE filename = ? AND path_id = ? AND DBsection_id = ? ),
-					[ $pgfile, $path_id, $DBsection_id ], 1, '', $DBsection_id, $author_id, $tags->{Institution},
-					$path_id, $pgfile, 0, $level, $lang, $static, $mathobj
+					qq(WHERE filename = ? AND path_id = ? AND DBsection_id = ? AND libraryroot = ?),
+					[ $pgfile, $path_id, $DBsection_id, $pglib ], 1, '', $DBsection_id, $author_id, $tags->{Institution},
+					$pglib, $path_id, $pgfile, 0, $level, $lang, $static, $mathobj
 				);
 				push @pgfile_ids, $pgfile_id;
 			}
@@ -701,16 +705,18 @@ sub pgfiles {
 					$edition = 0 unless $edition;
 					$dbh->do(qq{INSERT INTO `$tables{textbook}`
 						VALUES( NULL, "$text", "$edition", "$textauthor", NULL, NULL, NULL)});
-					dbug qq{INSERT INTO textbook VALUES("", "$text", "$edition", "$textauthor", "", "", "")\n};
-					dbug qq{\nLate add into $tables{textbook} "$text", "$edition", "$textauthor"\n}, 1;
 					$textbook_id = $dbh->selectrow_array($textbook_id_query);
+					unless ($textbook_id) {
+						warn qq{INSERT INTO textbook VALUES("", "$text", "$edition", "$textauthor", "", "", "")\n};
+						warn qq{\nLate add into $tables{textbook} "$text", "$edition", "$textauthor"\n};
+					}
 				}
 
 				# chapter weak table of textbook
 				my $chapter_id_query = qq{SELECT chapter_id FROM `$tables{chapter}`
 					WHERE textbook_id="$textbook_id" AND number="$chapnum"};
 				my $chapter_id = $dbh->selectrow_array($chapter_id_query);
-				if (!defined($chapter_id)) {
+				if (!defined($chapter_id) && defined($textbook_id)) {
 					$dbh->do(qq{INSERT INTO `$tables{chapter}`
 						VALUES(NULL, "$textbook_id", "$chapnum", "$tags->{DBchapter}", NULL)});
 					dbug qq{\nLate add into $tables{chapter} "$text", "$edition",
@@ -724,7 +730,7 @@ sub pgfiles {
 				my $section_id_query = qq{SELECT section_id FROM `$tables{section}`
 					WHERE chapter_id="$chapter_id" AND number="$secnum"};
 				my $section_id = $dbh->selectrow_array($section_id_query);
-				if (!defined($section_id)) {
+				if (!defined($section_id) && defined($chapter_id) && defined($textbook_id)) {
 					$dbh->do(qq{INSERT INTO `$tables{section}`
 						VALUES(NULL, "$chapter_id", "$secnum", "$tags->{DBsection}", NULL)});
 					dbug qq{INSERT INTO section VALUES("", "$textbook_id", "$secnum", "$tags->{DBsection}", "" )\n};
@@ -734,23 +740,25 @@ sub pgfiles {
 				}
 
 				@textproblems = @{ $texthashref->{problems} };
-				for my $tp (@textproblems) {
-					my $problem_id_query = qq{SELECT problem_id FROM `$tables{problem}`
-						WHERE section_id="$section_id" AND number="$tp"};
-					my $problem_id = $dbh->selectrow_array($problem_id_query);
-					if (!defined($problem_id)) {
-						$dbh->do(qq{INSERT INTO `$tables{problem}` VALUES(NULL, "$section_id", "$tp", NULL)});
-						dbug qq{INSERT INTO problem VALUES("", "$section_id", "$tp", "")\n};
-						$problem_id = $dbh->selectrow_array($problem_id_query);
-					}
+				if ($section_id) {
+					for my $tp (@textproblems) {
+						my $problem_id_query = qq{SELECT problem_id FROM `$tables{problem}`
+							WHERE section_id="$section_id" AND number="$tp"};
+						my $problem_id = $dbh->selectrow_array($problem_id_query);
+						if (!defined($problem_id)) {
+							$dbh->do(qq{INSERT INTO `$tables{problem}` VALUES(NULL, "$section_id", "$tp", NULL)});
+							dbug qq{INSERT INTO problem VALUES("", "$section_id", "$tp", "")\n};
+							$problem_id = $dbh->selectrow_array($problem_id_query);
+						}
 
-					# pgfile_problem table associates pgfiles with textbook problems
-					for my $pgfile_id (@pgfile_ids) {
-						my $pg_problem_id = $dbh->selectrow_array(qq{SELECT problem_id FROM `$tables{pgfile_problem}`
-							WHERE problem_id="$problem_id" AND pgfile_id="$pgfile_id"});
-						if (!defined($pg_problem_id)) {
-							$dbh->do(qq{INSERT INTO `$tables{pgfile_problem}` VALUES("$pgfile_id", "$problem_id")});
-							dbug qq{INSERT INTO pgfile_problem VALUES("$pgfile_id", "$problem_id")\n};
+						# pgfile_problem table associates pgfiles with textbook problems
+						for my $pgfile_id (@pgfile_ids) {
+							my $pg_problem_id = $dbh->selectrow_array(qq{SELECT problem_id FROM `$tables{pgfile_problem}`
+								WHERE problem_id="$problem_id" AND pgfile_id="$pgfile_id"});
+							if (!defined($pg_problem_id)) {
+								$dbh->do(qq{INSERT INTO `$tables{pgfile_problem}` VALUES("$pgfile_id", "$problem_id")});
+								dbug qq{INSERT INTO pgfile_problem VALUES("$pgfile_id", "$problem_id")\n};
+							}
 						}
 					}
 				}
