@@ -54,4 +54,12 @@ is($p3->Pronoun, 'They', 'Test the pronoun method for Kai');
 is($p3->verb('finds','find'), 'find', 'Tests the conjugation of the verb find for Kai.');
 is($p3->verb('is','are'), 'are', 'Tests the conjugation of the verb is for Kai.');
 
+my $rando = randomPerson();
+
+# Since the randomPerson() method use PGrandom, the seed is consistent, the person is
+# Brad. Note: may need to be updated if the list changes.
+
+is(ref $rando, 'Person', 'Check that the randomPerson method returns an object of Person class');
+is($rando->name, 'Brad', 'Check that the randomPerson method with standard seed returns Brad');
+
 done_testing;

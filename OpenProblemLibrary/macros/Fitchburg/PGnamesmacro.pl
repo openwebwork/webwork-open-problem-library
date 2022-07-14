@@ -22,11 +22,11 @@ the handling of pronouns.
 # 	return $values[$i];
 # }
 
-use YAML::XS;
+use YAML::XS qw/LoadFile/;
 
 sub randomPerson {
-	my @names = LoadFile('names-pronouns.yml');
-	return Person->new(list_random(@names));
+	my $names = LoadFile('names-pronouns.yml');
+	return Person->new(list_random(@$names));
 }
 
 1;
