@@ -11,6 +11,8 @@ PGnamemacros.pl - Load macros for random names.
 PGnamemacros.pl provides a randomName function that generates a random name with pronouns.  In addition,
 there is the capability of providing pronouns with and without capitilization and verb conjugation.
 
+Note: this idea was taken from the PCCmacros.pl RandomName subroutine to extend to
+the handling of pronouns.
 =cut
 
 # sub list_random {
