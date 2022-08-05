@@ -16,7 +16,7 @@ sub _unionImage_init {}; # don't reload this file
 #                            (default is [150,150])
 #
 #    tex_size => r           the size to use in TeX mode (as a percentage
-#                            of the line width times 10).  E.g., 500 is 
+#                            of the line width times 10).  E.g., 500 is
 #                            half the width, etc.  (default is 200.)
 #
 #    link => 0 or 1          whether to include a link to the original
@@ -32,6 +32,8 @@ sub _unionImage_init {}; # don't reload this file
 #
 #    tex_center => 0 or 1    whether to center the image horizontally
 #                            in TeX mode  (default is 0)
+#    extra_html_tags => s    where s is a string of any extra html tags to be
+#                            passed to the img tag.
 #
 #  The image name can be one of a number of different things.  It can be
 #  the name of an image file, or an alias to one produce by the alias()
@@ -56,6 +58,7 @@ sub Image {
   my ($ratio,$link) = ($options{tex_size}*(.001),$options{link});
   my ($border,$align) = ($options{border},$options{align});
   my ($tcenter) = $options{tex_center};
+  my $extra_html_tags = $options{extra_html_tags};
   my $HTML; my $TeX;
   ($image,$ilink) = @{$image} if (ref($image) eq "ARRAY");
   $ilink = $ilink//'';
@@ -66,15 +69,15 @@ sub Image {
     $ilink = alias($ilink) unless ($ilink =~ m!^(/|https?:)!i); # see note
   } else {$ilink = $image}
   #
-  # Note: These cases were added to handle the examples where the 
-  # $image tag has a full url -- in practice this arises when using lighttpd 
+  # Note: These cases were added to handle the examples where the
+  # $image tag has a full url -- in practice this arises when using lighttpd
   # to server images from a different port
   # e.g. http://hosted2.webwork.rochester.edu:8000/webwork2_course_files/....
   # A smarter implementation of alias might make this check unnecessary
   #
   $border = (($link || $ilink ne $image)? 2: 1) unless defined($border);
   $HTML = '<IMG SRC="'.$image.'" WIDTH="'.$w.
-          '" HEIGHT="'.$h.'" BORDER="'.$border.'" ALIGN="'.$align.'">';
+          '" HEIGHT="'.$h.'" BORDER="'.$border.'" ALIGN="'.$align.'" '. $extra_html_tags . '>';
   $HTML = '<A HREF="'.$ilink.'">'.$HTML.'</A>' if $link or $ilink ne $image;
   $TeX = '\includegraphics[width='.$ratio.'\linewidth]{'.$image.'}';
   $TeX = '\centerline{'.$TeX.'}' if $tcenter;
