@@ -145,7 +145,7 @@ my @create_tables = (
 		$tables{pgfile_keyword}, '
 	pgfile_id int(15) DEFAULT 0 NOT NULL,
 	keyword_id int(15) DEFAULT 0 NOT NULL,
-	KEY pgfile_keyword (keyword_id, pgfile_id),
+	PRIMARY KEY pgfile_keyword (keyword_id, pgfile_id),
 	KEY pgfile (pgfile_id)'
 	],
 	[
@@ -537,7 +537,7 @@ sub pgfiles {
 				);
 				if (not $DBsubject_id) {
 					print "\nInvalid subject '$tags->{DBsubject}' in $name\n";
-					next;
+					return;
 				}
 
 				# DBchapter table
@@ -549,7 +549,7 @@ sub pgfiles {
 				);
 				if (not $DBchapter_id) {
 					print "\nInvalid chapter '$tags->{DBchapter}' in $name\n";
-					next;
+					return;
 				}
 
 				# DBsection table
@@ -561,7 +561,7 @@ sub pgfiles {
 				);
 				if (!$aDBsection_id) {
 					print "\nInvalid section '$tags->{DBsection}' in $name\n";
-					next;
+					return;
 				}
 			} else {
 				# Tags are not valid, error printed by validation part.
