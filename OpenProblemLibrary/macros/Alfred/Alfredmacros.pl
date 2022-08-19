@@ -27,22 +27,6 @@ sub inversetrig
 }
 
 ## Compute the max and min of an array of numbers
-## Deleted (max and min are provided by PGauxiliaryFunctions.pl,
-## which is loaded by PGstandard.pl in every problem).
-#sub max {
-#my $maximum = shift @_;
-#foreach(@_){
-#   if ($maximum < $_){$maximum = $_};
-#};
-#return $maximum;
-#}
-#sub min {
-#my $minimum = shift @_;
-#foreach(@_){
-#   if ($minimum > $_){$minimum =  $_};
-#};
-#return $minimum;
-#}
 
 
 
