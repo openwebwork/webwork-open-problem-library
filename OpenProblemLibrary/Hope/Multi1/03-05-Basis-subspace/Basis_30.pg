@@ -21,7 +21,7 @@ loadMacros(
   "PGchoicemacros.pl",
   "parserPopUp.pl",
   "parserMultiAnswer.pl",  # for basis coefficients
-  "parserWordCompletion.pl",
+  "parserPopUp.pl",
   "PGcourse.pl"
 );
 
@@ -29,13 +29,6 @@ TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
 Context('Matrix');
-
-Context()->variables->are(
-'a1'=>['Real','TeX'=>'\mathbf{a_1}'],
-'a2'=>['Real','TeX'=>'\mathbf{a_2}'],
-'a3'=>['Real','TeX'=>'\mathbf{a_3}'],
-'a4'=>['Real','TeX'=>'\mathbf{a_4}'],
-);
 
 do {
   ($a,$b,$c,$d) = (non_zero_random(-5,5,1),non_zero_random(-5,5,1),non_zero_random(-5,5,1),non_zero_random(-5,5,1));
@@ -46,6 +39,43 @@ $rrefA = Matrix([
 [0,1,$c,$d],
 [0,0,0,0]
 ]);
+
+Context()->variables->are(
+'a1'=>['Vector3D','TeX'=>'\mathbf{a_1}'],
+'a2'=>['Vector3D','TeX'=>'\mathbf{a_2}'],
+'a3'=>['Vector3D','TeX'=>'\mathbf{a_3}'],
+'a4'=>['Vector3D','TeX'=>'\mathbf{a_4}'],
+);
+
+# pull the column vectors into variables
+my ($a1,$a2,$a3,$a4) = (
+        Vector($rrefA->column(1)),
+        Vector($rrefA->column(2)),
+        Vector($rrefA->column(3)),
+        Vector($rrefA->column(4))
+    );
+my $zero = Vector(0,0,0);
+    
+    
+$list_checker = sub {
+  my ($correct, $student, $ansHash, $value) = @_;
+
+  # loop through the student list and parse any formulas in the student response
+  my $parsed_student = [];
+  foreach my $el (@$student) {
+    my $parsed_el = $el;
+    # Mark any answer involving explicit nonzero vectors as incorrect
+    if ($el->eval(a1=>$zero,a2=>$zero,a3=>$zero,a4=>$zero) != $zero) {
+        return 0;
+    }
+    $parsed_el = $el->eval(a1=>$a1,a2=>$a2,a3=>$a3,a4=>$a4);
+    push @$parsed_student, $parsed_el;
+  }
+
+  # return the results of the current answer checker called with the parsed array
+  return basis_checker_list_of_vectors([$a1, $a2], $parsed_student, $ansHash, $value);
+};
+
 
 $mc = new_checkbox_multiple_choice();
 $mc -> qa (
@@ -63,23 +93,37 @@ $mc -> extra(
 );
 #$mc -> makeLast("None of the above");
 
-$ans3 = Compute("$a a1 + $c a2");
-
-
-#$ans4 = Compute("$b a1 + $d a2");
-
-$ans4 = Compute("$b a1 + $d a2")->cmp(
+$ans3 = Compute("$a a1 + $c a2")->cmp(
   checker => sub{
-    my($correct,$student,$ansHash)=@_;
-    my $s1 = $student->eval(a1=>1,a2=>0,a3=>0);
-    my $s2 = $student->eval(a1=>0,a2=>1,a3=>0);
-    my $s3 = $student->eval(a1=>0,a2=>0,a3=>1);
-    return Vector($b,$d) == Vector($s1+$s3*$a,$s2+$s3*$c);
+    my($correct,$student,$ansHash) = @_;
+    # Only answers in terms of a1 and a2 are allowed
+    foreach my $var (keys %{$student->{variables}}) {
+      Value::Error("You are not allowed to use '$var' in this answer.") if !(grep $_ eq $var,  ('a1','a2'));
+    }
+    if ($student->eval(a1=>$zero,a2=>$zero,a3=>$zero,a4=>$zero) != $zero) {
+      Value::Error("You are only allowed to use linear combinations of 'a1' and 'a2' in this answer.");
+    }
+    return $correct == $student;
   }
 );
 
-$w1 = WordCompletion(['1','2','3','4','R','R^2','R^3','R^4'],'R^3');
-$w2 = WordCompletion(['1','2','3','4','R','R^2','R^3','R^4'],'R^4');
+$ans4 = Compute("$b a1 + $d a2")->cmp(
+  checker => sub{
+    my($correct,$student,$ansHash) = @_;
+    # Only answers in terms of a1, a2 and a3 are allowed
+    foreach my $var (keys %{$student->{variables}}) {
+      Value::Error("You are not allowed to use '$var' in this answer.") if !(grep $_ eq $var,  ('a1','a2','a3'));
+    }
+    if ($student->eval(a1=>$zero,a2=>$zero,a3=>$zero,a4=>$zero) != $zero) {
+      Value::Error("You are only allowed to use linear combinations of 'a1', 'a2' and 'a3' in this answer.");
+    }
+    return $a4 == $student->eval(a1=>$a1,a2=>$a2,a3=>$a3);
+  }
+);
+
+$popup1 = PopUp(['?', '1','2','3','4','R','R^2','R^3','R^4'],'R^3');
+$popup2 = PopUp(['?', '1','2','3','4','R','R^2','R^3','R^4'],'R^4');
+
 
 $x1 = Vector(-1*$a, -1*$c, 1, 0);
 $x2 = Vector(-1*$b, -1*$d, 0, 1);
@@ -100,13 +144,14 @@ c. If possible, write [` \mathbf{a_4} `] as a linear combination of [` \mathbf{a
 
     [` \mathbf{a_4} = `] [_________________]{$ans4}
 
-d. The dimension of the column space of [` A `] is [_____]{"2"}, and the column space of [` A `] is a subspace of [@ ANS($w1->cmp); $w1->ans_rule(5); @]*.
+d. The dimension of the column space of [` A `] is [_____]{"2"}, and the column space of [` A `] is a subspace of [@ ANS($popup1->cmp); $popup1->menu; @]*.
 
-e. Find a basis for the column space of [` A `].  Enter your answer as a comma separated list of vectors.  Each vector should have the form [| <a,b,c> |] or [| <a,b,c,d> |] where a,b,... are numbers.  Do not use the symbols [` \mathbf{a_1, a_2, \ldots} `] in your answers. 
- 
-    A basis for the column space of [`A`] is [`\big\lbrace`] [_________________________]{List(Vector(1,0,0),Vector(0,1,0))->cmp(list_checker=>~~&basis_checker_list_of_vectors)} [`\big\rbrace`]
+e. Find a basis for the column space of [` A `]. Enter your answer as a comma separated list of vectors.
+If necessary, enter [| a1 |] for [` \mathbf{a_1} `], etc., or enter coordinate vectors of the form [| <1,2,3> |] or [| <1,2,3,4,5> |].
 
-f. The dimension of the null space of [` A `] is [_____]{"2"}, and the null space of [` A `] is a subspace of [@ ANS($w2->cmp); $w2->ans_rule(5); @]*.
+    A basis for the column space of [`A`] is [`\big\lbrace`] [_________________________]{List(a1, a2)->cmp(list_checker=>$list_checker)} [`\big\rbrace`]
+
+f. The dimension of the null space of [` A `] is [_____]{"2"}, and the null space of [` A `] is a subspace of [@ ANS($popup2->cmp); $popup2->menu; @]*.
 
 g. Find a basis for the null space of [` A `].  Enter your answer as a comma separated list of vectors of the form [| <a,b,c> |] or [| <a,b,c,d> |] where a,b,... are numbers.
 
