@@ -4,6 +4,6 @@ Contributors (github):
 * seanmaw
 * kirkeyj
 * adentremont
-* GraemeDockrill
-* IvyaThalenmourn
+* msekatchev
+* ishookie
 
