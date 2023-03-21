@@ -1,0 +1,203 @@
+## DESCRIPTION
+## Higher order ODEs: constant coefficient higher order homogeneous linear ODEs
+## ENDDESCRIPTION
+
+
+## DBsubject(Differential equations)
+## DBchapter(Higher order differential equations)
+## DBsection(Linear, constant coefficients, homogeneous (distinct real roots))
+## Date(01/30/2011)
+## Institution(Fort Lewis College)
+## Author(Paul Pearson)
+## Level(3)
+## MO(1)
+## TitleText1('Notes on Diffy Qs')
+## AuthorText1('Jiri Lebl')
+## EditionText1('December 9, 2010')
+## Section1('2.3')
+## Problem1('2')
+## KEYWORDS('differential equations','second order linear ODE','constant coefficients')
+
+
+##############################
+#  Initialization
+
+DOCUMENT(); 
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"AnswerFormatHelp.pl",
+"parserAssignment.pl",
+);
+
+TEXT(beginproblem());
+
+
+#############################
+#  Setup
+
+Context("Numeric");
+Context()->variables->add(
+'c1'=>"Real",'c2'=>"Real",'c3'=>"Real",'c4'=>"Real",'y'=>"Real",'t'=>"Real"
+);
+Context()->variables->set(
+'c1'=>{limits=>[2,4]},
+'c2'=>{limits=>[2,4]},
+'c3'=>{limits=>[2,4]},
+'c4'=>{limits=>[2,4]}
+);
+Context()->flags->set(
+    formatStudentAnswer=>'parsed',
+    reduceConstants=>0,
+    reduceConstantFunctions=>0,
+);
+parser::Assignment->Allow;
+
+my $a, $b, $apb, $ab;
+
+$a = random(2,6,1);
+do { $b = random(2,6,1); } until ($b != $a);
+
+$apb = $a + $b;
+$ab  = $a * $b;
+
+# char poly r^2(r-$a)(r-$b)
+
+$diffeq = "y^{(4)} - $apb y^{\,\prime\prime\prime} + $ab y^{\,\prime\prime} = 0"; # tex
+
+$answer = Compute("y = c1 + c2 t + c3 e^($a t) + c4 e^($b t)");
+
+
+######################
+#  Main text
+
+Context()->texStrings;
+BEGIN_TEXT
+Find the general solution to \( $diffeq \).
+
+$PAR
+
+\{ ans_rule(50) \}
+\{ AnswerFormatHelp("equations") \}
+
+$BR
+
+(In your answer, use ${BTT}c1${ETT}, ${BTT}c2${ETT}, ${BTT}c3${ETT}, 
+and ${BTT}c4${ETT}
+to denote arbitrary constants and ${BTT}t${ETT} 
+for the independent variable.  Do not forget to write "y="!) 
+
+END_TEXT
+Context()->normalStrings;
+
+
+######################
+#  Answer evaluation
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $answer->cmp( # tolType=>'absolute', tolerance=>0.001, 
+  checker => sub {
+
+    my ( $correct, $student, $answerHash ) = @_;
+    my $stu   = Formula($student->{tree}{rop});
+
+    #################################
+    #  Check for arbitrary constants
+    #
+    Value->Error("Is your answer the most general solution?") 
+    if ( 
+      Formula($stu->D('c1'))==Formula(0) || 
+      Formula($stu->D('c2'))==Formula(0) || 
+      Formula($stu->D('c3'))==Formula(0) ||
+      Formula($stu->D('c4'))==Formula(0)
+    );
+
+
+    ##################################
+    #  Linear independence (Wronskian)
+    #
+    my $t = Real(1.43);
+
+    my $a11 = $stu->eval('c1'=>1,'c2'=>0,'c3'=>0,'c4'=>0,t=>$t,y=>0);
+    my $a12 = $stu->eval('c1'=>0,'c2'=>1,'c3'=>0,'c4'=>0,t=>$t,y=>0);
+    my $a13 = $stu->eval('c1'=>0,'c2'=>0,'c3'=>1,'c4'=>0,t=>$t,y=>0);
+    my $a14 = $stu->eval('c1'=>0,'c2'=>0,'c3'=>0,'c4'=>1,t=>$t,y=>0);
+    
+    my $a21 = $stu->D('t')->eval('c1'=>1,'c2'=>0,'c3'=>0,'c4'=>0,t=>$t,y=>0);
+    my $a22 = $stu->D('t')->eval('c1'=>0,'c2'=>1,'c3'=>0,'c4'=>0,t=>$t,y=>0);
+    my $a23 = $stu->D('t')->eval('c1'=>0,'c2'=>0,'c3'=>1,'c4'=>0,t=>$t,y=>0);
+    my $a24 = $stu->D('t')->eval('c1'=>0,'c2'=>0,'c3'=>0,'c4'=>1,t=>$t,y=>0);
+
+    my $a31 = $stu->D('t','t')->eval('c1'=>1,'c2'=>0,'c3'=>0,'c4'=>0,t=>$t,y=>0);
+    my $a32 = $stu->D('t','t')->eval('c1'=>0,'c2'=>1,'c3'=>0,'c4'=>0,t=>$t,y=>0);
+    my $a33 = $stu->D('t','t')->eval('c1'=>0,'c2'=>0,'c3'=>1,'c4'=>0,t=>$t,y=>0);
+    my $a34 = $stu->D('t','t')->eval('c1'=>0,'c2'=>0,'c3'=>0,'c4'=>1,t=>$t,y=>0);
+
+    my $a41 = $stu->D('t','t','t')->eval('c1'=>1,'c2'=>0,'c3'=>0,'c4'=>0,t=>$t,y=>0);
+    my $a42 = $stu->D('t','t','t')->eval('c1'=>0,'c2'=>1,'c3'=>0,'c4'=>0,t=>$t,y=>0);
+    my $a43 = $stu->D('t','t','t')->eval('c1'=>0,'c2'=>0,'c3'=>1,'c4'=>0,t=>$t,y=>0);
+    my $a44 = $stu->D('t','t','t')->eval('c1'=>0,'c2'=>0,'c3'=>0,'c4'=>1,t=>$t,y=>0);
+
+    # my $wronskian = 
+    #  $a11 * ( $a22*($a33*$a44-$a43*$a34) -
+    #           $a23*($a32*$a44-$a42*$a34) +
+    #           $a24*($a32*$a43-$a42*$a33) )
+    #
+    # -$a12 * ( $a21*($a33*$a44-$a43*$a34) -
+    #           $a23*($a31*$a44-$a41*$a34) +
+    #           $a24*($a31*$a43-$a41*$a33) )
+    #
+    # +$a13 * ( $a21*($a32*$a44-$a42*$a34) -
+    #           $a22*($a31*$a44-$a41*$a34) +
+    #           $a24*($a31*$a42-$a41*$a32) )
+    # 
+    # -$a14 * ( $a21*($a32*$a43-$a42*$a33) -
+    #           $a22*($a31*$a43-$a41*$a33) +
+    #           $a23*($a31*$a42-$a41*$a32) );
+
+    # Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    # if ($wronskian==Real(0));
+
+    my $w1 = 
+     $a11 * ( $a22*($a33*$a44-$a43*$a34) -
+              $a23*($a32*$a44-$a42*$a34) +
+              $a24*($a32*$a43-$a42*$a33) )
+    +$a13 * ( $a21*($a32*$a44-$a42*$a34) -
+              $a22*($a31*$a44-$a41*$a34) +
+              $a24*($a31*$a42-$a41*$a32) );
+
+    my $w2 = 
+     $a12 * ( $a21*($a33*$a44-$a43*$a34) -
+              $a23*($a31*$a44-$a41*$a34) +
+              $a24*($a31*$a43-$a41*$a33) )
+    +$a14 * ( $a21*($a32*$a43-$a42*$a33) -
+              $a22*($a31*$a43-$a41*$a33) +
+              $a23*($a31*$a42-$a41*$a32) );
+
+    Value->Error("Your functions are not linearly independent or your answer is not complete") 
+    if ($w1 == $w2);
+
+
+    ########################################################
+    #  Check that the student answer is a solution to the DE
+    #
+    my $stu2  = Formula($stu->D('t','t'));
+    my $stu3  = Formula($stu->D('t','t','t'));
+    my $stu4  = Formula($stu->D('t','t','t','t'));
+    return ($stu4 + $ab * $stu2) == ($apb * $stu3);
+
+    # my $stuDE = Formula($stu4 - $apb*$stu3 + $ab*$stu2)
+    # ->with(test_points=>[[0,0,0,0,0,0],[1,1,1,1,1,1],[1,2,-1,2,3,1]]);
+    # return ($stuDE==Formula(0));
+
+
+}));
+
+
+COMMENT("MathObject version.  Characteristic polynomial r^2(r - a)(r - b)");
+
+ENDDOCUMENT();
+
+
