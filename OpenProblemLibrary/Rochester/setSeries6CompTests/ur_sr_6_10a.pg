@@ -35,6 +35,7 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "PGchoicemacros.pl",
+  "PGgraders.pl",
   "PGcourse.pl"
 );
 
@@ -42,78 +43,28 @@ loadMacros(
 # We need a special problem grader on this problem, since we
 # want the student to get full credit for all six answers correct,
 # 50% credit for five correct, and 0% for four or fewer correct.
-# To change this scheme, look through the following mess of code
-# for the place where the variable $numright appears, and change
-# that part.
-# Also change the long line beginning "msg ==>", to show what will
-# appear on the screen for the student.
-#
-# To look at the problem itself, look for the boxed comment below
-# announcing the problem itself.
+# To change this scheme, look for the lines
+# $ENV{'grader_numright'}
+# $ENV{'grader_scores'} 
+# $ENV{'grader_message'}
+# and follow the instructions for custom_problem_grader_fluid
+# in ../webwork2/pg/macros/PGgraders.pl
 ################################################################
-
-sub custom_problem_grader {
-    my $evaluated_answers = shift;
-    my $problem_state = shift;
-    my %form_options = @_;
-
-    # initial setup of the answer
-    my $total = 0;
-    my $problem_result = {
-        score => 0,
-        errors => '',
-        type => 'custom_problem_grader',
-        msg => 'To get full credit, all answers must be correct.  Having all but one correct is worth 50%.  Two or more incorrect answers gives a score of 0%.',
-    };
-
-    # Return unless answers have been submitted
-    return($problem_result, $problem_state) unless ($form_options{answers_submitted} == 1);
-
-    # Answers have been submitted -- process them.
-
-    ########################################################
-    # Here's where we compute the score.  The variable     #
-    # $numright is the number of correct answers.          #
-    ########################################################
-    my $numright=0;
-
-    foreach my $key (keys %$evaluated_answers) {
-        # summing the scores is identical to checking each one is correct
-        $numright += $evaluated_answers->{$key}{score};
-    }
-
-    if ($numright == 6) {
-        $problem_result->{msg} = 'This attempt scored 100%. Nice work.';
-	$total = 1;
-    } elsif ($numright == 5) {
-        $problem_result->{msg} = 'This attempt scored 50%. You must answer each part correctly for full credit.';
-	$total = 0.5;
-    } else {
-        # the default message will suffice
-	$total = 0;
-    }
-
-    $problem_result->{score} = $total;
-
-    # increase recorded score if the current score is greater.
-    $problem_state->{recorded_score} = $problem_result->{score}
-        if $problem_result->{score} > $problem_state->{recorded_score};
-
-    $problem_state{num_of_correct_ans}++ if $total == 1;
-    $problem_state{num_of_incorrect_ans}++ if $total < 1;
-    return ($problem_result, $problem_state);
-}
 
 ################################################################
 # Now, on with the problem itself.
 ################################################################
 
-
 TEXT(beginproblem());
-$showPartialCorrectAnswers = 0;
 
-install_problem_grader(~~&custom_problem_grader);
+$showPartialCorrectAnswers = 1;
 
+install_problem_grader(~~&custom_problem_grader_fluid);
+$ENV{'grader_numright'} = [5,6];
+$ENV{'grader_scores'} = [0.5,1];
+$ENV{'grader_message'} = "You can earn " .
+"50% partial credit for 5 correct answers, " .
+"100% credit 6 correct answers.";
 
 $a0 = random(2,7,1);
 $b0 = random(2,7,1);
@@ -173,6 +124,7 @@ $ans[4] = join " ",$ALPHABET[3];
 $ans[5] = join " ",$ALPHABET[0];
 $ans[6] = join " ",$ALPHABET[2];
 $ans[7] = join " ",$ALPHABET[1];
+
 ANS(str_cmp([@ans[@slice]], filters=>["remove_whitespace","ignore_order","ignore_case"]));
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.
