@@ -100,65 +100,62 @@ sub mycheck {
 	my ($correct, $student, $ansHash, $value) = @_;
 	my @c = @{$correct};  
 	my @s = @{$student};
-	my $nc = scalar(@c);
+	my $nc = scalar(@c);  # it is 2
 	my $ns = scalar(@s);
 	my $score = 0;
 	my @errors = ();
 
 	return ($score,@errors) if $nc != $ns;
 
-		# Most of the answer checking is done on integers 
-		# or on decimals like 0.24381729, so we will set the
-		# tolerance accordingly in a local context.
-		my $context = Context()->copy;
-		$context->flags->set(
-			tolerance => 0.001,
-			tolType => "absolute",
-		);
+#		# Most of the answer checking is done on integers 
+#		# or on decimals like 0.24381729, so we will set the
+#		# tolerance accordingly in a local context.
+#		my $context = Context()->copy;
+#		$context->flags->set(
+#			tolerance => 0.001,
+#			tolType => "absolute",
+#		);
 
-		# put the correct vectors into the columns of a matrix $C
+		# put the coefficients of the correct polynomials 
+		# into the columns of a matrix $C
         my $C = Matrix([
-        [$c[0]->eval(x=>pi),$c[1]->eval(x=>pi)],
-        [$c[0]->D('x')->eval(x=>pi),$c[1]->D('x')->eval(x=>pi)],
-        [$c[0]->D('x','x')->eval(x=>pi),$c[1]->D('x','x')->eval(x=>pi)],
+        [$c[0]->eval(x=>0),$c[1]->eval(x=>0)],
+        [$c[0]->D('x')->eval(x=>0),$c[1]->D('x')->eval(x=>0)],
+        [($c[0]->D('x','x')->eval(x=>0))/2,($c[1]->D('x','x')->eval(x=>0))/2],
         ]);
-#warn $C;
 
 		# put the student vectors into the columns of a matrix $S
         my $S = Matrix([
-        [$s[0]->eval(x=>pi),$s[1]->eval(x=>pi)],
-        [$s[0]->D('x')->eval(x=>pi),$s[1]->D('x')->eval(x=>pi)],
-        [$s[0]->D('x','x')->eval(x=>pi),$s[1]->D('x','x')->eval(x=>pi)],
+        [$s[0]->eval(x=>0),$s[1]->eval(x=>0)],
+        [$s[0]->D('x')->eval(x=>0),$s[1]->D('x')->eval(x=>0)],
+        [($s[0]->D('x','x')->eval(x=>0))/2,($s[1]->D('x','x')->eval(x=>0))/2],
         ]);
-#warn $S;
 
 
-		# Put $C and $S into the local context so that
-		# all of the computations that follow will also be in
-		# the local context.
-		$C = Matrix($context,$C);
-		$S = Matrix($context,$S);
 
 		#  Theorem: A^T A is invertible if and only if A has linearly independent columns.
+		
+		# Check that the student's answers are polynomials of degree 2
 
-		#  Check that the professor's vectors are, in fact, linearly independent.
-		$CTC = ($C->transpose) * $C;
-		warn "Correct answer is a linearly dependent set." if ($CTC->det == 0);
+	if ($s[0]->D('x','x','x') != Formula(0) or $s[1]->D('x','x','x') != Formula(0)){
+	   Value->Error("Answers must be in \( \mathcal{P}_2 \)");
+	   return 0;
+        }
 
 		#  Check that the student's vectors are linearly independent
-		if ( (($S->transpose) * $S)->det == 0) {
-			Value->Error("Your vectors are linearly dependent");
-			return 0;
-		}
+	if ( (($S->transpose) * $S)->det == 0) {
+		Value->Error("Your vectors are linearly dependent");
+		return 0;
+	}
 
-		# S = student, C = correct, X = change of basis matrix
-		# Solve S = CX for X using (C^T C)^{-1} C^T S = X.
-		$X = ($CTC->inverse) * (($C->transpose) * $S);
-		if ( $S == $C * $X ) { $score = $nc; };
+	# S = student, C = correct, X = change of basis matrix
+	# Solve S = CX for X using (C^T C)^{-1} C^T S = X.
+	
+	$CTC = ($C->transpose) * $C;
+	$X = ($CTC->inverse) * (($C->transpose) * $S);
+	if ( $S == $C * $X ) { $score = $nc; };
     
-		return ($score,@errors);
-
-
+	return ($score,@errors);
 
 }
 
