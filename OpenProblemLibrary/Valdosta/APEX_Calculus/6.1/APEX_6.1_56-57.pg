@@ -1,17 +1,5 @@
 #Problem APEX 6.1.56-57
 
-DOCUMENT();
-
-# Load whatever macros you need for the problem
-loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "contextFraction.pl",
-  "parserFormulaUpToConstant.pl",
-  "PGcourse.pl"
-);
-
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Techniques of integration)
 ## DBsection(Substitution (without trigonometric functions))
@@ -25,101 +13,102 @@ loadMacros(
 ## Section1('6.1')
 ## Problem1('56 57')
 
+DOCUMENT();
 
-########################################
-
-TEXT(beginproblem());
-$showPartialCorrectAnswers = 1;
-
+# Load whatever macros you need for the problem
+loadMacros(
+    'PGstandard.pl',      'PGML.pl',
+    'contextFraction.pl', 'parserFormulaUpToConstant.pl',
+    'answerHints.pl',     'PGcourse.pl'
+);
 
 ## (a) ##
-$a1 = non_zero_random(-9,9,1);
+$a1 = non_zero_random(-9, 9);
 
-$u1 = "x + $a1";
+$u1 = Formula("x + $a1")->reduce;
 
-$f1 = "\dfrac{1}{$u1}";
-
+$f1 = Formula("1/$u1");
 
 ## (b) ##
-$a2 = random(2,20,1);
-$b2 = non_zero_random(-9,9,1);
-$c2 = non_zero_random(-20,20,1);
+$a2 = random(2, 20);
+$b2 = random(2, 9) * random(-1, 1, 2);
+$c2 = non_zero_random(-20, 20);
 
-$u2 = "$b2 x + $c2";
+$u2 = Formula("$b2 x + $c2")->reduce;
 
-$f2 = "\dfrac{$a2}{$u2}";
-
+$f2 = Formula("$a2/$u2");
 
 #### Answers ####
+# for AnswerHints, use array ref: [ message, option => value ]
+# can use the same message and partial credit for both a & b
+$partial_credit = [
+    "Make sure to remember absolute values when integrating \(\displaystyle \int \frac{1}{u}\,du\)",
+    score => 0.5
+];
 
-$limits = [ -$a1 + 0.1, 100 ];
+# set the domain for x to check both sides of the asymptote
+$limits = [ -$a1 - 5, -$a1 + 5 ];
 Context('Numeric')->variables->are(x => [ 'Real', limits => $limits ]);
 
-$F1 = FormulaUpToConstant("ln($u1)");
+# use test_at to ensure that at least one input where the
+# absolute value makes a difference gets checked
+$F1 = FormulaUpToConstant("ln|$u1|")->with(test_at => [ [ -$a1 - 0.5 ] ]);
 
-$l = -$c2/$b2;
-if ($b2 > 0) {
-  $limits = [ $l + 0.1, 100 ];
-} else {
-  $limits = [-100, $l - 0.1];
-}
-Context('Numeric')->variables->are(x => [ 'Real', limits => $limits ]);
+# many students will forget the absolute values, use AnswerHints
+# $incorrect_answer => [message_string, %options]
+$F1_partial = FormulaUpToConstant("ln($u1)");
+@hints1     = AnswerHints($F1_partial => $partial_credit);
 
-$F2 = FormulaUpToConstant("($a2/$b2)ln($u2)");
+# set the domain for x to check both sides of the asymptote
+$l      = -$c2 / $b2;
+$limits = [ $l - 5, $l + 5 ];
+Context('Fraction')->variables->are(x => [ 'Real', limits => $limits ]);
+Context()->flags->set(reduceConstants => 0);
 
+$F2_coeff = Fraction($a2, $b2)->reduce;
+$F2       = FormulaUpToConstant("$F2_coeff ln|$u2|")
+    ->with(test_at => [ [ $l - 2 / $b2 ] ]);
+
+# again, incorrect => [message, %options]
+$F2_partial = FormulaUpToConstant("$F2_coeff ln($u2)");
+@hints2     = AnswerHints($F2_partial => $partial_credit);
 
 #################
 
-Context()->texStrings;
-BEGIN_TEXT
-Evaluate the indefinite integrals using Substitution. (use \(C\)
+BEGIN_PGML
+Evaluate the indefinite integrals using substitution. (Use [`C`]
 for the constant of integration.)
-$BR $BR
-a) \( \displaystyle \int $f1 \, dx = \)
-\{ ans_rule(40) \}
-$PAR
-b) \( \displaystyle \int $f2 \, dx = \)
-\{ ans_rule(40) \}
-END_TEXT
-Context()->normalStrings;
 
-ANS($F1->cmp);
-ANS($F2->cmp);
+a) [` \displaystyle \int [$f1] \, dx = `]
+[_]{$F1->cmp->withPostFilter(@hints1)}{40}
 
-Context('Fraction');
-$coeff = Fraction($a2, $b2)->reduce;
+b) [` \displaystyle \int [$f2] \, dx = `]
+[_]{$F2->cmp->withPostFilter(@hints2)}{40}
+END_PGML
 
+BEGIN_PGML_SOLUTION
+a) Substitute [`u = [$u1]`].  Then [`du = 1 \,dx`].
 
-Context()->normalStrings;
-BEGIN_SOLUTION
-a) Substitute \(u = $u1\).  Then \(du = 1 \,dx\).
-\[
-  \begin{array}{rcl}
-    \displaystyle  \int $f1 \, dx &=&
-    \displaystyle \int \frac{1}{u} \,du \\
-    &=& \ln |u| + C\\
-    &=& \ln |$u1| = C.
-  \end{array}
-\]
-$PAR
-b) Substitute \(u = $u2\).  Then \(du = $b2 \,dx\).
-\[
-  \begin{array}{rcl}
-    \displaystyle  \int $f2 \, dx &=&
-    \displaystyle \dfrac{1}{$b2} \int \dfrac{$a2}{u} \, du \\
-    &=& \dfrac{1}{$b2} \cdot $a2 \ln |u| + C\\
-    &=& $coeff \ln |$u2| + C\\
-  \end{array}
-\]
-END_SOLUTION
+    [```
+      \begin{array}{rcl}
+        \displaystyle  \int [$f1] \, dx &=&
+        \displaystyle \int \frac{1}{u} \,du \\
+        &=& \ln |u| + C\\
+        &=& \ln |[$u1]| = C.
+      \end{array}
+    ```]
+
+b) Substitute [`u = [$u2]`].  Then [`du = [$b2] \,dx`].
+
+    [```
+      \begin{array}{rcl}
+        \displaystyle  \int [$f2] \, dx &=&
+        \displaystyle \dfrac{1}{[$b2]} \int \dfrac{[$a2]}{u} \, du \\
+        &=& \dfrac{1}{[$b2]} \cdot [$a2] \ln |u| + C\\
+        &=& [$F2_coeff] \ln |[$u2]| + C\\
+      \end{array}
+    ```]
+END_PGML_SOLUTION
 
 ENDDOCUMENT();
-
-
-
-
-
-
-
-
 
