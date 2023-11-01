@@ -1,15 +1,4 @@
 #Problem APEX 2.4.14
-
-DOCUMENT();
-
-# Load whatever macros you need for the problem
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "MathObjects.pl",
-  "PGcourse.pl"
-);
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Differentiation)
 ## DBsection(Quotient rule (without trigonometric functions))
@@ -22,94 +11,189 @@ loadMacros(
 ## Section1('2.4')
 ## Problem1('14')
 
-$showPartialCorrectAnswers = 1;
+DOCUMENT();
 
-$a = random(1,9,1)*random(-1,1,2);
+# Load whatever macros you need for the problem
+loadMacros(
+    'PGstandard.pl',     'PGML.pl',
+    'PGchoicemacros.pl', 'parserMultiAnswer.pl',
+    'niceTables.pl',     'PGcourse.pl'
+);
+
+Context("Numeric");
+Context()->variables->are(t => "Real");
+
+$a  = random(1, 9, 1) * random(-1, 1, 2);
 $a2 = $a**2;
-$b = 2*$a;
+$b  = 2 * $a;
 
-$f = "t^2 - $a2";
-$fp = "2 t";
-$g = "t + $a";
-$gp = "1";
+$f   = Formula("t^2 - $a2");
+$fp  = Formula("2 t");
+$g   = Formula("t + $a");
+$gp  = Formula("1");
+$g2  = Formula("(t + $a)^2");
+$ans = Formula("1");
 
-$g2 = "(t + $a)^2";
+# when students respond with the results from the
+# quotient rule, the order shouldn't matter ...
+# so we aggregate all the answer blanks together
+# and analyze them all at once with MultiAnswer
+$quotientRule = MultiAnswer($fp, $g, $f, $gp, $g2, $ans)->with(
+    singleResult => 1,    # treat as one answer
+                          # format and tex format control the display
+                          # of the aggregated student responses
+    format       => "g'(x) = ((%s)(%s)-(%s)(%s))/(%s) = %s",
+    tex_format   =>
+        "\begin{aligned}g'(x)&=\frac{\left(%s\right)\left(%s\right)-\left(%s\right)\left(%s\right)}{%s}\\&=%s\end{aligned}",
+    # answer checker ($self is the MultiAnswer)
+    checker => sub {
+        my ($correct, $student, $self) = @_;
+        # the student response is 5 answer blanks
+        my ($s1, $s2, $s3, $s4, $s5, $s) = @$student;
+        # copy the correct answers into a list
+        my @c = @$correct;
+        # start with zero credit
+        my $credit = 0;
 
-$ans = "1";
+        # how many of the pieces did the
+        # student find accurately?
+        # for each student input... (not the final one)
+        for (my $i = 0; $i < 5; $i++) {
+            my $pieceFound = 0;
+            # check each correct piece... (not the last!)
+            for (my $j = 0; $j < 5; $j++) {
+                next unless $c[$j];
+                # $student is an array reference
+                # @c is a list (access elements carefully!)
+                if ($student->[$i] == $c[$j]) {
+                    $pieceFound = 1;
+                    # do not give credit for matching
+                    # the same correct factor repeatedly
+                    # (this is why we made a copy of $correct)
+                    $c[$j] = undef;
+                    last;    # break inner loop
+                }
+            }
 
-TEXT(beginproblem());
+            if ($pieceFound) {
+                $credit++;
+            } else {
+                # set a feedback message on this part if
+                # it didn't match any of the correct parts
+                # NOTE: index for setMessage starts at 1 (not 0)
+                $self->setMessage(
+                    $i + 1,
+                    "Your answer is not part of the correct use of the product rule"
+                );
+            }
+        }
 
-BEGIN_TEXT
+        # now that we checked the parts, check the
+        # combined result for consistency
+        if (($s1 * $s2 - $s3 * $s4) / $s5 == $s) {
+            $credit += 0.5;
+        } else {
+            $self->setMessage(6,
+                'You did not simplify your answer correctly');
+        }
+
+        # finally, check the combined result for accuracy
+        if ($s == $c[5]) {
+            $credit += 0.5;
+        } else {
+            $self->setMessage(6, 'Your final answer is incorrect');
+        }
+
+        # return the score (out of our 5 total)
+        return $credit / scalar(@$correct);
+    }
+);
+
+$part_a = LayoutTable(
+    [
+        [
+            "\(f'(x) = \)",
+            LayoutTable(
+                [
+                    [ [
+                        '\(\Big(\)'
+                            . $quotientRule->ans_rule()
+                            . '\( \Big) \cdot \Big(\)'
+                            . $quotientRule->ans_rule()
+                            . '\(\Big) - \Big(\)'
+                            . $quotientRule->ans_rule()
+                            . '\(\Big) \cdot \Big(\)'
+                            . $quotientRule->ans_rule()
+                            . '\(\Big)\)',
+                        bottom => 1
+                    ] ],
+                    [ $quotientRule->ans_rule() ]
+                ],
+                padding => [ 0.5, 0 ]
+            ),
+        ],
+        [ '\( = \)', $quotientRule->ans_rule ]
+    ],
+    padding => [ 0, 0.5 ],
+    valign  => 'middle',
+    align   => 'rl',
+    center  => 0
+);
+
+BEGIN_PGML
 Compute the derivative of the given function in two different ways.
-$PAR
-\[
-  f(t) = \frac{$f}{$g}
-\]
-$PAR
-a) Use the Quotient Rule, \( \displaystyle\left[\frac{f}{g}\right]' 
-= \frac{g\cdot f' - f \cdot g'}{g^2}\).
+
+[``
+  f(t) = \frac{[$f]}{[$g]}
+``]
+
+a) Use the Quotient Rule, [` \displaystyle\left[\frac{f}{g}\right]' 
+= \frac{g\cdot f' - f \cdot g'}{g^2}`].
 (Fill in each blank, then simplify.)
-$PAR
-\(f'(t) = \Big[\Big(\)\{ ans_rule(5) \} \( \Big) \cdot \Big( \)
-	\{ ans_rule(5) \} \( \Big) - \Big( \)
-	\{ ans_rule(5) \} \( \Big) \cdot \Big( \)
-	\{ ans_rule(5) \} \( \Big)\Big]  / \Big( \)
-	\{ ans_rule(5) \} \( \Big) \)
-$BR
-$SPACE$SPACE$SPACE = \{ ans_rule(25) \}.
-$PAR
-b) Use algebra first to simplify \(f\), then differentiate without
+    
+    [$part_a]*
+
+b) Use algebra first to simplify [`f`], then differentiate without
 the Quotient Rule.
-$PAR
-\(f'(t) = \) \{ ans_rule(25) \}.
-END_TEXT
+    
+    [`f'(t) = `] [@$ans->ans_rule@]*
+END_PGML
 
-ANS( fun_cmp( $g, vars=>['t'] ));
-ANS( fun_cmp( $fp, vars=>['t'] ));
-ANS( fun_cmp( $f, vars=>['t'] ));
-ANS( fun_cmp( $gp, vars=>['t'] ));
-ANS( fun_cmp( $g2, vars=>['t'] ));
-ANS( fun_cmp( $ans, vars=>['t'] ));
-ANS( fun_cmp( $ans, vars=>['t'] ));
+ANS($quotientRule->cmp);
+ANS($ans->cmp);
 
-SOLUTION(EV3(<<'END_SOLUTION'));
-$BR$BBOLD Solution:$EBOLD 
-$PAR
+BEGIN_PGML_SOLUTION
 First, using the Quotient Rule,
-$PAR
-\[
+
+[``
   \begin{array}{rcl}
     f'(t) &=& \displaystyle
-    \frac{ ($g)\frac{d}{dx}[ $f ] - ($f) \cdot \frac{d}{dx}[ $g ]
-    }{($g)^2}\\
+    \frac{ ([$g])\frac{d}{dt}[ [$f] ] - ([$f]) \cdot \frac{d}{dt}[ [$g] ]
+    }{([$g])^2}\\
     &&\\
-    &=&  \frac{ ($g)($fp) - ($f)($gp) }{ $g2 }\\
-    &=& \frac{ t^2 + $b t + $a2 }{$g2} \\
-    &=& \frac{$g2}{$g2}
+    &=&  \frac{ ([$g])([$fp]) - ([$f])([$gp]) }{ [$g2] }\\
+    &=& \frac{ t^2 + [$b] t + [$a2] }{[$g2]} \\
+    &=& \frac{[$g2]}{[$g2]}
   \end{array}
-\]
-After simplifying the last line, we find \( f'(t) = $ans \).
-$PAR
-Next, simplify \(f\) first.  Then take the derivative.
-\[
+``]
+
+After simplifying the last line, we find [` f'(t) = [$ans] `].
+
+Next, simplify [`f`] first.  Then take the derivative.
+[``
   \begin{array}{rcl}
-    f(t) &=& \displaystyle \frac{$f}{$g} \\
+    f(t) &=& \displaystyle \frac{[$f]}{[$g]} \\
     &&\\
-    &=& \displaystyle\frac{(t - $a)(t+$a)}{t + $a} \\
+    &=& \displaystyle\frac{(t - [$a])(t+[$a])}{t + [$a]} \\
     &&\\
-    &=& t - $a
+    &=& t - [$a]
     &&\\
     f'(t) &=& 1
   \end{array}
-\]
+``]
+
 The two simplified answers should match.
-END_SOLUTION
+END_PGML_SOLUTION
 
-
-
-
-
-ENDDOCUMENT();    
-
-
+ENDDOCUMENT();
 
