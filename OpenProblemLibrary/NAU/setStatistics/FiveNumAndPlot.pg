@@ -11,65 +11,100 @@
 # File Created: 6/6/05
 # Location: Northern Arizona University
 
-DOCUMENT();     
+# Basedon(Library/NAU/setStatistics/FiveNumAndPlot.pg)
+# edited by Peter Staab, Fitchburg State
+# switched to PGML and used tikz graphics
+
+DOCUMENT();
 loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "extraAnswerEvaluators.pl",
-  "PGnauStats.pl",
-  "PGcourse.pl"
+    'PGstandard.pl',         'PGML.pl',
+    'parserRadioButtons.pl', 'PGtikz.pl',
+    'PGcourse.pl',
 );
 
-TEXT(&beginproblem) ;
-$showPartialCorrectAnswers = 1;
+DOCUMENT();
 
-push @dat, random(15, 30,1);
-push @dat, random(35, 43,1);
-push @dat, random(45, 70,1);
-push @dat, random(72, 85,1);
-push @dat, random(89, 100,1);
+Context('Numeric');
 
+$min    = random(15, 30);
+$q1     = random(35, 43);
+$median = random(45, 70);
+$q3     = random(72, 85);
+$max    = random(89, 100);
 
-@names = ('Min', '\(Q_1\)', 'Median', '\(Q_3\)', 'Max');
-@labels = ('', '', '', '', '');
-@slice = NchooseK(5,3);
+@names = (
+    'Min', '\(Q_1\)', 'Median',     '\(Q_3\)',
+    'Max', 'Mean',      'Left Pivot', 'Right Pivot'
+);
+@slice = random_subset(3, 0 .. 4);
 
-$labels[$slice[0]] = 'Z';
-$labels[$slice[1]] = 'Y';
-$labels[$slice[2]] = 'X';
+$labels[ $slice[0] ] = 'Z';
+$labels[ $slice[1] ] = 'Y';
+$labels[ $slice[2] ] = 'X';
 
-$mc = new_match_list();
-$mc->qa(
-    $labels[$slice[0]],
-    $names[$slice[0]],
-    $labels[$slice[1]],
-    $names[$slice[1]],
-    $labels[$slice[2]],
-    $names[$slice[2]]
-      );
+@dat = ($min, $q1, $median, $q3, $max);
 
-@{$mc->{extras}}=();
+@radios =
+    map {
+        RadioButtons(
+            [@names],
+            $names[ $slice[$_] ],
+            separator => '\(\quad\)'
+        )
+    } (0 .. 2);
 
-$mc->extra('Mean',
-    'Left Pivot',
-    'Right Pivot'
-    );
+# helpful for the graph
 
-$graph = BoxPlot(@dat, @labels);
+$xmin   = floor($min / 10) * 10 - 10;
+$xmax   = ceil($max / 10) * 10 + 10;
+$xmid   = 0.5 * ($xmin + $xmax);
+$xmin10 = $xmin + 10;
+$xmin20 = $xmin + 20;
+$xmax10 = $xmax - 10;
 
-$mc->choose(3);
-$mc->choose_extra(2);
-BEGIN_TEXT
-$BR
+$graph_image = createTikZImage();
+$graph_image->tikzOptions("xscale=0.1");
+
+$graph_image->BEGIN_TIKZ
+\filldraw[
+    draw=LightBlue,
+    fill=white,
+    rounded corners=10pt,
+    thick,use as bounding box
+] ({$xmin-3},-0.5) rectangle ({$xmax+3},5.5);
+
+\draw[<->,thick] ($xmin,0) rectangle ($xmax,4.5);
+\draw ($xmid,5) node {\large Box and whiskers plot};
+\draw ($xmin,1) -- ($xmax,1);
+\foreach \x in {$xmin10,$xmin20,...,$xmax10} \draw (\x,1)--(\x,0.75) node[below] {\x};
+\draw ($min,2.5) -- ($q1,2.5);
+\filldraw[black,fill=blue!20]  ($q1,2) rectangle($q3,3);
+\draw ($median,2) -- ($median,3);
+\draw ($q3,2.5) -- ($max,2.5);
+
+\draw[thick] ($dat[$slice[0]],3.3) -- ($dat[$slice[0]],3.5) node [above] {$labels[$slice[0]]};
+\draw[thick] ($dat[$slice[1]],3.3) -- ($dat[$slice[1]],3.5) node [above] {$labels[$slice[1]]};
+\draw[thick] ($dat[$slice[2]],3.3) -- ($dat[$slice[2]],3.5) node [above] {$labels[$slice[2]]};
+
+END_TIKZ
+
+$alttext =
+    "Box and whiskers plot.  The left whisker is from $dat[0] to $dat[1]. "
+    . "The box is between $dat[1] and $dat[3]. The middle line is at $dat[2] "
+    . "and the right whisker runs from $dat[3] to $dat[4]";
+
+BEGIN_PGML
+
 Consider the following box and whisker plot.  Match the letters with the values.
-$BR$BR
-\{Plot($graph);\}
-$BR
-\{$mc->print_q \}
-$BR
-\{$mc->print_a \}
-END_TEXT
 
-ANS(str_cmp($mc->ra_correct_ans()));
+>> [![$alttext]!]{$graph_image}{600} <<
+
+1. [$labels[$slice[0]]] [$SPACE]* [_]{$radios[0]}
+
+2. [$labels[$slice[1]]] [$SPACE]* [_]{$radios[1]}
+
+3. [$labels[$slice[2]]] [$SPACE]* [_]{$radios[2]}
+
+END_PGML
+
 ENDDOCUMENT();
