@@ -1,0 +1,215 @@
+##DESCRIPTION
+## Solving integrals using partial fractions
+## Rational functions of the form (ax+b)/(x+c)^2
+##ENDDESCRIPTION
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Techniques of integration)
+## DBsection(Partial fractions)
+## Institution(Agnes Scott College)
+## Author(Larry Riddle)
+## Level(2)
+## MO(1)
+## TitleText1('APEX Calculus')
+## AuthorText1('Hartman')
+## EditionText1('4.0')
+## Section1('6.6')
+## Problem1('12')
+
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "scaffold.pl",
+  "niceTables.pl",
+  "parserMultiAnswer.pl",
+  "parserFormulaUpToConstant.pl",
+  "PGML.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->noreduce('(-x)-y');   # prevents -a - b from becoming -(a+b)
+Context()->noreduce('(-x)-y','(-x)+y');  # prevents reverse order to remove initial negative. 
+Context()->variables->set(x=>{limits=>[-10,-8]});  # guarantees error message if no absolute value with ln
+
+$a = random(2,9);
+do {$b = non_zero_random(-8,8);} until (abs($b) != $a);
+do {$c = non_zero_random(-8,8);} until ($a*$c != $b);
+$den = Formula("(x+$c)^2")->reduce();
+$f = Formula("($a*x+$b)/$den")->reduce();
+$A = $a;
+$B = $b-$a*$c;
+$den1 = Formula("x+$c")->reduce();
+$den2 = Formula("(x+$c)^2")->reduce();
+$intans = Formula("$A*ln(abs(x+$c))-$B/(x+$c)")->reduce();
+
+$multians = MultiAnswer($A, $den1, $B, $den2)->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $astu, $f1stu, $bstu, $f2stu ) = @{$student};
+      my ( $a1, $f1, $b2, $f2 ) = @{$correct};
+      if ($astu eq '' || $f1stu eq '' || $bstu eq '' || $f2stu eq '') {
+          my @L = ($astu, $f1stu, $bstu, $f2stu);
+          for ($i; $i<4; $i++) {
+               $self->setMessage($i+1,"Answers not checked until there is a value in each blank")
+                 if $L[$i] eq '';
+          }
+          return [0,0,0,0]
+      } elsif ( ( $a1==$astu && $f1==$f1stu && $b2==$bstu && $f2==$f2stu) || 
+                ( $a1==$bstu && $f1==$f2stu && $b2==$astu && $f2==$f1stu) ) {
+          return [1,1,1,1]
+      } elsif (($astu/$f1stu + $bstu/$f2stu) == $f) {
+          my $ok1 = 1;
+          my $ok2 = 1;
+          if (($astu/$f1stu==$a1/$f1 && $a1 != $astu) ||
+             ($astu/$f1stu==$b2/$f2 && $b2 != $astu)) {
+             $self->setMessage(1,"Simplify your first fraction");
+             $self->setMessage(2,"Simplify your first fraction");
+             $ok1 = 0;
+          }
+          if (($bstu/$f2stu==$b2/$f2 && $b2 != $bstu) ||
+             ($bstu/$f2stu==$a1/$f1 && $a1 != $bstu)) {
+             $self->setMessage(3,"Simplify your second fraction");
+             $self->setMessage(4,"Simplify your second fraction");
+             $ok2 = 0;
+          }           
+          return [$ok1,$ok1,$ok2,$ok2];
+      } elsif ( ( $a1==$bstu && $f1==$f1stu && $b2==$astu && $f2==$f2stu) || 
+                ( $a1==$astu && $f1==$f2stu && $b2==$bstu && $f2==$f1stu) ) {
+          $self->setMessage(1,"Which term in the denominator does this value go with?");
+          $self->setMessage(3,"Which term in the denominator does this value go with?");
+          return [0,1,0,1];      
+      } elsif ( ( $f1==$f1stu && $f2==$f2stu) || ( $f1==$f2stu && $f2==$f1stu) ) {
+          my $ok1 = 1;
+          my $ok2 = 1;
+          if (($f1==$f1stu && $a1!=$astu) || ($f2==$f1stu && $b2!=$astu)) {
+             $ok1 = 0;          
+          }
+          if (($f2==$f2stu && $b2!=$bstu) || ($f1==$f2stu && $a1!=$bstu )) {
+             $ok2 = 0;          
+          }
+          return [$ok1,1,$ok2,1];
+      } elsif ( $f1stu*$f2stu != $f1*$f2 ) {
+          $self->setMessage(2,"Review what partial fraction denominators should be when integrand involves (x-a)^2");
+          $self->setMessage(4,"Review what partial fraction denominators should be when integrand involves (x-a)^2");
+          return [0,0,0,0];
+      } else {
+          return [0,0,0,0];
+      }
+   }
+);
+
+#
+#  Display the answer blanks properly in different modes
+#
+Context()->texStrings;
+
+if ($displayMode eq 'TeX') {
+   $partfrac = "\(\displaystyle $f = \frac{\quad\quad\quad}{\quad\quad\quad} + \frac{\quad\quad}{\quad\quad\quad}\)";
+  } else {
+   $partfrac =
+   DataTable(
+   [
+    ["\( \displaystyle $f \,= \)",
+    $multians->ans_rule(6).$BR.$HR.$multians->ans_rule(6),
+    "\(+\)",[$multians->ans_rule(6).$BR.$HR.$multians->ans_rule(6),
+    rowcss => 'vertical-align:middle;']],
+   ], 
+   center => 0
+   );
+}
+Context()->normalStrings;
+
+BEGIN_PGML
+
+The goal of this problem is to evaluate [``\int [$f]\;dx``] using partial fractions.
+
+END_PGML
+
+Scaffold::Begin(open_first_section => 0);
+
+Section::Begin("Part 1: The Partial Fraction Setup",
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Perform the partial fraction decomposition of [``[$f]``] and find the values of the coefficients.
+
+[$partfrac]***
+
+END_PGML
+
+ANS( $multians->cmp() );
+
+
+BEGIN_PGML_SOLUTION
+The partial fraction decomposition would be of the form
+
+>>[``[$f] = \frac{A}{[$den1]} + \frac{B}{[$den2]}``]<<
+
+To solve for [`A`] and [`B`], multiply both sides by [`[$den2]`].
+
+>>[`[$a]x+[$b] = A([$den1]) + B = Ax + ([$c]A+B)`]<<
+
+Collecting like terms,
+
+>>[`
+\begin{aligned}
+A &= [$a] \\
+[$c]A+B &= [$b]
+\end{aligned}
+`]<<
+
+Solving the two equations gives [`A = [$A]`] and [`B = [$B]`]. Therefore
+
+>>[``[$f] = \frac{[$A]}{[$den1]} + \frac{[$B]}{[$den2]}``]<<
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 2: Evaluating the Integral",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Now integrate the partial fractions to evaluate the integral.
+
+[``\int [$f]\;dx = \,``][_]{$intans->cmp(upToConstant=>1)->withPostFilter(sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "See the Hint" 
+    if $ans->{ans_message} eq "The domain of your function doesn't match that of the correct answer";
+  return $ans; 
+  })}{45}[`\;+\;C`]
+
+END_PGML
+
+BEGIN_PGML_HINT
+Your answer may require absolute values.
+
+END_PGML_HINT
+
+
+BEGIN_PGML_SOLUTION
+From Part 1 we know that
+
+[``
+\int [$f] \,dx = \int \frac{[$A]}{[$den1]}\,dx + \int \frac{[$B]}{[$den2]}\,dx = [$intans] + C
+``]
+
+END_PGML_SOLUTION
+
+Section::End();
+Scaffold::End();
+
+COMMENT('Randomization provides more than 1500 different possible versions of this question.');
+
+ENDDOCUMENT();
+
