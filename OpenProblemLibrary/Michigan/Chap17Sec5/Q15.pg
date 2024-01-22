@@ -35,151 +35,97 @@ DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
   "MathObjects.pl",
+  "PGML.pl",
   "PGcourse.pl"
 );
 
 Context("Vector");
-# Context()->flags->set( ijk=>1 );
-Context()->constants->set(
-  i => {TeX => "\,\mathit{\vec i}"},
-  j => {TeX => "\,\mathit{\vec j}"},
-  k => {TeX => "\,\mathit{\vec k}"},
-);
 Context()->variables->are( t=>'Real', s=>'Real' );
 
 $showPartialCorrectAnswers = 1;
 
-@p = ( non_zero_random(-5,5,1), non_zero_random(-5,5,1),
+# Three points that determine a plane
+
+do {$P = Vector( non_zero_random(-5,5,1), non_zero_random(-5,5,1),
        non_zero_random(-5,5,1) );
-@q = ( non_zero_random(-12,12,2), non_zero_random(-12,12,2),
+    $Q = Vector( non_zero_random(-12,12,2), non_zero_random(-12,12,2),
        non_zero_random(-12,12,2) );
-@r = ( random(0,50,5), random(0,50,5), random(0,50,5) );
+    $R = Vector( random(0,50,5), random(0,50,5), random(0,50,5) );
+    $PQ = $Q-$P;
+    $PR = $R-$P;
+    $N = $PQ->cross($PR);
+} until (!($N->isZero));
 
-# ensure that we don't have a zero jacobian
-$xs = $q[0] - $p[0];
-$xt = $r[0] - $p[0];
-$ys = $q[1] - $p[1];
-$yt = $r[1] - $p[1];
-if ( $xt*$ys - $xs*$dy == 0 ) {
-    $q[1] += 1;
-    $r[0] += 5;
-}
+# extract the components so we can put the formula for the 
+# parametrization in the desired form
 
-$ppos = Vector( Compute( $p[0] ), Compute( $p[1] ), Compute( $p[2] ) );
-$dv1 = Vector( Compute( $q[0]-$p[0] ), Compute( $q[1]-$p[1] ),
-	       Compute( $q[2]-$p[2] ) );
-$dv2 = Vector( Compute( $r[0]-$p[0] ), Compute( $r[1]-$p[1] ),
-	       Compute( $r[2]-$p[2] ) );
+@p = $P->value;
+@pq = $PQ->value;
+@pr = $PR->value;
 
-# $rparam = Vector( "$ppos + $dv1*s + $dv2*t" );
+# the parametrization
 
-$rparam = Vector("< $p[0] + s*($q[0]-$p[0]) + t*($r[0]-$p[0]), $p[1] + s*($q[1]-$p[1]) + t*($r[1]-$p[1]), $p[2] + s*($q[2]-$p[2]) + t*($r[2]-$p[2]) >")->reduce;
+$rparam_red = Vector(Compute("$p[0]+s*$pq[0]+t*$pr[0]")->reduce,
+                     Compute("$p[1]+s*$pq[1]+t*$pr[1]")->reduce,
+                     Compute("$p[2]+s*$pq[2]+t*$pr[2]")->reduce );
 
-Context()->texStrings;
-TEXT(beginproblem());
-BEGIN_TEXT
+#check that the student's parametrization gives the same plane
+
+$rparam = ($rparam_red)->cmp(
+  checker => sub{
+    my ($correct,$student,$ansHash) = @_; 
+    # check that the coordinates of the student's answer 
+    # are affine functions of s and t
+    if ( !($student -> D('s','s')->isZero) or 
+         !($student -> D('s','t')->isZero) or
+         !($student -> D('t','t')->isZero) 
+       ){
+      Value->Error('Components should be functions of the form a+bs+ct where a,b,c are real numbers.'); 
+    }
+    my $stuP = $student->eval(s=>0,t=>0);
+    my $stuPQ = ($student->eval(s=>1,t=>0)) - $stuP;
+    my $stuPR = ($student->eval(s=>0,t=>1)) - $stuP;   
+    my $stuN = $stuPQ->cross($stuPR);
+    if ( $stuN->isZero ){
+      Value->Error('You have parametrized a line or a point, not a plane.');
+    }
+    if ( !($N->isParallel($stuN)) ){ 
+      Value->Error('Your plane is not parallel to the given plane');
+    }
+    my $stuP = $student -> eval(s=>0,t=>0);
+    if ( ($P . $N) == ($stuP . $N) ){
+      return 1;
+    } 
+    else { 
+      Value->Error('The point \(\vec{r}(0,0)\) does not lie on the given plane');
+    }
+  });
+
+BEGIN_PGML
 
 Parameterize the plane that contains the three points
-\( ($p[0], $p[1], $p[2]) \),
-\( ($q[0], $q[1], $q[2]) \), and
-\( ($r[0], $r[1], $r[2]) \).
 
-$PAR
-\( \vec r(s,t) = \) \{ ans_rule(55) \}
-$BR
-${BITALIC}(Use \(s\) and \(t\) for the parameters in your
-parameterization, and enter your vector as a single vector, 
-with angle brackets: e.g., as $BBOLD${LTS}${SPACE}1 + s + t, s - t, 3 - t$SPACE$GTS$EBOLD.)$EITALIC
+    [@ Point($P) @], [@ Point($Q) @], [@ Point($R) @].
 
-END_TEXT
-Context()->normalStrings;
+Use s and t for the parameters in your
+parameterization and enter your formula as a single vector, 
+with angle brackets, for example,  [``\langle 1 + s + t, s - t, 3 - t \rangle``].  Each component should be a function of the form a+bs+ct where a,b,c are appropriate real numbers. 
 
-## FIXME: THIS FAILS WITH ijk FORMAT ENTERED ANSWERS
+[`\vec{r}(s,t)`] = [_]{$rparam}{20}
+END_PGML
 
-ANS( $rparam->cmp( checker=>sub {
-    my ( $c, $s, $ans ) = @_;
-    ## the answer must be linear in s and t and contain
-    ##    the three points.
-    my @stucoord = $s->value;
-    
-    Value->Error('Enter your answer as a single vector with three components.  For example, enter the single vector < 1+s+t, s-t, 3-t > instead of the sum of vectors <1,0,3> + s <1,1,0> + t <1,-1,-1>.') 
-    if (($stucoord[1] eq '') or ($stucoord[2] eq ''));
-    
-    my $dxds = $stucoord[0]->D('s');
-    my $dyds = $stucoord[1]->D('s');
-    my $dzds = $stucoord[2]->D('s');
-    my $dxdt = $stucoord[0]->D('t');
-    my $dydt = $stucoord[1]->D('t');
-    my $dzdt = $stucoord[2]->D('t');
-    my $dxds2 = $dxds->D('s');
-    my $dyds2 = $dyds->D('s');
-    my $dzds2 = $dzds->D('s');
-    my $dxdt2 = $dxdt->D('t');
-    my $dydt2 = $dydt->D('t');
-    my $dzdt2 = $dzdt->D('t');
+BEGIN_PGML_SOLUTION
+Let    
+    [``P=[$P]``], [``Q=[$Q]``], [``R=[$R]``]    
+be vectors representing the three given points.
 
-    if ( $dxds2 != 0 || $dyds2 != 0 || $dzds2 != 0 ||
-         $dxdt2 != 0 || $dydt2 != 0 || $dzdt2 != 0 ) {
-	Value->Error("Your answer doesn't look like a plane.");
-	return 0;
-    } else {
-        ## the points lie on the plane only if
-	if ( $dxdt*$dyds - $dxds*$dydt != 0 ) {
-	    my $sx0 = $stucoord[0]->eval( s=>0, t=>0 );
-	    my $sy0 = $stucoord[1]->eval( s=>0, t=>0 );
-	    my $sz0 = $stucoord[2]->eval( s=>0, t=>0 );
-
-	    ## p[0] and p[1] lie on the plane with s and t equal to
-	    my $jac = $dxdt*$dyds - $dxds*$dydt;
-	    my $s0 = ($dydt*($sx0-$p[0]) + $dxdt*($p[1]-$sy0))/$jac;
-	    my $t0 = ($dyds*($p[0]-$sx0) + $dxds*($sy0-$p[1]))/$jac;
-
-	    ## q[0] and q[1] lie on the plane with s and t equal to
-	    my $s1 = ($dydt*($sx0-$q[0]) + $dxdt*($q[1]-$sy0))/$jac;
-	    my $t1 = ($dyds*($q[0]-$sx0) + $dxds*($sy0-$q[1]))/$jac;
-
-	    ## r[0] and r[1] lie on the plane with s and t equal to
-	    my $s2 = ($dydt*($sx0-$r[0]) + $dxdt*($r[1]-$sy0))/$jac;
-	    my $t2 = ($dyds*($r[0]-$sx0) + $dxds*($sy0-$r[1]))/$jac;
-
-	    if ( $stucoord[2]->substitute( s=>$s0, t=>$t0 ) == $p[2] &&
-		 $stucoord[2]->substitute( s=>$s1, t=>$t1 ) == $q[2] &&
-		 $stucoord[2]->substitute( s=>$s2, t=>$t2 ) == $r[2] ) {
-		return 1;
-	    } else {
-		return 0;
-	    }
-	} else {
-	    return 0;
-	}
-    }
-} ) );
-
-Context()->texStrings;
-SOLUTION(EV3(<<'END_SOLUTION'));
-$PAR SOLUTION $PAR
-
-Two vectors in the plane containing
-\(P=($p[0], $p[1], $p[2])\),
-\(Q=($q[0], $q[1], $q[2])\), and
-\(R=($r[0], $r[1], $r[2])\) are the displacement vectors
-\[ \vec v_1 =\vec{PQ} = $dv1\]
-and
-\[ \vec v_2 = \vec{PR} = $dv2.\]
-$PAR
-
-Letting \(\vec r_0 = $ppos\),
-we have  the parameterization
-\[
-\vec r(s, t) = \vec r_0 + s\vec v_1+t\vec v_2 =
-$rparam.
-\]
-
-END_SOLUTION
-Context()->normalStrings;
-
-;
+The displacement vectors  
+    [``\overrightarrow{PQ} = Q-P = [$PQ] ``] and   
+    [``\overrightarrow{PR} = R-P = [$PR] ``]    
+are parallel to the given plane so    
+    [``\vec{r}(s,t) = [$P]+s[$PQ]+t[$PR] = [$rparam_red]``]    
+is one way to parametrize the plane.  There are many other ways, of course.
+END_PGML_SOLUTION
 
 ENDDOCUMENT();

@@ -10,6 +10,7 @@
 ## Author(Darwyn Cook)
 ## Level(2)
 ## MO(1)
+## Static(1)
 ## TitleText1('Linear Algebra with Applications')
 ## AuthorText1('Holt')
 ## EditionText1('1')
@@ -23,9 +24,9 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "freemanMacros.pl",
-  "PGmatrixmacros.pl",
+  "parserRadioButtons.pl",
   "parserMultiAnswer.pl",
+  "PGmatrixmacros.pl",
   "PGcourse.pl"
 );
 
@@ -40,30 +41,26 @@ $showPartialCorrectAnswers = 1;
 #  Setup
 #
 #
-Context("Numeric");
+Context("Matrix");
 Context()->variables->are(a=>"Real",b=>"Real");
 
+$tf = RadioButtons(['True','False'],'True', separator => $SPACE x 4 );
+
+$A = Matrix([[Formula("a"),Formula("1-b")],[Formula("1-a"),Formula("b")]]);
+
 $multians = MultiAnswer(Formula("(1-b)/(2-a-b)"),Formula("(1-a)/(2-a-b)"))->with(
-  singleResult => 0,
+  singleResult => 1,
   checker => sub {
       my ( $correct, $student, $self ) = @_;
       my ( $stu1,$stu2 ) = @{$student};
       my ( $correct1, $correct2 ) = @{$correct};
-      if (($stu1 == 1) && ($stu2 == 1)){
-         $self->setMessage(1,'The answer is true, you need to find a vector.');
-         return [0,0];
+      if ($stu1 + $stu2 != 1){
+         Value::Error('Your vector is not a state vector.');
       }
-      elsif ($stu1 + $stu2 != 1){
-         $self->setMessage(1,'Your vector is not a state vector.');
-         return [0,0];
-      }
-      elsif (Formula("a*$stu1+b*$stu2") != $stu1){
-         return [0,0];
-      }
-      elsif (Formula("(1-a)*$stu1+(1-b)*$stu2") != $stu2){
-         return [1,0];
-      }
-      else {return [1,1]};
+      if ( (Formula("a*$stu1+(1-b)*$stu2") != $stu1) or 
+           (Formula("(1-a)*$stu1+b*$stu2") != $stu2) )
+         {Value->Error("Your vector is not a steady-state vector for \(A\)");}
+      else {return 1};
   }
 );
 
@@ -75,12 +72,15 @@ $multians = MultiAnswer(Formula("(1-b)/(2-a-b)"),Formula("(1-a)/(2-a-b)"))->with
 
 Context()->texStrings;
 BEGIN_TEXT
-\{ textbook_ref_exact("Holt Linear Algebra", "3.5","36") \}
+Every 2x2 stochastic matrix \(A\) has the form 
+\[A = $A\] $BR
+where \(0\leq a\leq 1\) and \(0\leq b \leq 1\).  
+$PAR
+1) True or False? Every 2×2 stochastic matrix has at least one steady-state vector.$BR
+$SPACE$SPACE$SPACE$SPACE \{$tf->buttons\}$PAR
+
+2) Assume \(A\neq \begin{bmatrix}1 & 0 \\ 0 & 1\end{bmatrix} \).  If \(A\) has a steady-state vector enter it here.  If it has no steady-state matrix enter the zero vector.
 $BR
-True or False: Every 2 × 2 stochastic matrix has at least one steady-state
-vector.
-$BR
- \{mbox("Note: Every 2 x 2 stochastic matrix has the form A = ", display_matrix([["\({\rm a}\)","\({\rm 1-b}\)"],["\({\rm 1-a}\)","\({\rm b}\)"]]))\} where \(0 \leq {\rm a} \leq 1\) and \(0 \leq {\rm b} \leq 1\). If there is a steady-state vector for this matrix enter it below, otherwise enter all 1's for the vector.
 \{display_matrix([[$multians->ans_rule],[$multians->ans_rule]])\}
 END_TEXT
 Context()->normalStrings;
@@ -91,6 +91,8 @@ Context()->normalStrings;
 #
 #
 
+
+ANS($tf->cmp);
 ANS($multians->cmp());
 
 ENDDOCUMENT();        

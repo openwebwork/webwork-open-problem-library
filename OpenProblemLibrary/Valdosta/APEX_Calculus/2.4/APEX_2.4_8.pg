@@ -1,15 +1,5 @@
 #Problem APEX 2.4.8
 
-DOCUMENT();
-
-# Load whatever macros you need for the problem
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "MathObjects.pl",
-  "PGcourse.pl"
-);
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Differentiation)
 ## DBsection(Product rule (without trigonometric functions))
@@ -22,89 +12,156 @@ loadMacros(
 ## Section1('2.4')
 ## Problem1('8')
 
-$showPartialCorrectAnswers = 1;
+DOCUMENT();
 
-$a = random(2,9,1)*random(-1,1,2);
-$b = random(2,5,1);
-$c = random(2,9,1)*random(-1,1,2);
-$d = random(2,5,1);
+# Load whatever macros you need for the problem
+loadMacros(
+    'PGstandard.pl',     'PGML.pl',
+    'PGchoicemacros.pl', 'parserMultiAnswer.pl',
+    'PGcourse.pl'
+);
+
+Context("Numeric");
+
+$a  = random(2, 9, 1) * random(-1, 1, 2);
+$b  = random(2, 5, 1);
+$c  = random(2, 9, 1) * random(-1, 1, 2);
+$d  = random(2, 5, 1);
 $ab = $a * $b;
 $b1 = $b - 1;
 $cd = $c * $d;
 $d1 = $d - 1;
 $ac = $a * $c;
 $bd = $b + $d;
-$p = $ac * $bd;
-$q = $bd - 1;
+$p  = $ac * $bd;
+$q  = $bd - 1;
 
-$f = "$a x^{$b}";
-$gp = "$cd x^{$d1}";
-$fp = "$ab x^{$b1}";
-$g = "$c x^{$d}";
-$ans = "$p x^{$q}";
+$f   = Formula("$a x^{$b}");
+$gp  = Formula("$cd x^{$d1}");
+$fp  = Formula("$ab x^{$b1}");
+$g   = Formula("$c x^{$d}");
+$ans = Formula("$p x^{$q}");
 
-TEXT(beginproblem());
+# when students respond with the results from the
+# product rule, the order shouldn't matter ...
+# so we aggregate all the answer blanks together
+# and analyze them all at once with MultiAnswer
+$productRule = MultiAnswer($fp, $g, $f, $gp, $ans)->with(
+    singleResult => 1,    # treat as one answer
+    # format and tex format control the display
+    # of the aggregated student responses
+    format       => "g'(x) = (%s)(%s)+(%s)(%s) = %s",
+    tex_format   =>
+        "\begin{aligned}g'(x)&=\left(%s\right)\left(%s\right)+\left(%s\right)\left(%s\right)\\&=%s\end{aligned}",
+    # answer checker ($self is the MultiAnswer)
+    checker => sub {
+        my ($correct, $student, $self) = @_;
+        # the student response is 5 answer blanks
+        my ($s1, $s2, $s3, $s4, $s) = @$student;
+        # copy the correct answers into a list
+        my @c = @$correct;
+        # start with zero credit
+        my $credit = 0;
 
-BEGIN_TEXT
+        # how many of the pieces did the
+        # student find accurately?
+        # for each student input... (not the final one)
+        for (my $i = 0; $i < 4; $i++) {
+            my $pieceFound = 0;
+            # check each correct piece... (not the last!)
+            for (my $j = 0; $j < 4; $j++) {
+                next unless $c[$j];
+                # $student is an array reference
+                # @c is a list (access elements carefully!)
+                if ($student->[$i] == $c[$j]) {
+                    $pieceFound = 1;
+                    # do not give credit for matching
+                    # the same correct factor repeatedly
+                    # (this is why we made a copy of $correct)
+                    $c[$j] = undef;
+                    last;    # break inner loop
+                }
+            }
+
+            if ($pieceFound) {
+                $credit++;
+            } else {
+                # set a feedback message on this part if
+                # it didn't match any of the correct parts
+                # NOTE: index for setMessage starts at 1 (not 0)
+                $self->setMessage(
+                    $i + 1,
+                    "Your answer is not part of the correct use of the product rule"
+                );
+            }
+        }
+
+        # now that we checked the parts, check the
+        # combined result for consistency
+        if ($s1 * $s2 + $s3 * $s4 == $s) {
+            $credit += 0.5;
+        } else {
+            $self->setMessage(5,
+                'You did not simplify your answer correctly');
+        }
+
+        # finally, check the combined result for accuracy
+        if ($s == $c[4]) {
+            $credit += 0.5;
+        } else {
+            $self->setMessage(5, 'Your final answer is incorrect');
+        }
+
+        # return the score (out of our 5 total)
+        return $credit/scalar(@$correct);
+    }
+);
+
+BEGIN_PGML
 Compute the derivative of the given function in two different ways.
-$PAR
-\[
-  g(x) = $a x^{$b}( $c x^{$d})
-\]
-$PAR
-a) Use the Product Rule, \( [fg]' = f\cdot g' + f' \cdot g\).
+
+[``
+  g(x) = [$a] x^{[$b]}( [$c] x^{[$d]})
+``]
+
+a) Use the Product Rule, [` [fg]' = f\cdot g' + f' \cdot g`].
 (Fill in each blank, then simplify.)
-$PAR
-\(g'(x) = \Big(\)\{ ans_rule(5) \} \( \Big) \cdot \Big( \)
-	\{ ans_rule(5) \} \( \Big) + \Big( \)
-	\{ ans_rule(5) \} \( \Big) \cdot \Big( \)
-	\{ ans_rule(5) \} \( \Big) \)
-$BR
-$SPACE$SPACE$SPACE = \{ ans_rule(25) \}.
-$PAR
-b) Use algebra first to simplify \(g\), then differentiate without
+    
+    [`g'(x) = \Big(`][_]{$productRule} [` \Big) \cdot \Big( `]
+[_]{$productRule} [` \Big) + \Big( `]
+[_]{$productRule} [` \Big) \cdot \Big( `]
+[_]{$productRule} [` \Big) `]
+    
+        = [_]{$productRule}.
+b) Use algebra first to simplify [`g`], then differentiate without
 the Product Rule.
-$PAR
-\(g'(x) = \) \{ ans_rule(25) \}.
-END_TEXT
 
-ANS( fun_cmp( $f ));
-ANS( fun_cmp( $gp ));
-ANS( fun_cmp( $fp ));
-ANS( fun_cmp( $g ));
-ANS( fun_cmp( $ans ));
-ANS( fun_cmp( $ans ));
+    [`g'(x) = `] [_]{$ans}.
+END_PGML
 
-SOLUTION(EV3(<<'END_SOLUTION'));
-$BR$BBOLD Solution:$EBOLD 
-$PAR
+BEGIN_PGML_SOLUTION
 First, using the Product Rule,
-$PAR
-\[
+
+[```
   \begin{array}{rcl}
-    g'(x) &=& ($f) \cdot \frac{d}{dx}[ $g ] + \frac{d}{dx}[ $f ] ($g)\\
+    g'(x) &=& ([$f]) \cdot \frac{d}{dx}[ [$g] ] + \frac{d}{dx}[ [$f] ] ([$g])\\
     &&\\
-    &=& ($f)($gp) + ($fp)($g) \\
+    &=& ([$f])([$gp]) + ([$fp])([$g]) \\
   \end{array}
-\]
-After simplifying the last line, we find \( g'(x) = $ans \).
-$PAR
-Next, simplify \(g\) first.  Then take the derivative.
-\[
+```]
+After simplifying the last line, we find [` g'(x) = [$ans] `].
+
+Next, simplify [`g`] first.  Then take the derivative.
+[```
   \begin{array}{rcl}
-    g(x) &=& ($a)($c)x^{$b + $d} = $ac x^{$bd} \\
+    g(x) &=& ([$a])([$c])x^{[$b] + [$d]} = [$ac] x^{[$bd]} \\
     &&\\
-    g'(x) &=& $ans
+    g'(x) &=& [$ans]
   \end{array}
-\]
+```]
+
 The two simplified answers should match.
-END_SOLUTION
+END_PGML_SOLUTION
 
-
-
-
-
-ENDDOCUMENT();    
-
-
+ENDDOCUMENT();
 
