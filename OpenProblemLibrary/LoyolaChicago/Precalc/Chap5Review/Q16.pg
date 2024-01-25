@@ -9,6 +9,7 @@
 ## Institution(Loyola University Chicago)
 ## Author(Adam Spiegler)
 ## Level(2)
+## MO(1)
 ## TitleText1('Functions Modeling Change')
 ## AuthorText1('Connally')
 ## EditionText1('3')
@@ -20,87 +21,101 @@ DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
   "PGgraphmacros.pl",
-  "extraAnswerEvaluators.pl",
   "PGcourse.pl"
 );
        
 TEXT(beginproblem()); # standard preamble to each problem.
 
-
 $showPartialCorrectAnswers = 1;
 
-$h = non_zero_random(-6,6,2);
-$k = random(-5,5,2);
-$dx = random(2,5,1);
-$dx_sq = $dx**2;
-$dy = non_zero_random(-5,5,2);
-if ($dy == -$k) {$dy = -$dy};
-if ($h > 0) {$x1 = $h+$dx} else {$x1 = $h-$dx};
+# parabola through two given points
+# vertex is (h,k)
+# other point is (x1,y1)=(h+dx,k+dy)
+# (s,t) are screen coordinates, F(s,t)=(x,y) are real-world
+# coordinates.  Parabola is (t=(+/-)s^2) on screen, -1<s,t<1.  
+# F(s,t)=(h+sW,k+tH), F(ds,dt)=(h+dx,k+dy),  so 
+# dx = W*ds and dy=H*dt.  dt = (+/-)ds^2 on the parabola hence
+# dy=H*(+/-)ds^2.  h,k,dx,dy,ds are given so 
+# W=dx/ds and H=(+/-)dy/(ds^2). Hence
+# F(s,t) = (h + s*(dx/ds), k + t*(+/-)dy/(ds^2) ). The 
+# origin must appear on the screen: (0,0)=F(s,t) iff
+# s = -h*ds/dx and t=-k*ds^2/((+/-)dy) are between -1 and 1, 
+# hence abs(dx)>abs(h*ds) and abs(dy)>abs(k*ds^2)
+
+do {
+  $h = non_zero_random(-6,6,2);
+  $k = random(-5,5,2);
+  $dx = random(2,5,1);
+  $dy = random(2,5,1);  # will insert signs later
+  $ds = list_random(1/3,1/2,2/3,3/4);
+} until ($dx>abs($h*$ds) && $dy>abs($k*$ds**2));
+
+# parabola points up if ud = 1, down if ud = -1
+$ud = random(-1,1,2);
+
+# dx points right if lr = 1, left if lr = -1
+$lr = random(-1,1,2);
+
+# dx and ds have same sign 
+$dx = $lr*$dx;
+$ds = $lr*$ds; 
+
+$dy = $ud*$dy;
+
+$x1 = $h+$dx;
 $y1 = $k+$dy;
-$a = $dy/$dx**2;
-$int = $a*$h**2+$k;
-if ($h < 0) {$xmin = 2*$h-1; $xmax = 1}
-       else {$xmin = -1; $xmax = 2*$h+1};
 
-if ($a < 0) {$ymax = $k+2; $ymin = $a*($xmax-$h)**2+$k; 
-             $vert = 'bottom'; $vert_st = $total_y/40+$k;
-             $align = 'top'}
-       else {$ymin = $k-2; $ymax = $a*($xmax-$h)**2+$k;  
-             $vert = 'top'; $vert_st = -$total_y/40+$k; 
-             $align = 'bottom'};
-
-if ($ymax * $ymin > 0){ if ($a > 0) {$ymin = -1} else {$ymax = 1} };
-
-$total_y = $ymax-$ymin;
-$total_x = $xmax-$xmin;
-
-$f = "$a*(x-$h)^2 + $k for x in <$xmin,$xmax> using color:blue and weight:2";
-$graph = init_graph($xmin,$ymin,$xmax,$ymax,'axes'=>[0,0] );
+# draw the graph. 
+($u,$v)=(-$h*$ds/$dx,-$k*$ud*$ds**2/$dy); # the origin
+$f = "$ud*x^2 for x in <-1,1> using color:blue and weight:2";
+$graph = init_graph(-1,-1,1,1,'axes'=>[$u,$v] );
 $graph->lb('reset');
-$graph->lb(new Label(-$total_x/40,$ymax-$total_y/40,"y",'black','right','top'));
-$graph->lb(new Label($xmax-$total_x/40,-$total_y/40,"x",'black','right','top'));
-$graph->lb(new Label($h,$vert_st,"($h, $k)",'black','center',$vert));
-$graph->lb(new Label($x1+$total_x/40,$y1,"($x1, $y1)",'black','left',$align));
-$graph->moveTo($h,$ymin); 
-$graph->lineTo($h,$ymax,'yellow');
-$point[0] = closed_circle( $h,$k, black );
-$point[1] = closed_circle( $x1,$y1, black );
+$valign = ($v > 0 ? 'top' : 'bottom');
+$graph->lb(new Label(0.9,$v,"x",'black','right',$valign));
+$halign = ($u > 0 ? 'right' : 'left');
+$graph->lb(new Label($u,0.9,"y",'black',$halign,'middle'));
+$valign = ($ud > 0 ? 'top' : 'bottom');
+$graph->lb(new Label(0,0,"($h, $k)",'black','center',$valign));
+$halign = ($ds>0 ? 'right' : 'left');
+$valign = ($ud > 0 ? 'bottom' : 'top');
+$graph->lb(new Label($ds,$ud*$ds**2,"($x1, $y1)",'black',$halign,$valign));
+#$graph->moveTo(0,-1); 
+#$graph->lineTo(0,1,'yellow');
+$point[0] = closed_circle( 0,0, 'black' );
+$point[1] = closed_circle( $ds,$ud*$ds**2, 'black' );
 $graph -> stamps(@point);
 plot_functions( $graph, $f); 
-$fig = image(insertGraph($graph),width => 200,height => 200,tex_size => 600);
+$fig = image(insertGraph($graph),width => 200,height => 200,tex_size => 600,
+extra_html_tags=>'alt="Graph of parabola with vertex '."($h,$k) and passing through ($x1,$y1)".'"');
 
-#$neg_r = -$r;
-$ans = "$a(x-$h)^2+$k";
+Context("Numeric");
+$poly = Compute("(x-$h)^2")->reduce;
+$ans = Compute("($dy/($dx^2))*$poly + $k");
 
-BEGIN_TEXT
-Find a formula for the parabola whose graph is given below:
-$BR $SPACE $BR
-$BCENTER
-$fig
-$BR
-$BITALIC (click on image to enlarge) $EITALIC
-$ECENTER
-$BR $SPACE $BR 
-\( f(x) = \) \{ ans_rule(30) \}
-END_TEXT
+BEGIN_PGML
+Find a formula [`y=f(x)`] for the parabola whose graph is given below:
 
-ANS(fun_cmp( $ans,vars=>'x') );
+>>[@ $fig @]*  
+_(click on image to enlarge)_<<
 
-SOLUTION(EV3(<<'END_SOLUTION'));
-$BR $SPACE $BR 
-$BBOLD  SOLUTION $EBOLD
-$BR
-Since the vertex is ($h, $k), we use the form \( \ y=a(x-h)^2+k \) , $SPACE with
-\( \ h=$h \) $SPACE and \( \ k=$k \) . $SPACE  We solve for \( \ a \) , substituting in the second point, ($x1, $y1). $BR $SPACE $BR
-\( \ \ \ \ \ \ y = a(x-$h)^2 + $k \) $BR
-\( \ \ \ \ \ \ $y1 = a($x1-$h)^2+ $k \) $BR
-\( \ \ \ \ \ \ $dy = $dx_sq a \) $BR
-\( \ \ \ \ \ \ \frac{$dy}{$dx_sq} = a \) 
-$BR $SPACE $BR
-Thus, an equation for the parabola is \( \ \ y = \frac{$dy}{$dx_sq} (x-$h)^2+$k \) $BR
-END_SOLUTION
+[` f(x) = `][_]{$ans}{30}
+END_PGML
 
+$num = $y1-$k; $den = ($x1-$h)**2;
+BEGIN_PGML_SOLUTION
+Since the vertex is ([$h], [$k]), one can use the form [` f(x)=a(x-h)^2+k `], with
+[` h=[$h] `] and [` k=[$k] `]. Solve for [` a `] by substituting in the second point, ([$x1], [$y1]). 
+
+[``` \begin{aligned}
+    [$y1] &= a([$x1]-[$h])^2+ [$k]  \\
+    a &= \frac{[$y1]-[$k]}{([$x1]-[$h])^2} = \frac{[$num]}{[$den]}
+   \end{aligned} ```] 
+
+Thus [` f(x) = \frac{[$num]}{[$den]}(x-[$h])^2 + [$k] `] is a 
+formula for the parabola. 
+END_PGML_SOLUTION
       
 ENDDOCUMENT();  
