@@ -1,0 +1,96 @@
+## DESCRIPTION
+## DBsubject(Statistics)
+## DBchapter(Exploratory data analysis/descriptive statistics)
+## DBsection(Graphical representations)
+## Institution(The College of Idaho)
+## Author(R Cruz, L Danielson, J Guild)
+## Level(1)
+## TitleText1('The Basic Practice of Statistics')
+## AuthorText1('David Moore')
+## EditionText1('5e')
+## Section1('1')
+## Problem1('')
+## KEYWORDS('statistics', 'quantitative data', 'categorical data', 'histogram')
+
+# updated by Peter Staab (Fitchburg State) on 2024.01.31
+
+DOCUMENT();
+
+loadMacros(
+    'PGstandard.pl',         'PGML.pl', 'contextPercent.pl',
+    
+    'PGtikz.pl',             'parserPopUp.pl',
+    'PGstatisticsmacros.pl', 'PGcourse.pl'
+);
+
+# generate some data is is skewed rigt
+
+@cutoffs    = (59, 62, 65, 68, 71, 74, 77, 80);
+do {
+@norm_rands = urand(70, 5, 40, 1);
+@h          = ();
+$max = 0; 
+for $i (0 .. $#cutoffs - 1) {
+    $h[$i] = scalar(grep { $_ >= $cutoffs[$i] && $_ < $cutoffs[ $i + 1 ] }
+            @norm_rands);
+    $max = $h[$i] if $h[$i]> $max; 
+}
+
+} until $max <=10;
+
+$num_students = 0;
+$num_students += $h[$_] for (0 .. $#h);
+
+# generate the rectangles
+$rects = '';
+for $i (0 .. $#h) {
+    $rects .=
+        "\\filldraw[fill=LightBlue] ({$cutoffs[$i]-59},0) rectangle ({$cutoffs[$i+1]-59},{$h[$i]});\n";
+}
+
+$xticks = join(', ', @cutoffs);
+$graph = createTikZImage();
+$graph->tikzLibraries('arrows.meta');
+$graph->BEGIN_TIKZ
+\tikzset{>={Stealth[scale=1.5]},xscale=0.5}
+\filldraw[
+    draw=LightBlue,
+    fill=white,
+    rounded corners=10pt,
+    thick,use as bounding box
+] (-2,11.5) rectangle (22,-1);
+$rects;
+\draw (0,0) rectangle (21,11);
+\foreach \x in {$xticks} \draw ({\x-59},0) -- ({\x-59},-0.25) node [below] {\x};
+\foreach \y in {1,2,...,11} \draw(0,{\y}) -- (-0.25,{\y});
+\foreach \y in {5,10} \draw (0,{\y}) -- (-0.5,{\y}) node [left] {\y};
+END_TIKZ
+
+$alt_text = "A histogram of the $num_students students.  The cutoff values are "
+    . join(', ', @cutoffs) . ' and there are 7 bars.  From left to right the '
+    . "heights are " . join(', ', @h) . '.';
+    
+Context('Percent');
+$k = random(0,4);
+
+$inter = Percent(($h[$k]+$h[$k+1])/$num_students); 
+$dd = DropDown(['59-65','62-68','65-71','68-74','71-77','74-80'],$k); 
+
+
+$over74 = Percent(($h[5]+$h[6])/$num_students);
+
+BEGIN_PGML
+The histogram below shows the heights of [$num_students] students.
+
+>> [! [$alt_text] !]{$graph}{400} <<
+
+a) How many students are between 65 and 68 inches in height? [_]{Real($h[2])}
+
+b) What percent of students have height greater than 74 inches? [_]{$over74}
+
+c) Which interval is about [$inter] perecent of the students. [_]{$dd}
+
+Note: on b) include the % sign.
+END_PGML
+
+ENDDOCUMENT();    # This should be the last executable line in the problem.
