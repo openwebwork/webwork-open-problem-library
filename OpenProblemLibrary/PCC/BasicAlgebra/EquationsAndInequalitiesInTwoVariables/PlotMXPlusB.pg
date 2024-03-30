@@ -1,0 +1,78 @@
+# Plot four points with a simple linear relation.
+# Author: Alex Jordan
+
+###################################################################################
+# Setup and Macros
+###################################################################################
+DOCUMENT();
+
+loadMacros(
+	"PGstandard.pl",
+	"MathObjects.pl",
+	"PGML.pl",
+	"PGchoicemacros.pl",
+	"parserGraphTool.pl",
+	"PGcourse.pl",
+);
+
+###################################################################################
+# Variables and Formulas
+###################################################################################
+TEXT(beginproblem());
+
+Context("Numeric")->noreduce('(-x)-y','(-x)+y');
+my $m = list_random(-4..-2,2..4);
+my $b = non_zero_random(-7,7,1);
+$f = Formula("$m x+$b")->reduce;
+
+@xs = num_sort(-8,8,int((-8-$b)/$m),int((8-$b)/$m));
+$minx = $xs[1];
+$maxx = $xs[2];
+$n = $maxx - $minx + 1;
+
+@point = map {Point($_,$f->eval(x=>$_))} ($minx..$maxx);
+$points = '{point,'.join('},{point,',@point).'}';
+
+$gt = GraphTool($points)->with(
+	availableTools => ["PointTool"],
+	showCoordinateHints => 0,
+	bBox => [-8, 8, 8, -8],
+	cmpOptions => {
+		list_checker => sub {
+			my ($correct, $student, $ans, $value) = @_;
+			my $extra = 0;
+			my $distinct = 0;
+			my @errors;
+			my $count = 0;
+			STUDENTS:
+			for my $j (@$student) {
+				my $nth = Value::List->NameForNumber(++$count);
+				if ($j->extract(1) ne 'point' || ($j->extract(2)->value)[1] != $f->eval(x=>(($j->extract(2)->value)[0]))) {
+					push(@errors, "The $nth plotted point is incorrect.");
+					$extra++;
+					next STUDENTS;
+				}
+				for my $i (0..($count-2)) {
+					next STUDENTS if ($j->extract(1) eq $student->[$i]->extract(1) && $j->extract(2) eq $student->[$i]->extract(2));
+				}
+				$distinct++;
+			}
+			push(@errors, "You've only plotted $distinct correct point".(($distinct > 1)?'s':'').".") if ($distinct > 0 && $distinct < $n);
+			return (scalar(@{$correct})*min($distinct,$n)/$n/(($extra)?2:1), @errors);
+		}
+	}
+);
+
+###################################################################################
+# Main Text
+###################################################################################
+
+BEGIN_PGML
+Graph as many points as fit in the given viewing window for the equation [`y=[$f]`].
+ 
+[_]{$gt}
+END_PGML
+
+ENDDOCUMENT();
+
+

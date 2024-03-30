@@ -1,0 +1,235 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "parserOneOf.pl",
+  "contextFraction.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Numeric");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+do {
+  do {
+    $a = non_zero_random(-5,5,1);
+    $b = non_zero_random(-5,5,1);
+    $c = non_zero_random(-5,5,1);
+    $d = ($b)**2-4*$a*$c;
+  } until $d > 0 && gcd($a,gcd($b,$c))==1;
+  $x0 = (-$b-sqrt($d))/(2*$a);
+  $x1 = (-$b+sqrt($d))/(2*$a);
+} until abs($x0)<=1 || abs($x1)<=1;
+$x0Show = Round($x0,2);
+$x1Show = Round($x1,2);
+
+$left = "";
+if (abs($a)==1) {
+  $left .= $a>0 ? "\cos^2(x)" : "-\cos^2(x)";
+} else {
+  $left .= "$a\cos^2(x)";
+}
+
+if (abs($b)==1) {
+  $left .= $b>0 ? "+\cos(x)" : "-\cos(x)";
+} else {
+  $left .= $b>0 ? "+$b\cos(x)" : "$b\cos(x)";
+}
+$left .= "+$c";
+$right = "0";
+
+@cosV = (); @cosVShow = ();
+if (abs($x0)<=1) {
+  $cosV[scalar(@cosV)] = $x0;
+  $cosVShow[scalar(@cosVShow)] = Round($x0,2);
+}
+if (abs($x1)<=1) {
+  $cosV[scalar(@cosV)] = $x1;
+  $cosVShow[scalar(@cosVShow)] = Round($x1,2);
+}
+
+#$start[0][#] are points in first graph with inverse trig values
+#$start[1][#] are points in second graph with solutions
+@start = (); @points = "";
+for my $i (0..scalar(@cosV)-1) {
+  $start[0][scalar(@{$start[0]})] = arccos($cosV[$i]);
+  $points[0] .= Round(arccos($cosV[$i]),2).", ";
+  $start[0][scalar(@{$start[0]})] = -arccos($cosV[$i]);
+  $points[0] .= Round(-arccos($cosV[$i]),2).", ";
+}
+$points[0] = substr($points[0],0,length($points[0])-2);
+
+for my $j (0..scalar(@{$start[0]})-1) {
+  for my $i (-2..2) {
+    my $c = $start[0][$j]+2*$i*pi;
+    if ( ($c>=0) && ($c<2*pi) )  {
+      $start[1][scalar(@{$start[1]})] = $c;
+      $points[1] .= Round($c,2).", ";
+    }
+  }
+}
+$points[1] = substr($points[1],0,length($points)-2);
+$ans = List(@{$start[1]});
+
+@startShow = (); 
+for my $i (0..scalar(@start)-1) {
+  for my $j (0..scalar(@{$start[$i]})-1) {
+    $startShow[$i][$j] = Round($start[$i][$j],2);
+  }
+}
+
+$r = 5;
+for my $i (0..1) {
+  $graph[$i] = init_graph(-6,-6,6,6,'axes'=>[0,0],'grid'=>[1,1]);
+  $graph[$i]->lb('reset');
+
+  $xfuncAlpha = sub { my $t = shift();
+    return $r*cos($t); };
+  $yfuncAlpha = sub { my $t = shift();
+    return $r*sin($t); };
+  $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[$i] );
+  $fnAlpha->domain(0,2*pi);
+
+  for my $j (0..scalar(@{$start[$i]})-1) {
+    $Px = Compute("$r*cos($start[$i][$j])")->reduce;
+    $Py = Compute("$r*sin($start[$i][$j])")->reduce;
+    $graph[$i]->stamps(closed_circle($Px,$Py,red));
+    $graph[$i]->moveTo(0,0);
+    $graph[$i]->lineTo($Px,$Py,red,2);
+    $graph[$i]->lineTo($Px,0,red,2);
+    $graph[$i]->lineTo(0,0,red,2);
+
+    if ( ($Px!=0) && ($Py!=0) ) {
+      $xShift = ($Px>0) ? -0.4 : 0.4;
+      $yShift = ($Py>0) ? 0.4 : -0.4;
+      $graph[$i]->moveTo($Px,$yShift);
+      $graph[$i]->lineTo($Px+$xShift,$yShift,red,2);
+      $graph[$i]->lineTo($Px+$xShift,0,red,2);
+    }
+
+    $td = $Py>=0 ? 'bottom' : 'top';
+    $graph[$i]->lb(new Label($Px,$Py,"$startShow[$i][$j]",'red','center',$td,large));
+  }
+
+  $alt[$i] = "This is the graph of a circle with points $points[$i] on the circle.";
+
+  $fig[$i] = image(insertGraph($graph[$i]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[$i]' title = '$alt[$i]' ");
+}
+
+
+
+
+##############################################################
+
+BEGIN_PGML
+
+Solve the equation
+
+    [``[$left]=[$right] \text{ where }x\in[0,2\pi)``]
+
+[@KeyboardInstructions(
+"\n"
+.'* Enter multiple answers separated by commas, as in [|1.12, 3.24|]*.'
+."\n"
+.'* Use a calculator to calculate inverse trigonometry values.'
+."\n"
+.'* Type radian answers. There is no need to use [`\pi`] in your answers.'
+."\n"
+.'* Type [|no solution|]* if there is no solution.'
+)@]**
+
+    [`x=`][________________________________________]{$ans}
+    
+    
+END_PGML
+
+##############################################################
+
+$right1 = "2\left(1-\sin^2(x)\right)-$d";
+$right2 = "2-2\sin^2(x)-$d";
+
+$s1 = "";
+if (abs($x0)>1) {
+  $s1 = "\cos^{-1}($x0Show) \text{ has no solution.}";
+  $s2 = "\cos(x)=$x1Show";
+} elsif (abs($x1)>1) {
+  $s1 = "\cos^{-1}($x1Show) \text{ has no solution.}";
+  $s2 = "\cos(x)=$x0Show";
+} else {
+  $s2 = "\cos(x)=$x0Show \text{ and } \cos(x)=$x1Show";
+}
+
+$s3 = "";
+for my $i (0..scalar(@{$start[0]})-1) {
+  if ($start[0][$i]<0) {
+    $s3 .= "$startShow[0][$i]+2\pi&=$startShow[1][$i]\\";
+  }
+}
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+We will use the quadratic formula [` x = \frac{-b\pm\sqrt{b^2-4ac}}{2a} `] to solve this equation:
+
+    [``\begin{aligned}
+  [$left] &= [$right] \\
+  \cos(x) &= \frac{-([$b])\pm\sqrt{([$b])^2-4([$a])([$c])}}{2([$a])} \\
+  \cos(x) &\approx [$x0Show] \text{ or } \cos(x) \approx [$x1Show] \\
+  x &\approx \cos^{-1}\left([$x0Show]\right) \text{ or } x\approx\cos^{-1}([$x1Show]) \\
+    \end{aligned}``]
+    
+Recall that the range of [`\cos^{-1}(x)`] is [`\left[ -\frac{\pi}{2},\frac{\pi}{2} \right] `]. [`[$s1]`]
+
+On the Unit Circle, we need to identify all values which make [`[$s2]`] true:
+
+>>[@ $fig[0] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+We need to find corresponding values in the range of [`[0,2\pi)`]:
+
+>>[@ $fig[1] @]*<<
+
+We did:
+
+    [``\begin{aligned}
+  [$s3]
+    \end{aligned}``]
+
+Solutions are [`[$ans]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

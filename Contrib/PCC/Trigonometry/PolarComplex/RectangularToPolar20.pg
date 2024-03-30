@@ -1,0 +1,135 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "contextFraction.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",,
+);
+
+##############################################
+
+Context("Fraction");
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+
+do {
+  $den = list_random(3,4,6);
+  $num = random(1,2*$den-1,1);
+} until gcd($num,$den)==1;
+$angle = specialAngle($num*pi/$den);
+$cosV = specialRadical(cos(Compute($angle)));
+$sinV = specialRadical(sin(Compute($angle)));
+$r = Formula(random(2,10,1));
+
+$xr = specialRadical(Compute($cosV*$r));
+$yr = specialRadical(Compute($sinV*$r));
+$yrAbs = specialRadical(abs(Compute($sinV*$r)));
+
+if ($cosV>0) {
+  $Q = ($sinV>0) ? "I" : "IV";
+} else {
+  $Q = ($sinV>0) ? "II" : "III";
+}
+
+
+Context()->variables->add(i=>"Real");
+$p = ($yr>0) ? Formula("$xr+$yr*i") : Formula("$xr-$yrAbs*i");
+$com = Formula("$r*(cos($angle)+i*sin($angle))");
+
+$s1 = specialAngle(arccos(Compute($cosV)));
+
+package my::Complex;
+our @ISA = ('Value::Complex');
+
+sub cis {
+  my $z = shift;
+  return cos($z) + main::i * sin($z);
+}
+
+package main;
+
+Context("Complex");
+
+Context()->{value}{Complex} = 'my::Complex';
+Context()->constants->set(i => {value => my::Complex->new(0,1)});
+Context()->functions->add(cis => {
+  class => 'Parser::Function::complex', TeX => '\operatorname{cis}',
+  complex => 1, isCommand => 1
+});
+
+sub cis {Parser::Function->call("cis", my::Complex->new(@_))}
+
+$ans = Formula("$r*cis($angle)");
+
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+
+Convert the complex number to polar complex form. Use [`r\operatorname{cis}(\theta)`] to represent [`r(\cos(\theta)+i\sin(\theta))`].
+
+     [`` [$p]= ``][________________________]{$ans}
+
+END_PGML
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+For [`z=x+yi`], [`r=\sqrt{x^2+y^2}`].
+
+For [`[$p]`], we have:
+
+    [``\begin{aligned}
+  r &= \sqrt{\left([$xr]\right)^2+\left([$yr]\right)^2} \\
+  &= [$r]
+    \end{aligned}``]
+
+Now we can re-write [`[$p]`] as [`[$r]\left([$cosV]+\left([$sinV]\right)i\right)`]. 
+
+To change [`[$r]\left([$cosV]+\left([$sinV]\right)i\right)`] to the format of [`r(\cos(\theta)+i\sin(\theta))`], we need to find an angle which makes [`\cos(\theta)=[$cosV]`] true. We have:
+
+    [`` \theta = \cos^{-1}\left([$cosV]\right) = [$s1] ``]
+
+Since [`[$p]`] is in Quadrant [$Q], we can determine that [`\theta=[$angle]`].
+
+Solution is:
+
+    [`` [$p]=[$com]=[$ans] ``]
+
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();

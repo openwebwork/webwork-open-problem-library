@@ -25,7 +25,8 @@
 DOCUMENT();
 
 loadMacros(
-  "PGgraphmacros.pl",
+  "PGtikz.pl",
+  "ORCCA.pl",
   "PGstandard.pl",
   "MathObjects.pl",
   "PGML.pl",
@@ -38,7 +39,7 @@ loadMacros(
 TEXT(beginproblem());
 
 Context("Numeric");
-$refreshCachedImages=1;
+
 
 $m = 0;
 $b = non_zero_random(-4,4,1);
@@ -60,48 +61,48 @@ Context("Numeric");
 
 ($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([3*$x2,0,$x1],[$m*3*$x2+$b,0,$y1]);
 
-@xticks = @$xticks_ref;
-@yticks = @$yticks_ref;
+TEXT(@$yticks_ref);
+$xticks = join(',',@$xticks_ref);
+$yticks = join(',',@$yticks_ref);
 
-my @ticksep;
-for my $i (0,1) {
-  $ticksep[$i] = ($max[$i] - $min[$i])/$ticknum[$i];
-};
+$gr[0] = createTikZImage();
+$gr[0]->addToPreamble(latexImagePreamble());
+$gr[0]->BEGIN_TIKZ
+\begin{axis}[
+    xmin = $min[0],
+    xmax = $max[0],
+    ymin = $min[1],
+    ymax = $max[1],
+    xtick =,
+    ytick =,
+    minor xtick = {$xticks},
+    minor ytick = {$yticks},
+    grid = minor,
+  ]
+  \addplot+[domain=$min[0]:$max[0]] {$m*x+$b};
+\end{axis}
+END_TIKZ
 
-#Make sure the grid lines cover the two points
-$scale[0] = 1;
-while ((Real($scale[0]*$x1 / $ticksep[0]) != Real(int($scale[0]*$x1 / $ticksep[0]))) or (Real($scale[0]*$x2 / $ticksep[0]) != Real(int($scale[0]*$x2 / $ticksep[0])))) {$scale[0] = $scale[0] + 1};
-$scale[1] = 1;
-while ((Real($scale[1]*$y1 / $ticksep[1]) != Real(int($scale[1]*$y1 / $ticksep[1]))) or (Real($scale[1]*$y2 / $ticksep[1]) != Real(int($scale[1]*$y2 / $ticksep[1])))) {$scale[1] = $scale[1] + 1};
-
-for my $i (0,1) {
-  $ticknum[$i] = $ticknum[$i]*$scale[$i];
-};
-
-for my $i (0,1) {
-  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
-   axes=>[0,0],
-   grid=>[$ticknum[0],$ticknum[1]],
-   size=>[xPixels(),yPixels()]
-  );
-  $gr[$i]->lb('reset');
-  for my $j (@xticks) {
-    if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top','large'));
-  }
-
-  for my $j (@yticks) {
-    if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle','large'));
-  }
-
-($start,$stop) = ($min[0],$max[0])[1,2];
-$gr[$i]->moveTo($x1,$y1);
-$gr[$i]->arrowTo($start,$mperl*$start+$b,'blue',1);
-$gr[$i]->moveTo($x1,$y1);
-$gr[$i]->arrowTo($stop,$mperl*$stop+$b,'blue',1);
-
-}
+$gr[1] = createTikZImage();
+$gr[1]->addToPreamble(latexImagePreamble());
+$gr[1]->BEGIN_TIKZ
+\begin{axis}[
+    xmin = $min[0],
+    xmax = $max[0],
+    ymin = $min[1],
+    ymax = $max[1],
+    xtick =,
+    ytick =,
+    minor xtick = {$xticks},
+    minor ytick = {$yticks},
+    grid = minor,
+  ]
+  \addplot+[domain=$min[0]:$max[0]] {$m*x+$b};
+  \addplot[soliddot] coordinates {($x1,$y1)} node[above left] {\(($x1,$y1)\)};
+  \addplot[soliddot] coordinates {($x2,$y2)} node[above right] {\(($x2,$y2)\)};
+  \addplot[guideline] coordinates {($x1,$y1) ($x2,$y2)};
+\end{axis}
+END_TIKZ
 
 
 ##############################################
@@ -115,7 +116,7 @@ END_PGML
 BEGIN_TEXT
 $PAR
 $BCENTER
-\{image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "graph of a line crossing the y-axis at $b; the line is horizontal and also passes through the point ($x2,$y2)" title = "graph of a line crossing the y-axis at $b; the line is horizontal and also passes through the point ($x2,$y2)"') \}
+\{image($gr[0], width=>300, tex_size=>TeXscalar(), extra_html_tags=>'alt = "graph of a line crossing the y-axis at $b; the line is horizontal and also passes through the point ($x2,$y2)" title = "graph of a line crossing the y-axis at $b; the line is horizontal and also passes through the point ($x2,$y2)"') \}
 $ECENTER
 $PAR
 END_TEXT
@@ -125,27 +126,6 @@ BEGIN_PGML
 
 END_PGML
 ##############################################
-
-if ($m > 0) 
-{$p1vert = 'bottom';
- $p2vert = 'top';
- $p1hor = 'right';
- $p2hor = 'left';}
-else {$p1vert = 'top';
-      $p2vert = 'top';
-      $p1hor = 'right';
-      $p2hor = 'right';};
-
-$gr[1]->stamps( closed_circle($x1,$y1,'red') );
-$gr[1]->lb( new Label($x1,$y1,"$pt1",'red',$p1hor,$p1vert));
-$gr[1]->stamps( closed_circle($x2,$y2,'red') );
-$gr[1]->lb( new Label($x2,$y2,"$pt2",'red',$p2hor,$p2vert));
-
-$gr[1]->moveTo($x1,$y1);
-$gr[1]->lineTo($x2,$y1,'red',2);
-$gr[1]->lineTo($x2,$y2,'red',2);
-$gr[1]->lb( new Label(($x1+$x2)/2,$y1,"$run",'red','center','top'));
-$gr[1]->lb( new Label($x2,($y1+$y2)/2,"$rise",'red','left','middle'));
 
 Context()->texStrings;
 BEGIN_SOLUTION
@@ -158,7 +138,7 @@ To be more consistent with how you might approach problems like this that do not
 Next, we sketch a slope triangle and find the $BITALIC rise$EITALIC and $BITALIC run$EITALIC. In the sketch below, the rise is \($rise\) and the run is \($run\).
 
 $BCENTER
-\{ image( insertGraph($gr[1]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt="graph of the line detailing a slope triangle from ($x1,$y1) to ($x2,$y1) to ($x2,$y2)" title="graph of the line detailing a slope triangle from ($x1,$y1) to ($x2,$y1) to ($x2,$y2)"'  )
+\{ image($gr[1], width=>300, tex_size=>TeXscalar(), extra_html_tags=>'alt="graph of the line detailing a slope triangle from ($x1,$y1) to ($x2,$y1) to ($x2,$y2)" title="graph of the line detailing a slope triangle from ($x1,$y1) to ($x2,$y1) to ($x2,$y2)"'  )
  \}
 $ECENTER
 $PAR

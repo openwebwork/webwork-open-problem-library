@@ -1,0 +1,277 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "contextFraction.pl",
+  "PGML.pl",
+  "PGchoicemacros.pl",
+  "parserPopUp.pl",
+  "PCCmacros.pl",
+  "contextLimitedRadical.pl",
+  "PGgraphmacros.pl",
+  "PGcourse.pl"
+);
+$refreshCachedImages=1;
+TEXT(beginproblem());
+
+sub output {
+  my ($n,$d) = shift->value;
+  if ($n==0) {return 0;}
+  if ($d==1) {
+    if ($n==1) {return "\pi";}
+      elsif ($n==-1) {return "-\pi";}
+      else {return "$n\pi";}
+  } else {
+    if ($n==1) {return "\frac{\pi}{$d}";}
+      elsif ($n==-1) {return "-\frac{\pi}{$d}";}
+      elsif ($n>0) {return "\frac{$n\pi}{$d}";}
+      else {
+        $Nn = -$n;
+        return "-\frac{$Nn\pi}{$d}";
+      }
+  }
+}
+
+sub input {
+  my ($n,$d) = shift->value;
+  if ($n==0) {return 0;}
+  if ($d==1) {
+    if ($n==1) {return "pi";}
+      elsif ($n==-1) {return "-pi";}
+      else {return "$n*pi";}
+  } else {
+    if ($n==1) {return "pi/$d";}
+      elsif ($n==-1) {return "-pi/$d";}
+      elsif ($n>0) {return "$n*pi/$d";}
+      else {
+        $Nn = -$n;
+        return "-$Nn*pi/$d";
+      }
+  }
+}
+
+@num = ();
+do {
+  $den = random(3,9,1);
+  $num[0] = -random(1,int($den/2),1);
+} until gcd(abs($num[0]),$den)==1 && abs($num[0])/$den<0.5;
+
+$num[1] = -($den-abs($num[0]));
+$num[2] = -(abs($num[0])+$den);
+$num[3] = -(2*$den-abs($num[0]));
+
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+
+@frac = ();
+@values = ();
+@valuesShow = ();
+for my $i (0..3) {
+  $frac[$i] = Fraction($num[$i],$den);
+  $values[$i] = &output($frac[$i]);
+  $valuesShow[$i] = &input($frac[$i]);
+}
+
+$ans0In = &input(Fraction(-$num[0],$den));
+$ans1In = &input(Fraction($den+$num[0],$den));
+$ans0Show = &output(Fraction(-$num[0],$den));
+$ans1Show = &output(Fraction($den+$num[0],$den));
+
+Context("LimitedRadical");
+
+@ans = ();
+$ans[0] = Compute("$ans0In");
+$ans[1] = Compute("$ans1In");
+$ans[2] = Compute("$ans1In");
+$ans[3] = Compute("$ans0In");
+
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+
+$r = 5;
+$Ax = $r*cos(Real($frac[0])*pi);
+$Ay = $r*sin(Real($frac[0])*pi);
+$Bx = $r*cos(Real($frac[1])*pi);
+$By = $r*sin(Real($frac[1])*pi);
+
+$graph = init_graph(-7,-7,7,7,'axes'=>[0,0],'grid'=>[1,1]);
+$graph->lb('reset');
+
+$xfuncAlpha = sub { my $t = shift();
+  return $r*cos($t); };
+$yfuncAlpha = sub { my $t = shift();
+  return $r*sin($t); };
+$fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph );
+$fnAlpha->domain(0,2*pi);
+
+for my $i (0..2*$den-1) {
+  $graph -> stamps( closed_circle( $r*cos($i*pi/$den), $r*sin($i*pi/$den), red ) );
+}
+$graph -> stamps( closed_circle( $Ax, 0, red ) );
+$graph -> stamps( closed_circle( $Bx, 0, red ) );
+$graph -> stamps( closed_circle( 0, 0, red ) );
+
+if ($Ax>0) {
+  $Alor = ($Ax<$r/2) ? "left" : "center";
+} else {
+  $Alor = (-$Ax>$r/2) ? "center" : "right";
+}
+$graph->lb(new Label($Ax,$Ay,"A: $valuesShow[0]",'red',$Alor,'top',large));
+$graph->lb(new Label($Ax,-$Ay,"D: $ans0In",'red',$Alor,'bottom',large));
+
+if ($Bx>0) {
+  $Blor = ($Bx<$r/2) ? "left" : "center";
+} else {
+  $Blor = (-$Bx>$r/2) ? "center" : "right";
+}
+$graph->lb(new Label($Bx,$By,"B: $valuesShow[1]",'red',$Blor,'top',large));
+$graph->lb(new Label($Bx,-$By,"C: $ans1In",'red',$Blor,'bottom',large));
+
+$Olor = ($frac[0]<0.5) ? 'center' : 'left';
+$Ouod = ($frac[0]<0.5) ? 'bottom' : 'middle';
+$graph->lb(new Label(0,0,"O",'red',$Olor,$Ouod,large));
+
+$graph->lb(new Label($Ax,0,"E",'red','left','top',large));
+$graph->lb(new Label($Bx,0,"F",'red','right','top',large));
+
+for my $i (0..3) {
+  $graph->moveTo(0,0);
+  $graph->lineTo($r*cos(Real($frac[$i])*pi), $r*sin(Real($frac[$i])*pi), red, 2);
+  $graph->lineTo($r*cos(Real($frac[$i])*pi), 0, red, 2);
+  $graph->lineTo(0, 0, red, 2);
+  
+  $xShift = (cos(Real($frac[$i])*pi)>0) ? -0.4 : 0.4;
+  $yShift = (sin(Real($frac[$i])*pi)>0) ? 0.4 : -0.4;
+  $graph->moveTo($r*cos(Real($frac[$i])*pi), $yShift);
+  $graph->lineTo($r*cos(Real($frac[$i])*pi)+$xShift, $yShift, red, 2);
+  $graph->lineTo($r*cos(Real($frac[$i])*pi)+$xShift, 0, red, 2);
+}
+
+$alt = "A unit circle has O as its center. On the unit circle, point A: $valuesShow[0], B: $valuesShow[1], C: $ans1In and D: $ans0In are marked on the circle. From A, a vertical line is drawn toward the x-axis, crossing the x-axis at E. AOE is a right triangle, with angle E being the right angle. Similarly, from B, a vertical line is drawn toward the x-axis, crossing the x-axis at F. BOF is a right triangle, with angle F being the right angle. CF is connected, forming a right triangle COF. DE is connected, forming a right triangle DOE.";
+
+$fig0 = image(insertGraph($graph),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt' title = '$alt' ");
+
+
+
+##############################################
+
+BEGIN_PGML
+
+When you do the following problems, don't use a calculator. Use your knowledge about the Unit Circle instead.
+
+[@KeyboardInstructions(
+"\n"
+.'* Use fractions in your answer.'
+."\n"
+.'* Use [|pi|]* to represent [`\pi`].'
+)@]**
+
+a) [`` \cos^{-1} \left( \cos \left( [$values[0]] \right) \right) = ``][____________]{$ans[0]}
+    
+b) [`` \cos^{-1} \left( \cos \left( [$values[1]] \right) \right) = ``][____________]{$ans[1]}
+    
+c) [`` \cos^{-1} \left( \cos \left( [$values[2]] \right) \right) = ``][____________]{$ans[2]}
+    
+d) [`` \cos^{-1} \left( \cos \left( [$values[3]] \right) \right) = ``][____________]{$ans[3]}
+
+END_PGML
+
+##############################################
+
+$showPartialCorrectAnswers = 0;
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+Here is a Unit Circle:
+
+>>[@ $fig0 @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+Recall that, if the angle [`[$values[0]]`] corresponds to point [`A`] on the Unit Circle, the [`y`]-value of [`A`]'s coordinates (base of the right triangle [`\Delta AOE`], or the length of [`OE`]) is simply [`\cos \left( [$values[0]] \right)`].
+
+###Part a
+
+    [``\begin{aligned}
+  \cos^{-1} \left( \cos \left( [$values[0]] \right) \right) 
+  &= \cos^{-1} \left( \text{length of }OE \right) \\
+    \end{aligned}``]
+
+Because the range of [`\cos^{-1}(x)`] is [`\left[ 0,\pi \right]`], we have:
+
+    [``\begin{aligned}
+  \cos^{-1} \left( \cos \left( [$values[0]] \right) \right) 
+  &= \cos^{-1} \left( \text{length of }OE \right) \\
+  &= [$ans0Show]
+    \end{aligned}``]
+    
+###Part b
+
+    [``\begin{aligned}
+  \cos^{-1} \left( \cos \left( [$values[1]] \right) \right) 
+  &= \cos^{-1} \left( \text{length of }OF \right) \\
+    \end{aligned}``]
+
+Because the range of [`\cos^{-1}(x)`] is [`\left[ 0,\pi \right]`], we have:
+
+    [``\begin{aligned}
+  \cos^{-1} \left( \cos \left( [$values[1]] \right) \right) 
+  &= \cos^{-1} \left( \text{length of }OF \right) \\
+  &= [$ans1Show]
+    \end{aligned}``]
+    
+###Part c
+
+Recognize that [`[$values[2]]`] and [`[$ans1Show]`] are located at the same point, Point [`C`], on the Unit Circle.
+
+    [`` \cos^{-1} \left( \cos \left( [$values[2]] \right) \right) = \cos^{-1} \left( \text{length of }OF \right)``]
+
+Because the range of [`\cos^{-1}(x)`] is [`\left[ 0,\pi \right]`], we have:
+
+    [``\begin{aligned}
+  \cos^{-1} \left( \cos \left( [$values[2]] \right) \right) 
+  &= \cos^{-1} \left( \text{length of }OF \right) \\
+  &= [$ans1Show]
+    \end{aligned}``]
+
+###Part d
+
+Recognize that [`[$values[3]]`] and [`[$ans0Show]`] are located at the same point, Point [`D`], on the Unit Circle.
+
+    [`` \cos^{-1} \left( \cos \left( [$values[3]] \right) \right) = \cos^{-1} \left( \text{length of }OE \right)``]
+
+Because the range of [`\cos^{-1}(x)`] is [`\left[ 0,\pi \right]`], we have:
+
+    [``\begin{aligned}
+  \cos^{-1} \left( \cos \left( [$values[3]] \right) \right) 
+  &= \cos^{-1} \left( \text{length of }OE \right) \\
+  &= [$ans0Show]
+    \end{aligned}``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

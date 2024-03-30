@@ -1,0 +1,218 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Numeric");
+Context()->noreduce('(-x)-y');
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->variables->add(t => "Real");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+@rad = ();
+@t = (); @h = (); @tShow = ();
+do {
+  do {
+    $a = random(10,30,0.1);
+    $p = random(1,5,0.1);
+    $b = 2*pi/$p;
+    $bTex = "\frac{2\pi}{$p}";
+    $d = random($a+10,$a+20,0.1);
+    $func = Formula("$a*cos(((2*pi)/$p)*t)+$d");
+    $high = $d+$a;
+    $low = $d-$a;
+    do {
+      $t[0] = random(1,3*$p-1,0.1);
+      $h[0] = $func->eval(t=>$t[0]);
+      $h0Show = Round($h[0],3);
+      $h[1] = random($d-$a+1,$d+$a-1,0.1);
+    } until abs($h[0]-$h[1])>10;
+    $h[2] = $h[1];
+  } until abs(($d-$h[1])/$a)<1;
+  $rad[1] = arccos(($h[1]-$d)/$a);
+  $rad[2] = -$rad[1];
+} until (abs($rad[1]*180/pi)>20) && (abs($rad[1]*180/pi)<75);
+
+$p2 = $p/2;
+
+$k = random(2,3,1);
+$t[1] = $rad[1]/Compute($b)+$k*$p;
+$t[2] = $rad[2]/Compute($b)+$k*$p;
+$iL = $k*$p+$p2;
+$iR = ($k+1)*$p+$p2;
+if ( ($iL > $t[1]) || ($iL > $t[2]) ) {
+  $iL = ($k-1)*$p+$p2;
+  $iR = $k*$p+$p2;
+}
+
+@radShow = ();@tShow = ();
+$rad[0] = 0;
+for my $i (0..2) {
+  $radShow[$i] = Round($rad[$i],23);
+  $tShow[$i] = Round($t[$i],3);
+}
+
+$ans = List($t[1],$t[2]);
+
+@graph = ();
+($xmin, $xmax) = ($iL-$p,$iR+$p);
+($ymin, $ymax) = (-5,$high+5);
+$graph[0] = init_graph($xmin,$ymin,$xmax,$ymax,axes=>[0,0]);
+$graph[0]->lb('reset');
+
+for (my $i=-2; $i<$xmax; $i=$i+2) {
+  $graph[0]->moveTo($i,$ymin);
+  $graph[0]->lineTo($i,$ymax,gray,1,dashed);
+  $graph[0]->lb(new Label($i,0,$i,'black','right','top',large));
+}
+for (my $i=-10; $i<$ymax; $i=$i+10) {
+  $graph[0]->moveTo($xmin,$i);
+  $graph[0]->lineTo($xmax,$i,gray,1,dashed);
+  $graph[0]->lb(new Label(0,$i,$i,'black','right','middle',large)) unless $i==0;
+}
+
+$graph[0]->lb(new Label(0,0.97*$ymax,"distance (cm)",'blue','left','middle',large));
+$graph[0]->lb(new Label(0.98*$xmax,0,"time (s)",'blue','right','bottom',large));
+
+add_functions($graph[0], "$func for t in <$xmin,$xmax> using color:blue and weight:2");
+add_functions($graph[0], "$h[1] for t in <$xmin,$xmax> using color:black and weight:2");
+($graph[0]->fn)[0]->steps(300);
+
+$graph[0]->stamps(closed_circle($t[1],$h[1],red));
+$lr = ($t[1]<$t[2]) ? 'right' : 'left';
+$graph[0]->lb(new Label($t[1],$h[1],"($tShow[1],$h[1])",'red',$lr,'bottom',large));
+$graph[0]->stamps(closed_circle($t[2],$h[2],red));
+$lr = ($t[2]<$t[1]) ? 'right' : 'left';
+$graph[0]->lb(new Label($t[2],$h[2],"($tShow[2],$h[2])",'red',$lr,'bottom',large));
+
+$alt[0] = "This is the graph of h(t)=[$func] and y=[$h[1]]. Their intersections ($tShow[1],$h[1]) and ($tShow[2],$h[2]) are highlighted.";
+
+$fig0 = image(insertGraph($graph[0]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[0]' title = '$alt[0]' ");
+
+##############################################################
+
+BEGIN_PGML
+
+A piston moves forward and backward when it runs. At the beginning [`(t=0)`], the piston was at its farthest distance from its base, [`[$high]`] cm. Then, the piston moved back toward its base. [`[$p2]`] seconds later, the piston was at its closest distance from its base, [`[$low]`] cm. Then, it switched direction and moved away from its base.
+
+The function [`p(t)`] models the piston's distance from its base since it started to move at [`t=0`]. *Use graphing technology* to answer the following questions.
+
+Part a: The function, as a transformation of [`y=\cos(x)`], is [`p(t)=`][________________________]{$func}.
+
+Part b: After [`[$t[0]]`] seconds, the piston was [_______________]{$h[0]} cm away from its base.
+
+[@KeyboardInstructions(
+"\n"
+."* In the next part, use a comma to separate your answers."
+)@]**
+
+Part c: During the time interval [`t\in([$iL],[$iR])`], the piston was [`[$h[1]]`] cm from its base at the following moments: [______________________]{$ans} seconds.
+
+END_PGML
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+###Part a
+
+We could use [`y=\sin(x), y=\cos(x)`] and [`y=-\cos(x)`] to model periodic data. In this situation, when [`t=0`], the piston is at its farthest position, or maximum value. This matches the graph of [`y=\cos(x)`], which is at its maximum value when [`x=0`], so we should choose to use the following function to model the piston's position:
+
+    [``p(t)=a\cos\left(bt\right)+d``]
+    
+Note that there is no horizontal translation, because the function is at its maximum value when [`t=0`], just like [`y=\cos(x)`].
+
+The function's midline is the average values of the function's maximum and minimum values:
+
+    [``\begin{aligned}
+  d &= \frac{\text{maximum value}+\text{minimum value}}{2} \\
+    &= \frac{[$high]+[$low]}{2} \\
+    &= [$d]\text{ cm}
+    \end{aligned}``]
+
+The function's amplitude can be calculated by:
+
+    [``\begin{aligned}
+  a &= \frac{\text{maximum value}-\text{minimum value}}{2} \\
+    &= \frac{[$high]-[$low]}{2} \\
+    &= [$a]\text{ cm}
+    \end{aligned}``]
+
+The piston was at its maximum value at [`(0,[$high])`], and at its minimum value at [`([$p2],[$low])`]. The time in between is half of the period, so:
+
+    [``\text{period}=2([$p2]-0)=[$p]``]
+
+For the function [`p(t)=a\cos\left(bt\right)+d`], by the period formula [`\text{new period}=\frac{\text{old period}}{b}`], we have:
+
+    [`` b = \frac{\text{old period}}{\text{new period}} = \frac{2\pi}{[$p]} ``]
+
+The function's formula is
+
+    [``p(t) = [$func] ``]
+
+We will use desmos.com to answer the question.
+
+Step 1: Go to desmos.com, click on Start Graphing.
+
+Step 2: In the first textbox, enter [` h(t) = [$func] `].
+
+###Part b
+
+To find the piston's position after [`[$t[0]]`] seconds, we need to substitute the function's [`t`] value with [`[$t[0]]`] to get the corresponding [`y`] value.
+
+Step 3: In the second textbox, enter [` p([$t[0]]) `]. Desmos shows [`[$h0Show]`].
+
+After [`[$t[0]]`] seconds, the piston was [`[$h0Show]`] cm away from the base.
+
+###Part c
+
+To find when the piston was [`[$h[1]]`] cm away from its base, we need to create a second function [`y=[$h[1]]`], and then let desmos find the intersection between [`p(t)`] and [`y=[$h[1]]`].
+
+Step 3: In the second textbox, enter [`y=[$h[1]]`].
+
+Step 4: Since we only want to find intersections in [`t\in([$iL],[$iR])`], click on the Graph Settings icon (looking like a tool) and define the ranges of [`x`]-axis to that interval. Now you can see the intersection of [`p(t)`] and [`y=[$h[1]]`].
+
+Step 5: Click on the intersection of [`p(t)`] and [`y=[$h[1]]`]. Desmos shows [`([$tShow[1]],[$h[1]])`] and [`([$tShow[2]],[$h[1]])`].
+
+During the time interval [`t\in([$iL],[$iR])`], the piston was [`[$h[1]]`] cm from its base at the following moments: [`[$tShow[1]], [$tShow[2]]`] seconds.
+
+Below is the function's graph with solutions of this problem:
+
+>>[@ $fig0 @]*<<
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

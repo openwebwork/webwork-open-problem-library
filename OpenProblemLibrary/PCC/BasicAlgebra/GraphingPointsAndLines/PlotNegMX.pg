@@ -1,0 +1,101 @@
+# Plot y = mx for negative fraction m
+# Author: Alex Jordan
+
+###################################################################################
+# Setup and Macros
+###################################################################################
+DOCUMENT();
+
+loadMacros(
+	"PGstandard.pl",
+	"MathObjects.pl",
+	"PGML.pl",
+	"contextFraction.pl",
+	"parserGraphTool.pl",
+	"PGchoicemacros.pl",
+	"PGcourse.pl",
+);
+
+###################################################################################
+# Variables and Formulas
+###################################################################################
+TEXT(beginproblem());
+
+($rise,$run) = random_coprime([-7..-1],[2..7]);
+
+Context("Fraction");
+$m = Fraction($rise,$run);
+($h,$k) = (0,0);
+($u,$v) = ($h+$run,$k+$rise);
+Context()->flags->set(reduceConstants=>0);
+$f = Formula("$m x");
+
+Context("Numeric");
+$A = Point($h,$k);
+$B = Point($u,$v);
+
+
+$gt = GraphTool("{line,solid,$A,$B}")->with(
+	availableTools => ["LineTool"],
+	bBox => [-8, 8, 8, -8],
+	cmpOptions => {
+		list_checker => sub {
+			my ($correct, $student, $ans, $value) = @_;
+			return 0 if $ans->{isPreview};
+
+			my @errors;
+			my $count = 0;
+			my $distinct = 0;
+			my $extra = 0;
+
+                        STUDENTS:
+                        for my $j (@$student) {
+				my $nth = Value::List->NameForNumber(++$count);
+
+				my ($p1x, $p1y) = $j->extract(3)->value;
+				my ($p2x, $p2y) = $j->extract(4)->value;
+				if ($p1x == $p2x) {
+					push(@errors, "The $nth plotted line is a vertical line, and therefore does not have slope $m.");
+					$extra++;
+					next STUDENTS;
+				}
+
+				my $context = Context();
+				Context("Fraction");
+				my $slope = Fraction($p2y - $p1y, $p2x - $p1x);
+				Context($context);
+				if ($slope != $m) {
+					push(@errors, "The $nth plotted line has slope $slope, not slope $m.");
+					$extra++;
+					next STUDENTS;
+				}
+
+				if ($k != $slope*($h - $p1x) + $p1y) {
+					$extra++;
+					next STUDENTS; 
+				}
+
+                                for my $i (0..($count-2)) {
+					my ($x,$y) = $student->[$i]->extract(3)->value;
+					next STUDENTS if ($y == $m*($x - $p1x) + $p1y);
+                                }
+				$distinct++;
+                        }
+                        return (max(scalar(@{$correct}),scalar(@{$student}))*min($distinct,1)/1/(($extra)?2:1), @errors);
+		}
+	}
+);
+
+###################################################################################
+# Main Text
+###################################################################################
+
+BEGIN_PGML
+Plot [`y=[$f]`].
+
+[_]{$gt}
+END_PGML
+
+ENDDOCUMENT();
+
+

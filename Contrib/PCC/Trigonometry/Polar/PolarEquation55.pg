@@ -1,0 +1,155 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGgraphmacros.pl",
+  "contextFraction.pl",
+  "PCCmacros.pl",
+  "parserAssignment.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",
+);
+$refreshCachedImages=1;
+TEXT(beginproblem());
+
+Context("Fraction");
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+Context()->variables->add(r=>"Real",y=>"Real");
+Context()->variables->add(t=>['Real',TeX=>'\theta']);
+parser::Assignment->Allow;
+
+$den = list_random(3,4,6);
+do {$num = random(1,2*$den-1,1);} until gcd($num,$den)==1;
+$num = $num*random(-1,1,2);
+if ($num==1) {$angle = Formula("pi/$den");}
+  elsif ($num==-1) {$angle = -Formula("pi/$den");}
+else {
+  $numN = -$num;
+  $angle = ($num>0) ? Formula("$num*pi/$den") : -Formula("$numN*pi/$den");
+}
+
+$mV = tan(Compute($angle));
+$m = $mV;
+if ($den != 4) {
+  $m = specialRadical($mV);
+}
+
+$left = Compute("t");
+$right = $angle;
+if ($m==1) {$ans = Formula("y=x");}
+  elsif ($m==-1) {$ans = Formula("y=-x");}
+  else {$ans = Formula("y=$m*x");}
+
+
+$r0 = 5;
+($xmin,$xmax) = (-8,8);
+($ymin,$ymax) = (-8,8);
+$graph = init_graph($xmin,$ymin,$xmax,$ymax,'axes'=>[0,0],'grid'=>[1,1]);
+$graph->lb('reset');
+
+$xfuncAlpha = sub { my $t = shift();
+  return $r0*cos($t); };
+$yfuncAlpha = sub { my $t = shift();
+  return $r0*sin($t); };
+$fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph );
+$fnAlpha->domain(0,2*pi);
+
+add_functions($graph, "$mV*x for x in <$xmin,$xmax> using color:blue and weight:2");
+
+$Px = cos($num*pi/$den);
+$Py = sin($num*pi/$den);
+$PxShow = ($den==3) ? Fraction($Px) : specialRadical($Px);
+$PyShow = ($den==6) ? Fraction($Py) : specialRadical($Py);
+
+$graph -> stamps( closed_circle( $r0*$Px, $r0*$Py, 'red' ) );
+$ud = $Py>0 ? 'bottom' : 'top';
+$graph->lb(new Label($r0*$Px, $r0*$Py,"$angle",'red','center',$ud,large));
+$lr = $Px>0 ? 'left' : 'right';
+$graph->lb(new Label($r0*$Px, $r0*$Py/2, "$PyShow",'red',$lr,'middle',large));
+$ud = $Py>0 ? 'top' : 'bottom';
+$graph->lb(new Label($r0*$Px/2, 0, "$PxShow",'red','center',$ud,large));
+
+$graph->moveTo(0,0);
+$graph->lineTo($r0*$Px, $r0*$Py, red, 2);
+$graph->lineTo($r0*$Px, 0, red, 2);
+$graph->lineTo(0, 0, red, 2);
+
+$xShift = ($Px>0) ? -0.4 : 0.4;
+$yShift = ($Py>0) ? 0.4 : -0.4;
+$graph->moveTo($r0*$Px, $yShift);
+$graph->lineTo($r0*$Px+$xShift, $yShift, red, 2);
+$graph->lineTo($r0*$Px+$xShift, 0, red, 2);
+
+$alt = "This is a unit circle with a line corssing the origin. The line intersects with the circle at a point marked as $angle. From this point, a vertical line is drawn toward the x-axis. The intersection, the point and the origin form a right triangle. Its base is marked as $PxShow, and its height is marked as $PyShow.";
+
+$fig0 = image(insertGraph($graph),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt' title = '$alt' ");
+
+##############################################
+
+BEGIN_PGML
+
+Convert polar equation [`[$left]=[$right]`] to Cartesian equation.
+
+[@KeyboardInstructions(
+"\n"
+.'* Use [|sqrt( )|]* to input square root if needed. For example, [|sqrt(2)|]* represents [`\sqrt{2}`].'
+)@]**
+
+    Cartesian equation: [______________________]{$ans}
+
+END_PGML
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+The polar equation [`[$left]=[$right]`] has all points on the line which creates the angle [`[$right]`] with the x-axis.
+
+>>[@ $fig0 @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+[`[$angle]`] is a speical angle with known trig values:
+
+    [``\sin\left([$angle]\right) = [$PyShow]\text{ and }\cos\left([$angle]\right) = [$PxShow] ``]
+
+Those values can be marked as the base and height of the right triangle in the graph.
+
+The line's slope can be calculated by
+
+    [``\begin{aligned}
+  \text{slope} &= \frac{\text{change in y}}{\text{change in x}} \\
+  &= \frac{[$PyShow]}{[$PxShow]} \\
+  &= [$m]
+    \end{aligned}``]
+
+The line's Cartesian equation is [`[$ans]`].
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

@@ -17,7 +17,7 @@ To use it, load the macro file:
 
 =cut
 
-loadMacros("PCCmacros.pl",);
+loadMacros("PCCmacros.pl");
 
 ###############################
 #Some standard values

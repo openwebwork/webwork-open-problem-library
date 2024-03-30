@@ -1,0 +1,213 @@
+# WeBWorK problem written by Carl Yao, 2013
+# Portland Community College
+#
+# Given quantities, find ratios.
+#
+# Last updated: Jordan 8/6/13; Yao, 6/26/13
+# ENDDESCRIPTION
+ 
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Real Numbers')
+## KEYWORDS('rate','ratio')
+## DBCCSS('6.RP.1','6.RP.2')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+ 
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+,
+  "PGcourse.pl",
+);
+
+
+##############################################
+
+
+Context("LimitedFraction");
+
+
+Context()->flags->set(showMixedNumbers=>0);
+#Context()->flags->set(reduceFractions=>0);
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(reduceConstantFunctions=>0);
+Context()->flags->set(formatStudentAnswer=>"parsed");
+
+$c = random(5,20,5);
+
+$f1 = list_random((2,3,5,7));
+$f2 = list_random((2,3,5,7));
+while ($f2==$f1) {$f2 = list_random((2,3,5,7));}
+
+$a = $c*$f1;
+$b = $c*$f2;
+
+$ans1 = Compute("$a/$b")->reduce;
+$fra2 = Compute("$b/$c")->reduce;
+$fra3 = Compute("$c/$a")->reduce;
+
+
+package my::Fraction::BOP::ratio;
+our @ISA = ('Parser::BOP::divide');
+
+#
+# Create a Fraction or Real from the given data
+#
+sub _eval {
+  my $self = shift; my $context = $self->{equation}{context};
+  return $_[0]/$_[1] if Value::isValue($_[0]) || Value::isValue($_[1]);
+  my $n = $context->Package("Fraction")->make($context,@_);
+  $n->{isHorizontal} = 1 if $self->{def}{noFrac};
+  return $n;
+}
+
+#
+# When strictFraction is in effect, only allow division
+# with integers and negative integers
+#
+sub _check {
+  my $self = shift;
+  $self->SUPER::_check;
+  return unless $self->context->flag("strictFractions");
+  $self->Error("The numerator of a fraction must be an integer")
+    unless $self->{lop}->class =~ /INTEGER|MINUS/;
+  $self->Error("The denominator of a fraction must be a (non-negative) integer")
+    unless $self->{rop}->class eq 'INTEGER';
+  $self->Error("The numerator must be less than the denominator in a proper fraction")
+    if $self->context->flag("requireProperFractions") && CORE::abs($self->{lop}->eval) >= CORE::abs($self->{rop}->eval);
+}
+
+#
+# Reduce the fraction, if it is one, otherwise do the usual reduce
+#
+sub reduce {
+  my $self = shift;
+  return $self->SUPER::reduce unless $self->class eq 'FRACTION';
+  my $reduce = $self->{equation}{context}{reduction};
+  return $self->{lop} if $self->{rop}{isOne} && $reduce->{'x/1'};
+  $self->Error("Division by zero"), return $self if $self->{rop}{isZero};
+  return $self->{lop} if $self->{lop}{isZero} && $reduce->{'0/x'};
+  if ($reduce->{'a/b'}) {
+    my ($a,$b) = context::Fraction::reduce($self->{lop}->eval,$self->{rop}->eval);
+    if ($self->{lop}->class eq 'INTEGER') {$self->{lop}{value} = $a} else {$self->{lop}{op}{value} = -$a}
+    $self->{rop}{value} = $b;
+  }
+  return $self;
+}
+
+sub TeX {
+  my $self = shift; my $bop = $self->{def};
+  my ($a,$b) = ($self->{lop}->TeX, $self->{rop}->TeX);
+  return "$a : $b"
+}
+
+#
+# Indicate if the value is a fraction or not
+#
+sub class {
+  my $self = shift;
+  return "FRACTION" if $self->{lop}->class =~ /INTEGER|MINUS/ &&
+                       $self->{rop}->class eq 'INTEGER';
+  return $self->SUPER::class;
+}
+
+package main;
+
+
+
+
+Context("LimitedFraction");
+Context()->flags->set(formatStudentAnswer=>'parsed',showMixedNumbers=>0);
+   
+$prec = Context()->operators->get('/')->{precedence};
+   
+Context()->operators->add(
+     ':' => {
+        class => 'my::Fraction::BOP::ratio',
+        precedence => $prec,      
+        associativity => 'left',  
+        type => 'bin',            
+        string => ' : ',          
+        TeX => '\mathbin{\colon}',     
+     }
+   );
+Context()->operators->undefine('/', ' /', '/ ', '//');
+
+
+$ans2 = Fraction($b,$c);
+$ans3 = Fraction($c,$a);
+
+($num2, $den2) = $ans2->value;
+($num3, $den3) = $ans3->value;
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+A child has [`[$a]`] red pin balls, [`[$b]`] blue pin balls, and [`[$c]`] green pin balls.
+
+Write the ratio of red to blue pin balls as a reduced fraction.
+
+    [_____________]{$ans1}
+
+Write the reduced ratio of blue to green pin balls in ratio notation (with a colon).
+
+    [_____________]
+
+Write the reduced ratio of green to red pin balls in ratio notation (with a colon). 
+
+    [_____________]
+
+END_PGML
+
+ANS($ans2->cmp(
+                requireFraction=>1, 
+                cmp_class=>'ratio in ratio notation', 
+                correct_ans_latex_string=>"$num2 : $den2"
+                              )->withPostFilter(
+  sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "Your ratio is not reduced" 
+    if $ans->{ans_message} eq "Your fraction is not reduced";
+  return $ans; 
+}));
+
+ANS($ans3->cmp(
+                requireFraction=>1, 
+                cmp_class=>'ratio in ratio notation', 
+                correct_ans_latex_string=>"$num3 : $den3"
+                              )->withPostFilter(
+  sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "Your ratio is not reduced" 
+    if $ans->{ans_message} eq "Your fraction is not reduced";
+  return $ans; 
+}));
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+The ratio of red to blue pin balls in fraction notation is [` \frac{[$a]}{[$b]} `] whcih reduces to [`[$ans1] `].
+
+The ratio of blue to green pin balls is [` \frac{[$b]}{[$c]}`] which reduces to [`\frac{[$fra2]}{1} `]. In ratio notation, it is [`[$num2] \colon [$den2]`].
+
+The ratio of green to red pin balls is [` \frac{[$c]}{[$a]}`] which reduces to [`[$fra3] `]. In ratio notation, it is [`[$num3] \colon [$den3]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

@@ -26,12 +26,13 @@
 DOCUMENT();
 
 loadMacros(
-  "PGgraphmacros.pl",
   "PGstandard.pl",
   "MathObjects.pl",
   "PGML.pl",
   "PCCgraphMacros.pl",
   "PCCmacros.pl",
+  "PGtikz.pl",
+  "ORCCA.pl",
   "PGcourse.pl",
 );
 
@@ -40,7 +41,7 @@ TEXT(beginproblem());
 
 Context("Numeric");
 Context()->noreduce('(-x)-y','(-x)+y');
-$refreshCachedImages=1;
+
 
 $xAsymptote = random(-3,3,1);
 $yAsymptote = random(-3,3,1);
@@ -52,48 +53,29 @@ $func = Compute("$k/(x-$xAsymptote)+$yAsymptote")->reduce;
 @xticks = @$xticks_ref;
 @yticks = @$yticks_ref;
 
-for my $i (0..0) {
-  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
-   axes=>[0,0],
-   grid=>[$ticknum[0],$ticknum[1]],
-   size=>[xPixels(),yPixels()]
-  );
-  $gr[$i]->lb('reset');
-  for my $j (@xticks) {
-    if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label($j,0, $j,'black','center','top','large'));
-  }
-
-  for my $j (@yticks) {
-    if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label(0, $j, $j,'black','right','middle','large'));
-  }
-  $gr[$i]->lb(new Label($max[0],0,'x','black','right','bottom','large'));
-  $gr[$i]->lb(new Label(0,$max[1],'y','black','left','top','large'));
-
-
-  $gr[$i]->lb(new Label($max[0],0,'x','black','right','bottom','large'));
-  $gr[$i]->lb(new Label(0,$max[1],'y','black','left','top','large'));
-
-  $gr[$i]->moveTo($xAsymptote,$min[0]);
-  $gr[$i]->lineTo($xAsymptote,$max[0],'red',2,'dashed');
-
-  $gr[$i]->moveTo($min[1],$yAsymptote);
-  $gr[$i]->lineTo($max[1],$yAsymptote,'red',2,'dashed');
-
 $xplot1= ($k < 1) ? $k/($max[1]-$yAsymptote)+$xAsymptote : $k/($min[1]-$yAsymptote)+$xAsymptote;
 $xplot2= ($k < 1) ? $k/($min[1]-$yAsymptote)+$xAsymptote : $k/($max[1]-$yAsymptote)+$xAsymptote;
-   add_functions($gr[$i], "$func for x in <$min[0],$xplot1> using color:blue and weight:1");
-   add_functions($gr[$i], "$func for x in <$xplot2,$max[0]> using color:blue and weight:1");
-}
-  $gr[$i]->moveTo($xplot1-0.1,$func->eval(x=>"$xplot1-0.1"));
-  $gr[$i]->arrowTo($xplot1,$func->eval(x=>"$xplot1"),'blue',1);
-  $gr[$i]->moveTo($xplot2+0.1,$func->eval(x=>"$xplot2+0.1"));
-  $gr[$i]->arrowTo($xplot2,$func->eval(x=>"$xplot2"),'blue',1);
-  $gr[$i]->moveTo($min[0]+0.1,$func->eval(x=>"$min[0]+0.1"));
-  $gr[$i]->arrowTo($min[0],$func->eval(x=>"$min[0]"),'blue',1);
-  $gr[$i]->moveTo($max[0]-0.1,$func->eval(x=>"$max[0]-0.1"));
-  $gr[$i]->arrowTo($max[0],$func->eval(x=>"$max[0]"),'blue',1);
+
+$gr = createTikZImage();
+$gr->addToPreamble(latexImagePreamble());
+$gr->BEGIN_TIKZ
+\begin{axis}[
+    xmin = $min[0],
+    xmax = $max[0],
+    ymin = $min[1],
+    ymax = $max[1],
+    xtick =,
+    ytick =,
+    minor xtick =,
+    minor ytick =,
+  ]
+  \addplot[firstcurve,domain=$min[0]:$xplot1,samples=50] {$k/(x-$xAsymptote)+$yAsymptote};
+  \addplot[firstcurve,domain=$xplot2:$max[0],samples=50] {$k/(x-$xAsymptote)+$yAsymptote};
+  \addplot[asymptote] coordinates {($xAsymptote,$min[0]) ($xAsymptote,$max[0])};
+  \addplot[asymptote] coordinates {($min[1],$yAsymptote) ($max[1],$yAsymptote)};
+\end{axis}
+END_TIKZ
+
 
 
 if ($k>0) {
@@ -116,7 +98,7 @@ A function is graphed.
 [@EnlargeImageStatementPGML()@]**
 
 
->>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT' ") @]*<<
+>>[@image($gr, width=>300, tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT' ") @]*<<
 
 [@KeyboardInstructions('Use interval notation.')@]**
 

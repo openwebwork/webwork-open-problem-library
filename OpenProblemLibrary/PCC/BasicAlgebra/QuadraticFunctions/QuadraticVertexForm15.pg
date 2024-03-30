@@ -9,12 +9,12 @@
 # ENDDESCRIPTION
 
 ## DBCC('')
-## DBsubject(Algebra)
-## DBchapter(Quadratic equations and functions)
-## DBsection(Forms: vertex, factored, general)
-## Institution(PCC)
-## Author(Alex Jordan, Carl Yao, Chris Hughes)
-## Level(3)
+## DBsubject('Algebra')
+## DBchapter('Quadratic equations and functions')
+## DBsection('Forms: vertex, factored, general')
+## KEYWORDS('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
 
 ##############################################
 
@@ -26,7 +26,8 @@ loadMacros(
   "PGML.pl",
   "PGgraphmacros.pl",
   "PCCgraphMacros.pl",
-  "PGcourse.pl"
+  "bizarroArithmetic.pl",
+  "PGcourse.pl",
 );
 
 ##############################################
@@ -35,6 +36,17 @@ TEXT(beginproblem());
 
 Context("Numeric");
 Context()->noreduce("(-x)-y","(-x)+y");
+Context()->operators->set(
+'+' => {class => 'bizarro::BOP::add', isCommand => 1},
+'-' => {class => 'bizarro::BOP::subtract', isCommand => 1},
+'*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
+'/' => {class => 'bizarro::BOP::divide', isCommand => 1},
+' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
+'//' => {class => 'bizarro::BOP::divide', isCommand => 1},
+);
 
 $bound = 4;
 
@@ -57,38 +69,71 @@ for my $i (0..0) {
   $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
    axes=>[0,0],
    grid=>[$ticknum[0],$ticknum[1]],
-   size=>[xPixels(),yPixels()]
+   size=>[240,240]
   );
   $gr[$i]->lb('reset');
   for my $j (@xticks) {
     if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+    $gr[$i]->lb( new Label($j, 0, $j,'black','center','top','large'));
   }
 
   for my $j (@yticks) {
     if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+    $gr[$i]->lb( new Label(0, $j, $j,'black','right','middle','large'));
   }
+  $gr[$i]->lb(new Label($max[0],0,'x','black','right','bottom','large'));
+  $gr[$i]->lb(new Label(0,$max[1],'y','black','left','top','large'));
+
 
    $t1 = -$bound-2; $t2 = $bound+2;
-   add_functions($gr[0], "$ans for x in <$t1,$t2> using color:blue and weight:2");
+   add_functions($gr[0], "$ans for x in <$t1,$t2> using color:blue and weight:1");
+
+   my $px = ($max[0]-$min[0])/240;
+
+   $yexit = ($a > 0) ? $max[1] : $min[1];
+   @xvalues = num_sort(($min[0],$max[0],sqrt(($yexit-$k)/$a)+$h,-sqrt(($yexit-$k)/$a)+$h));
+   $start = $xvalues[1];
+   $stop = $xvalues[2];
+   $gr[$i]->moveTo($start+$px,$a*($start+$px-$h)**2+$k);
+   $gr[$i]->arrowTo($start,$a*($start-$h)**2+$k,'blue',1);
+   $gr[$i]->moveTo($stop-$px,$a*($stop-$px-$h)**2+$k);
+   $gr[$i]->arrowTo($stop,$a*($stop-$h)**2+$k,'blue',1);
 }
 
 $ALT = "This is the graph of a parabola. Its vertex is at ($h, $k), and the parabola also passes the point ($px, $py).";
+
+
+
+$evaluator = $ans -> cmp(
+   checker=>sub{
+      my ( $correct, $student, $ansHash ) = @_;
+      return 0 if $ansHash->{isPreview} || $correct != $student;
+      $student = $ansHash->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      $student = Formula("$student"); $correct = Formula("$correct");
+      return 0 unless ($correct == $student);
+      Context()->flags->set(bizarroAdd=>1,bizarroSub=>1,bizarroMul=>1,bizarroDiv=>1);
+      delete $correct->{test_values};
+      delete $student->{test_values};
+      my $OK = (($correct == $student) or ($student == $correct));
+      Context()->flags->set(bizarroAdd=>0,bizarroSub=>0,bizarroMul=>0,bizarroDiv=>0);
+      Value::Error("Your answer is equivalent to the correct answer, but not in simplified vertex form") unless $OK;
+      return $OK;
+});
+
 
 ##############################################
 
 BEGIN_PGML
 
-A parabola's vertex form looks like [` f(x) = a(x-h)^2+k `]. The following is the graph of a parabola.
+A graph of a function [`f`] is given. Use the graph to write a formula for [`f`] in vertex form. You will need to identify the vertex and also one more point on the graph to find the leading coefficient [`a`].
 
 [@EnlargeImageStatementPGML()@]**
 
->>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
+>>[@image(insertGraph($gr[0]), width=>240, height=>240, tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
 
-Based on the graph, write this parabola's formula in vertex form.
 
-    [`` f(x) =``] [_________________]{$ans}
+    [`` f(x) =``] [_________________]{$evaluator}
 
 END_PGML
 

@@ -1,0 +1,200 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "contextFraction.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",,
+);
+
+##############################################
+
+Context("Fraction");
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+
+@angle = ();
+do {
+  $den = list_random(3,4,6);
+  $num = random(1,2*$den-1,1);
+} until gcd($num,$den)==1;
+$angle[0] = specialAngle($num*pi/$den);
+
+@r = ();
+do {
+  $n = random(3,5,1);
+  $r[0] = random(2,5,1);
+  $r[1] = $r[0]**$n;
+} until $r[1]<=125;
+
+$angle[1] = specialAngle($n*Compute($angle[0]));
+$angle[2] = $angle[1];
+while ($angle[2]>=Compute("2*pi")) {
+  $angle[2] = Compute($angle[2]-2*pi);
+}
+$angle[2] = specialAngle(Compute($angle[2]));
+
+@cosV = (); @sinV = ();
+@xr = (); @yr = (); @yrAbs = ();
+for my $i (0..1) {
+  $cosV[$i] = specialRadical(cos(Compute($angle[$i])));
+  $sinV[$i] = specialRadical(sin(Compute($angle[$i])));
+  $xr[$i] = specialRadical(Compute($cosV[$i]*$r[$i]));
+  $yr[$i] = specialRadical(Compute($sinV[$i]*$r[$i]));
+  $yrAbs[$i] = specialRadical(abs(Compute($sinV[$i]*$r[$i])));
+}
+
+if ($cosV[0]>0) {
+  $Q = ($sinV[0]>0) ? "I" : "IV";
+} else {
+  $Q = ($sinV[0]>0) ? "II" : "III";
+}
+
+Context()->variables->add(i=>"Real");
+@p = ();
+$p[0] = ($yr[0]>0) ? Formula("$xr[0]+$yr[0]*i") : Formula("$xr[0]-$yrAbs[0]*i");
+if ($yr[1]==0) {
+  $p[1] = $xr[1];
+} else {
+  $p[1] = ($yr[1]>0) ? Formula("$xr[1]+$yr[1]*i") : Formula("$xr[1]-$yrAbs[1]*i");
+}
+
+@com = ();
+$com[0] = Formula("$r[0]*(cos($angle[0])+i*sin($angle[0]))");
+$com[1] = Formula("$r[1]*(cos($angle[2])+i*sin($angle[2]))");
+
+$s1 = specialAngle(arccos(Compute($cosV[0])));
+
+
+
+package my::Complex;
+our @ISA = ('Value::Complex');
+
+sub cis {
+  my $z = shift;
+  return cos($z) + main::i * sin($z);
+}
+
+package main;
+
+Context("Complex");
+
+Context()->{value}{Complex} = 'my::Complex';
+Context()->constants->set(i => {value => my::Complex->new(0,1)});
+Context()->functions->add(cis => {
+  class => 'Parser::Function::complex', TeX => '\operatorname{cis}',
+  complex => 1, isCommand => 1
+});
+
+sub cis {Parser::Function->call("cis", my::Complex->new(@_))}
+
+Context()->flags->set(reduceConstantFunctions => 0);
+
+@c = ();
+$c[0] = Formula("$r[0]*cis($angle[0])");
+$c[1] = Formula("$r[1]*cis($angle[2])");
+
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+
+Do the calculation. Write your answer in the form of [`a+b\operatorname{i}`].
+
+     [`` \left([$p[0]]\right)^{[$n]}= ``][________________________]{$p[1]}
+
+END_PGML
+
+##############################################
+
+Context("Fraction");
+$s2 = "";
+if ( Compute($angle[2]) != Compute($angle[1]) ) {
+  $s2 = "&= $r[1] \left( \cos\left(".$angle[2]->TeX."\right)+i\sin\left(".$angle[2]->TeX."\right) \right) \\";
+}
+
+BEGIN_PGML_SOLUTION
+
+If [`z=r\left(\cos(\theta)+i\sin(\theta)\right)`], then
+
+    [`` z^n=r^n\left(\cos(n\theta)+i\sin(n\theta)\right) ``].
+    
+To use this formula, first, we have to convert [`[$p[0]]`] to polar form.
+
+###Converting [`[$p[0]]`] to polar form
+
+For [`z=x+yi`], [`r=\sqrt{x^2+y^2}`].
+
+For [`[$p[0]]`], we have:
+
+    [``\begin{aligned}
+  r &= \sqrt{\left([$xr[0]]\right)^2+\left([$yr[0]]\right)^2} \\
+  &= [$r[0]]
+    \end{aligned}``]
+
+Now we can re-write [`[$p[0]]`] as [`[$r[0]]\left([$cosV[0]]+\left([$sinV[0]]\right)i\right)`]. 
+
+To change [`[$r[0]]\left([$cosV[0]]+\left([$sinV[0]]\right)i\right)`] to the format of [`r(\cos(\theta)+i\sin(\theta))`], we need to find an angle which makes [`\cos(\theta)=[$cosV[0]]`] true. We have:
+
+    [`` \theta = \cos^{-1}\left([$cosV[0]]\right) = [$s1] ``]
+
+Since [`[$p[0]]`] is in Quadrant [$Q], we can determine that [`\theta=[$angle[0]]`].
+
+We have done the following conversion:
+
+    [`` [$p[0]]=[$com[0]]=[$c[0]] ``]
+
+###Calculating n^{th} power
+
+    [``\begin{aligned}
+  z^{[$n]} &= \left([$c[0]]\right)^{[$n]} \\
+  &= \left([$com[0]]\right)^{[$n]} \\
+  &= [$r[0]]^{[$n]}\left( \cos\left([$n]\cdot[$angle[0]]\right)+i\sin\left([$n]\cdot[$angle[0]]\right) \right) \\
+  &= [$r[1]]\left( \cos\left([$angle[1]]\right)+i\sin\left([$angle[1]]\right) \right) \\
+  [$s2] &= [$c[1]]
+    \end{aligned}``]
+
+###Converting to [`a+bi`] form
+
+    [``\begin{aligned}
+  [$c[1]]
+  &= [$r[1]]\left( \cos\left([$angle[2]]\right)+i\sin\left([$angle[2]]\right) \right) \\
+  &= [$r[1]]\cdot \cos\left([$angle[2]]\right) + i\cdot[$r[1]]\cdot\sin\left([$angle[2]]\right) \\
+  &= [$p[1]]
+    \end{aligned}``]
+
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();

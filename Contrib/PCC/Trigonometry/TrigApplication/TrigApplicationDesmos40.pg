@@ -1,0 +1,212 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Fraction");
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+Context()->noreduce('(-x)-y');
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->variables->add(d => "Real");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+@t = (); @h = (); @tShow = ();
+do {
+  do {
+    $high = random(30,40,1);
+    $low = random(-10,-5,1);
+    $a = ($high-$low)/2;
+    $b = Formula("(2*pi)/365");
+    $c = random(5,30,1);
+    $e = ($high+$low)/2;
+    $func = Formula("$a*cos($b*(d-$c))+$e");
+    $p = 365;
+    $xLow = $c+365/2;
+
+    do {
+      $t[0] = random($c+5,300,1);
+      $T[0] = $func->eval(d=>$t[0]);
+      $T0Show = Round($T[0],3);
+      $T[1] = random($low+5,$high-5,1);
+    } until abs($T[0]-$T[1])>10;
+    $T[2] = $T[1];
+  } until abs(($T[1]-$e)/$a)<1;
+  $rad = arccos(($T[1]-$e)/$a);
+} until $rad*180/pi>20 && $rad*180/pi<160 && abs($rad*180/pi-90)>20;
+
+$radShow = Round($rad,2);
+$t[1] = $rad/Compute($b)+$c;
+$t[2] = -$rad/Compute($b)+$p+$c;
+for my $i (0..2) {
+  $tShow[$i] = Round($t[$i],3);
+}
+$ans = List($t[1],$t[2]);
+
+@graph = ();
+($xmin, $xmax) = (-10,400);
+($ymin, $ymax) = ($low-10,$high+10);
+$graph[0] = init_graph($xmin,$ymin,$xmax,$ymax,axes=>[0,0]);
+$graph[0]->lb('reset');
+
+for (my $i=-50; $i<$xmax; $i=$i+50) {
+  $graph[0]->moveTo($i,$ymin);
+  $graph[0]->lineTo($i,$ymax,gray,1,dashed);
+  $graph[0]->lb(new Label($i,0,$i,'black','right','top',large));
+}
+for (my $i=-10; $i<$ymax; $i=$i+10) {
+  $graph[0]->moveTo($xmin,$i);
+  $graph[0]->lineTo($xmax,$i,gray,1,dashed);
+  $graph[0]->lb(new Label(0,$i,$i,'black','right','middle',large)) unless $i==0;
+}
+
+$graph[0]->lb(new Label(0,0.97*$ymax,"Celcius Degrees",'blue','left','middle',large));
+$graph[0]->lb(new Label(0.98*$xmax,0,"days",'blue','right','bottom',large));
+
+add_functions($graph[0], "$func for d in <$xmin,$xmax> using color:blue and weight:2");
+add_functions($graph[0], "$T[1] for t in <$xmin,$xmax> using color:black and weight:2");
+($graph[0]->fn)[0]->steps(300);
+
+$graph[0]->stamps(closed_circle($t[1],$T[1],red));
+$graph[0]->lb(new Label($t[1],$T[1],"($tShow[1],$T[1])",'red','center','bottom',large));
+$graph[0]->stamps(closed_circle($t[2],$T[2],red));
+$graph[0]->lb(new Label($t[2],$T[2],"($tShow[2],$T[2])",'red','center','bottom',large));
+
+$alt[0] = "This is the graph of T(d)=[$func] and y=[$T[1]]. Their intersections ($tShow[1],$T[1]) and ($tShow[2],$T[2]) are highlighted.";
+
+$fig0 = image(insertGraph($graph[0]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[0]' title = '$alt[0]' ");
+
+##############################################################
+
+$ld = $t[0]-int($t[0]/10)*10;
+if ($ld==1) {$th = "st";}
+  elsif ($ld==2) {$th = "nd";}
+  else {$th = "th";}
+
+BEGIN_PGML
+
+Assume a year has 365 days, and [`d=1`] represents Jan. 1. A city's daily maximum temperature over the year, [`T(d)`], follows the pattern of a periodic function. The city's highest daily maximum temperature, [`[$high]^{\circ} C`], happens on Jan. [`[$c]`]; its lowest daily maximum temperature, [`[$low]^\circ C`], happens in July.
+
+*Use graphing technology* to answer the following questions.
+
+Part a: The function, as a transformation of [`y=\cos(x)`], is [`T(d)=`][________________________]{$func}.
+
+Part b: On the [`[$t[0]]`][$th] day of the year, the daily maximum temperature was [_______________]{$T[0]} [`^{\circ} C`].
+
+[@KeyboardInstructions(
+"\n"
+."* In the next part, use a comma to separate your answers."
+)@]**
+
+Part c: During this year, the city's daily maximum temperature was [`[$T[1]]^{\circ} C`] twice, on days [________________]{$ans}.
+
+END_PGML
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+###Part a
+
+We could use [`y=\sin(x), y=\cos(x)`] and [`y=-\cos(x)`] to model periodic data. In this situation, when [`d=[$c]`], the function has it's maximum value at [`([$c],[$high])`]. Then the function decreases. This change matches the graph of [`y=\cos(x)`], which is at its maximum value when [`x=0`], and then decreases. So we should choose to use the following function to model the daily maximum temperature:
+
+    [``T(d)=a\cos\left(b(d-c)\right)+e``]
+
+By given conditions, the function's maximum value is [`[$high]`], and its minimum value is [`[$low]`].
+
+The function's [`e`] value (midline) is:
+
+    [``\begin{aligned}
+  e &= \frac{\text{maximum value}+\text{minimum value}}{2} \\
+    &= \frac{[$high]+([$low])}{2} \\
+    &= [$e]^{\circ} C
+    \end{aligned}``]
+
+The function's amplitude can be calculated by:
+
+    [``\begin{aligned}
+  a &= \frac{\text{maximum value}-\text{minimum value}}{2} \\
+    &= \frac{[$high]-([$low])}{2} \\
+    &= [$a]^{\circ} C
+    \end{aligned}``]
+
+The function's period is [`365`] days. By the period formula [`\text{new period}=\frac{\text{old period}}{b}`], we have:
+
+    [`` b = \frac{\text{old period}}{\text{new period}} = \frac{2\pi}{[$p]} ``]
+
+Finally, the function's maximum value is at [`([$c],[$high])`], which matches [`(0,1)`] on [`y=\cos(x)`]. The graph of [`y=-cos(x)`] needs to shift to the right by [`[$c]`] units to match the graph of [`T(d)`], implying [`c=[$c]`] in [`T(d)=a\cos\left(b(d-c)\right)+e`].
+
+The function's formula is
+
+    [``T(d) = [$func] ``]
+
+We will use desmos.com to answer the question.
+
+Step 1: Go to desmos.com, click on Start Graphing.
+
+Step 2: In the first textbox, enter [` T(d) = [$func] `].
+
+###Part b
+
+To find the daily maximum temperature on the [`[$t[0]]`][$th] day, we need to substitute the function's [`d`] value with [`[$t[0]]`] to get the corresponding [`y`] value.
+
+Step 3: In the second textbox, enter [` T([$t[0]]) `]. Desmos shows [`[$T0Show]`].
+
+On the [`[$t[0]]`][$th] day of the year, the daily maximum temperature was [`[$T0Show] ^{\circ} C`].
+
+###Part c
+
+To find when the daily maximum temperature was [`[$T[1]]^{\circ} C`], we need to create a second function [`y=[$T[1]]`], and then let desmos find the intersection between [`T(d)`] and [`y=[$T[1]]`].
+
+Step 3: In the second textbox, enter [`y=[$T[1]]`].
+
+Step 4: Zoom out on the window, if needed, until you can see the intersection of [`T(d)`] and [`y=[$T[1]]`]. Alternatively, click on the Graph Settings icon (looking like a tool) and define the ranges of [`x`]-axis and [`y`]-axis.
+
+Step 5: Click on the intersection of [`T(d)`] and [`y=[$T[1]]`] in the first period. Desmos shows [`([$tShow[1]],[$T[1]])`] and [`([$tShow[2]],[$T[1]])`].
+
+During this year, the city's daily maximum temperature was [`[$T[1]]^{\circ} C`] twice, on days [`[$tShow[1]], [$tShow[2]]`].
+
+Below is the function's graph with solutions of this problem:
+
+>>[@ $fig0 @]*<<
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

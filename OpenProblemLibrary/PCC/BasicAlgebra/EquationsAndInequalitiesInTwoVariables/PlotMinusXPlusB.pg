@@ -1,0 +1,73 @@
+# Plot four points with a simple linear relation.
+# Author: Alex Jordan
+
+###################################################################################
+# Setup and Macros
+###################################################################################
+DOCUMENT();
+
+loadMacros(
+	"PGstandard.pl",
+	"MathObjects.pl",
+	"PGML.pl",
+	"PGchoicemacros.pl",
+	"parserGraphTool.pl",
+	"PGcourse.pl",
+);
+
+###################################################################################
+# Variables and Formulas
+###################################################################################
+TEXT(beginproblem());
+
+Context("Numeric")->noreduce('(-x)-y','(-x)+y');
+my $b = non_zero_random(-7,7,1);
+$f = Formula("-x+$b")->reduce;
+$minx = max(-8,$b-8);
+$maxx = min(8,$b+8);
+@point = map {Point($_,$f->eval(x=>$_))} ($minx..$maxx);
+$points = '{point,'.join('},{point,',@point).'}';
+
+$gt = GraphTool($points)->with(
+	availableTools => ["PointTool"],
+	showCoordinateHints => 0,
+	bBox => [-8, 8, 8, -8],
+	cmpOptions => {
+		list_checker => sub {
+			my ($correct, $student, $ans, $value) = @_;
+			my $extra = 0;
+			my $distinct = 0;
+			my @errors;
+			my $count = 0;
+			STUDENTS:
+			for my $j (@$student) {
+				my $nth = Value::List->NameForNumber(++$count);
+				if ($j->extract(1) ne 'point' || ($j->extract(2)->value)[1] != $f->eval(x=>(($j->extract(2)->value)[0]))) {
+					push(@errors, "The $nth plotted point is incorrect.");
+					$extra++;
+					next STUDENTS;
+				}
+				for my $i (0..($count-2)) {
+					next STUDENTS if ($j->extract(1) eq $student->[$i]->extract(1) && $j->extract(2) eq $student->[$i]->extract(2));
+				}
+				$distinct++;
+			}
+			push(@errors, "You've only plotted $distinct correct point".(($distinct > 1)?'s':'').".") if ($distinct > 0 && $distinct < 4);
+			return (scalar(@{$correct})*min($distinct,4)/4/(($extra)?2:1), @errors);
+		}
+	}
+);
+
+###################################################################################
+# Main Text
+###################################################################################
+
+BEGIN_PGML
+Graph at least four points for the equation [`y=[$f]`].
+ 
+[_]{$gt}
+END_PGML
+
+ENDDOCUMENT();
+
+

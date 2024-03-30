@@ -1,0 +1,231 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "contextFraction.pl",
+  "parserNumberWithUnits.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Numeric");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+$xmin = 0;         #The viewing window
+$xmax = 10;
+$ymin = 0;
+$ymax = 10;
+
+do {
+   $hypotenuse = random(6,15,0.1);
+   $alpha = random(10,25,1);
+   $alphaRadian = $alpha*pi/180;
+   $base = sin($alphaRadian)*$hypotenuse;
+   $height = cos($alphaRadian)*$hypotenuse;
+} until ( ($height<8) );
+$base = int($base);
+$alpha = Compute(arcsin($base/$hypotenuse)*180/pi);
+
+$hypotenuseU = NumberWithUnits("$hypotenuse km");
+$baseU = NumberWithUnits("$base km");
+$heightU = NumberWithUnits("$height km");
+
+$beta = 90-$alpha;
+$betaRadian = pi/2-$alphaRadian;
+
+#$corner's value decides the location of the right angle. 
+#(0,1,2,3) implies (bottom left,top left,top right,bottom right). 
+$corner = 3;
+
+if (($corner==0)||($corner==2)) {
+   @x = (($xmax-$base)/2,($xmax+$base)/2);
+   @y = (($ymax-$height)/2,($ymax+$height)/2);
+} else {
+   @y = (($xmax-$base)/2,($xmax+$base)/2);
+   @x = (($ymax-$height)/2,($ymax+$height)/2);
+}
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[400,400]);
+
+$labelAdjust = 0.5;
+
+@labelAx = ($x[0],$x[1],$x[1],$x[0]);
+@labelAy = ($y[1],$y[1],$y[0],$y[0]);
+@alphaCurveStart = (3*pi/2,pi,pi/2,0);
+@alphaCurveEnd = (3*pi/2+$alphaRadian,pi+$alphaRadian,pi/2+$alphaRadian,$alphaRadian);
+
+@labelBx = ($x[1],$x[0],$x[0],$x[1]);
+@labelBy = ($y[0],$y[0],$y[1],$y[1]);
+@betaCurveStart = (pi-$betaRadian,pi/2-$betaRadian,2*pi-$betaRadian,3*pi/2-$betaRadian);
+@betaCurveEnd = (pi,pi/2,2*pi,3*pi/2);
+
+@labelCx = ($x[0],$x[0],$x[1],$x[1]);
+@labelCy = ($y[0],$y[1],$y[1],$y[0]);
+
+$xfuncAlpha = sub { my $t = shift();
+    return $labelAx[$corner]+cos($t); };
+$yfuncAlpha = sub { my $t = shift();
+    return $labelAy[$corner]+sin($t); };
+$fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $picture );
+$fnAlpha->domain($alphaCurveStart[$corner],$alphaCurveEnd[$corner]);
+$theta = ($alphaCurveStart[$corner]+$alphaCurveEnd[$corner])/2;
+
+
+@labelBaseX=(($x[0]+$x[1])/2,$x[0]-$labelAdjust,($x[0]+$x[1])/2,$x[1]+$labelAdjust);
+@labelBaseY=($y[0]-$labelAdjust,($y[0]+$y[1])/2,$y[1]+$labelAdjust,($y[0]+$y[1])/2);
+@labelHeightX=($x[0]-$labelAdjust,($x[0]+$x[1])/2,$x[1]+$labelAdjust,($x[0]+$x[1])/2);
+@labelHeightY=(($y[0]+$y[1])/2,$y[1]+$labelAdjust,($y[0]+$y[1])/2,$y[0]-$labelAdjust);
+@labelHypotenuseX=(($x[0]+$x[1])/2+$labelAdjust,($x[0]+$x[1])/2+$labelAdjust,($x[0]+$x[1])/2-$labelAdjust,($x[0]+$x[1])/2-$labelAdjust);
+@labelHypotenuseY=(($y[0]+$y[1])/2+$labelAdjust,($y[0]+$y[1])/2-$labelAdjust,($y[0]+$y[1])/2-$labelAdjust,($y[0]+$y[1])/2+$labelAdjust);
+
+
+$picture->lb( new Label($labelAx[$corner]+1.5*cos($theta), $labelAy[$corner]+1.5*sin($theta),"x",'black','center','middle'));
+
+$picture->lb( new Label($labelBaseX[$corner], $labelBaseY[$corner], $baseU,'black','center','middle'));
+
+$picture->lb( new Label($labelHypotenuseX[$corner],$labelHypotenuseY[$corner],$hypotenuseU,'black','center','middle'));
+
+$picture->stamps( closed_circle($x[0],$y[0],'red') );
+$picture->lb( new Label($x[0]-0.5*$labelAdjust,$y[0]-0.5*$labelAdjust,'Town A','red','center','middle'));
+$picture->stamps( closed_circle($x[1],$y[1],'red') );
+$picture->lb( new Label($x[1]+0.5*$labelAdjust,$y[1]+0.5*$labelAdjust,'Town B','red','center','middle'));
+
+$picture->new_color("lightblue", 200,200,255); # RGB
+$picture->new_color("darkblue",  100,100,255); 
+
+@ax=(0,1,1,0);
+@ay=(1,1,0,0);
+@bx=(1,0,0,1);
+@by=(0,0,1,1);
+@cx=(0,0,1,1);
+@cy=(0,1,1,0);
+
+
+$picture->moveTo($x[$ax[$corner]],$y[$ay[$corner]]);
+$picture->lineTo($x[$bx[$corner]],$y[$by[$corner]], darkblue,3);
+$picture->lineTo($x[$cx[$corner]],$y[$cy[$corner]], darkblue,3);
+$picture->lineTo($x[$ax[$corner]],$y[$ay[$corner]], darkblue,3);
+
+
+$cornersize = 0.25;
+
+@rightSymbol1x=($x[0],$x[0]+$cornersize,$x[1]-$cornersize,$x[1]);
+@rightSymbol1y=($y[0]+$cornersize,$y[1],$y[1],$y[0]+$cornersize);
+@rightSymbol2x=($x[0]+$cornersize,$x[0]+$cornersize,$x[1]-$cornersize,$x[1]-$cornersize);
+@rightSymbol2y=($y[0]+$cornersize,$y[1]-$cornersize,$y[1]-$cornersize,$y[0]+$cornersize);
+@rightSymbol3x=($x[0]+$cornersize,$x[0],$x[1],$x[1]-$cornersize);
+@rightSymbol3y=($y[0],$y[1]-$cornersize,$y[1]-$cornersize,$y[0]);
+
+$picture->moveTo($rightSymbol1x[$corner],$rightSymbol1y[$corner]);
+$picture->lineTo($rightSymbol2x[$corner],$rightSymbol2y[$corner], darkblue,3);
+$picture->lineTo($rightSymbol3x[$corner],$rightSymbol3y[$corner], darkblue,3);
+
+
+@positions=('bottom left','top left','top right','bottom right');
+if ($corner==0) {
+   $aPosition = $positions[1];
+   $bPosition = $positions[3];
+   $cPosition = $positions[0];
+} elsif ($corner==1) {
+   $aPosition = $positions[2];
+   $bPosition = $positions[0];
+   $cPosition = $positions[1];
+} elsif ($corner==2) {
+   $aPosition = $positions[3];
+   $bPosition = $positions[1];
+   $cPosition = $positions[2];
+} else {
+   $aPosition = $positions[0];
+   $bPosition = $positions[2];
+   $cPosition = $positions[3];
+}
+
+$text = "This is a right triangle. The right angle is at the $cPosition corner of the picture. At the $aPosition, the acute angle is marked as x, and the vertex of this angle is labeled as Town A. The vertex of the acute angle at the $bPosition is labeled as Town B. The length of the side opposite to the given acute angle is marked as $baseU; the length of the side opposite to the right angle is marked as $hypotenuseU.";
+
+##############################################
+$refreshCachedImages = 1;
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+A straight road connects two towns, which are built on a slope.  The road's distance is [`[$hypotenuseU]`]. The difference in those two towns' elevation (vertical distance) is [`[$baseU]`].
+
+The slope's elevation is [___________]{$alpha} degrees.
+
+END_PGML
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+Assume the slope's elevation is [`x`] degrees. The following graph can represent this situation:
+
+[@EnlargeImageStatementPGML()@]**
+
+>>[@image(insertGraph($picture), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$text' title = '$text'") @]*<<
+
+This has become a right triangle trigonometry problem.
+
+By definition:
+
+    [`` \sin \theta = \frac{\text{opposite leg}}{\text{hypotenuse}} ``]
+
+    [`` \cos \theta = \frac{\text{adjacent leg}}{\text{hypotenuse}} ``]
+
+    [`` \tan \theta = \frac{\text{opposite leg}}{\text{adjacent leg}} ``]
+
+An acronym to help you memorize those 3 definitions is: *SOH CAH TOA*.
+
+For this problem, the side marked as [`[$hypotenuseU]`] is the hypotenuse, because it's opposite to the right angle, and because it's the longest side in the triangle.
+
+The side marked as [`[$baseU]`] is the "opposite leg" of the angle marked as x, because it is opposite to the angle.
+
+Since we need to relate the hypotenuse and the angle's opposite leg, we choose to use the sine function.
+
+To find the unknown angle's measure, we need to use the inverse sine function. Don't forget to change your calculator's mode to "degree".
+
+The solution is:
+
+    [``
+\begin{aligned}
+   \sin{x} &= \frac{[$base]}{[$hypotenuse]} \\
+   x &= \sin^{-1}\left(\frac{[$base]}{[$hypotenuse]}\right) \\
+   x &\approx [$alpha]^{\circ}
+\end{aligned}
+    ``]
+
+The slope's elevation is [`[$alpha]`] degrees.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

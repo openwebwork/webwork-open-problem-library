@@ -1,0 +1,293 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "parserOneOf.pl",
+  "contextFraction.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+
+Context("LimitedRadical");
+
+
+%values = (
+#[sin^-1(x), sin^-1(x) in [0,2pi], 
+#value opposite to sin^-1(x), value opposite to sin^-1(x) in [0,2pi]
+ "0" => [
+    ["0","0","pi","pi"],  
+    ["pi/2","pi/2","-pi/2","(3pi)/2"], 
+    ["0","0","pi","pi"], 
+  ],
+ "1/2" => [
+    ["pi/6","pi/6","(5pi)/6","(5pi)/6"],  
+    ["pi/3","pi/3","-pi/3","(5pi)/3"], 
+    ["DNE","DNE","DNE","DNE"], 
+  ],
+ "-1/2" => [
+    ["-pi/6","(11pi)/6","-(5pi)/6","(7pi)/6"],  
+    ["(2pi)/3","(2pi)/3","-(2pi)/3","(4pi)/3"], 
+    ["DNE","DNE","DNE","DNE"], 
+  ],
+ "sqrt(2)/2" => [
+    ["pi/4","pi/4","(3pi)/4","(3pi)/4"],  
+    ["pi/4","pi/4","-pi/4","(7pi)/4"], 
+    ["DNE","DNE","DNE","DNE"], 
+  ],
+ "-sqrt(2)/2" => [
+    ["-pi/4","(7pi)/4","-(3pi)/4","(5pi)/4"],  
+    ["(3pi)/4","(3pi)/4","-(3pi)/4","(5pi)/4"], 
+    ["DNE","DNE","DNE","DNE"], 
+  ],
+ "sqrt(3)/2" => [
+    ["pi/3","pi/3","(2pi)/3","(2pi)/3"],  
+    ["pi/6","pi/6","-pi/6","(11pi)/6"], 
+    ["DNE","DNE","DNE","DNE"], 
+  ],
+ "-sqrt(3)/2" => [
+    ["-pi/3","(5pi)/3","-(2pi)/3","(4pi)/3"],  
+    ["(5pi)/6","(5pi)/6","-(5pi)/6","(7pi)/6"], 
+    ["DNE","DNE","DNE","DNE"], 
+  ],
+ "1" => [
+    ["pi/2","pi/2","DNE","DNE"],  
+    ["0","0","DNE","DNE"], 
+    ["pi/4","pi/4","(5pi)/4","(5pi)/4"],  
+  ],
+ "-1" => [
+    ["-pi/2","(3pi)/2","DNE","DNE"],  
+    ["pi","pi","DNE","DNE"], 
+    ["-pi/4","(7pi)/4","(3pi)/4","(3pi)/4"],  
+  ],
+ "sqrt(3)/3" => [
+    ["DNE","DNE","DNE","DNE"],  
+    ["DNE","DNE","DNE","DNE"], 
+    ["pi/6","pi/6","-(5pi)/6","(7pi)/6"],  
+  ],
+ "-sqrt(3)/3" => [
+    ["DNE","DNE","DNE","DNE"],  
+    ["DNE","DNE","DNE","DNE"], 
+    ["-pi/6","(11pi)/6","(5pi)/6","(5pi)/6"],  
+  ],
+ "sqrt(3)" => [
+    ["DNE","DNE","DNE","DNE"],  
+    ["DNE","DNE","DNE","DNE"], 
+    ["pi/3","pi/3","-(2pi)/3","(4pi)/3"],  
+  ],
+ "-sqrt(3)" => [
+    ["DNE","DNE","DNE","DNE"],  
+    ["DNE","DNE","DNE","DNE"], 
+    ["-pi/3","(5pi)/3","(2pi)/3","(2pi)/3"],  
+  ],
+);
+
+@hashKeys = lex_sort(keys %values);
+do {
+  $tanValue = $hashKeys[random(0,$#hashKeys,1)];
+} until ($values{$tanValue}[2][0] ne "DNE");
+
+$left = "\tan(x)";
+$right = Formula("$tanValue")->TeX;
+
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+
+Context()->variables->add(k => "Real");
+Context()->strings->add("no solution"=>{},
+"no solutions"=>{alias=>'no solution'}, 
+"none"=>{alias=>'no solution'}, 
+);
+
+$ans0 = $values{$tanValue}[2][0];
+$ans0alt = $values{$tanValue}[2][1];
+$ans0k = Formula("$ans0+k*pi");
+$ans0altk = Formula("$ans0alt+k*pi");
+
+$ans = OneOf( $ans0k,$ans0altk );
+$ansShow = List(Formula("$ans0+k*pi"));
+
+if ($ans0 eq "0") {
+  $ans = Formula("k*pi");
+  $ansShow = $ans;
+}
+
+$r = 5;
+$Pr = Compute($ans0);
+$Px = $r*cos($Pr);
+$Py = $r*sin($Pr);
+
+$graph = init_graph(-6,-6,6,6,'axes'=>[0,0],'grid'=>[1,1]);
+$graph->lb('reset');
+
+$xfuncAlpha = sub { my $t = shift();
+  return $r*cos($t); };
+$yfuncAlpha = sub { my $t = shift();
+  return $r*sin($t); };
+$fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph );
+$fnAlpha->domain(0,2*pi);
+
+$graph->stamps(closed_circle($Px,$Py,red));
+$graph->moveTo(0,0);
+$graph->lineTo($Px,$Py,red,2);
+$graph->lineTo($Px,0,red,2);
+$graph->lineTo(0,0,red,2);
+
+if ( ($Px!=0) && ($Py!=0) ) {
+  $xShift = ($Px>0) ? -0.4 : 0.4;
+  $yShift = ($Py>0) ? 0.4 : -0.4;
+  $graph->moveTo($Px,$yShift);
+  $graph->lineTo($Px+$xShift,$yShift,red,2);
+  $graph->lineTo($Px+$xShift,0,red,2);
+}
+
+$td = $Py>=0 ? 'bottom' : 'top';
+$graph->lb(new Label($Px,$Py,"P: $ans0",'red','center',$td,large));
+
+$alt = "This is the graph of a circle with point P: $ans0 on the circle.";
+
+$ans1 = $values{$tanValue}[2][2];
+$ans1alt = $values{$tanValue}[2][3];
+$ans1k = Formula("$ans1+k*pi");
+$ans1altk = Formula("$ans1alt+k*pi");
+if ($ans1 ne "DNE") {
+  $Qr = Compute("$ans1");
+  $Qx = $r*cos($Qr);
+  $Qy = $r*sin($Qr);
+
+  $graph->stamps(closed_circle($Qx,$Qy,red));
+  $graph->moveTo(0,0);
+  $graph->lineTo($Qx,$Qy,red,2);
+  $graph->lineTo($Qx,0,red,2);
+  $graph->lineTo(0,0,red,2);
+
+  if ( ($Qx!=0) && ($Qy!=0) ) {
+    $xShift = ($Qx>0) ? -0.4 : 0.4;
+    $yShift = ($Qy>0) ? 0.4 : -0.4;
+    $graph->moveTo($Qx,$yShift);
+    $graph->lineTo($Qx+$xShift,$yShift,red,2);
+    $graph->lineTo($Qx+$xShift,0,red,2);
+  }
+  
+  $td = $Qy>=0 ? 'bottom' : 'top';
+  $graph->lb(new Label($Qx,$Qy,"Q: $ans1",'red','center',$td,large));
+  
+  $alt = "This is the graph of a circle with point P: $ans0  and Q: $ans1 on the circle. From each point, a vertical line is drawn until it reaches the x-axis, showing they have the same distance to the x-axis.";
+}
+
+$fig = image(insertGraph($graph),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt' title = '$alt' ");
+
+
+##############################################################
+
+BEGIN_PGML
+
+Solve the equation
+
+    [``[$left]=[$right]``]
+
+[@KeyboardInstructions(
+"\n"
+.'* Enter multiple answers separated by commas, as in [|pi/4, 3pi/4|]*.'
+."\n"
+.'* Use [|pi|]* to represent [`\pi`].'
+."\n"
+.'* Use [|k*pi|]* to represent multiples of [`\pi`].'
+."\n"
+.'* Type [|no solution|]* if there is no solution.'
+."\n"
+.'* Example: type [|3pi/4+2k*pi|]* to represent [`\frac{3\pi}{4}+2k\pi`].'
+)@]**
+
+    [`x=`][________________________________________]{$ans->cmp(correct_ans_latex_string=>$ansShow->TeX)}
+    
+    
+END_PGML
+
+##############################################################
+
+Context("LimitedRadical");
+Context()->variables->add(k => "Real");
+
+$s1 = Formula("$ans0");
+$s2 = Formula("$ans1");
+$s3 = ($tanValue eq "0") ? "" : Formula("$ans0")->TeX."+";
+
+if ($values{$tanValue}[2][2] eq "DNE") {
+  $output0 = "Only one point on the Unit Circle can make the equation true. The equation's solution is:";
+} else {
+  $output0 = "Although two points on the Unit Circle can make the equation true, the following solution can cover both points:";
+}
+
+$output1 = "";
+if ($values{$tanValue}[2][0] ne $values{$tanValue}[2][1]) {
+  $output1 = "\text{Note that }".$ans0k->TeX."\text{ and }".$ans0altk->TeX."\text{ are equivalent. }\\";
+}
+if ($values{$tanValue}[2][2] ne $values{$tanValue}[2][3]) {
+  if ($output1 ne "") {
+    $output1 .= "\text{Also, }";
+  } else {
+    $output1 .= "\text{Note that }";
+  }
+  $output1 .= $ans1k->TeX."\text{ and }".$ans1altk->TeX."\text{ are equivalent.}";
+}
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+    [``\begin{aligned}
+  [$left] &= [$right] \\
+  x &= \tan^{-1}\left([$right]\right) \\
+  x &= [$s1]
+    \end{aligned}``]
+
+Recall that the range of [`\tan^{-1}(x)`] is [`\left( -\frac{\pi}{2},\frac{\pi}{2} \right) `]. On the Unit Circle, we have to check whether another angle also makes [`[$left]=[$right]`] true:
+
+>>[@ $fig @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+[$output0]
+
+    [``x=[$ansShow]\text{, where }k\text{ is any integer.}``]
+
+[`[$output1]`]
+
+Unlike solving equations for [`\sin(x)`] and [`\cos(x)`], there is no need to write something like:
+
+    [``x=[$s3]2k\pi, [$s2]+2k\pi``]
+    
+The set above is the same as [``x=[$ansShow]``], because the period of [`f(x)=\tan(x)`] is [`\pi`], while the period of [`\sin(x)`] and [`\cos(x)`] is [`2\pi`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
