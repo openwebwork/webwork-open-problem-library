@@ -1,0 +1,151 @@
+# WeBWorK problem written by Alex Jordan 
+# Portland Community College
+#
+# Template:
+# Add or subtract as indicated.
+#
+#       b*sqrt(a)+c*sqrt(a)
+#
+#
+# Last updated: Spoddeck 11/10/15
+# ENDDESCRIPTION
+
+
+##############################################
+
+
+DOCUMENT();
+
+loadMacros(
+      "PGstandard.pl", 
+      "MathObjects.pl",
+      "contextLimitedPowers.pl",
+      "contextFraction.pl",
+      "PGML.pl",
+      "PGcourse.pl",
+    );
+
+
+##############################################
+
+
+TEXT(beginproblem());
+$a = list_random(2,3,5,6,7,10);
+$b = random(4,10,1);
+$c = $b + non_zero_random(-2,5,1);
+$d = $b+$c;
+
+$expression = "$b\sqrt{$a}+$c\sqrt{$a}";
+$stringans = "$d sqrt($a)";
+
+
+    # code essentially from Davide Cervone 4/25/10
+    ###########################
+    #
+    # Subclass the numeric functions
+    #
+    package my::Function::numeric;
+    our @ISA = ('Parser::Function::numeric');
+
+    #
+    # Override sqrt() to return a special value (usually 1) when evaluated
+    # effectively eliminating it from the product.
+    #
+    sub sqrt {
+      my $self = shift;
+      my $value = $self->context->flag("setSqrt");
+      return $value+1 if $value && $_[0] == 1; # force sqrt(1) to be incorrect
+      return $value if $value;
+      return $self->SUPER::sqrt(@_);
+    }
+
+    #
+    # end of subclass
+    #
+    package main;
+
+    ###########################
+    Context("Fraction-NoDecimals");
+    Context()->operators->undefine("+","-");
+    Context()->strings->add("cannot be combined"=>{});
+
+    Context()->variables->are(
+      x => ["Real", limits => [0,2]],    # only needed if x is used in the square roots
+    );
+    #
+    # make sqrt() use our subclass
+    #
+    Context()->functions->set(sqrt=>{class=>'my::Function::numeric'});
+    Context()->flags->set(reduceConstantFunctions=>0);
+    #
+    # Don't allow fractional powers (avoids 1/2 power)
+    # [Could subclass exponentiation to handle that as well]
+    #
+    LimitedPowers::OnlyPositiveIntegers();
+
+    $ans = Compute($stringans);
+
+
+##############################################
+
+
+BEGIN_PGML
+
+Add or subtract as indicated. If the terms are not like radicals and cannot be combined, then type that they *cannot be combined* .
+
+>>[``[$expression]``]<<
+
+If you need to enter a square root symbol, you need to type *sqrt* and use parentheses to enclose what goes inside the radical.  
+For example, type *sqrt(3)* to enter [`\sqrt{3}`].
+
+    [____________________]
+
+END_PGML
+
+
+##############################################
+$showPartialCorrectAnswers = 1;
+
+
+ANS($ans->cmp(typeMatch=>Formula("1"),
+              checker => sub {
+      my ($correct,$student,$ans) = @_;
+      return 0 if $ans->{isPreview} || $correct != $student;
+      #
+      #  Get parsed formula for student and correct answers
+      #
+      $student = $ans->{student_formula};
+      $correct = $correct->{original_formula} if defined $correct->{original_formula};
+      #
+      # check if equal when sqrt's are replaced by 1
+      #
+      Context()->flags->set(setSqrt => 1);
+      delete $correct->{test_values}, $student->{test_values};
+      my $OK = ($correct == $student);
+      Context()->flags->set(setSqrt => 0);
+      #
+      Value::Error("Check to see if your answer is simplified.") unless $OK;
+      return $OK;
+    },formatStudentAnswer=>"reduced"));
+
+
+##############################################
+
+
+BEGIN_PGML_SOLUTION
+
+We know that we can combine like terms:
+
+    [`` [$b]x+[$c]x = [$b+$c]x ``]
+
+In the same way, we can combine like radicals:
+
+    [`` [$b]\sqrt{[$a]}+[$c]\sqrt{[$a]}=[$b+$c]\sqrt{[$a]} ``]
+
+END_PGML_SOLUTION
+
+
+##############################################
+
+
+ENDDOCUMENT();

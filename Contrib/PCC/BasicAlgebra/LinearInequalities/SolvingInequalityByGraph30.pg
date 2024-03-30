@@ -1,0 +1,241 @@
+
+DOCUMENT();
+
+############################################################
+# Load Macros
+############################################################
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "AnswerFormatHelp.pl",
+  "PGgraphmacros.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+############################################################
+# Header
+############################################################
+TEXT(beginproblem());
+
+############################################################
+# PG Setup
+############################################################
+Context('Numeric');
+
+$s = Real(random(-3,3,1));
+$r = $s - random(1,3,1);
+$t = $s + random(2,3,1);
+
+$f = Formula("(x-$r)(x-$s)(x-$t)");
+@hts = map{abs($f->eval(x=>$_))}($r..$t);
+$amplitude = random(1,3,1);
+$c = $amplitude/max(@hts)*random(-1,1,2);
+$k = random(1,6-$amplitude,1)*random(-1,1,2);
+$f = $c*$f+$k;
+
+@gr = ();
+for my $i (0..2) {
+  $gr[$i] = init_graph(-7,-7,7,7,
+    axes=>[0,0],
+    grid=>[14,14],
+    size=>[240,240]
+  );
+  $gr[$i] ->lb('reset');
+  for $j (-6..6){
+    if (Real($j)==0) {next;}
+    $gr[$i] ->lb(new Label($j,0,$j,'black','center','top','large'));
+    $gr[$i] ->lb(new Label(0,$j,$j,'black','right','middle','large'));
+  };
+
+  $start = $r;
+  while (abs($f->eval(x=>$start-0.1))<7 and $start > -7) {$start = $start - 0.1};
+  $stop = $t;
+  while (abs($f->eval(x=>$stop+0.1))<7 and $stop < 7) {$stop = $stop + 0.1};
+
+  add_functions($gr[$i] , "$f for x in <$start,$stop> using color:blue and weight:1");
+  $px = 14/240;
+  $gr[$i] ->moveTo($start+$px,$f->eval(x=>$start+$px));
+  $gr[$i] ->arrowTo($start,$f->eval(x=>$start),'blue',1);
+  $gr[$i] ->moveTo($stop-$px,$f->eval(x=>$stop-$px));
+  $gr[$i] ->arrowTo($stop,$f->eval(x=>$stop),'blue',1);
+}
+
+@symbols = ('\lt','\le','\gt','\ge');
+@words = ('less than','less than or equal to','greater than','greater than or equal to');
+@in = ();
+if (random(0,1,1)==0) {
+  $in[0] = random(0,1,1);
+  $in[1] = random(2,3,1);
+} else {
+  $in[0] = random(2,3,1);
+  $in[1] = random(0,1,1);
+}
+$symbol0 = $symbols[$in[0]];
+$symbol1 = $symbols[$in[1]];
+
+@alt = ( );
+$startL = $c > 0 ? 'negative infinity' : 'positive infinity';
+$endR = $c > 0 ? 'positive infinity' : 'negative infinity';
+$uod0 = $c > 0 ? 'up' : 'down';
+$uod1 = $c > 0 ? 'down' : 'up';
+$alt[0] = "This is the graph of a cubic function which starts at $startL as x-value approaches negative infinity, going $uod0 through the point ($r,$k), curving $uod1 to pass ($s,$k), curving $uod0 to pass ($t,$k), and finally approaching $endR as x-value approaches positive infinity.";
+
+@s0 = (
+  " Those three points are open.",
+  " Those three points are closed."
+);
+
+@s1 = (
+  " On the function, the segment between infinity and x=$r, and the segment from to x=$s to x=$t are highlighted.",
+  " On the function, the segment from x=$r and x=$s, and the segment from x=$t to infinity are highlighted.",
+);
+
+@s2 = (
+  Union("(-inf,$r)U($s,$t)"),
+  Union("(-inf,$r]U[$s,$t]"),
+  Union("($r,$s)U($t,inf)"),
+  Union("[$r,$s]U[$t,inf)"),
+);
+
+sub graphOpenDots {
+  my $p = shift;
+  $gr[$p]->stamps( open_circle($r,$k,'red') );
+  $gr[$p]->stamps( open_circle($s,$k,'red') );
+  $gr[$p]->stamps( open_circle($t,$k,'red') );
+}
+
+sub graphClosedDots {
+  my $p = shift;
+  $gr[$p]->stamps( closed_circle($r,$k,'red') );
+  $gr[$p]->stamps( closed_circle($s,$k,'red') );
+  $gr[$p]->stamps( closed_circle($t,$k,'red') );
+}
+
+sub highlightLeft {
+  my $p = shift;
+  add_functions($gr[$p] , "$f for x in <$start,$r> using color:red and weight:1");
+  add_functions($gr[$p] , "$f for x in <$s,$t> using color:red and weight:1");
+  $px = 14/240;
+  $gr[$p] ->moveTo($start+$px,$f->eval(x=>$start+$px));
+  $gr[$p] ->arrowTo($start,$f->eval(x=>$start),'red',1);
+}
+
+sub highlightRight {
+  my $p = shift;
+  add_functions($gr[$p] , "$f for x in <$r,$s> using color:red and weight:1");
+  add_functions($gr[$p] , "$f for x in <$t,$stop> using color:red and weight:1");
+  $px = 14/240;
+  $gr[$p] ->moveTo($stop-$px,$f->eval(x=>$stop-$px));
+  $gr[$p] ->arrowTo($stop,$f->eval(x=>$stop),'red',1);
+}
+
+$alt[1] .= $alt[0];
+$alt[2] .= $alt[0];
+@ans = ();
+for my $i (0..1) {
+  if ($in[$i]==0) {
+    $alt[$i+1] .= $s0[0];
+    if ($c > 0) {
+      $ans[$i] = $s2[0];
+      $alt[$i+1] .= $s1[0];
+      &highlightLeft($i+1);
+    } else {
+      $ans[$i] = $s2[2];
+      $alt[$i+1] .= $s1[1];
+      &highlightRight($i+1);
+    }
+    &graphOpenDots($i+1);
+  } elsif ($in[$i]==1) {
+    $alt[$i+1] .= $s0[1];
+    if ($c > 0) {
+      $ans[$i] = $s2[1];
+      $alt[$i+1] .= $s1[0];
+      &highlightLeft($i+1);
+    } else {
+      $ans[$i] = $s2[3];
+      $alt[$i+1] .= $s1[1];
+      &highlightRight($i+1);
+    }
+    &graphClosedDots($i+1);
+  } elsif ($in[$i]==2) {
+    $alt[$i+1] .= $s0[0];
+    if ($c > 0) {
+      $ans[$i] = $s2[2];
+      $alt[$i+1] .= $s1[1];
+      &highlightRight($i+1);
+    } else {
+      $ans[$i] = $s2[0];
+      $alt[$i+1] .= $s1[0];
+      &highlightLeft($i+1);
+    }
+    &graphOpenDots($i+1);
+  } else {
+    $alt[$i+1] .= $s0[1];
+    if ($c > 0) {
+      $ans[$i] = $s2[3];
+      $alt[$i+1] .= $s1[1];
+      &highlightRight($i+1);
+    } else {
+      $ans[$i] = $s2[1];
+      $alt[$i+1] .= $s1[0];
+      &highlightLeft($i+1);
+    }
+    &graphClosedDots($i+1);
+  }
+}
+
+
+############################################################
+# Body
+############################################################
+
+BEGIN_PGML
+A graph of [`f`] is given. Use the graph alone to solve the compound inequalities.
+
+>>[@ image(insertGraph($gr[0]), tex_size=>400, height=>400, width=>400,
+extra_html_tags=>"alt= '$alt[0]' title= '$alt[0]'"
+) @]*<<
+
+[@KeyboardInstructions(q?Write your solution sets in interval notation.?)@]**
+
+1.  [`f(x) [$symbol0] [$k]`]
+
+    [__________]{$ans[0]}
+
+1.  [`f(x) [$symbol1] [$k]`]
+
+    [__________]{$ans[1]}
+
+END_PGML
+
+############################################################
+# End Problem
+############################################################
+
+BEGIN_PGML_SOLUTION
+
+###Question 1
+
+To meet the condition [`f(x) [$symbol0] [$k]`], the function's [`y`]-value must be [$words[$in[0]]] [`[$k]`]. The corresponding segment(s) is/are highlighted in the following graph.
+
+>>[@ image(insertGraph($gr[1]), tex_size=>400, height=>400, width=>400,
+extra_html_tags=>"alt= '$alt[1]' title= '$alt[1]'"
+) @]*<<
+
+The corresponding [`x`]-values on the segment(s) is [`[$ans[0]]`].
+
+###Question 2
+
+To meet the condition [`f(x) [$symbol1] [$k]`], the function's [`y`]-value must be [$words[$in[1]]] [`[$k]`]. The corresponding segment(s) is/are highlighted in the following graph.
+
+>>[@ image(insertGraph($gr[2]), tex_size=>400, height=>400, width=>400,
+extra_html_tags=>"alt= '$alt[2]' title= '$alt[2]'"
+) @]*<<
+
+The corresponding [`x`]-values on the segment(s) is [`[$ans[1]]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

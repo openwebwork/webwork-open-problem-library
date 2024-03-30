@@ -1,0 +1,218 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "parserOneOf.pl",
+  "contextFraction.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Fraction");
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 1,
+  reduceConstantFunctions => 0,
+);
+
+@values = (
+  Compute("1"),-Compute("1"),Compute("0"),
+  Compute("1/2"),-Compute("1/2"),
+  Compute("sqrt(2)/2"),-Compute("sqrt(2)/2"),
+  Compute("sqrt(3)/2"),-Compute("sqrt(3)/2"),
+);
+
+$c = random(-1,1,2)*list_random(2,3,4,6);
+$cN = -$c;
+$a = $c>0 ? "x+\frac{\pi}{$c}" : "x-\frac{\pi}{$cN}";
+
+$left = "\sin($a)";
+$right = specialRadical(list_random(@values));
+
+@ansL = ();
+@points = ();
+
+$ansL[0][0] = specialAngle(arcsin(Compute("$right")));
+if ($ansL[0][0]>=0) {
+  $ansL[0][1] = specialAngle(Compute("pi-$ansL[0][0]"));
+} else {
+  $ansL[0][1] = specialAngle(Compute("-pi-$ansL[0][0]"));
+}
+
+@start = ();
+$start[0] = specialAngle(Compute("$ansL[0][0]-pi/$c"),(1..12));
+$start[1] = "";
+if ($ansL[0][0] == $ansL[0][1]) {
+  $points[0] = "$ansL[0][0]";
+} else {
+  $points[0] = "$ansL[0][0] and $ansL[0][1]";
+  $start[1] = specialAngle(Compute("$ansL[0][1]-pi/$c"),(1..12));
+}
+
+@k = ();
+for my $i (-1..1) {
+  my $a = Compute("$start[0]")+2*$i*pi;
+  if ( ($a>=0) && ($a<2*pi) )  {
+    $ansL[1][scalar(@{$ansL[1]})] = specialAngle($a,(1..12));
+    $k[0][scalar(@{$k[0]})] = $i;
+  }
+  if ($start[1] ne "") {
+    my $b = Compute($start[1]->string)+2*$i*pi;
+    if ( ($b>0) && ($b<2*pi) ) {
+      $ansL[1][scalar(@{$ansL[1]})] = specialAngle($b,(1..12));
+      $k[1][scalar(@{$k[1]})] = $i;
+    }
+  }
+}
+$ans = List(@{$ansL[1]});
+
+$r = 5;
+for my $i (0..1) {
+  $graph[$i] = init_graph(-6,-6,6,6,'axes'=>[0,0],'grid'=>[1,1]);
+  $graph[$i]->lb('reset');
+
+  $xfuncAlpha = sub { my $t = shift();
+    return $r*cos($t); };
+  $yfuncAlpha = sub { my $t = shift();
+    return $r*sin($t); };
+  $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[$i] );
+  $fnAlpha->domain(0,2*pi);
+
+  for my $j (0..scalar(@{$ansL[$i]})-1) {
+    $Px = Compute("$r*cos($ansL[$i][$j])")->reduce;
+    $Py = Compute("$r*sin($ansL[$i][$j])")->reduce;
+    $graph[$i]->stamps(closed_circle($Px,$Py,red));
+    $graph[$i]->moveTo(0,0);
+    $graph[$i]->lineTo($Px,$Py,red,2);
+    $graph[$i]->lineTo($Px,0,red,2);
+    $graph[$i]->lineTo(0,0,red,2);
+
+    if ( ($Px!=0) && ($Py!=0) ) {
+      $xShift = ($Px>0) ? -0.4 : 0.4;
+      $yShift = ($Py>0) ? 0.4 : -0.4;
+      $graph[$i]->moveTo($Px,$yShift);
+      $graph[$i]->lineTo($Px+$xShift,$yShift,red,2);
+      $graph[$i]->lineTo($Px+$xShift,0,red,2);
+    }
+
+    $td = $Py>=0 ? 'bottom' : 'top';
+    $graph[$i]->lb(new Label($Px,$Py,"$ansL[$i][$j]",'red','center',$td,large));
+  }
+
+  $alt[$i] = "This is the graph of a circle with points $points[$i] on the circle.";
+
+  $fig[$i] = image(insertGraph($graph[$i]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[$i]' title = '$alt[$i]' ");
+}
+
+
+
+
+##############################################################
+
+BEGIN_PGML
+
+Solve the equation
+
+    [``[$left]=[$right] \text{ where }x\in[0,2\pi)``]
+
+[@KeyboardInstructions(
+"\n"
+.'* Enter multiple answers separated by commas, as in [|-pi/4,pi/4|]*.'
+."\n"
+.'* Use [|pi|]* to represent [`\pi`].'
+."\n"
+.'* Type [|no solution|]* if there is no solution.'
+)@]**
+
+    [`x=`][________________________________________]{$ans}
+    
+    
+END_PGML
+
+##############################################################
+
+if ($start[1] ne "") {
+  $o1 = $ansL[0][0]->TeX."+2k\pi \text{ or } ".$ansL[0][1]->TeX." +2k\pi";
+  $o2 = $start[0]->TeX."+2k\pi \text{ or } ".$start[1]->TeX." +2k\pi";
+  $o3 = "Solutions are ";
+} else {
+  $o1 = $ansL[0][0]->TeX."+2k\pi";
+  $o2 = $start[0]->TeX."+2k\pi";
+  $o3 = "The solution is ";
+}
+
+$output = "";
+$p = 0;
+for my $i (0..scalar(@k)-1) {
+  for my $j (0..scalar(@{$k[$i]})-1) {
+    $o4 .= "x &= ".$start[$i]->TeX."+2($k[$i][$j])\pi = ".$ansL[1][$p++]->TeX." \\";
+  }
+}
+
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+    [``\begin{aligned}
+  [$left] &= [$right] \\
+  [$a] &= \sin^{-1}\left([$right]\right) \\
+  [$a] &= [$ansL[0][0]]
+    \end{aligned}``]
+
+Recall that the range of [`\sin^{-1}(x)`] is [`\left[ -\frac{\pi}{2},\frac{\pi}{2} \right] `]. On the Unit Circle, we have to check whether another angle also makes [`[$left] = [$right]`] true:
+
+>>[@ $fig[0] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+We have:
+
+    [``\begin{aligned}
+  [$left] &= [$right] \\
+  [$a] &= \sin^{-1}\left([$right]\right) \\
+  [$a] &= [$o1] \\
+  x &= [$o2]
+    \end{aligned}``]
+
+Next, substitute in different [`k`] values to locate all solutions in [`[0,2\pi)`]:
+
+    [``\begin{aligned} [$o4] \end{aligned}``]
+
+>>[@ $fig[1] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+[$o3] [`[$ans]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

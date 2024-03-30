@@ -1,0 +1,273 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "unionTables.pl",
+  "niceTables.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+sub PF {PGML::Format(@_)};
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+   
+# Input is a number n. Output is ($out, $in) 
+# in the simplified form of $out*sqrt($in).
+sub radSimplify {
+   my $n = shift;
+   my $out = 1;
+   my $in = $n;
+   my $prime = 2;
+   my $lastPrime = -1;
+   while (1) {
+      while ($n%$prime==0) {
+         if ($prime == $lastPrime) {
+            $out *= $prime;
+            $lastPrime = -1;
+            $in = $in/$prime**2;
+         } else {
+            $lastPrime = $prime;
+         }
+         $n=$n/$prime;
+      }
+      if ($n==1) {return ($out, $in);}
+      $prime = &nextPrime($prime);
+   }
+}
+
+#Input is $outT*sqrt($inT) / $outB*sqrt($inB)
+#output is rationalized $num*sqrt($in1)/$den
+sub rationalize {
+  my ($outT, $inT, $outB, $inB) = @_;
+  my ($out1, $in1) = &radSimplify($inT*$inB);
+  Context("Fraction");
+  my ($num,$den) = Fraction($outT*$out1,$outB*$inB)->reduce->value;
+  Context("LimitedRadical");
+  if ($den==1) {
+    if ($num==1) {
+      return ($in1==1) ? Formula("1") : Formula("sqrt($in1)");
+    } elsif ($num==-1) {
+      return ($in1==1) ? Formula("-1") : Formula("-sqrt($in1)");
+    } else {
+      return ($in1==1) ? Formula("$num") : Formula("$num*sqrt($in1)");
+    }
+  } else {
+    if ($num==1) {
+      return ($in1==1) ? Formula("1/$den") : Formula("sqrt($in1)/$den");
+    } elsif ($num==-1) {
+      return ($in1==1) ? Formula("-1/$den") : Formula("-sqrt($in1)/$den");
+    } else {
+      return ($in1==1) ? Formula("$num/$den") : Formula("$num*sqrt($in1)/$den");
+    }
+  }
+}
+
+Context("LimitedRadical");
+
+  do {
+    do {
+      $baseOut = random(1,5,1);
+      $heightIn = list_random(1,2,3,5);
+      $heightOut = -random(1,5,1);
+    } until (gcd(abs($heightOut),abs($baseOut))==1);
+    $baseIn = 1;
+    ($hypotenuseOut,$hypotenuseIn) = &radSimplify($baseOut**2*$baseIn+$heightOut**2*$heightIn);
+  } until (!($baseIn==1 && $heightIn==1 && $hypotenuseIn==1)) && !(($baseOut>0) && ($heightOut>0)) && ($hypotenuseIn<30);
+
+  $heightOut = $heightOut*random(-1,1,2);
+  if ($baseOut*$heightOut>0) {
+    $Q = ($baseOut>0) ? "I" : "III";
+  } else {
+    $Q = ($baseOut>0) ? "IV" : "II";
+  }
+
+
+  $base = $baseOut;
+  $absBase = abs($baseOut);
+  
+  if ($heightIn==1) {
+    $height = $heightOut;
+    $absHeight = abs($heightOut);
+  } elsif (abs($heightOut)==1) {
+    $height = ($heightOut>0) ? Formula("sqrt($heightIn)") : Formula("-sqrt($heightIn)");
+    $absHeight = Formula("sqrt($heightIn)");
+  } else {
+    $height = Formula("$heightOut*sqrt($heightIn)");
+    $absHeightOut = abs($heightOut);
+    $absHeight = Formula("$absHeightOut*sqrt($heightIn)");
+  }
+
+  if ($hypotenuseIn==1) {
+    $hypotenuse = $hypotenuseOut;
+  } elsif (abs($hypotenuseOut)==1) {
+    $hypotenuse = Formula("sqrt($hypotenuseIn)");
+  } else {
+    $hypotenuse = Formula("$hypotenuseOut*sqrt($hypotenuseIn)");
+  }
+    
+  $sine = &rationalize($heightOut,$heightIn,$hypotenuseOut,$hypotenuseIn);
+  $cosine = &rationalize($baseOut,$baseIn,$hypotenuseOut,$hypotenuseIn);
+  $tangent = &rationalize($heightOut,$heightIn,$baseOut,$baseIn);
+  $cosecant = &rationalize($hypotenuseOut,$hypotenuseIn,$heightOut,$heightIn);
+  $secant = &rationalize($hypotenuseOut,$hypotenuseIn,$baseOut,$baseIn);
+  $cotangent = &rationalize($baseOut,$baseIn,$heightOut,$heightIn);
+
+  @ans = ($sine,$cosine,$tangent,$cosecant,$secant,$cotangent);
+
+Context("Numeric");
+
+$r = 5;
+$Px = $r*$baseOut*sqrt($baseIn)/($hypotenuseOut*sqrt($hypotenuseIn));
+$Py = $r*$heightOut*sqrt($heightIn)/($hypotenuseOut*sqrt($hypotenuseIn));
+
+@graph = ();
+$graph[0] = init_graph(-8,-8,8,8,'axes'=>[0,0],'grid'=>[1,1]);
+$graph[0]->lb('reset');
+
+$xfuncAlpha = sub { my $t = shift();
+  return $r*cos($t); };
+$yfuncAlpha = sub { my $t = shift();
+  return $r*sin($t); };
+$fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[0] );
+$fnAlpha->domain(0,2*pi);
+
+$graph[0]->stamps(closed_circle( $Px, $Py, red ));
+$graph[0]->moveTo(0,0);
+$graph[0]->lineTo($Px,$Py,red,2);
+$graph[0]->lineTo($Px,0,red,2);
+$graph[0]->lineTo(0,0,red,2);
+
+$xShift = ($Px>0) ? -0.2 : 0.2;
+$yShift = ($Py>0) ? 0.2 : -0.42;
+$graph[0]->moveTo($Px,$yShift);
+$graph[0]->lineTo($Px+$xShift,$yShift,red,2);
+$graph[0]->lineTo($Px+$xShift,0,red,2);
+
+$LORHeight = ($Px>0) ? "left" : "right";
+$TOBBase = ($Py>0) ? "top" : "bottom";
+$LORHyp = ($Px>0) ? "right" : "left";
+$TOBHyp = ($Py>0) ? "bottom" : "top";
+$LORShift = ($Px>0) ? 0.2 : -0.2;
+$graph[0]->lb(new Label($Px+$LORShift,$Py/2,"$height",'red',$LORHeight,'middle',large));
+$graph[0]->lb(new Label($Px/2,0,"$base",'red','center',$TOBBase,large));
+$graph[0]->lb(new Label($Px/2,$Py/2,"$hypotenuse",'red',$LORHyp,$TOBHyp,large));
+$graph[0]->lb(new Label($Px,$Py,"P",'red',$LORHeight,$TOBHyp,large));
+
+
+$alt[0] = "This is the graph of a circle with point P on the circle. A right triangle is formed at vertices (0,0), P($base,$height) and ($base,0). The base is marked as $base, height marked as $height and hypotenuse marked as $hypotenuse.";
+
+$fig0 = image(insertGraph($graph[0]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[0]' title = '$alt[0]' ");
+
+
+
+##############################################################
+
+BEGIN_PGML
+
+Find the following values:
+
+[@KeyboardInstructions(
+"\n"
+.'* Use [|sqrt()|]* for the square root symbol. For example: [`\\sqrt{2}=`][|sqrt(2)|]*.'
+."\n"
+.'* Rationalize the denominator if needed.'
+)@]**
+
+[@DataTable(
+  [
+    [
+     [PF('[`\sin \left( \tan^{-1}\left( [$ans[2]] \right) \right)=`][_____]{$ans[0]}'),
+        cellcss => 'border-right: 1px solid; '],
+     [PF('[`\csc \left( \tan^{-1}\left( [$ans[2]] \right) \right)=`][_____]{$ans[3]}')],
+    ],
+    [
+     [PF('[`\cos \left( \tan^{-1}\left( [$ans[2]] \right) \right)=`][_____]{$ans[1]}'),
+        cellcss => 'border-right: 1px solid; '],
+     [PF('[`\sec \left( \tan^{-1}\left( [$ans[2]] \right) \right)=`][_____]{$ans[4]}')],
+    ],
+  ],
+  align => 'c c',
+  columnscss =>
+    ['border-bottom: 1px solid;',
+     'border-bottom: 1px solid;',],
+);@]*
+
+
+
+END_PGML
+
+##############################################################
+
+$showPartialCorrectAnswers = 1;
+
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+Recall that the range of [`y=\tan^{-1}(x)`] is [`\left( -\frac{\pi}{2},\frac{\pi}{2} \right) `], either in Quadrant I or Quadrant IV.
+
+Since [`[$ans[2]]<0`], the angle [`\tan^{-1}\left( [$ans[2]] \right)`] must be in Quadrant [$Q]. We can sketch the angle on a non-unit circle, making the right triangle's base [`[$base]`] and its height [`[$height]`]:
+
+>>[@ $fig0 @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+The triangle's hypotenuse is calculated by [`\sqrt{([$base])^2+([$height])^2}=[$hypotenuse]`]. 
+
+Next, we can write the angle's trigonometry values by definition:
+
+    [``\begin{aligned}
+  \sin(\theta) &= \frac{\text{opposite}}{\text{hypotenuse}} = \frac{[$height]}{[$hypotenuse]} = [$ans[0]] \\
+  \cos(\theta) &= \frac{\text{adjacent}}{\text{hypotenuse}} = \frac{[$base]}{[$hypotenuse]} = [$ans[1]] \\
+  \csc(\theta) &= \frac{1}{\sin(\theta)} = \frac{1}{[$ans[0]]} = [$ans[3]] \\
+  \sec(\theta) &= \frac{1}{\cos(\theta)} = \frac{1}{[$ans[1]]} = [$ans[4]] \\
+    \end{aligned}``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

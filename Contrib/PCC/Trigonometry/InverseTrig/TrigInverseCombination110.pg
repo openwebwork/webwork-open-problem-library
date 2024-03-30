@@ -1,0 +1,228 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "extraAnswerEvaluators.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "unionTables.pl",
+  "niceTables.pl",
+  "PCCmacros.pl",
+  "AnswerFormatHelp.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+sub PF {PGML::Format(@_)};
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Numeric");
+
+do {
+  do {
+    $a = random(1,3,1);
+    $b = random(-5,5,1);
+  } until gcd(abs($a),abs($b))==1;
+  
+  $in = random(0,3,1);
+  if ($in==0) {
+    $base = Compute("$a*x")->reduce;
+    $c = 2*$a*$b;
+    $height = Compute("sqrt($c*x+($b)**2)")->reduce;
+    $hypotenuse = Compute("$a*x+$b")->reduce;
+    $space = 0; #bottom need space
+  } elsif ($in==1) {
+    $base = Compute("$a")->reduce;
+    $height = Compute("x")->reduce;
+    $hypotenuse = Compute("sqrt(x**2+($a)**2)")->reduce;
+    $space = 1; #left need space
+  } elsif ($in==2) {
+    $base = Compute("x")->reduce;
+    $height = Compute("sqrt(($a)**2-x**2)")->reduce;
+    $hypotenuse = Compute("$a")->reduce;
+    $space = 0; #bottom need space
+  } else {
+    Context()->flags->set(limits=>[$a+1,$a+2]);
+    $base = Compute("$a")->reduce;
+    $height = Compute("sqrt((x)**2-($a)**2)")->reduce;
+    $hypotenuse = Compute("x")->reduce;
+    $space = 0; #bottom need space
+  }
+} until $base != 0 && $height!=0 && $hypotenuse!=0;
+
+if (random(0,1,1)==0) {
+  $temp = $base;
+  $base = $height;
+  $height = $temp;
+  if ($space!=1) {$space = 2;} #right need space
+}
+
+Context("LimitedRadical");
+
+#sine, cosine, tangent, cosecant, secant cotangent
+@ans = (
+  ($hypotenuse==1) ? Formula("$base") : Formula("$base/$hypotenuse"),
+  ($hypotenuse==1) ? Formula("$height") : Formula("$height/$hypotenuse"),
+  ($height==1) ? Formula("$base") : Formula("$base/$height"),
+  ($base==1) ? Formula("$hypotenuse") : Formula("$hypotenuse/$base"),
+  ($height==1) ? Formula("$hypotenuse") : Formula("$hypotenuse/$height"),
+  ($base==1) ? Formula("$height") : Formula("$height/$base"),
+);
+
+for my $i (0..5) {
+  if ($in==0) {
+    if ($c>0) {
+      $left = max(-($b)**2/$c,-$b/$a);
+      $right = $left+1;
+    } else {
+      $right = min(-($b)**2/$c,-$b/$a);
+      $left = -$right;
+    }
+    $ans[$i]->{limits} = [$left,$right];
+  }
+  if ($in==2) {$ans[$i]->{limits} = [0,$a];}
+  if ($in==3) {$ans[$i]->{limits} = [$a+1,$a+2];}
+}
+
+$Ax = 0;
+$Ay = 0;
+$Cx = sqrt(3);
+$Cy = 0;
+$Bx = $Cx;
+$By = 1;
+$cushion = 2;
+
+if ($space==1) {
+  $xmin = -$cushion;
+  $xmax = $Cx+0.5;
+  $ymin = -0.2;
+  $ymax = $By+0.2;
+} elsif ($space==2) {
+  $xmin = -0.5;
+  $xmax = $Cx+$cushion;
+  $ymin = -0.2;
+  $ymax = $By+0.2;
+} else {
+  $xmin = -0.5;
+  $xmax = $Cx+0.5;
+  $ymin = -0.2;
+  $ymax = $By+0.2;
+}
+
+$picture[0] = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[240,240]);
+$picture[0]->lb('reset');
+$picture[0]->moveTo($Ax,$Ay);
+$picture[0]->lineTo($Bx,$By,blue,3);
+$picture[0]->lineTo($Cx,$Cy,blue,3);
+$picture[0]->lineTo($Ax,$Ay,blue,3);
+
+$xShift = $xmax/20;
+$yShift = $xShift/$xmax*$ymax;
+$picture[0]->moveTo($Cx,$Cy+$yShift);
+$picture[0]->lineTo($Cx-$xShift,$Cy+$yShift,blue,3);
+$picture[0]->lineTo($Cx-$xShift,$Cy,blue,3);
+
+$picture[0]->lb( new Label($Ax,$Ay,"A",'blue','right','bottom','large'));
+$picture[0]->lb( new Label($Cx+0.1,$Cy,"C",'blue','left','bottom','large'));
+$picture[0]->lb( new Label($Bx,$By,"B",'blue','center','bottom','large'));
+
+$picture[0]->lb( new Label($Cx+0.1,($By+$Cy)/2,"$base",'blue','left','middle','large'));
+$picture[0]->lb( new Label(($Ax+$Cx)/2,$Ay-0.02,"$height",'blue','center','top','large'));
+$picture[0]->lb( new Label(($Ax+$Bx)/2,($Ax+$By)/2,"$hypotenuse",'blue','right','bottom','large'));
+
+$text[0] = "This is a right triangle. The bottom side is parallel to the horizontal direction. Its leftend is A, rightend is C. The length of this side is $height. Angle C is a right angle. Side CB goes up, and the length is $base. The length of AB is $hypotenuse.";
+
+
+
+##############################################################
+
+BEGIN_PGML
+
+Find the following values.
+
+[@KeyboardInstructions(
+"\n"
+.'* Use [|sqrt()|]* for the square root symbol. For example: [`\\sqrt{2}=`][|sqrt(2)|]*.'
+."\n"
+.'* Do not rationalize the denominator.'
+)@]**
+
+[@DataTable(
+  [
+    [
+     [PF('[`\cos\left(\sin^{-1}\left( [$ans[0]] \right)\right)=`][_______________]{$ans[1]}'),
+        cellcss => 'border-right: 1px solid; '],
+     [PF('[`\sec\left(\sin^{-1}\left( [$ans[0]] \right)\right)=`][_______________]{$ans[4]}')],
+    ],
+    [
+     [PF('[`\tan\left(\sin^{-1}\left( [$ans[0]] \right)\right)=`][_______________]{$ans[2]}'),
+        cellcss => 'border-right: 1px solid; '],
+     [PF('[`\cot\left(\sin^{-1}\left( [$ans[0]] \right)\right)=`][_______________]{$ans[5]}')],
+    ],
+  ],
+  align => 'c c',
+  columnscss =>
+    ['border-bottom: 1px solid;',
+     'border-bottom: 1px solid;',],
+);@]*
+
+
+
+END_PGML
+
+##############################################################
+
+$showPartialCorrectAnswers = 1;
+
+
+##############################################################
+
+
+BEGIN_PGML_SOLUTION
+
+Assume [`\angle A = \sin^{-1}\left( [$ans[0]] \right) `], then [`\sin(A) = [$ans[0]]`]. If we sketch a right triangle with [`\angle A`], we can make its opposite side [`[$base]`] and its hypotenuse [`[$hypotenuse]`]:
+
+>>[@ image(insertGraph( $picture[0]  ), 'width'=>300,'height'=>300,'tex_size'=>300, extra_html_tags => "alt = '$text[0]' title = '$text[0]' ") @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+The triangle's base is calculated by [`\sqrt{([$hypotenuse])^2-([$base])^2}=[$height]`]. 
+
+Next, we can write the angle's trigonometry values by definition:
+
+    [``\begin{aligned}
+  \sin(A) &= \frac{\text{opposite}}{\text{hypotenuse}} = [$ans[0]] \\
+  \cos(A) &= \frac{\text{adjacent}}{\text{hypotenuse}} = [$ans[1]] \\
+  \tan(A) &= \frac{\sin(A)}{\cos(A)} = \frac{[$ans[0]]}{[$ans[1]]} = [$ans[2]] \\
+  \sec(A) &= \frac{1}{\cos(A)} = \frac{1}{[$ans[1]]} = [$ans[4]] \\
+  \cot(A) &= \frac{\cos(A)}{\sin(A)} = \frac{[$ans[1]]}{[$ans[0]]} = [$ans[5]] \\
+    \end{aligned}``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

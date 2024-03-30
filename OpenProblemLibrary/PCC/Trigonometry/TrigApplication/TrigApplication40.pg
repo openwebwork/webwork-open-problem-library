@@ -1,0 +1,294 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Fraction");
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+Context()->noreduce('(-x)-y');
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->variables->add(d => "Real");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+@t = (); @h = (); @tShow = ();
+do {
+  do {
+    $high = random(30,40,1);
+    $low = random(-10,-5,1);
+    $a = ($high-$low)/2;
+    $b = Formula("(2*pi)/365");
+    $c = random(5,30,1);
+    $e = ($high+$low)/2;
+    $func = Formula("$a*cos($b*(d-$c))+$e");
+    $p = 365;
+    $xLow = $c+365/2;
+
+    do {
+      $t[0] = random($c+5,300,1);
+      $T[0] = $func->eval(d=>$t[0]);
+      $T[1] = random($low+5,$high-5,1);
+    } until abs($T[0]-$T[1])>10;
+    $T[2] = $T[1];
+  } until abs(($T[1]-$e)/$a)<1;
+  $rad = arccos(($T[1]-$e)/$a);
+} until $rad*180/pi>20 && $rad*180/pi<160 && abs($rad*180/pi-90)>20;
+
+$radShow = Round($rad,2);
+$t[1] = $rad/Compute($b)+$c;
+$t[2] = -$rad/Compute($b)+$p+$c;
+for my $i (0..2) {
+  $tShow[$i] = Round($t[$i],2);
+}
+$ans = List($t[1],$t[2]);
+
+@graph = ();
+($xmin, $xmax) = (-10,400);
+($ymin, $ymax) = ($low-10,$high+10);
+$graph[0] = init_graph($xmin,$ymin,$xmax,$ymax,axes=>[0,0]);
+$graph[0]->lb('reset');
+
+for (my $i=-50; $i<$xmax; $i=$i+50) {
+  $graph[0]->moveTo($i,$ymin);
+  $graph[0]->lineTo($i,$ymax,gray,1,dashed);
+  $graph[0]->lb(new Label($i,0,$i,'black','right','top',large));
+}
+for (my $i=-10; $i<$ymax; $i=$i+10) {
+  $graph[0]->moveTo($xmin,$i);
+  $graph[0]->lineTo($xmax,$i,gray,1,dashed);
+  $graph[0]->lb(new Label(0,$i,$i,'black','right','middle',large)) unless $i==0;
+}
+
+$graph[0]->lb(new Label(0,0.97*$ymax,"Celcius Degrees",'blue','left','middle',large));
+$graph[0]->lb(new Label(0.98*$xmax,0,"days",'blue','right','bottom',large));
+
+add_functions($graph[0], "$func for d in <$xmin,$xmax> using color:blue and weight:2");
+($graph[0]->fn)[0]->steps(300);
+
+$graph[0]->stamps(closed_circle($xLow,$low,red));
+$graph[0]->lb(new Label($xLow,$low,"($xLow,$low)",'red','center','top',large));
+$graph[0]->stamps(closed_circle($c,$high,red));
+$graph[0]->lb(new Label($c,$high,"($c,$high)",'red','left','bottom',large));
+$graph[0]->stamps(closed_circle($t[0],$T[0],red));
+$graph[0]->lb(new Label($t[0],$T[0],"($tShow[0],$T[0])",'red','center','bottom',large));
+$graph[0]->stamps(closed_circle($t[1],$T[1],red));
+$graph[0]->lb(new Label($t[1],$T[1],"($tShow[1],$T[1])",'red','center','bottom',large));
+$graph[0]->stamps(closed_circle($t[2],$T[2],red));
+$graph[0]->lb(new Label($t[2],$T[2],"($tShow[2],$T[2])",'red','center','bottom',large));
+
+$alt[0] = "This is the graph of T(d)=[$func]. Points ($xHigh,$high), ($c,$low), ($tShow[0],$T[0]), ($tShow[1],$T[1]) and ($tShow[2],$T[2]) on the function are highlighted.";
+
+$fig0 = image(insertGraph($graph[0]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[0]' title = '$alt[0]' ");
+
+
+$r = 5;
+
+$graph[1] = init_graph(-8,-8,8,8,'axes'=>[0,0]);
+$graph[1]->lb('reset');
+
+$xfuncAlpha = sub { my $t = shift();
+  return $r*cos($t); };
+$yfuncAlpha = sub { my $t = shift();
+  return $r*sin($t); };
+$fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[1] );
+$fnAlpha->domain(0,2*pi);
+
+@Px = ();
+@Py = ();
+$Px[0] = $r*cos($rad);
+$Py[0] = $r*sin($rad);
+$Px[1] = $r*cos(-$rad);
+$Py[1] = $r*sin(-$rad);
+
+for my $i (0..1) {
+  $graph[1]->moveTo(0,0);
+  $graph[1]->lineTo($Px[$i], $Py[$i], red, 2);
+  $graph[1]->lineTo($Px[$i], 0, red, 2);
+  $graph[1]->lineTo(0, 0, red, 2);
+  
+  $xShift = ($Px[$i]>0) ? -0.4 : 0.4;
+  $yShift = ($Py[$i]>0) ? 0.4 : -0.4;
+  $graph[1]->moveTo($Px[$i], $yShift);
+  $graph[1]->lineTo($Px[$i]+$xShift, $yShift, red, 2);
+  $graph[1]->lineTo($Px[$i]+$xShift, 0, red, 2);
+}
+
+$graph[1]->stamps(closed_circle($Px[0],$Py[0],red));
+$TOBHyp = ($Py[0]>0) ? "bottom" : "top";
+$graph[1]->lb(new Label($Px[0],$Py[0],"$radShow radians",'red','center',$TOBHyp,large));
+
+$graph[1]->stamps(closed_circle($Px[1],$Py[1],red));
+$TOBHyp = ($Py[1]>0) ? "bottom" : "top";
+$graph[1]->lb(new Label($Px[1],$Py[1],"-$radShow radians",'red','center',$TOBHyp,large));
+
+$alt[1] = "This is the graph of a circle with points marked as $radShow radians and -$radShow radians on the circle.";
+
+$fig1 = image(insertGraph($graph[1]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[1]' title = '$alt[1]' ");
+
+##############################################################
+
+$ld = $t[0]-int($t[0]/10)*10;
+if ($ld==1) {$th = "st";}
+  elsif ($ld==2) {$th = "nd";}
+  else {$th = "th";}
+
+BEGIN_PGML
+
+Assume a year has 365 days, and [`d=1`] represents Jan. 1. A city's daily maximum temperature over the year, [`T(d)`], follows the pattern of a periodic function. The city's highest daily maximum temperature, [`[$high]^{\circ} C`], happens on Jan. [`[$c]`]; its lowest daily maximum temperature, [`[$low]^\circ C`], happens in July.
+
+Answer the following questions.
+
+Part a: The function, as a transformation of [`y=\cos(x)`], is [`T(d)=`][________________________]{$func}.
+
+Part b: On the [`[$t[0]]`][$th] day of the year, the daily maximum temperature was [_______________]{$T[0]} [`^{\circ} C`]. 
+
+[@KeyboardInstructions(
+"\n"
+."* In the next part, use a comma to separate your answers."
+)@]**
+
+Part c: During this year, the city's daily maximum temperature was [`[$T[1]]^{\circ} C`] twice, on days [________________]{$ans}.
+
+END_PGML
+
+##############################################################
+
+$a1 = $T[1]-$e;
+$s1 = "\frac{$a1}{$a}";
+$bR = "\frac{365}{2\pi}";
+$s2 = $rad*365/(2*pi);
+$s3 = -$s2+$c;
+$radShow = Round($rad,4);
+
+BEGIN_PGML_SOLUTION
+
+###Part a
+
+We could use [`y=\sin(x), y=\cos(x)`] and [`y=-\cos(x)`] to model periodic data. In this situation, when [`d=[$c]`], the function has it's maximum value at [`([$c],[$high])`]. Then the function decreases. This change matches the graph of [`y=\cos(x)`], which is at its maximum value when [`x=0`], and then decreases. So we should choose to use the following function to model the daily maximum temperature:
+
+    [``T(d)=a\cos\left(b(d-c)\right)+e``]
+
+By given conditions, the function's maximum value is [`[$high]`], and its minimum value is [`[$low]`].
+
+The function's [`e`] value (midline) is:
+
+    [``\begin{aligned}
+  e &= \frac{\text{maximum value}+\text{minimum value}}{2} \\
+    &= \frac{[$high]+([$low])}{2} \\
+    &= [$e]^{\circ} C
+    \end{aligned}``]
+
+The function's amplitude can be calculated by:
+
+    [``\begin{aligned}
+  a &= \frac{\text{maximum value}-\text{minimum value}}{2} \\
+    &= \frac{[$high]-([$low])}{2} \\
+    &= [$a]^{\circ} C
+    \end{aligned}``]
+
+The function's period is [`365`] days. By the period formula [`\text{new period}=\frac{\text{old period}}{b}`], we have:
+
+    [`` b = \frac{\text{old period}}{\text{new period}} = \frac{2\pi}{[$p]} ``]
+
+Finally, the function's minimum value is at [`([$c],[$high])`], which matches [`(0,1)`] on [`y=\cos(x)`]. The graph of [`y=-cos(x)`] needs to shift to the right by [`[$c]`] units to match the graph of [`T(d)`], implying [`c=[$c]`] in [`T(d)=a\cos\left(b(d-c)\right)+e`].
+
+The function's formula is
+
+    [``T(d) = [$func] ``]
+
+###Part b
+
+To find the daily maximum temperature on the [`[$t[0]]`][$th] day, substitute [`d=[$t[0]]`] into [`T(d)`], we have:
+
+    [``\begin{aligned}
+  T(d) &= [$func] \\
+  &= [$a]\cos\left([$b]([$t[0]]-[$c])\right)+[$e] \\
+  &= [$T[0]]^{\circ} C
+    \end{aligned}``]
+
+On the [`[$t[0]]`][$th] day of the year, the daily maximum temperature was [`[$T[0]] ^{\circ} C`].
+
+###Part c
+
+To find when the daily maximum temperature was [`[$T[1]]^{\circ} C`], substitute [`T(d)=[$T[1]]`] into the function, and solve for [`d`]. We have:
+
+    [``\begin{aligned}
+  T(d) &= [$func] \\
+  [$T[1]] &= [$func] \\
+  [$T[1]]-[$e]  &= [$a]\cos\left([$b](t-[$c])\right) \\
+  \frac{[$a1]}{[$a]}  &= \cos\left([$b](t-[$c])\right) \\
+  [$s1] &= \cos\left([$b](t-[$c])\right) \\
+  \cos^{-1}\left([$s1]\right) &= [$b](t-[$c]) \\
+  [$radShow] &= [$b](t-[$c])
+    \end{aligned}``]
+
+Recall that the range of [`\cos^{-1}(x)`] is [`\left[ 0,\pi \right] `]. On the Unit Circle, we have to check whether another angle also makes [`[$s1] = \cos\left([$b](t-[$c])\right)`] true:
+
+>>[@ $fig1 @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+Now we have:
+
+    [``\begin{aligned}
+  [$s1] &= \cos\left([$b](d-[$c])\right) \\
+  \cos^{-1}\left([$s1]\right) &= [$b](d-[$c]) \\
+  [$b](d-[$c]) &= [$radShow] +2k\pi \text{ or } -[$radShow] +2k\pi \\
+  d-[$c] &= [$bR] \left( [$radShow] +2k\pi \right) \text{ or } [$bR] \left( -[$radShow] +2k\pi \right) \\
+  d-[$c] &= [$s2] + 365k \text{ or } -[$s2] + 365k \\
+  d &= [$t[1]] + 365k \text{ or } [$s3] + 365k
+    \end{aligned}``]
+
+We need to substitute in various [`k`] values and find all [`t`] values in one period: [`[0,[$p]]`]:
+
+    [``\begin{aligned}
+  d &= [$t[1]] + 365(0) =  [$t[1]] \\
+  d &= [$s3] + 365(1) = [$t[2]]
+    \end{aligned}``]
+
+During this year, the city's daily maximum temperature was [`[$T[1]]^{\circ} C`] twice, on days [`[$ans]`].
+
+Below is the function's graph with solutions of this problem:
+
+>>[@ $fig0 @]*<<
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

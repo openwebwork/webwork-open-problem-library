@@ -1,0 +1,195 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "parserOneOf.pl",
+  "contextFraction.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Fraction");
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+
+%ab = (
+  "1/2" => -Formula("1"),
+  "-1/2" => Formula("1"),
+  "sqrt(2)/2" => -Formula("sqrt(2)"),
+  "-sqrt(2)/2" => Formula("sqrt(2)"),
+  "sqrt(3)/2" => -Formula("sqrt(3)"),
+  "-sqrt(3)/2" => Formula("sqrt(3)"),
+);
+
+$cosV = list_random("1/2","sqrt(2)/2","sqrt(3)/2","-1/2","-sqrt(2)/2","-sqrt(3)/2");
+
+#$start[0][#] are points in first graph with inverse trig values
+#$start[1][#] are points in second graph with solutions
+@start = ();
+$start[0][0] = Formula("0");
+$start[0][1] = Formula("pi");
+$start[0][2] = specialAngle(arccos(Compute($cosV)));
+$start[0][3] = -specialAngle(arccos(Compute($cosV)));
+
+$start[1][0] = Formula("0");
+$start[1][1] = Formula("pi");
+$start[1][2] = $start[0][2];
+$start[1][3] = specialAngle(2*pi+Compute($start[0][3]));
+
+$a1 = 2;
+$b1 = $ab{$cosV};
+$b1N = ($b1>0) ? -Formula($b1) : Formula(substr($b1,1));
+
+$factor0 = "\sin(x)";
+$factor1 = ($b1>0) ? "2\cos(x)+".$b1->TeX : "2\cos(x)".$b1->TeX;
+
+$left = "\sin(2x)";
+$left1 = "2\sin(x)\cos(x)";
+if (abs($b1) == 1) {
+  $left1 .= ($b1>0) ? "+" : "-";
+} else {
+  $left1 .= ($b1>0) ? "+".$b1->TeX : $b1->TeX;
+}
+$left1 .= "\sin(x)";
+
+$right = "";
+if (abs($b1N) == 1) {
+  $right .= ($b1N>0) ? "\sin(x)" : "-\sin(x)";
+} else {
+  $right .= $b1N->TeX."\sin(x)";
+}
+
+@points = ();
+$points[0] .= "0, pi, $start[0][2] and $start[0][3]";
+$points[1] .= "0, pi, $start[0][2] and $start[1][3]";
+$ans = List(@{$start[1]});
+
+$r = 5;
+for my $i (0..1) {
+  $graph[$i] = init_graph(-6,-6,6,6,'axes'=>[0,0],'grid'=>[1,1]);
+  $graph[$i]->lb('reset');
+
+  $xfuncAlpha = sub { my $t = shift();
+    return $r*cos($t); };
+  $yfuncAlpha = sub { my $t = shift();
+    return $r*sin($t); };
+  $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[$i] );
+  $fnAlpha->domain(0,2*pi);
+
+  for my $j (0..scalar(@{$start[$i]})-1) {
+    $Px = Compute("$r*cos($start[$i][$j])")->reduce;
+    $Py = Compute("$r*sin($start[$i][$j])")->reduce;
+    $graph[$i]->stamps(closed_circle($Px,$Py,red));
+    $graph[$i]->moveTo(0,0);
+    $graph[$i]->lineTo($Px,$Py,red,2);
+    $graph[$i]->lineTo($Px,0,red,2);
+    $graph[$i]->lineTo(0,0,red,2);
+
+    if ( ($Px!=0) && ($Py!=0) ) {
+      $xShift = ($Px>0) ? -0.4 : 0.4;
+      $yShift = ($Py>0) ? 0.4 : -0.4;
+      $graph[$i]->moveTo($Px,$yShift);
+      $graph[$i]->lineTo($Px+$xShift,$yShift,red,2);
+      $graph[$i]->lineTo($Px+$xShift,0,red,2);
+    }
+
+    $td = $Py>=0 ? 'bottom' : 'top';
+    $graph[$i]->lb(new Label($Px,$Py,"$start[$i][$j]",'red','center',$td,large));
+  }
+
+  $alt[$i] = "This is the graph of a circle with points $points[$i] on the circle.";
+
+  $fig[$i] = image(insertGraph($graph[$i]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[$i]' title = '$alt[$i]' ");
+}
+
+
+
+
+##############################################################
+
+BEGIN_PGML
+
+Solve the equation
+
+    [``[$left]=[$right] \text{ where }x\in[0,2\pi)``]
+
+[@KeyboardInstructions(
+"\n"
+.'* Enter multiple answers separated by commas, as in [|pi/4, 3pi/4|]*.'
+."\n"
+.'* Use [|pi|]* to represent [`\pi`].'
+."\n"
+.'* Type [|no solution|]* if there is no solution.'
+)@]**
+
+    [`x=`][________________________________________]{$ans}
+    
+    
+END_PGML
+
+##############################################################
+
+$s1 = Formula($cosV);
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+To solve the equation, we need to use the formula [`\sin(2x)=2\sin(x)\cos(x)`]:
+
+    [``\begin{aligned}
+  [$left] &= [$right] \\
+  2\sin(x)\cos(x) &= [$right] \\
+  [$left1] &= 0 \\
+  [$factor0]\left([$factor1]\right) &= 0 \\
+  [$factor0] &=0 \text{ or } [$factor1]=0 \\
+  \sin(x) &= 0 \text{ or } \cos(x) = [$s1] \\
+  x &= \sin^{-1}\left(0\right) \text{ or } x=\cos^{-1}([$s1]) \\
+    \end{aligned}``]
+    
+Recall that the range of [`\sin^{-1}(x)`] and [`\cos^{-1}(x)`] are both [`\left[ -\frac{\pi}{2},\frac{\pi}{2} \right] `]. On the Unit Circle, we need to identify all values which make [`\sin(x) = 0 \text{ or } \cos(x) = [$s1]`] true:
+
+>>[@ $fig[0] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+We need to find corresponding values in the range of [`[0,2\pi)`]:
+
+>>[@ $fig[1] @]*<<
+
+Solutions are [`[$ans]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

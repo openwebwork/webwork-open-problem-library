@@ -1,0 +1,173 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a function's graph, find the maximum and minimum.
+#
+# Last update: Carl Yao 09/06/2018
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Function')
+## DBsection('Domain and Range')
+## KEYWORDS('function','domain','range','graph')
+## DBCCSS('8.F','F-IF')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+
+do {
+   $a = random(0.1,1,0.1)*random(-1,1,2);
+   $x1 = random(-5,-1,1);
+   $x2 = random(1,5,1);
+   $b = random(-3,3,1);
+   $func = Compute("$a*x**3-1.5*$a*($x1+$x2)*x**2+3*$a*$x1*$x2*x+$b")->reduce;
+   $y1 = $func->eval(x=>$x1);
+   $y2 = $func->eval(x=>$x2);
+   $x3 = random($x1-4,$x1-1,1);
+   $x4 = random($x2+1,$x2+4,1);
+   $y3 = $func->eval(x=>$x3);
+   $y4 = $func->eval(x=>$x4);
+   
+   $y1 = Round($y1,2);
+   $y2 = Round($y2,2);
+   $y3 = Round($y3,2);
+   $y4 = Round($y4,2);
+
+   %points = (
+       $y1  => $x1,
+       $y2  => $x2,
+       $y3  => $x3,
+       $y4  => $x4,
+   );
+
+   if ($a>0) {
+      $localMinX = $x2;
+      $localMinY = $y2;
+      $localMaxX = $x1;
+      $localMaxY = $y1;
+   } else {
+      $localMinX = $x1;
+      $localMinY = $y1;
+      $localMaxX = $x2;
+      $localMaxY = $y2;
+   }
+
+   $globalMinY = min($y1,$y2,$y3,$y4);
+   $globalMinX = Real($points{$globalMinY});
+   $globalMaxY = max($y1,$y2,$y3,$y4);
+   $globalMaxX = Real($points{$globalMaxY});
+} until ( 
+   abs($y1)<10 && 
+   abs($y2)<10 && 
+   abs($y3)<10 && 
+   abs($y4)<10 && 
+   $y3 != $y2 &&
+   $y4 != $y1 &&
+   ( ($localMaxX != $globalMaxX) || ($localMinX != $globalMinX) )
+);
+
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$x3,$x4],[$y1,$y2,$y3,$y4],centerOrigin=>0);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+for my $i (0..0) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+
+   $leftBound = $x3;
+   $rightBound = $x4;
+
+   add_functions($gr[$i], "$func for x in [$leftBound,$rightBound] using color:blue and weight:1");
+   
+   $gr[$i]->stamps( closed_circle($x1,$y1,'blue') );
+   $gr[$i]->stamps( closed_circle($x2,$y2,'blue') );
+   if ($a>0) {
+      $adjust1 = ($max[1]-$min[1])/30;
+      $adjust2 = -$adjust1;
+   } else {
+      $adjust1 = -($max[1]-$min[1])/30;
+      $adjust2 = -$adjust1;
+   }
+   $gr[$i]->lb( new Label($x1, $y1+$adjust1, "($x1,$y1)",'blue','center','middle'));
+   $gr[$i]->lb( new Label($x2, $y2+$adjust2, "($x2,$y2)",'blue','center','middle'));
+   $gr[$i]->lb( new Label($x3, $y3+$adjust2, "($x3,$y3)",'blue','center','middle'));
+   $gr[$i]->lb( new Label($x4, $y4+$adjust1, "($x4,$y4)",'blue','center','middle'));
+}
+
+if ($a>0) {
+   $ALT = "graph of a function starting at the bottom left at ($x3,$y3), going up till the point ($x1,$y1), turning down till the point ($x2,$y2), and then turning up and ends at ($x4,$y4).";
+} else {
+   $ALT = "graph of a function starting at the top left at ($x3,$y3), going down till the point ($x1,$y1), turning up till the point ($x2,$y2), and then turning down and ends at ($x4,$y4).";
+}
+
+
+##############################################
+Context("LimitedNumeric");
+BEGIN_PGML
+
+A function's graph is shown below.
+
+[@EnlargeImageStatementPGML()@]**
+
+>>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
+
+If a value doesn't exist, type *DNE* (meaning "does not exist").
+
+The function has a local minimum at [_______]{$localMinX}, and the local minimum is [_______]{$localMinY}.
+
+The function has a local maximum at [_______]{$localMaxX}, and the local maximum is [_______]{$localMaxY}.
+
+The function's global minimum is at [_______]{$globalMinX}, and the global minimum is [_______]{$globalMinY}.
+
+The function's global maximum is at [_______]{$globalMaxX}, and the global maximum is [_______]{$globalMaxY}.
+
+END_PGML
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+The function has a local minimum at [`[$localMinX]`], and the local minimum is [`[$localMinY]`].
+
+The function has a local maximum at [`[$localMaxX]`], and the local maximum is [`[$localMaxY]`].
+
+The function's global minimum is at [`[$globalMinX]`], and the global minimum is [`[$globalMinY]`].
+
+The function's global maximum is at [`[$globalMaxX]`], and the global maximum is [`[$globalMaxY]`].
+
+Note that a local maximum/minimum must have an open interval containing its [`x`]-value, so a point at the end of an interval, like [`([$x3],[$y3])`] and [`([$x4],[$y4])`], does not qualify as a local maximum/minimum.
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();

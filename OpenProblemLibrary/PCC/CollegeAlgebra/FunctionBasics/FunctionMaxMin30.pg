@@ -1,0 +1,234 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a function's graph, find the maximum and minimum.
+#
+# Last update: Carl Yao 09/06/2018
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Function')
+## DBsection('Domain and Range')
+## KEYWORDS('function','domain','range','graph')
+## DBCCSS('8.F','F-IF')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PCCgraphMacros.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+
+do {
+   $a = random(0.1,1,0.1)*random(-1,1,2);
+   $x1 = random(-5,-1,1);
+   $x2 = random(1,5,1);
+   $b = random(-3,3,1);
+   $func = Compute("$a*x**3-1.5*$a*($x1+$x2)*x**2+3*$a*$x1*$x2*x+$b")->reduce;
+   $y1 = $func->eval(x=>$x1);
+   $y2 = $func->eval(x=>$x2);
+   $x3 = random($x1-4,$x1-1,1);
+   $x4 = random($x2+1,$x2+4,1);
+   $y3 = $func->eval(x=>$x3);
+   $y4 = $func->eval(x=>$x4);
+   
+   $y1 = Round($y1,2);
+   $y2 = Round($y2,2);
+   $y3 = Round($y3,2);
+   $y4 = Round($y4,2);
+
+   %points = (
+       $y1  => $x1,
+       $y2  => $x2,
+       $y3  => $x3,
+       $y4  => $x4,
+   );
+
+   if ($a>0) {
+      $localMinX = $x2;
+      $localMinY = $y2;
+      $localMaxX = $x1;
+      $localMaxY = $y1;
+   } else {
+      $localMinX = $x1;
+      $localMinY = $y1;
+      $localMaxX = $x2;
+      $localMaxY = $y2;
+   }
+
+   $globalMinY = min($y1,$y2,$y3,$y4);
+   $globalMinX = Real($points{$globalMinY});
+   $globalMaxY = max($y1,$y2,$y3,$y4);
+   $globalMaxX = Real($points{$globalMaxY});
+} until ( 
+   abs($y1)<10 && 
+   abs($y2)<10 && 
+   abs($y3)<10 && 
+   abs($y4)<10 && 
+   $y3 != $y2 &&
+   $y4 != $y1 &&
+   ( (($globalMaxX == $localMaxX) && ($globalMinX != $localMinX)) || (($globalMaxX != $localMaxX) && ($globalMinX == $localMinX)) )
+);
+
+if ($globalMaxX == $localMaxX) {
+   $localMaxXAns = Compute("DNE");
+   $localMaxYAns = Compute("DNE");
+   $globalMaxXAns = Compute("DNE");
+   $globalMaxYAns = Compute("DNE");
+   $localMinXAns = $localMinX;
+   $localMinYAns = $localMinY;
+   $globalMinXAns = $globalMinX;
+   $globalMinYAns = $globalMinY;
+} else {
+   $localMaxXAns = $localMaxX;
+   $localMaxYAns = $localMaxY;
+   $globalMaxXAns = $globalMaxX;
+   $globalMaxYAns = $globalMaxY;
+   $localMinXAns = Compute("DNE");
+   $localMinYAns = Compute("DNE");
+   $globalMinXAns = Compute("DNE");
+   $globalMinYAns = Compute("DNE");
+}
+
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([$x3,$x4],[$y1,$y2,$y3,$y4],centerOrigin=>0);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+for my $i (0..0) {
+  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+  );
+  $gr[$i]->lb('reset');
+
+   $leftBound = $x3;
+   $rightBound = $x4;
+
+   add_functions($gr[$i], "$func for x in [$leftBound,$rightBound] using color:blue and weight:1");
+   
+   if ($a>0) {
+      $adjust1 = ($max[1]-$min[1])/30;
+      $adjust2 = -$adjust1;
+      if ($globalMaxX == $localMaxX) {
+         $gr[$i]->stamps( open_circle($x1,$y1,'blue') );
+         $gr[$i]->stamps( closed_circle($x2,$y2,'blue') );
+      } else {
+         $gr[$i]->stamps( closed_circle($x1,$y1,'blue') );
+         $gr[$i]->stamps( open_circle($x2,$y2,'blue') );
+      }
+   } else {
+      $adjust1 = -($max[1]-$min[1])/30;
+      $adjust2 = -$adjust1;
+      if ($globalMaxX == $localMaxX) {
+         $gr[$i]->stamps( closed_circle($x1,$y1,'blue') );
+         $gr[$i]->stamps( open_circle($x2,$y2,'blue') );
+      } else {
+         $gr[$i]->stamps( open_circle($x1,$y1,'blue') );
+         $gr[$i]->stamps( closed_circle($x2,$y2,'blue') );
+      }
+   }
+   $gr[$i]->lb( new Label($x1, $y1+$adjust1, "($x1,$y1)",'blue','center','middle'));
+   $gr[$i]->lb( new Label($x2, $y2+$adjust2, "($x2,$y2)",'blue','center','middle'));
+   $gr[$i]->lb( new Label($x3, $y3+$adjust2, "($x3,$y3)",'blue','center','middle'));
+   $gr[$i]->lb( new Label($x4, $y4+$adjust1, "($x4,$y4)",'blue','center','middle'));
+}
+
+if ($a>0) {
+   if ($globalMaxX == $localMaxX) {
+      $ALT = "graph of a function starting at the bottom left at ($x3,$y3), going up till the point ($x1,$y1), turning down till the point ($x2,$y2) which is an empty point, and then turning up and ends at ($x4,$y4).";
+   } else {
+      $ALT = "graph of a function starting at the bottom left at ($x3,$y3), going up till the point ($x1,$y1) which is an empty point, turning down till the point ($x2,$y2), and then turning up and ends at ($x4,$y4).";
+   }
+} else {
+   if ($globalMaxX == $localMaxX) {
+      $ALT = "graph of a function starting at the top left at ($x3,$y3), going down till the point ($x1,$y1), turning up till the point ($x2,$y2) which is an empty point, and then turning down and ends at ($x4,$y4).";
+   } else {
+      $ALT = "graph of a function starting at the top left at ($x3,$y3), going down till the point ($x1,$y1) which is an empty point, turning up till the point ($x2,$y2), and then turning down and ends at ($x4,$y4).";
+   }
+}
+
+
+##############################################
+Context("LimitedNumeric");
+BEGIN_PGML
+
+A function's graph is shown below.
+
+[@EnlargeImageStatementPGML()@]**
+
+>>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
+
+If a value doesn't exist, type *DNE* (meaning "does not exist").
+
+The function has a local minimum at [_______]{$localMinXAns}, and the local minimum is [_______]{$localMinYAns}.
+
+The function has a local maximum at [_______]{$localMaxXAns}, and the local maximum is [_______]{$localMaxYAns}.
+
+The function's global minimum is at [_______]{$globalMinXAns}, and the global minimum is [_______]{$globalMinYAns}.
+
+The function's global maximum is at [_______]{$globalMaxXAns}, and the global maximum is [_______]{$globalMaxYAns}.
+
+END_PGML
+##############################################
+
+if ($globalMaxX == $localMaxX) {
+
+BEGIN_PGML_SOLUTION
+
+The function has a local minimum at [`[$localMinXAns]`], and the local minimum is [`[$localMinYAns]`].
+
+If the point at [`([$localMaxX],[$localMaxY])`] were not empty, the function would have a local maximum at [`[$localMaxX]`], and the local maximum would be [`[$localMaxY]`]. Since the point is empty, the function doesn't have a local maximum. (Type *DNE* for the answer.)
+
+The function's global minimum is at [`[$globalMinXAns]`], and the global minimum is [`[$globalMinYAns]`].
+
+If the point at [`([$globalMaxX],[$globalMaxY])`] were not empty, the function would have a global maximum at [`[$globalMaxX]`], and the global maximum would be [`[$globalMaxY]`]. Since the point is empty, the function doesn't have a global maximum. (Type *DNE* for the answer.)
+
+Note that a local maximum/minimum must have an open interval containing its [`x`]-value, so a point at the end of an interval, like [`([$x3],[$y3])`] and [`([$x4],[$y4])`], does not qualify as a local maximum/minimum.
+
+END_PGML_SOLUTION
+
+} else {
+
+BEGIN_PGML_SOLUTION
+
+If the point at [`([$localMinX],[$localMinY])`] were not empty, the function would have a local minimum at [`[$localMinX]`], and the local minimum would be [`[$localMinY]`]. Since the point is empty, the function doesn't have a local minimum. (Type *DNE* for the answer.)
+
+The function has a local maximum at [`[$localMaxXAns]`], and the local maximum is [`[$localMaxYAns]`].
+
+If the point at [`([$globalMinX],[$globalMinY])`] were not empty, the function would have a global minimum at [`[$globalMinX]`], and the global minimum would be [`[$globalMinY]`]. Since the point is empty, the function doesn't have a global minimum. (Type *DNE* for the answer.)
+
+The function has a global maximum at [`[$globalMaxXAns]`], and the global maximum is [`[$globalMaxYAns]`].
+
+Note that a local maximum/minimum must have an open interval containing its [`x`]-value, so a point at the end of an interval, like [`([$x3],[$y3])`] and [`([$x4],[$y4])`], does not qualify as a local maximum/minimum.
+
+END_PGML_SOLUTION
+
+
+}
+
+
+ENDDOCUMENT();

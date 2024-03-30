@@ -1,0 +1,238 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "contextFraction.pl",
+  "PGML.pl",
+  "parserOneOf.pl",
+  "PCCmacros.pl",
+  "PGgraphmacros.pl",
+  "parserPopUp.pl",
+  "PGcourse.pl",
+);
+$refreshCachedImages=1;
+TEXT(beginproblem());
+
+Context("Vector2D");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+Context()->noreduce("(-x)-y","(-x)+y");
+
+@x = (); @y = (); @xShow = (); @yShow = (); @bearing = (); @angle = (); 
+@mag = (); @dir = (); @vec = ();
+
+$mag[0] = random(800,1200,10);
+$mag[1] = random(10,30,1);
+$bearing[0] = random(20,70,5);
+$bearing[1] = random(10,80,5);
+
+for my $i (0..1) {
+  $dir[$i] = list_random('E','W','SE','SW');
+  if ($dir[$i] eq 'E') 
+      {$angle[$i] = 90-$bearing[$i];}
+    elsif ($dir[$i] eq 'W') 
+      {$angle[$i] = 90+$bearing[$i];}
+    elsif ($dir[$i] eq 'SE') {
+      $bearing[$i] += 90;
+      $angle[$i] = 450-$bearing[$i];
+    }  else {
+      $bearing[$i] += 90;
+      $angle[$i] = 90+$bearing[$i];
+    }
+}
+for my $i (0..1) {
+  $x[$i] = $mag[$i]*cos($angle[$i]*pi/180);
+  $y[$i] = $mag[$i]*sin($angle[$i]*pi/180);
+  $xShow[$i] = Round($x[$i],4);
+  $yShow[$i] = Round($y[$i],4);
+}
+
+$x[2] = $x[0]+$x[1];
+$y[2] = $y[0]+$y[1];
+$xShow[2] = Round($x[2],4);
+$yShow[2] = Round($y[2],4);
+
+@v = ();
+for my $i (0..2) {
+  $v[$i] = Compute("$xShow[$i]*i + $yShow[$i]j");
+}
+
+$mag[2] = sqrt(($x[2])**2+($y[2])**2);
+$angle[2] = arctan($y[2]/$x[2])*180/pi;
+$angle2Show = Round($angle[2],4);
+if ( ($x[2]>0) && ($y[2]>0) ) {
+  $dir[2] = 'E';
+  $bearing[2] = 90-$angle[2];
+  $Q = 'I';
+} elsif ( ($x[2]<0) && ($y[2]>0) ) {
+  $dir[2] = 'W';
+  $bearing[2] = 90+$angle[2];
+  $Q = 'II';
+} elsif ( ($x[2]<0) && ($y[2]<0) ) {
+  $dir[2] = 'SW';
+  $bearing[2] = 90+$angle[2];
+  $Q = 'III';
+} else {
+  $dir[2] = 'SE';
+  $bearing[2] = 90-$angle[2];
+  $Q = 'IV';
+}
+$popup = PopUp(["?", "W", "SW", "SE", "E"], $dir[2]);
+
+@graph = (); @fig = (); @alt = ();
+$bound = 6;
+
+@xGraph = (); @yGraph = ();
+for my $i (0..1) {
+  $xGraph[$i] = ($bound-1)*cos($angle[$i]*pi/180);
+  $yGraph[$i] = ($bound-1)*sin($angle[$i]*pi/180);
+}
+
+for my $i (0..0) {
+  $graph[$i] = init_graph(-$bound,-$bound,$bound,$bound);
+  $graph[$i]->lb('reset');
+
+  $graph[$i]->moveTo(0,0);
+  $graph[$i]->arrowTo(0,$bound-1,black,2);
+  $graph[$i]->lb(new Label(0,$bound-1,"N",'black','center','bottom',large));
+
+  $graph[$i]->moveTo(0,0);
+  $graph[$i]->arrowTo(0,-$bound+1,black,2);
+  $graph[$i]->lb(new Label(0,-$bound+1,"S",'black','center','top',large));
+
+  $graph[$i]->moveTo(0,0);
+  $graph[$i]->arrowTo($bound-1,0,black,2);
+  $graph[$i]->lb(new Label($bound-1,0,"E",'black','left','middle',large));
+
+  $graph[$i]->moveTo(0,0);
+  $graph[$i]->arrowTo(-$bound+1,0,black,2);
+  $graph[$i]->lb(new Label(-$bound+1,0,"W",'black','right','middle',large));
+  
+  $graph[$i]->stamps(closed_circle( 0,0, red ));
+  $graph[$i]->moveTo(0,0);
+  $graph[$i]->arrowTo($xGraph[$i],$yGraph[$i],red,2);
+  $ud = ($y[$i]>0) ? 'bottom' : 'top';
+  $graph[$i]->lb(new Label($xGraph[$i],$yGraph[$i],$mag[$i],'red','center',$ud,large));
+  
+  $graph[$i]->moveTo(0,0);
+  $graph[$i]->arrowTo($xGraph[$i],0,red,2);
+  
+  $graph[$i]->moveTo(0,0);
+  $graph[$i]->arrowTo(0,$yGraph[$i],red,2);
+
+  $graph[$i]->moveTo(0,$yGraph[$i]);
+  $graph[$i]->lineTo($xGraph[$i],$yGraph[$i],red,2,dashed);
+  $graph[$i]->lineTo($xGraph[$i],0,red,2,dashed);
+  
+  $alt[$i] = "There are 4 arrows pointing to 4 directions N, S, E and W. A vector starts at (0,0), pointing in the direction of $dir[0] bearing of $bearing[0] degrees. This vector is separated into two components along the x-axis and y-axis.";
+  $fig[$i] = image(insertGraph($graph[$i]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[0]' title = '$alt[0]' ");
+}
+
+
+
+
+
+
+##############################################
+
+BEGIN_PGML
+
+An airplane is flying at an airspeed of [`[$mag[0]]`] miles per hour headed on a [$dir[0]] bearing of [`[$bearing[0]]^{\circ}`]. A wind is blowing at [`[$mag[1]]`] miles per hour on a [$dir[1]] bearing of [`[$bearing[1]]^{\circ}`]. What are the ground speed and actual bearing of the plane?
+
+[@KeyboardInstructions(
+"\n"
+.'* Use degrees in your answer.'
+)@]**
+
+The plane has a [____]{$popup} bearing of [_________]{$bearing[2]}. The ground speed is [__________]{$mag[2]} miles per hour.
+
+END_PGML
+
+##############################################
+
+if ($Q eq 'I') {
+  $s1 = "\text{simply } $angle2Show^{\circ}";
+} elsif ($Q eq 'IV') {
+  my $an = 360+$angle2Show;
+  $s1 = "$angle2Show^{\circ}+360^{\circ}=$an^{\circ}";
+} else {
+  my $an = 180+$angle2Show;
+  $s1 = "$angle2Show^{\circ}+180^{\circ}=$an^{\circ}";
+}
+
+
+BEGIN_PGML_SOLUTION
+
+The following is a graph for the plane's initial speed vector (without considering the wind's effect).
+
+>>[@ $fig[0] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+It has a [$dir[0]] bearing of [`[$bearing[0]]^{\circ}`], implying a direction of [`[$angle[0]]^{\circ}`] degrees if due east is the initial side.
+
+It's x-component can be calculated by 
+
+    [`` [$mag[0]]\cdot \cos([$angle[0]]^{\circ}) = [$xShow[0]] \frac{\text{mi}}{\text{hr}} ``]
+
+and its y-component can be calculated by 
+
+    [`` [$mag[0]]\cdot \sin([$angle[0]]^{\circ}) = [$yShow[0]] \frac{\text{mi}}{\text{hr}} ``]
+
+So the plane's speed vector can be written as
+
+    [`` v_1=[$v[0]] ``]
+    
+A wind is blowing at [`[$mag[1]]`] miles per hour on a [$dir[1]] bearing of [`[$bearing[1]]^{\circ}`]. With similar calculations, we have:
+
+    [``\begin{aligned}
+  [$mag[1]]\cdot \cos([$angle[1]]^{\circ}) &= [$xShow[1]] \frac{\text{mi}}{\text{hr}} \\
+  [$mag[1]]\cdot \sin([$angle[1]]^{\circ}) &= [$yShow[1]] \frac{\text{mi}}{\text{hr}} \\
+  v_2 &= [$v[1]]
+    \end{aligned}``]
+
+Add up those two vectors, we have:
+
+    [``\begin{aligned}
+  v_3 &= v_1+v_2 \\
+  &= [$v[0]]+([$v[1]]) \\
+  &= [$v[2]]
+    \end{aligned}``]
+
+This is the new speed vector considering the wind's effect. Its magnitude, or ground speed, is:
+
+    [`` |v_3| = \sqrt{([$xShow[2]])^2+([$yShow[2]])^2} = [$mag[2]] \frac{\text{mi}}{\text{hr}}``]
+
+Its direction can be calculated by:
+
+    [`` \tan^{-1}\left( \frac{[$yShow[2]]}{[$xShow[2]]} \right) = [$angle2Show]^{\circ} + 180k \text{, where } k\in \mathbb{Z}``]
+    
+Since the speed vector is in Quadrant [$Q], the angle of direction, with due east as the initial side, is [`[$s1]`].
+
+Translating it into bearing format, the plane has a [$dir[2]] bearing of [`[$bearing[2]]^{\circ}`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
