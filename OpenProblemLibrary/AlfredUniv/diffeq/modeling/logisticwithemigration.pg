@@ -23,6 +23,7 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "PGML.pl",
   "PGcourse.pl"
 );
 
@@ -32,53 +33,41 @@ TEXT(beginproblem());
 # Show which answers are correct and which ones are incorrect
 $showPartialCorrectAnswers = 1;
 
-Context()->variables->{namePattern} = qr/[a-z][a-z0-9_]*'*/i;
-Context()->variables->are("t"=>"Real","P"=>"Real","P'"=>"Real","P''"=>"Real","P'''"=>"Real");
-
 ##############################################################
 #
 #  Setup
 #
-#
+
+Context("Numeric");
+
+Context()->variables->{namePattern} = qr/[a-z][a-z0-9_]*'*/i;
+Context()->variables->are("t"=>"Real","P"=>"Real","P'"=>"Real","P''"=>"Real","P'''"=>"Real");
+
 $r = Compute(random(2,4));
 $C = Compute(random(5000,10000,500));
 $e = Compute(random(4,9));
-$diffeqn = Formula("P'-$r*($C-P)+$e");
+
+$diffeqn = Compute("P'-$r*($C-P)+$e")->cmp(
+  checker => sub{
+    my ( $correct, $student, $self ) = @_;
+    my $mult = ($student->D('P'))/$r;
+    if ($mult == Formula(0)) { return 0;}
+    else { return $student == $mult*$correct; }
+  }
+);
 
 ##############################################################
 #
 #  Text
 #
-#
 
-Context()->texStrings;
-BEGIN_TEXT
-The population of Cook island has always been modeled by a logistic equation \(P^\prime=r(C-P)\) with growth rate \(r=$r\) and carrying capacity \(C=$C\) with time t in years. 
-$BR
-Starting in 2000,  \($e\) citizens of Cook island have left  every year  to become a mathematician, never to return. What is the new differential equation modeling the population of the island P?
-$BR
-\{$diffeqn->ans_rule(25)\} \(= 0\)
-END_TEXT
-Context()->normalStrings;
+BEGIN_PGML
+Before the year 2000 the population of Cook Island was modeled by a logistic equation [`P^\prime=r(C-P)`] with growth rate [`r=[$r]`] and carrying capacity 
+[`C=[$C]`] and time t in years. 
 
-##############################################################
-#
-#  Answers
-#
-#
+But, starting in the year 2000,  [$e] citizens of Cook Island left every year to become mathematicians, never to return.  Now what differential equation models the population [`P`] of the island?  
 
-ANS($diffeqn->cmp(checker=>sub {
-                my ( $correct, $student, $self ) = @_;
-                my $context = Context()->copy;
-                $context->flags->set(no_parameters=>0);
-                $context->variables->add('c0'=>'Parameter');
-                my $c0 = Formula($context,'c0');
-                $student = Formula($context,$student);
-                $correct = Formula($context,"$c0(P'-$r*($C-P)+$e)");
-                $zero = Formula($context,"0");
-                return (($correct == $student)&&($student!=$zero));}));
-# relative tolerance --3.1412 is incorrect but 3.1413 is correct
-# default tolerance is .01 or one percent.
-
+[`0 = `][____]{$diffeqn}{25}
+END_PGML
 
 ENDDOCUMENT();        
