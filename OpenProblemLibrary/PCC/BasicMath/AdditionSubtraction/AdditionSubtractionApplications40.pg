@@ -1,0 +1,164 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Given a pie chart, do addition/subtraction problems.
+#
+# Last edited by Carl Yao on 09/29/2016
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Fractions')
+## KEYWORDS('fraction','graph','application','pie chart')
+## DBCCSS('3.NF.1')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGgraphmacros.pl",
+  "PGcourse.pl",
+  "contextFraction.pl",
+);
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+Context("LimitedFraction");
+
+@den=(); @num=();@frac=();@per=();
+
+$num[0]=0;$den[0]=1;$frac[0]=0;
+
+do {
+   for my $i (1..3) {
+      $den[$i] = list_random(4,5,8,10,20,25);
+      do {$num[$i] = random(1,int($den[$i]/2),1);} until (gcd($num[$i],$den[$i])==1);
+      $frac[$i] = Fraction($num[$i],$den[$i]);
+      $per[$i] = $num[$i]/$den[$i]*100;
+   }
+
+   $frac[4] = 1-$frac[1]-$frac[2]-$frac[3];
+   ($num[4],$den[4]) = $frac[4]->value;
+   $per[4] = $num[4]/$den[4]*100;
+   
+   $flag1 = 0;
+   for my $i (1..4) {
+      if (int($per[$i])!=$per[$i]) {$flag1=1;}
+   }
+   $flag2 = 0;
+   my %seen;
+   foreach my $string (@per) {
+      next unless $seen{$string}++;
+      $flag2 = 1;
+   }
+} until ( ($frac[4]>0) && ($den[4]<25) && ($den[1]<$den[2]) && ($flag1==0) && ($flag2==0) && ($per[4]<50) );
+
+$scale = 2;
+$downshift = -0.4;
+$radius = 1;
+$gr = init_graph(-$scale,-$scale,$scale,$scale,
+size=>[400,400]
+);
+
+$title = "School Population Breakdown by Race";
+$gr->lb( new Label(0, $scale/1.5,$title,'black','center','middle'));
+
+$xfunc = sub { my $t = shift();
+    return $radius*cos($t); };
+$yfunc = sub { my $t = shift();
+    return $radius*sin($t)+$downshift; };
+$circle = new Fun( $xfunc, $yfunc, $gr );
+$circle->domain(0,6.2832);
+
+$gr->new_color("color0", 250,250,210);
+$gr->new_color("color1", 255,255,0);
+$gr->new_color("color2", 255,218,185);
+$gr->new_color("color3", 173,255,47);
+@color=("color0","color1","color2","color3");
+
+@legend=("White","Black","Hispanic","others");
+
+@fracCumulative = ();
+$fracCumulative[0] = 0;
+$fracTemp=0;
+
+for my $i (1..4) {
+   $fracTemp = $fracTemp + $frac[$i];
+   $fracCumulative[$i] = $fracTemp;
+}
+
+for my $i (0..3) {
+   $end0x = $radius*cos($fracCumulative[$i]*2*pi);
+   $end0y = $radius*sin($fracCumulative[$i]*2*pi)+$downshift;
+   $end1x = $radius*cos($fracCumulative[$i+1]*2*pi);
+   $end1y = $radius*sin($fracCumulative[$i+1]*2*pi)+$downshift;
+   $end2x = $radius/2*cos(($fracCumulative[$i]+$fracCumulative[$i+1])*pi);
+   $end2y = $radius/2*sin(($fracCumulative[$i]+$fracCumulative[$i+1])*pi)+$downshift;
+   $end3x = 1.3*$radius*cos(($fracCumulative[$i]+$fracCumulative[$i+1])*pi);
+   $end3y = 1.3*$radius*sin(($fracCumulative[$i]+$fracCumulative[$i+1])*pi)+$downshift;
+
+   $gr->moveTo(0,0+$downshift);
+   $gr->lineTo($end0x,$end0y,'blue',1);
+   $gr->moveTo(0,0+$downshift);
+   $gr->lineTo($end1x,$end1y,'blue',1);
+   $gr->fillRegion([$end2x,$end2y,$color[$i]]);
+
+   $gr->lb( new Label($end2x, $end2y,"$per[$i+1]%",'black','center','middle'));
+   $gr->lb( new Label($end3x, $end3y,$legend[$i],'black','center','middle'));
+}
+
+$ans = $per[1]+$per[2]+$per[3]-$per[4];
+$ans = Compute($ans);
+
+$alt = "This is a pie chart about a school population breakdown by race. The school has $per[1]% $legend[0] students, $per[2]% $legend[1] students, $per[3]% $legend[2] students and $per[4]% students of other races.";
+
+##############################################
+
+BEGIN_PGML
+
+>>[@image( insertGraph($gr), width=>400, 
+    height=>400, tex_size=>800, extra_html_tags => "alt = '$alt' title = '$alt'")@]*<<
+
+The pie chart represents a school's student population. Fill in the blank.
+
+The school's white, black and Hispanic students, altogether, have [__________]{$ans}[`%`] more students than students of other races.
+
+END_PGML
+
+##############################################
+
+$per1 = $per[1];
+$per2 = $per[2];
+$per3 = $per[3];
+$per4 = $per[4];
+$s1 = $per1+$per2+$per3;
+
+BEGIN_PGML_SOLUTION
+
+By the pie chart, the school has [`[$per1]%`] white students, [`[$per2]%`] black students and [`[$per3]%`] Hispanic students. Altogether, they make up
+
+    [`` [$per1]%+[$per2]%+[$per3]%=[$s1]% ``]
+
+of the population. To find the difference between these 3 races and other races, we do subtraction:
+
+    [`` [$s1]%-[$per4]%=[$ans]% ``]
+
+*Solution*: The school's white, black and Hispanic students, altogether, have [`[$ans]%`] more students than students of other races.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

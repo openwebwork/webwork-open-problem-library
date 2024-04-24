@@ -1,0 +1,203 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "parserOneOf.pl",
+  "contextFraction.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Fraction");
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+
+@values = (
+  Formula("1"),-Formula("1"),
+  Formula("sqrt(3)"),-Formula("sqrt(3)"),
+  Formula("sqrt(3)/3"),-Formula("sqrt(3)/3"),
+);
+
+%ab = (
+  Formula("1") => [Formula("1"),-Formula("1")],
+  -Formula("1") => [Formula("1"),Formula("1")],
+  Formula("sqrt(3)") => [Formula("1"),-Formula("sqrt(3)")],
+  -Formula("sqrt(3)") => [Formula("1"),Formula("sqrt(3)")],
+  Formula("sqrt(3)/3") => [Formula("3"),-Formula("sqrt(3)")],
+  -Formula("sqrt(3)/3") => [Formula("3"),Formula("sqrt(3)")],
+);
+
+@start = ();
+$start[0] = Formula("0");
+$tanV = $values[random(0,$#values,1)];
+$start[1] = specialAngle(arctan(Compute($tanV)));
+
+$a1 = $ab{$tanV}->[0];
+$b1 = $ab{$tanV}->[1];
+
+$left = ($a1 == 1) ? "\tan^2(x)" : $a1->TeX."\tan^2(x)";
+$b1N = $b1>0 ? -$b1 : Formula(substr($b1,1));
+if (abs($b1)==1) {
+  $right = ($b1 == 1) ? "-\tan(x)" : "\tan(x)";
+} else {
+  $right = ($b1N == 1) ? "\tan(x)" : $b1N->TeX."\tan(x)";
+}
+
+@k = ();
+$k[0] = 1;
+$points = "0, pi, ";
+@ansL = (Formula("0"),Formula("pi"));
+for my $i (-2..2) {
+  my $c = Compute($start[1]->string)+$i*pi;
+  if ( ($c>=0) && ($c<2*pi) )  {
+    $ansL[scalar(@ansL)] = specialAngle($c);
+    $k[scalar(@k)] = $i;
+    $points .= $ansL[scalar(@ansL)-1]->string.", ";
+  }
+}
+$points = substr($points,0,length($points)-2);
+$ans = List(@ansL);
+
+$r = 5;
+for my $i (0..0) {
+  $graph[$i] = init_graph(-6,-6,6,6,'axes'=>[0,0],'grid'=>[1,1]);
+  $graph[$i]->lb('reset');
+
+  $xfuncAlpha = sub { my $t = shift();
+    return $r*cos($t); };
+  $yfuncAlpha = sub { my $t = shift();
+    return $r*sin($t); };
+  $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[$i] );
+  $fnAlpha->domain(0,2*pi);
+
+  for my $j (0..scalar(@ansL)-1) {
+    $Px = Compute("$r*cos($ansL[$j])")->reduce;
+    $Py = Compute("$r*sin($ansL[$j])")->reduce;
+    $graph[$i]->stamps(closed_circle($Px,$Py,red));
+    $graph[$i]->moveTo(0,0);
+    $graph[$i]->lineTo($Px,$Py,red,2);
+    $graph[$i]->lineTo($Px,0,red,2);
+    $graph[$i]->lineTo(0,0,red,2);
+
+    if ( ($Px!=0) && ($Py!=0) ) {
+      $xShift = ($Px>0) ? -0.4 : 0.4;
+      $yShift = ($Py>0) ? 0.4 : -0.4;
+      $graph[$i]->moveTo($Px,$yShift);
+      $graph[$i]->lineTo($Px+$xShift,$yShift,red,2);
+      $graph[$i]->lineTo($Px+$xShift,0,red,2);
+    }
+
+    $td = $Py>=0 ? 'bottom' : 'top';
+    $graph[$i]->lb(new Label($Px,$Py,"$ansL[$j]",'red','center',$td,large));
+  }
+
+  $alt[$i] = "This is the graph of a circle with points $points on the circle.";
+
+  $fig[$i] = image(insertGraph($graph[$i]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[$i]' title = '$alt[$i]' ");
+}
+
+
+
+
+##############################################################
+
+BEGIN_PGML
+
+Solve the equation
+
+    [``[$left]=[$right] \text{ where }x\in[0,2\pi)``]
+
+[@KeyboardInstructions(
+"\n"
+.'* Enter multiple answers separated by commas, as in [|pi/4, 3pi/4|]*.'
+."\n"
+.'* Use [|pi|]* to represent [`\pi`].'
+."\n"
+.'* Type [|no solution|]* if there is no solution.'
+)@]**
+
+    [`x=`][________________________________________]{$ans}
+    
+    
+END_PGML
+
+##############################################################
+
+
+if ( (abs($a1)==1) && (abs($b1)==1) ) {
+  $s1 = ($b1>0) ? "\tan^2(x)+\tan(x)" : "\tan^2(x)-\tan(x)";
+  $s2 = ($b1>0) ? "\tan(x)\left(\tan(x)+1\right)" : "\tan(x)\left(\tan(x)-1\right)";
+  $s3 = ($b1>0) ? "\tan(x)+1" : "\tan(x)-1";
+} elsif (abs($a1)==1) {
+  $s1 = ($b1>0) ? "\tan^2(x)+".$b1->TeX."\tan(x)" : "\tan^2(x)".$b1->TeX."\tan(x)";
+  $s2 = ($b1>0) ? "\tan(x)\left(\tan(x)+".$b1->TeX."\right)" : "\tan(x)\left(\tan(x)".$b1->TeX."\right)";
+  $s3 = ($b1>0) ? "\tan(x)+".$b1->TeX : "\tan(x)".$b1->TeX; 
+} elsif (abs($b1)==1) {
+  $s1 = ($b1>0) ? $a1->TeX."\cdot\tan^2(x)+\tan(x)" : $a1->TeX."\cdot\tan^2(x)-\tan(x)";
+  $s2 = ($b1>0) ? "\tan(x)\left(".$a1->TeX."\cdot\tan(x)+1\right)" : "\tan(x)\left(".$a1->TeX."\cdot\tan(x)-1\right)";
+  $s3 = ($b1>0) ? $a1->TeX."\cdot\tan(x)+1" : $a1->TeX."\cdot\tan(x)-1";
+} else {
+  $s1 = ($b1>0) ? $a1->TeX."\cdot\tan^2(x)+".$b1->TeX."\tan(x)" : $a1->TeX."\cdot\tan^2(x)".$b1->TeX."\tan(x)";
+  $s2 = ($b1>0) ? "\tan(x)\left(".$a1->TeX."\cdot\tan(x)+".$b1->TeX."\right)" : "\tan(x)\left(".$a1->TeX."\cdot\tan(x)".$b1->TeX."\right)";
+  $s3 = ($b1>0) ? $a1->TeX."\cdot\tan(x)+".$b1->TeX : $a1->TeX."\cdot\tan(x)".$b1->TeX;
+}
+
+
+
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+[`[$t1]`]
+    [``\begin{aligned}
+  [$left] &= [$right] \\
+  [$s1] &= 0 \\
+  [$s2] &= 0 \\
+  \tan(x) &= 0\text{ or }[$s3]=0 \\
+  \tan(x) &= 0\text{ or }\tan(x)=[$tanV] \\
+  x &= \tan^{-1}(0) \text{ or } \tan^{-1}\left([$tanV]\right) \\
+  x &= 0 \text{ or } [$start[1]]
+    \end{aligned}``]
+
+Recall that the range of [`\tan^{-1}(x)`] is [`\left( -\frac{\pi}{2},\frac{\pi}{2} \right) `]. On the Unit Circle, we need to identify all values, in [`[0,2\pi)`], which make [`\tan(x) = 0\text{ or }[$s3]=0`] true:
+
+>>[@ $fig[0] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+Solutions are [`[$ans]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

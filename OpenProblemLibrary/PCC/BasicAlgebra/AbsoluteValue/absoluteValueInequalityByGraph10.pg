@@ -1,0 +1,186 @@
+# WeBWorK problem written by Carl Yao, 2014
+# Portland Community College
+#
+# Solve absolute value inequality by graph
+#
+# Last updated: Yao 10/30/2018
+# ENDDESCRIPTION
+
+## DBCCSS('A-REI.4.b')
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('equations', 'Simplification')
+## KEYWORDS('solve','linear','equation','absolute value')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "AnswerFormatHelp.pl",
+  "PGgraphmacros.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+TEXT(beginproblem());
+
+Context('Interval');
+
+$boundary = 6;
+
+do {
+   $a = list_random(0.25,0.5,1,2,3,4);
+   $d = random(-$boundary,-1,1);
+   $b = random(1,3,1)*random(-1,1,2);
+   $c = $a*$b;
+   $func = Compute("abs($a*x+$c)+$d")->reduce;
+   $e = random(1,5,1)*random(-1,1,2);
+   $x1 = min(-$b+$e,-$b-$e);
+   $x2 = max(-$b+$e,-$b-$e);
+   $y1 = $func->eval(x=>$x1);
+   $y2 = $func->eval(x=>$x2);
+} until 
+   abs($x1) < $boundary &&
+   abs($x2) < $boundary &&
+   int($y1) == $y1 &&
+   int($y2) == $y2 &&
+   abs($y1) < $boundary &&
+   abs($y2) < $boundary;
+   
+@signs = ('\gt','\ge','\lt','\le');
+$index1 = random(0,3,1);
+if ($index1 <= 1) {
+   $index2 = random(2,3,1);
+} else {
+   $index2 = random(0,1,1);
+}
+@sign = ();
+$sign[1] = $signs[$index1];
+$sign[2] = $signs[$index2];
+
+@x = ();
+push @x, -$boundary-1;
+push @x, ($boundary+1-$d-$c)/$a;
+push @x, (-($boundary+1-$d)-$c)/$a;
+push @x, $boundary+1;
+@x = num_sort(@x);
+@y = ();
+foreach my $item(@x) {
+    push @y, $func->eval(x=>$item);
+}
+
+for (my $i=0; $i<=2; $i++) {
+   $gr[$i] = init_graph(-$boundary-1,-$boundary-1,$boundary+1,$boundary+1,
+      axes=>[0,0],
+      grid=>[2*($boundary+1),2*($boundary+1)],
+      size=>[240,240]
+   );
+   $gr[$i]->lb('reset');
+   for $j (-$boundary..$boundary){
+      if ($j==0 or $j%2!=0) {next;}
+      $gr[$i]->lb(new Label($j,0,$j,'black','center','top','large'));
+      $gr[$i]->lb(new Label(0,$j,$j,'black','right','middle','large'));
+   };
+   $yLeft = $func->eval(x=>-$boundary-1.1);
+   $yRight = $func->eval(x=>$boundary+1.1);
+   $gr[$i]->moveTo(-$b,$d);
+   $gr[$i]->arrowTo($x[1],$y[1],blue,2);
+   $gr[$i]->moveTo(-$b,$d);
+   $gr[$i]->arrowTo($x[2],$y[2],blue,2);
+}
+
+$bN = -$b;
+@alt = ();
+$alt[0] = "The graph of $func is given, which passes the points ($x1,$y1), ($bN,$d) and ($x2,$y2). ";
+
+@ans = ();
+for (my $i=1; $i<=2; $i++) {
+   if ($sign[$i] eq '\gt') {
+      $ans[$i] = Compute("(-inf,$x1)U($x2,inf)");
+      $gr[$i]->moveTo($x1,$y1);
+      $gr[$i]->arrowTo($x[1],$y[1],red,3);
+      $gr[$i]->moveTo($x2,$y2);
+      $gr[$i]->arrowTo($x[2],$y[2],red,3);
+      $gr[$i]->stamps( open_circle($x1,$y1,'red') );
+      $gr[$i]->stamps( open_circle($x2,$y2,'red') );
+      $alt[$i] = $alt[0]."On the function $func, the piece to the left of ($x1,$y1), not including ($x1,$y1), is shaded red; the piece to the right of ($x2,$y2), not including ($x2,$y2), is shaded red.";
+   } elsif ($sign[$i] eq '\ge') {
+      $ans[$i] = Compute("(-inf,$x1]U[$x2,inf)");
+      $gr[$i]->moveTo($x1,$y1);
+      $gr[$i]->arrowTo($x[1],$y[1],red,3);
+      $gr[$i]->moveTo($x2,$y2);
+      $gr[$i]->arrowTo($x[2],$y[2],red,3);
+      $gr[$i]->stamps( closed_circle($x1,$y1,'red') );
+      $gr[$i]->stamps( closed_circle($x2,$y2,'red') );
+      $alt[$i] = $alt[0]."On the function $func, the piece to the left of ($x1,$y1), including ($x1,$y1), is shaded red; the piece to the right of ($x2,$y2), including ($x2,$y2), is shaded red.";
+   } elsif ($sign[$i] eq '\lt') {
+      $ans[$i] = Compute("($x1,$x2)");
+      $gr[$i]->moveTo($x1,$y1);
+      $gr[$i]->lineTo(-$b,$d,red,3);
+      $gr[$i]->lineTo($x2,$y2,red,3);
+      $gr[$i]->stamps( open_circle($x1,$y1,'red') );
+      $gr[$i]->stamps( open_circle($x2,$y2,'red') );
+      $alt[$i] = $alt[0]."On the function $func, the piece between ($x1,$y1) and ($x2,$y2), not including those two points, is shaded red.";
+   } else {
+      $ans[$i] = Compute("[$x1,$x2]");
+      $gr[$i]->moveTo($x1,$y1);
+      $gr[$i]->lineTo(-$b,$d,red,3);
+      $gr[$i]->lineTo($x2,$y2,red,3);
+      $gr[$i]->stamps( closed_circle($x1,$y1,'red') );
+      $gr[$i]->stamps( closed_circle($x2,$y2,'red') );
+      $alt[$i] = $alt[0]."On the function $func, the piece between ($x1,$y1) and ($x2,$y2), including those two points, is shaded red.";
+   }
+}
+
+
+##############################################
+
+
+BEGIN_PGML
+
+A graph of [`f`] is given, where [`f(x)=[$func]`]. Use the graph alone to solve the following inequalities.
+
+>> [@image(insertGraph($gr[0]), width=>240, tex_size=>250, extra_html_tags=>"alt='$alt[0]' title = '$alt[0]'")@]*  <<
+
+[@KeyboardInstructions('Write your solution sets in interval notation.')@]**
+
+a.  [`[$func][$sign[1]][$y1]`]
+
+    [__________]{$ans[1]}
+
+a.  [`[$func][$sign[2]][$y1]`]
+
+    [__________]{$ans[2]}
+
+END_PGML
+
+##############################################
+
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+Points on the function [`f(x)=[$func]`] which satisfy the first inequality [`[$func][$sign[1]][$y1]`] is shaded red:
+
+>> [@image(insertGraph($gr[1]), width=>240, extra_html_tags=>"alt='$alt[1]' title = '$alt[1]'")@]*  <<
+
+The solution, or the set of [`x`]-values of the shaded part(s), is [`[$ans[1]]`].
+
+Points on the function [`f(x)=[$func]`] which satisfy the second inequality [`[$func][$sign[2]][$y1]`] is shaded red:
+
+>> [@image(insertGraph($gr[2]), width=>240, extra_html_tags=>"alt='$alt[2]' title = '$alt[2]'")@]*  <<
+
+The solution, or the set of [`x`]-values of the shaded part(s), is [`[$ans[2]]`].
+
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();

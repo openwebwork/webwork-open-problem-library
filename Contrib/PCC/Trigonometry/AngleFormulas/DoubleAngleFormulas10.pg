@@ -1,0 +1,245 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "extraAnswerEvaluators.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "unionTables.pl",
+  "niceTables.pl",
+  "AnswerFormatHelp.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+sub PF {PGML::Format(@_)};
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+
+@triples = (
+  [3,4,5],
+  [5,12,13],
+  [7,24,25],
+  [8,15,17]
+);
+@in = ();
+$in[0] = random(0,3,1);
+do {$in[1] = random(0,3,1);} until ($in[0] != $in[1]);
+
+@quadrant = ();
+$quadrant[0] = random(2,4,1);
+do {$quadrant[1] = random(2,4,1);} until ($quadrant[0] != $quadrant[1]);
+
+@base = ();
+@absBase = ();
+@height = ();
+@absHeight = ();
+@hypotenuse = ();
+@int = ();
+@Q = ();
+
+for my $k (0..0) {
+  if ($quadrant[$k]==2) {
+    my $i = random(0,1,1);
+    my $j = ($i+1)%2;
+    $base[$k] = -$triples[$in[$k]][$i];
+    $height[$k] = $triples[$in[$k]][$j];
+    $int[$k] = "\left(\frac{\pi}{2},\pi\right)";
+    $Q[$k] = "II";
+  } elsif ($quadrant[$k]==3) {
+    my $i = random(0,1,1);
+    my $j = ($i+1)%2;
+    $base[$k] = -$triples[$in[$k]][$i];
+    $height[$k] = -$triples[$in[$k]][$j];
+    $Q[$k] = "III";
+    $int[$k] = "\left(\pi,\frac{3\pi}{2}\right)";
+  } else {
+    my $i = random(0,1,1);
+    my $j = ($i+1)%2;
+    $base[$k] = $triples[$in[$k]][$i];
+    $height[$k] = -$triples[$in[$k]][$j];
+    $Q[$k] = "IV";
+    $int[$k] = "\left(\frac{3\pi}{2},2\pi\right)";
+  }
+  $hypotenuse[$k] = $triples[$in[$k]][2];
+  $absBase[$k] = abs($base[$k]);
+  $absHeight[$k] = abs($height[$k]);
+}
+
+#sine, cosine, tangent, cosecant, secant cotangent
+@trigs = (
+  [Fraction($height[0],$hypotenuse[0]),
+   Fraction($base[0],$hypotenuse[0]),
+   Fraction($height[0],$base[0])
+  ],
+); 
+
+$r = 5;
+@Px = ();
+@Py = ();
+@graph = ();
+@fig = ();
+
+for my $i (0..0) {
+  $Px[$i] = Fraction($r*$base[$i],$hypotenuse[$i])->reduce;
+  $Py[$i] = Fraction($r*$height[$i],$hypotenuse[$i])->reduce;
+
+  $graph[$i] = init_graph(-8,-8,8,8,'axes'=>[0,0],'grid'=>[1,1]);
+  $graph[$i]->lb('reset');
+
+  $xfuncAlpha = sub { my $t = shift();
+    return $r*cos($t); };
+  $yfuncAlpha = sub { my $t = shift();
+    return $r*sin($t); };
+  $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[$i] );
+  $fnAlpha->domain(0,2*pi);
+
+  $graph[$i]->stamps(closed_circle( Real($Px[$i]), Real($Py[$i]), red ));
+  $graph[$i]->moveTo(0,0);
+  $graph[$i]->lineTo(Real($Px[$i]),Real($Py[$i]),red,2);
+  $graph[$i]->lineTo(Real($Px[$i]),0,red,2);
+  $graph[$i]->lineTo(0,0,red,2);
+
+  $xShift = ($Px[$i]>0) ? -0.4 : 0.4;
+  $yShift = ($Py[$i]>0) ? 0.4 : -0.4;
+  $graph[$i]->moveTo(Real($Px[$i]),$yShift);
+  $graph[$i]->lineTo(Real($Px[$i])+$xShift,$yShift,red,2);
+  $graph[$i]->lineTo(Real($Px[$i])+$xShift,0,red,2);
+
+  $LORHeight = ($Px[$i]>0) ? "left" : "right";
+  $TOBBase = ($Py[$i]>0) ? "top" : "bottom";
+  $LORHyp = ($Px[$i]>0) ? "right" : "left";
+  $TOBHyp = ($Py[$i]>0) ? "bottom" : "top";
+  $graph[$i]->lb(new Label(Real($Px[$i]),Real($Py[$i])/2,"$height[$i]",'red',$LORHeight,'middle',large));
+  $graph[$i]->lb(new Label(Real($Px[$i])/2,0,"$base[$i]",'red','center',$TOBBase,large));
+  $graph[$i]->lb(new Label(Real($Px[$i])/2,Real($Py[$i])/2,"$hypotenuse[$i]",'red',$LORHyp,$TOBHyp,large));
+  $graph[$i]->lb(new Label(Real($Px[$i]),Real($Py[$i]),"P($base[$i],$height[$i])",'red',$LORHeight,$TOBHyp,large));
+
+  $alt[$i] = "This is the graph of a circle with point P($base[$i],$height[$i]) on the circle. A right triangle is formed at vertices (0,0), ($base[$i],$height[$i]) and ($base[$i],0). The base is marked as $base[$i], height marked as $height[$i] and hypotenuse marked as $hypotenuse[$i].";
+
+  $fig[$i] = image(insertGraph($graph[$i]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[$i]' title = '$alt[$i]' ");
+
+}
+
+$sinAns = (2*$trigs[0][0]*$trigs[0][1])->reduce;
+$cosAns = (1-2*($trigs[0][0])**2)->reduce;
+$tanAns = (2*$trigs[0][2]/(1-($trigs[0][2])**2))->reduce;
+
+
+##############################################################
+
+BEGIN_PGML
+
+If it's given that
+
+    [``\tan(\theta)=[$trigs[0][2]]``] and [`\theta\in[$int[0]]`],
+
+evaluate the following.
+
+a) [`\sin(2\theta)=`][_____________]{$sinAns}
+
+a) [`\cos(2\theta)=`][_____________]{$cosAns}
+
+a) [`\tan(2\theta)=`][_____________]{$tanAns}
+
+END_PGML
+
+##############################################################
+
+$showPartialCorrectAnswers = 1;
+
+$s1 = (2*$trigs[0][2])->reduce;
+$s2 = (1-($trigs[0][2])**2)->reduce;
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+###Calculating [`\sin(2\theta)`]
+
+To calculate [`\sin(2\theta)`], we will use the formula
+
+    [`` \sin(2\theta) = 2\sin(\theta)\cos(\theta) ``]
+
+[`\tan(\theta)`] is given. We need to find the value of [`\sin(\theta)`] and [`\cos(\theta)`].
+
+It's given that [`\tan(\theta)=[$trigs[0][2]]`] and [`\theta\in[$int[0]]`]. We can sketch [`\theta`] in a non-Unit Circle:
+
+>>[@ $fig[0] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+The triangle's hypotenuse is calculated by [`\sqrt{\left([$base[0]]\right)^2+\left([$height[0]]\right)^2}=[$hypotenuse[0]]`]. 
+
+We can see [`\sin(\theta)=[$trigs[0][0]]`] and [`\cos(\theta)=[$trigs[0][1]]`].
+
+Now we can calculate the value of [`\sin(2\theta)`]:
+
+    [``\begin{aligned}
+  \sin(2\theta) &= 2\sin(\theta)\cos(\theta) \\
+  &= 2\left( [$trigs[0][0]] \right) \left( [$trigs[0][1]] \right) \\
+  &= [$sinAns]
+    \end{aligned}``]
+
+###Calculating [` \cos(2\theta) `]
+
+Cosine's double angle formula are 3 forms:
+
+    [``\begin{aligned}
+  \cos(2\theta) 
+  &= \cos^2(\theta)-\sin^2(\theta) \\
+  &= 2\cos^2(\theta) -1 \\
+  &= 1- 2\sin^2(\theta)
+    \end{aligned}``]
+    
+We could use any form since we already know the values of both [`\sin(\theta)`] and [`\cos(\theta)`]. We will choose to use the first form:
+
+    [``\begin{aligned}
+  \cos(2\theta) &= \cos^2(\theta)-\sin^2(\theta) \\
+  &= \left( [$trigs[0][1]] \right)^2 - \left( [$trigs[0][0]] \right)^2 \\
+  &= [$cosAns]
+    \end{aligned}``]
+
+###Calculating [` \tan(2\theta) `]
+
+We will use the tangent double-angle formula:
+
+    [``\begin{aligned}
+  \tan(2\theta) &= \frac{2\tan(\theta)}{1-\tan^2(\theta)} \\
+  &= \frac{2\left([$trigs[0][2]]\right)}{1-\left([$trigs[0][2]]\right)^2} \\
+  &= \frac{[$s1]}{[$s2]} \\
+  &= [$tanAns]
+    \end{aligned}``]
+
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

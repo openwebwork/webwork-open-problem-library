@@ -1,0 +1,171 @@
+# WeBWorK problem written by Alex Jordan, 2013
+# Portland Community College
+#
+# Solve a system with 
+#  -integer coefficients
+#  -integer solutions
+#  -one of the coefficients is 1
+#
+# Last updated: Jordan 9/9/13;
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Lines', 'Equations')
+## KEYWORDS('linear','equation','solve','system','integer')
+## DBCCSS('8.EE.8','A-REI.3','A-REI.5')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "answerHints.pl",
+  "PCCmacros.pl",
+  "contextFraction.pl",
+  "parserAssignment.pl",
+  "SystemsOfLinearEquationsProblemPCC.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+
+
+# What will the variables be?
+if (list_random(0,1))
+  {$x = "x"; $y = "y";}
+  else {
+    do {$x = RandomVariableName(); $y = RandomVariableName()} 
+    until ($x ne $y 
+       and ($x ne "y" and $y ne "x")); 
+    # it would be bad to swap x and y for point answers. 
+  };
+
+
+#0 means that term is on the left; 1 on the right.
+($xside1,$yside1,$cside1) = (random(0,1,1), random(0,1,1), random(0,1,1));
+($xside2,$yside2,$cside2) = (random(0,1,1), random(0,1,1), random(0,1,1));
+
+
+#What will the coefficients be?
+#Some helpful linear algebra:
+#Integer solutions <== det[[a,b],[c,d]] divides both e and f
+#Unique solution <==> det[[a,b],[c,d]] != 0
+#No solutions <==> det[[a,b],[c,d]] == 0   and c*e != a*f
+Context("Fraction");
+Parser::Number::NoDecimals;
+Context()->noreduce('(-x)-y','-(x)+y');
+do {
+$a = Fraction(non_zero_random(-5,5,1), random(1,1,1));
+$b = Fraction(non_zero_random(-5,5,1), random(1,1,1));
+$c = Fraction(non_zero_random(-5,5,1), random(1,1,1));
+$d = Fraction(non_zero_random(-5,5,1), random(1,1,1));
+
+$one = random(0,3,1);
+if ($one == 0) {if ($xside1) {$a = Fraction(-1,1)} else {$a = Fraction(1,1)}};
+if ($one == 1) {if ($yside1) {$b = Fraction(-1,1)} else {$b = Fraction(1,1)}};
+if ($one == 2) {if ($xside2) {$c = Fraction(-1,1)} else {$c = Fraction(1,1)}};
+if ($one == 3) {if ($yside2) {$d = Fraction(-1,1)} else {$d = Fraction(1,1)}};
+# Above means one coefficient will be 1, and substitution method will be used
+
+$det = $a*$d-$b*$c;
+
+$e = $det*random(-3,3,1);
+$f = $det*random(-3,3,1);
+} 
+until (!($a == Fraction(0,1) and $b == Fraction(0,1)) and !($c == Fraction(0,1) and $d == Fraction(0,1)));
+
+
+
+
+
+
+
+
+SystemOfLinearEquationsProblemSetup();
+
+
+##############################################
+TEXT(beginproblem());
+BEGIN_PGML
+Solve the following system of equations.
+
+[```\left\{
+    \begin{aligned}
+      [$left1] & =  [$right1]\\
+      [$left2] & =  [$right2] 
+    \end{aligned}
+    \right.
+    ```]
+
+[$EnterAnswers]**
+
+    [_____________________________]
+
+END_PGML
+##############################################
+
+SystemOfLinearEquationsProblemSolutionSetup();
+
+BEGIN_PGML_SOLUTION
+
+[$Attack]**
+
+END_PGML_SOLUTION
+
+
+Context("LinearSystems");
+parser::Assignment->Allow;
+Context()->variables->are($x=>'Real', $y=>'Real', constant=>'Real');
+
+if ($determinant != Fraction(0,1)) {
+  $ans = Compute("$x = $xsol, $y = $ysol");
+  $pointAns = Compute("($xsol,$ysol)");
+  }
+  elsif ($c*$e != $a*$f) {
+  $ans = Compute("no solutions");
+  }
+  else {
+  $ans = Compute("infinitely many solutions");
+  };
+
+
+
+
+#If there is a unique solution
+if ($determinant != Fraction(0,1)) {
+ANS($ans->cmp(
+  entry_type => "a solution",
+  checker => ~~&solutionChecker,
+  extra => ~~&extraChecker
+)
+->withPostFilter(AnswerHints(
+  ["$x=$xsol","$y=$ysol"] => "A solution would give values for both $x and $y",
+  ["$xsol,$ysol","$ysol,$xsol"] => ["These are the right values, but you should write $x = $US$US$US and $y= $US$US$US",replaceMessage=>1],
+))
+
+->withPostFilter( ~~&postFilterForPoints
+)
+);
+}
+
+
+#otherwise
+else {
+ANS($ans->cmp(typeMatch=>Compute("$x=0,$y=0")));
+};
+
+
+ENDDOCUMENT();

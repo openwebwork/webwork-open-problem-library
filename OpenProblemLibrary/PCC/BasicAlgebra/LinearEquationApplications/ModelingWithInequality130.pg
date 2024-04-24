@@ -1,0 +1,133 @@
+# WeBWorK problem written by Alex Jordan
+# Portland Community College
+#
+# Modeling with a linear equation without solving it.
+#
+# Last updated: Jordan 7/13/18
+# ENDDESCRIPTION
+ 
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Algebraic Expressions')
+## KEYWORDS('solve','linear','inequality','application','subtract','divide')
+## DBCCSS('6.EE.2.a','7.EE.4','A-CED.1','A-REI.3')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+ 
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserImplicitEquation.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("ImplicitEquation");
+Context()->operators->add(
+      '>' => {
+         class => 'Parser::BOP::equality',
+         precedence => $prec+.25,  #  just above comma
+         associativity => 'left',  #  computed left to right
+         type => 'bin',            #  binary operator
+         string => ' > ',          #  output string for it
+         perl => '>',              #  perl string
+      },
+      '<' => {
+         class => 'Parser::BOP::equality',
+         precedence => $prec+.25,  #  just above comma
+         associativity => 'left',  #  computed left to right
+         type => 'bin',            #  binary operator
+         string => ' < ',          #  output string for it
+         perl => '<',              #  perl string
+      },
+      '>=' => {
+         class => 'Parser::BOP::equality',
+         precedence => $prec+.25,  #  just above comma
+         associativity => 'left',  #  computed left to right
+         type => 'bin',            #  binary operator
+         string => ' >= ',          #  output string for it
+         TeX => ' \geq ',
+         perl => '>=',              #  perl string
+      },
+      '<=' => {
+         class => 'Parser::BOP::equality',
+         precedence => $prec+.25,  #  just above comma
+         associativity => 'left',  #  computed left to right
+         type => 'bin',            #  binary operator
+         string => ' <= ',          #  output string for it
+         TeX => ' \leq ',
+         perl => '<=',              #  perl string
+      },
+);
+Context()->variables->are(m=>"Real");
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(showExtraParens=>0);
+
+$start = random(10,100,10);
+$rate = random(5,10,1);
+$minute = random(10,30,1);
+$max = $rate*$minute+$start;
+
+$ansString = "$start+$rate*m<=$max";
+Context()->variables->set(m=>{limits=>[$minute-10,$minute+10]});
+$ans = ImplicitEquation("$ansString");
+$evaluator = $ans->cmp(
+     checker => sub {
+       my ($correct,$student,$ansHash) = @_;
+       # check that the corresponding equality is correct
+       my $OK = not ImplicitEquation::compare($correct,$student);
+       return 0 unless $OK;
+       # what sign is used
+       my $sign = $student->{tree}->{bop};
+       Value::Error('Write an inequality, not an equation.') if ($sign eq '=');
+       Value::Error('Your inequality is not using the correct sign.') if ($sign eq '<' or $sign eq '>');
+       # distinguish between good/bad uses of >=/<=
+       my $left = Formula($student->{tree}->{lop})->eval(m=>0);
+       my $right = Formula($student->{tree}->{rop})->eval(m=>0);
+       $OK = ($sign eq '>=') ? ($left >= $right) : ($left <= $right);
+       Value::Error('Your inequality is not using the correct sign.') unless ($OK);
+       return $OK;
+     }
+   );
+
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+A wading pool is being filled with water from a garden hose at a rate of [`[$rate]`] gallons per minute. If the pool already contains [`[$start]`] gallons of water and can hold up to [`[$max]`] gallons, set up an _inequality_ modeling how much time can pass without the pool overflowing. There is no need to solve it.
+
+[@KeyboardInstructions('Use [|m|]* for the variable. If you need to enter the inequality signs [`\leq`] or [`\geq`], type [|<=|]* or [|>=|]*.')@]**
+
+    [_________________________]{$evaluator}
+
+END_PGML
+
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+Assume [`m`] minutes have passed. Since the garden hose fills the pool at [`[$rate]`] gallons per minute, it can fill [`[$rate]m`] gallons in [`m`] minutes. Since there is [`[$start]`] gallons of water in the pool in the beginning, the amount of water in the pool after [`m`] minutes would be a total of [`[$start]+[$rate]m`].
+
+Since we don't want the pool to overflow, we can write the inequality:
+
+    [``[$start]+[$rate]m<=[$max]``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

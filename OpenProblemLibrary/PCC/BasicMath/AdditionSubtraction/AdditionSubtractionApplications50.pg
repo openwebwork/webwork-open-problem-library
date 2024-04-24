@@ -1,0 +1,207 @@
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# Do addition/subtraction problems according to data in a bar graph.
+#
+# Last edited by Carl Yao on 09/29/2016
+#
+# ENDDESCRIPTION
+
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('')
+## KEYWORDS('add','fraction','bar graph')
+## DBCCSS('4.MD.3','5.NF.2')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+#  "parserNumberWithUnits.pl",
+  "contextFraction.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+sub isStringInArray {
+   my ($item,@array) = @_;
+   foreach my $loop (@array) {
+      if ($item eq $loop) {return 1;}
+   }
+   return 0;
+}
+
+sub isNumberInArray {
+   my ($item,@array) = @_;
+   foreach my $loop (@array) {
+      if ($item == $loop) {return 1;}
+   }
+   return 0;
+}
+
+##############################################
+
+Context("LimitedFraction");
+
+$numBars = 5;
+
+@num = ();
+@den = ();
+@frac = ();
+@names = ();
+%distanceToName = ();
+@miles = ();
+
+do {
+   for my $i (0..$numBars-1) {
+      do {$temp = list_random(2,4,5,10,20,25);} until (!(isNumberInArray($temp,@den)));
+      $den[$i] = $temp;
+      do {$num[$i] = random(1,$den[$i]-1,1);} until (gcd($num[$i],$den[$i])==1);
+      $frac[$i] = Fraction($num[$i],$den[$i]);
+      $miles[$i] = 100*$frac[$i];
+   }
+
+   ($min1,$min2) = (100,100);
+   ($max1,$max2) = (0,0);
+   for my $j (0..$numBars-1) {
+      if ( ($frac[$j]<$min1) && ($frac[$j]<$min2) ) {
+         $min2 = $min1;
+         $min1 = $frac[$j];
+      } elsif ($frac[$j]<$min2) {
+         $min2 = $frac[$j];
+      }
+
+      if ( ($frac[$j]>$max1) && ($frac[$j]>$max2) ) {
+         $max2 = $max1;
+         $max1 = $frac[$j];
+      } elsif ($frac[$j]>$max2) {
+         $max2 = $frac[$j];
+      }
+
+      do {$temp = RandomName();} until (!(isStringInArray($temp,@names)));
+      $names[$j] = $temp;
+      $distanceToName{$frac[$j]}=$names[$j];
+   }
+   ($min1Num,$min1Den) = $min1->value;
+   ($min2Num,$min2Den) = $min2->value;
+
+   $ans = $max1+$max2-$min1-$min2;
+   ($numAns,$denAns) = $ans->value;
+   $com = lcm($min1Den,$min2Den);
+   $ans = 100*$ans;
+   $ans = Compute("$ans");
+
+} until ( ($ans<100) && ($denAns!=$com) );
+
+$yCover = 1;
+$xscale = 1;
+$yscale = 0.2;
+
+$xmin = -$xscale;         #The viewing window
+$xmax = $numBars+2*$xscale;
+$ymin = -$yscale*$yCover;
+$ymax = (1+$yscale)*$yCover;
+
+$picture = init_graph($xmin,$ymin,$xmax,$ymax,
+      pixels=>[400,400]);
+$picture->lb('reset');
+
+$picture->moveTo(0,0);
+$picture->lineTo($xmax-$xscale, 0, black,3);
+$picture->moveTo(0,0);
+$picture->arrowTo(0, $ymax-$yscale/2, black,3);
+$picture->stamps( closed_circle(0,1,'blue') );
+$picture->lb( new Label(-$xscale/2,1,"100",'black','center','middle'));
+
+$picture->lb( new Label($xmax-$xscale,-$yscale/4,"runners",'black','left','middle'));
+$picture->lb( new Label(0,$ymax-$yscale/3,"distance in miles",'black','left','middle'));
+
+$picture->new_color("darkred",   159, 64, 16);
+$picture->new_color("pink",255,0,127);
+$picture->new_color("darkblue",  100,100,255);
+$picture->new_color("darkgreen",   0, 86, 34);
+$picture->new_color("red",  255,0,0);
+@colors = ('darkred','pink','darkblue','darkgreen','red');
+
+$alt0 = "";
+for my $i (0..$numBars-1) {
+   $picture->lb( new 
+      Label(($i+1)*$xscale,-$yscale/(4-2*($i%2)),
+         "$names[$i]",$colors[$i],'center','middle'));
+   $picture->moveTo(($i+1-0.4)*$xscale,0);
+   $picture->lineTo(($i+1-0.4)*$xscale,$frac[$i],$colors[$i],2);
+   $picture->lineTo(($i+1+0.4)*$xscale,$frac[$i],$colors[$i],2);
+   $picture->lineTo(($i+1+0.4)*$xscale,0,$colors[$i],2);
+   $picture->fillRegion([ ($i+1)*$xscale,$frac[$i]/2,$colors[$i] ]);
+   $picture->lb( new Label(($i+1)*$xscale,$frac[$i]+$yscale/4,
+         "$miles[$i]",$colors[$i],'center','middle'));
+   $alt0 = $alt0."$names[$i] ran $miles[$i] miles, ";
+}
+chop($alt0);chop($alt0);
+$alt0 = $alt0.'.';
+$alt = "This is a bar graph displaying the distance run by different runners. $alt0";
+
+##############################################
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+
+BEGIN_PGML
+
+The following bar graph shows the distance different runners ran in a relay race. 
+
+>>[@ image(insertGraph( $picture  ), tex_size=>400, height=>400, width=>400, extra_html_tags => "alt = '$alt' title = '$alt'") @]*<<
+
+Identify those two runners who ran the longest distances, and then identify those two runners who ran the shortest distances.
+
+The best two runners ran [_____________]{$ans} more miles than the worst two runners.
+
+END_PGML
+
+##############################################
+
+
+$nameMin1 = $distanceToName{$min1};
+$nameMin2 = $distanceToName{$min2};
+
+$nameMax1 = $distanceToName{$max1};
+$nameMax2 = $distanceToName{$max2};
+
+$max1Miles = $max1*100;
+$max2Miles = $max2*100;
+$min1Miles = $min1*100;
+$min2Miles = $min2*100;
+
+BEGIN_PGML_SOLUTION
+
+By the bar graph, [$nameMax1] ran [`[$max1Miles]`] miles, and [$nameMax2] ran [`[$max2Miles]`] miles. These two runners ran the longest distance among all runners. Their sum is:
+
+    [``[$max1Miles]+[$max2Miles]=[$max1Miles+$max2Miles]``]
+
+By the bar graph, [$nameMin1] ran [`[$min1Miles]`] miles, and [$nameMin2] ran [`[$min2Miles]`] miles. These two runners ran the shortest distance among all runners. Their sum is:
+
+    [``[$min1Miles]+[$min2Miles]=[$min1Miles+$min2Miles]``]
+
+The question is asking for the difference between those two groups, so we do subtraction:
+
+    [`` [$max1Miles+$max2Miles] - [$min1Miles+$min2Miles] = [$ans] ``]
+
+The best two runners ran [`[$ans]`] more miles than the worst two runners.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

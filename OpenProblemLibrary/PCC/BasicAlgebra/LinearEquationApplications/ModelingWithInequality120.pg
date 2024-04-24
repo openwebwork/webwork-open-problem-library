@@ -1,0 +1,144 @@
+# WeBWorK problem written by Alex Jordan
+# Portland Community College
+#
+# Modeling with a linear inequality without solving it.
+#
+# Last updated: Jordan 7/13/18
+# ENDDESCRIPTION
+ 
+## DBsubject('Algebra')
+## DBchapter('Basic Algebra')
+## DBsection('Algebraic Expressions')
+## KEYWORDS('solve','linear','inequality','application','subtract','divide')
+## DBCCSS('6.EE.2.a','7.EE.4','A-CED.1','A-REI.3')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Alex Jordan, Carl Yao, Chris Hughes')
+## Institution('PCC')
+ 
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserImplicitEquation.pl",
+  "PCCmacros.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("ImplicitEquation");
+Context()->operators->add(
+      '>' => {
+         class => 'Parser::BOP::equality',
+         precedence => $prec+.25,  #  just above comma
+         associativity => 'left',  #  computed left to right
+         type => 'bin',            #  binary operator
+         string => ' > ',          #  output string for it
+         perl => '>',              #  perl string
+      },
+      '<' => {
+         class => 'Parser::BOP::equality',
+         precedence => $prec+.25,  #  just above comma
+         associativity => 'left',  #  computed left to right
+         type => 'bin',            #  binary operator
+         string => ' < ',          #  output string for it
+         perl => '<',              #  perl string
+      },
+      '>=' => {
+         class => 'Parser::BOP::equality',
+         precedence => $prec+.25,  #  just above comma
+         associativity => 'left',  #  computed left to right
+         type => 'bin',            #  binary operator
+         string => ' >= ',          #  output string for it
+         TeX => ' \geq ',
+         perl => '>=',              #  perl string
+      },
+      '<=' => {
+         class => 'Parser::BOP::equality',
+         precedence => $prec+.25,  #  just above comma
+         associativity => 'left',  #  computed left to right
+         type => 'bin',            #  binary operator
+         string => ' <= ',          #  output string for it
+         TeX => ' \leq ',
+         perl => '<=',              #  perl string
+      },
+);
+Context()->variables->are(t=>"Real");
+Context()->flags->set(reduceConstants=>0);
+Context()->flags->set(showExtraParens=>0);
+
+$max = random(4,8,0.1);
+$rate = random(0.8,1.5,1);
+$seconds = random(1.5,$max/$rate-0.5,0.1);
+$left = Real($max-$rate*$seconds);
+
+$ansString = "$max-$rate*t<=$left";
+Context()->variables->set(t=>{limits=>[$seconds-10,$seconds+10]});
+$ans = ImplicitEquation("$ansString");
+$evaluator = $ans->cmp(
+     checker => sub {
+       my ($correct,$student,$ansHash) = @_;
+       # check that the corresponding equality is correct
+       my $OK = not ImplicitEquation::compare($correct,$student);
+       return 0 unless $OK;
+       # what sign is used
+       my $sign = $student->{tree}->{bop};
+       Value::Error('Write an inequality, not an equation.') if ($sign eq '=');
+       Value::Error('Your inequality is not using the correct sign.') if ($sign eq '<' or $sign eq '>');
+       # distinguish between good/bad uses of >=/<=
+       my $left = Formula($student->{tree}->{lop})->eval(t=>0);
+       my $right = Formula($student->{tree}->{rop})->eval(t=>0);
+       $OK = ($sign eq '>=') ? ($left >= $right) : ($left <= $right);
+       Value::Error('Your inequality is not using the correct sign.') unless ($OK);
+       return $OK;
+     }
+   );
+
+$sex = list_random('male','female');
+$pronoun = 'he' if ($sex eq 'male');
+$pronoun = 'she' if ($sex eq 'female');
+$object = 'him' if ($sex eq 'male');
+$object = 'her' if ($sex eq 'female');
+$possessive = 'his' if ($sex eq 'male');
+$possessive = 'her' if ($sex eq 'female');
+$Possessive = 'His' if ($sex eq 'male');
+$Possessive = 'Her' if ($sex eq 'female');
+$name = RandomName(sex=>$sex);
+
+
+##############################################
+
+TEXT(beginproblem());
+
+BEGIN_PGML
+
+[$name]'s maximum lung capacity is [`[$max]`] liters. If [$possessive] lungs are full and [$pronoun] exhales at a rate of [`[$rate]`] liters per second, write an _inequality_ that models when [$pronoun] will still have at least [`[$left]`] liters of air left in [$possessive] lungs. There is no need to solve it.
+
+[@KeyboardInstructions('Use [|t|]* for the variable. If you need to enter the inequality signs [`\leq`] or [`\geq`], type [|<=|]* or [|>=|]*.')@]**
+
+    [_________________________]{$evaluator}
+
+END_PGML
+
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+Assume [`t`] seconds pass. Since [$name] exhales at a rate of [`[$rate]`] liters per second, [$pronoun] can exhale [`[$rate]t`] liters of air in [`t`] seconds. When [$possessive] lungs are full, there are [`[$max]`] liters of air in them. The amount of air left after [`t`] seconds would be [`[$max]-[$rate]t`] liters.
+
+Since we are interested in having at least [`[$left]`] liters of air left, we can write the inequality:
+
+    [``[$max]-[$rate]t\geq[$left]``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

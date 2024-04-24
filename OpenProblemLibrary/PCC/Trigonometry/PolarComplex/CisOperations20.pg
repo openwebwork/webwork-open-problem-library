@@ -1,0 +1,126 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "parserFunction.pl",
+  "contextFraction.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "specialTrigValues.pl",
+  "parserOneOf.pl",
+  "PGcourse.pl",
+);
+
+##############################################
+
+Context("Fraction");
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+
+@num = ();
+@den = ();
+@angle = ();
+
+  for my $i (0..1) {
+    do {
+      $den[$i] = list_random(3,4,6);
+      $num[$i] = random(1,2*$den[$i]-1,1);
+    } until gcd($num[$i],$den[$i])==1;
+    $angle[$i] = specialAngle($num[$i]*pi/$den[$i]);
+  }
+  $angle[2] = specialAngle(Compute($angle[0])-Compute($angle[1]),(1,2,3,4,6,12));
+
+if ($angle[2]<Compute("0")) {
+  $angle[3] = specialAngle(Compute($angle[2])+2*pi,(1,2,3,4,6,12));
+} else {
+  $angle[3] = $angle[2];
+}
+
+@r = (); @com = ();
+
+$r[2] = random(2,10,1);
+$r[1] = random(2,10,1);
+$r[0] = $r[1]*$r[2];
+
+  Context()->variables->add(i=>"Real");
+for my $j (0..1) {
+  $com[$j] = Formula("$r[$j]*(cos($angle[$j])+i*sin($angle[$j]))");
+}
+$com[2] = Formula("$r[2]*(cos($angle[3])+i*sin($angle[3]))");
+
+Context("Complex");
+parserFunction("cis(z)" => "cos(z) + i*sin(z)");
+Context()->flags->set(reduceConstantFunctions => 0);
+
+for my $j (0..1) {
+  $c[$j] = Formula("$r[$j]*cis($angle[$j])");
+}
+
+@ans = ();
+$ans[0] = Formula("$r[2]*cis($angle[2])");
+$ans[1] = Formula("$r[2]*cis($angle[3])");
+$ans = OneOf($ans[0],$ans[1]);
+
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+
+Do the following calculation. Use [`r\operatorname{cis}(\theta)`] to represent [`r(\cos(\theta)+i\sin(\theta))`].
+
+If [` z_1=[$c[0]]`] and [`z_2=[$c[1]]`], then
+
+     [`` \frac{z_1}{z_2}=``][________________________]{$ans}
+
+END_PGML
+
+##############################################
+
+BEGIN_PGML_SOLUTION
+
+If [`z_1=r_1\left(\cos(\theta_1)+i\sin(\theta_1)\right)`] and [`z_2=r_2\left(\cos(\theta_2)+i\sin(\theta_2)\right)`], then
+
+    [`` \frac{z_1}{z_2}=\frac{r_1}{r_2}\left(\cos(\theta_1-\theta_2)+i\sin(\theta_1-\theta_2)\right) ``]
+
+We have:
+
+    [``\begin{aligned}
+  \frac{z_1}{z_2} &= \frac{[$c[0]]}{[$c[1]]} \\
+  &= \frac{[$com[0]]}{[$com[1]]} \\
+  &= [$r[2]]\left( \cos\left([$angle[0]]-[$angle[1]]\right)+i\sin\left([$angle[0]]-[$angle[1]]\right) \right) \\
+  &= [$r[2]]\left( \cos\left([$angle[2]]\right)+i\sin\left([$angle[2]]\right) \right) \\
+  &= [$ans[0]]
+    \end{aligned}``]
+
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();

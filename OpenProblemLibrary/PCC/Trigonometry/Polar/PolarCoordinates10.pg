@@ -1,0 +1,151 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "contextFraction.pl",
+  "PGML.pl",
+  "PGchoicemacros.pl",
+  "parserPopUp.pl",
+  "PGgraphmacros.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",
+);
+$refreshCachedImages=1;
+TEXT(beginproblem());
+
+sub output {
+  my ($n,$d) = @_;
+  if ($n==0) {return "0";}
+  if ($n==1) {return "\frac{\pi}{$d}";}
+    elsif ($n==-1) {return "-\frac{\pi}{$d}";}
+    elsif ($n<0) {
+      $nn = -$n;
+      return "-\frac{$nn \pi}{$d}";
+    }
+    else {return "\frac{$n\pi}{$d}";}
+}
+
+Context("Fraction");
+
+@num = ();
+do {
+  $den = list_random(3,4,6);
+  $num[0] = random(1,2*$den-1,1);
+  ($num[0],$den) = Fraction($num[0],$den)->reduce->value;
+} until ($den != 1);
+
+$r = random(1,5,1);
+
+$num[1] = ($num[0]>$den) ? $num[0]-$den : $num[0]+$den;
+$num[2] = $num[0]-2*$den;
+$num[3] = $num[1]-2*$den;
+
+@frac = ();
+$frac[0] = output($num[0],$den);
+$frac[1] = output($num[1],$den);
+$frac[2] = output($num[2],$den);
+$frac[3] = output($num[3],$den);
+$frac[4] = output($num[0],$den);
+$frac[5] = output($num[1],$den);
+$frac[6] = output(-$num[2],$den);
+$frac[7] = output(-$num[3],$den);
+
+$mc = new_checkbox_multiple_choice();
+
+$mc -> qa (
+"Choose all polar coordinates which represents Point A in the graph. There may be more than one correct answer.", 
+  "\( \left( $r, $frac[0] \right)_p \) $BR",
+  "\( \left( -$r, $frac[1] \right)_p \) $BR",
+  "\( \left( $r, $frac[2] \right)_p \) $BR",
+  "\( \left( -$r, $frac[3] \right)_p \) $BR",
+);
+
+$mc -> extra(
+  "\( \left( -$r, $frac[4] \right)_p \) $BR",
+  "\( \left( $r, $frac[5] \right)_p \) $BR",
+  "\( \left( $r, $frac[6] \right)_p \) $BR",
+  "\( \left( -$r, $frac[7] \right)_p \) $BR",
+);
+
+
+$r0 = 5;
+$graph = init_graph(-6,-6,6,6,'axes'=>[0,0],'grid'=>[1,1]);
+$graph->lb('reset');
+
+for my $i (0..$r0) {
+  $xfuncAlpha = sub { my $t = shift();
+    return $i*cos($t); };
+  $yfuncAlpha = sub { my $t = shift();
+    return $i*sin($t); };
+  $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph );
+  $fnAlpha->domain(0,2*pi);
+}
+
+for my $i (0..2*$den-1) {
+  $graph -> stamps( closed_circle( $r0*cos($i*pi/$den), $r0*sin($i*pi/$den), 'blue' ) );
+}
+
+$graph -> stamps( closed_circle( $r*cos($num[0]*pi/$den), $r*sin($num[0]*pi/$den), 'red' ) );
+$graph->lb(new Label($r*cos($num[0]*pi/$den), $r*sin($num[0]*pi/$den),"A",'red','center','bottom',large));
+$graph->lb(new Label($r0*cos(pi/$den), $r0*sin(pi/$den), "pi/$den",'blue','left','bottom',large));
+
+$alt = "This is a polar system with 5 circles with radius being 1, 2, 3, 4 and 5. Point A with radius $r and at the direction of $num[0] pi/$den is marked.";
+
+$fig0 = image(insertGraph($graph),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt' title = '$alt' ");
+
+
+
+##############################################
+
+BEGIN_PGML
+
+>>[@ $fig0 @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+[@ $mc -> print_q() @]*
+
+[@ $mc -> print_a() @]*
+
+END_PGML
+
+##############################################
+
+install_problem_grader(~~&std_problem_grader);
+
+$showPartialCorrectAnswers = 0;
+
+ANS( checkbox_cmp( $mc->correct_ans() ) );
+
+##############################################
+
+
+BEGIN_PGML_SOLUTION
+
+For a polar coordinate [`(r,\theta)_p`], [`r`] could be negative, which implies going in the opposite direction of [`\theta`].
+
+The correct answers are [@ $mc->correct_ans() @]*.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

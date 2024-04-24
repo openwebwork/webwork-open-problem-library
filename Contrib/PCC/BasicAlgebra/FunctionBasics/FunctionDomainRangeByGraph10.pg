@@ -32,6 +32,9 @@ loadMacros(
   "PGML.pl",
   "PCCmacros.pl",
   "PCCgraphMacros.pl",
+  "PGchoicemacros.pl",
+  "PGtikz.pl",
+  "ORCCA.pl",
   "PGcourse.pl",
 );
 
@@ -39,7 +42,7 @@ loadMacros(
 TEXT(beginproblem());
 
 Context("Interval");
-$refreshCachedImages=1;
+
 
 #Decide the number of points in the graph.
 $numPoints = 3;
@@ -55,9 +58,13 @@ for my $i (0..$numPoints-1) {
 }
 
 #Intentionally create a duplicate y value in two points.
+#But make sure x-values are separated by at least 3 so labels do not overlap
 $dup0 = random(0,$numPoints-1);
 do {$dup1=random(0,$numPoints-1);} until ($dup0!=$dup1);
 $py[$dup0]=$py[$dup1];
+if (abs($px[$dup0] - $px[$dup1]) < 3) {
+  ($px[$dup0],$px[$dup1]) = (-8..8)[NchooseK(17,2)];
+}
 
 #Duplicated y-value should have a corresponding x-value that is at least 2 away form the other x-value, to avoid coordinates crowding in image.
 while (abs($px[$dup0] - $px[$dup1]) < 2)
@@ -85,31 +92,26 @@ for my $i (0..$numPoints-1) {
 @yticks = @$yticks_ref;
 
 $ALTPoints="";
-for my $i (0..0) {
-  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
-   axes=>[0,0],
-   grid=>[$ticknum[0],$ticknum[1]],
-   size=>[xPixels(),yPixels()]
-  );
-  $gr[$i]->lb('reset');
-  for my $j (@xticks) {
-    if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label($j, 0, $j,'black','center','top','large'));
-  }
 
-  for my $j (@yticks) {
-    if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label(0, $j, $j,'black','right','middle','large'));
-  }
-  $gr[$i]->lb(new Label($max[0],0,'x','black','right','bottom','large'));
-  $gr[$i]->lb(new Label(0,$max[1],'y','black','left','top','large'));
+$gr = createTikZImage();
+$gr->addToPreamble(latexImagePreamble());
+$gr->BEGIN_TIKZ
+\begin{axis}[
+    xmin = $min[0],
+    xmax = $max[0],
+    ymin = $min[1],
+    ymax = $max[1],
+    xtick =,
+    ytick =,
+    minor xtick = {$min[0],...,$max[0]},
+    minor ytick = {$min[1],...,$max[1]},
+  ]
+  \addplot[soliddot] coordinates {($px[0],$py[0]) ($px[1],$py[1]) ($px[2],$py[2])};
+\end{axis}
+END_TIKZ
 
-
-  for my $j (0..$numPoints-1) {
-    $gr[$i]->stamps( closed_circle($px[$j],$py[$j],'blue') );
-    $gr[$i]->lb( new Label($px[$j],$py[$j]-$sign*$marksep[1]/8, "($px[$j],$py[$j])", 'blue','center','top','large'));
-    $ALTPoints .= "($px[$j],$py[$j]), ";
-  }
+for my $j (0,1,2) {
+  $ALTPoints .= "($px[$j],$py[$j]), "
 }
 
 $ALTPoints =~ s/, $//;
@@ -126,10 +128,10 @@ A function is graphed.
 [@EnlargeImageStatementPGML()@]**
 
 
->>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
+>>[@image($gr, width=>300, tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
 
 
-[@KeyboardInstructions('To write an answer using set notation, write the elements between braces (the [`\{`] symbol and the [`\}`] symbol).')@]**
+[@KeyboardInstructions('To write an answer using set notation, write the elements between braces (for example [|{1,2,4}|]*).')@]**
 
     This function has domain [______________]{$domain} and range [______________]{$range}.
 

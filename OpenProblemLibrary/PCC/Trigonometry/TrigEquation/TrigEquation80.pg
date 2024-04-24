@@ -1,0 +1,207 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "parserOneOf.pl",
+  "contextFraction.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Numeric");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+do {
+  $a = non_zero_random(-10,10,1);
+  $b = non_zero_random(-10,10,1);
+  $c = non_zero_random(-10,10,1);
+  $d = non_zero_random(-10,10,1);
+} until ($d-$b != 0) && ($a-$c != 0);
+
+$e = "$a\tan(x)";
+if ($a==-1) {$e = "-\tan(x)";}
+  elsif ($a==1) {$e = "\tan(x)";}
+$f = "$c\tan(x)";
+if ($c==-1) {$f = "-\tan(x)";}
+  elsif ($c==1) {$f = "\tan(x)";}
+$left = "$e+$b";
+$right = "$f+$d";
+
+@ansL = ();
+@ansLShow = ();
+@points = ();
+
+$start = arctan(($d-$b)/($a-$c));
+
+$points = "";
+@k = ();
+for my $i (-2..2) {
+  my $a = $start+$i*pi;
+  if ( ($a>=0) && ($a<2*pi) ) {
+    $k[scalar(@k)] = $i;
+    $ansL[scalar(@ansL)] = $a;
+    $ansLShow[scalar(@ansLShow)] = Round($a,2);
+    $points .= Round($a,2).", ";
+  }
+}
+$points = substr($points,0,length($points)-2);
+$points .= " radians";
+$ans = List(@ansL);
+
+$r = 5;
+for my $i (0..0) {
+  $graph[$i] = init_graph(-6,-6,6,6,'axes'=>[0,0],'grid'=>[1,1]);
+  $graph[$i]->lb('reset');
+
+  $xfuncAlpha = sub { my $t = shift();
+    return $r*cos($t); };
+  $yfuncAlpha = sub { my $t = shift();
+    return $r*sin($t); };
+  $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[$i] );
+  $fnAlpha->domain(0,2*pi);
+
+  for my $j (0..scalar(@ansL)-1) {
+    $Px = Compute("$r*cos($ansL[$j])")->reduce;
+    $Py = Compute("$r*sin($ansL[$j])")->reduce;
+    $graph[$i]->stamps(closed_circle($Px,$Py,red));
+    $graph[$i]->moveTo(0,0);
+    $graph[$i]->lineTo($Px,$Py,red,2);
+    $graph[$i]->lineTo($Px,0,red,2);
+    $graph[$i]->lineTo(0,0,red,2);
+
+    if ( ($Px!=0) && ($Py!=0) ) {
+      $xShift = ($Px>0) ? -0.4 : 0.4;
+      $yShift = ($Py>0) ? 0.4 : -0.4;
+      $graph[$i]->moveTo($Px,$yShift);
+      $graph[$i]->lineTo($Px+$xShift,$yShift,red,2);
+      $graph[$i]->lineTo($Px+$xShift,0,red,2);
+    }
+
+    $td = $Py>=0 ? 'bottom' : 'top';
+    $graph[$i]->lb(new Label($Px,$Py,"$ansLShow[$j]",'red','center',$td,large));
+  }
+
+  $alt[$i] = "This is the graph of a circle with points representing $points on the circle.";
+
+  $fig[$i] = image(insertGraph($graph[$i]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[$i]' title = '$alt[$i]' ");
+}
+
+
+
+
+##############################################################
+
+BEGIN_PGML
+
+Solve the equation
+
+    [``[$left]=[$right] \text{ where }x\in[0,2\pi)``]
+
+[@KeyboardInstructions(
+"\n"
+.'* Enter multiple answers separated by commas, as in [|1.12, 3.24|]*.'
+."\n"
+.'* Use a calculator to calculate inverse trigonometry values.'
+."\n"
+.'* Type radian answers. There is no need to use [`\pi`] in your answers.'
+."\n"
+.'* Type [|no solution|]* if there is no solution.'
+)@]**
+
+    [`x=`][________________________________________]{$ans}
+    
+    
+END_PGML
+
+##############################################################
+
+Context("Fraction");
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+
+$o1 = Fraction($d-$b,$a-$c)->reduce;
+$o2 = $a-$c;
+$o3 = $d-$b;
+if ($o3==-1) {
+  $o4 = "-\tan(x) &= $o3 \\ \tan(x) &= ".$o1->TeX." \\";
+} elsif ($o2==1) {
+  $o4 = "\tan(x) &= ".$o1->TeX." \\";
+} else {
+  $o4 = "$o2\tan(x) &= $o3 \\ \tan(x) &= ".$o1->TeX." \\";
+}
+$o5 = Round($start,6);
+if (scalar(@ansL)==1) {
+  $o6 = "The solution is ";
+} else {
+  $o6 = "Solutions are ";
+}
+
+$o7 = "";
+for my $i (0..scalar(@k)-1) {
+  $o7 .= "x &= $o5+($k[$i])\pi = $ansLShow[$i] \\";
+}
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+    [``\begin{aligned}
+  [$left] &= [$right] \\
+  [$e]-[$f] &= [$d]-[$b] \\
+  [$o4]
+  x &= \tan^{-1}\left([$o1]\right) \\
+  x &= [$o5]+k\pi
+    \end{aligned}``]
+
+In the last step, we used a calculator's inverse tangent function to calculate [`\tan^{-1}\left([$o1]\right) = [$o5]`].
+
+Recall that the range of [`\tan^{-1}(x)`] is [`\left( -\frac{\pi}{2},\frac{\pi}{2} \right) `]. We will substitute in different [`k`] values and find all solutions, in [`[0,2\pi)`], which make [`[$left] = [$right]`] true:
+
+    [``\begin{aligned}
+  [$o7]
+    \end{aligned}``]
+
+>>[@ $fig[0] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+[$o6] [`[$ans]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

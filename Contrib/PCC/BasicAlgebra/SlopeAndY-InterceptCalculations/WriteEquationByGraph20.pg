@@ -25,7 +25,8 @@
 DOCUMENT();
 
 loadMacros(
-  "PGgraphmacros.pl",
+  "PGtikz.pl",
+  "ORCCA.pl",
   "PGstandard.pl",
   "MathObjects.pl",
   "PGML.pl",
@@ -39,7 +40,7 @@ loadMacros(
 Context("Numeric");
 TEXT(beginproblem());
 Context()->flags->set(showExtraParens=>0);
-$refreshCachedImages=1;
+
 
 $m = -random(1,5,1);
 $b = random(-4,4,1);
@@ -73,53 +74,25 @@ $ymax = -$ymin;
 $sizex = 240;
 $sizey = 240;
 
-#These two variables decide how many labels are on each axis.
-$xmark = ceil($xmax/10);
-$ymark = ceil($ymax/10);
-
-#These variables adjust the label positions in the solution graph.
-if ($m>0) {
-   $x1labelx = -0.2;
-   $y1labely = 0;
-   $x2labelx = 0.2;
-   $y2labely = 0;
-   $pt1shift = "right";
-   $pt2shift = "left";
-
-   $riseYShift = -0.3;
-   $runXShift = 0.1;
-}
-if ($m<0) {
-   $x1labelx = -0.2;
-   $y1labely = 0;
-   $x2labelx = 0.2;
-   $y2labely = 0;
-   $pt1shift = "right";
-   $pt2shift = "left";
-
-   $riseYShift = 0.4;
-   $runXShift = 0.1;
-}
-
-$gr = init_graph($xmin,$ymin,$xmax,$ymax,
-   axes=>[0,0],
-   grid=>[$xmax-$xmin,$ymax-$ymin],
-   size=>[$sizex,$sizey]
-);
-$gr->lb('reset');
-for ($j=-$xmax+$xmark;$j<$xmax;$j=$j+$xmark) {
-   $gr->lb( new Label($j,  -0.1, $j,'black','center','top','large'));
-}
-for ($j=-$ymax+$ymark;$j<$ymax;$j=$j+$ymark) {
-   if (Real($j) == 0) {next;}
-   $gr->lb( new Label(0,  $j,' '.$j,'black','left','middle','large'));
-}
-
 ($start,$stop) = (num_sort($xmin,$xmax,($ymin-$b)/$m+$h,($ymax-$b)/$m+$h))[1,2];
-$gr->moveTo(0,$b);
-$gr->arrowTo($start,$m*($start)+$b,'blue',1);
-$gr->moveTo(0,$b);
-$gr->arrowTo($stop,$m*($stop)+$b,'blue',1);
+
+$gr = createTikZImage();
+$gr->addToPreamble(latexImagePreamble());
+$gr->BEGIN_TIKZ
+\begin{axis}[
+    xmin = $xmin,
+    xmax = $xmax,
+    ymin = $ymin,
+    ymax = $ymax,
+    xtick =,
+    ytick =,
+    minor xtick = {$xmin,...,$xmax},
+    minor ytick = {$ymin,...,$ymax},
+    grid = minor,
+  ]
+  \addplot+[domain=$start:$stop] {$m*x+$b};
+\end{axis}
+END_TIKZ
 
 $ALTtext = "Graph of a coordinate system with a linear function that goes through ($x1,$y1) and ($x2,$y2).";
 ##############################################
@@ -130,7 +103,7 @@ A line's graph is given. What is this line's slope-intercept equation?
 
 [@EnlargeImageStatementPGML()@]*
 
->>[@image( insertGraph($gr), width=>240, extra_html_tags=>'title="$ALTtext" alt="$ALTtext"'  )@]*<<
+>>[@image($gr, width=>300, extra_html_tags=>'title="$ALTtext" alt="$ALTtext"'  )@]*<<
 
 [__]{$ansSI}{width => 15}
 
@@ -140,30 +113,26 @@ END_PGML
 
 Context("Numeric");
 
-$grCorrect = init_graph($xmin,$ymin,$xmax,$ymax,
-axes=>[0,0],
-grid=>[$xmax-$xmin,$ymax-$ymin],
-size=>[$sizex,$sizey]
-);
-$grCorrect->lb('reset');
-for ($j=-$xmax+$xmark;$j<$xmax;$j=$j+$xmark) {
-   $grCorrect->lb( new Label($j,  -0.1, $j,'black','center','top'));
-}
-for ($j=-$ymax+$ymark;$j<$ymax;$j=$j+$ymark) {
-   if (Real($j) == 0) {next;}
-   $grCorrect->lb( new Label(0,  $j,' '.$j,'black','left','middle'));
-}
-add_functions($grCorrect, "$m*x+$b for x in <$xmin,$xmax> using color:blue and weight:1");
-$grCorrect->stamps( closed_circle($x1,$y1,'red') );
-$grCorrect->lb( new Label($x1+$x1labelx,$y1+$y1labely,"$pt1",'red',"$pt1shift",'middle'));
-$grCorrect->stamps( closed_circle($x2,$y2,'red') );
-$grCorrect->lb( new Label($x2+$x2labelx,$y2+$y2labely,"$pt2",'red',"$pt2shift",'middle'));
-
-$grCorrect->moveTo($x1,$y1);
-$grCorrect->lineTo($x2,$y1,'red',2);
-$grCorrect->lineTo($x2,$y2,'red',2);
-$grCorrect->lb( new Label(($x1+$x2)/2,$y1+$riseYShift,"$run",'red','center','middle'));
-$grCorrect->lb( new Label($x2+$runXShift,,($y1+$y2)/2,"$rise",'red','left','middle'));
+$grCorrect = createTikZImage();
+$grCorrect->addToPreamble(latexImagePreamble());
+$grCorrect->BEGIN_TIKZ
+\begin{axis}[
+    xmin = $xmin,
+    xmax = $xmax,
+    ymin = $ymin,
+    ymax = $ymax,
+    xtick =,
+    ytick =,
+    minor xtick = {$xmin,...,$xmax},
+    minor ytick = {$ymin,...,$ymax},
+    grid = minor,
+  ]
+  \addplot+[domain=$start:$stop] {$m*x+$b};
+  \addplot[soliddot] coordinates {($x1,$y1)} node[left] {\(($x1,$y1)\)};
+  \addplot[soliddot] coordinates {($x2,$y2)} node[left] {\(($x2,$y2)\)};
+  \addplot[guideline] coordinates {($x1,$y1) ($x2,$y1) ($x2,$y2)};
+\end{axis}
+END_TIKZ
 
 Context()->texStrings;
 BEGIN_SOLUTION
@@ -178,7 +147,7 @@ Next, we draw a slope triangle and find the "rise" and "run". In this problem, t
 
 $PAR
 $BCENTER
-\{ image( insertGraph($grCorrect), width=>400, height=>400, tex_size=>400, 
+\{ image($grCorrect, width=>300, tex_size=>400,
    extra_html_tags=>'title="$ALTtext" alt="$ALTtext"'  ) \}
 $ECENTER
 $PAR

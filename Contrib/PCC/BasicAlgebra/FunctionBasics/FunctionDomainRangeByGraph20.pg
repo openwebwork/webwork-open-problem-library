@@ -31,6 +31,9 @@ loadMacros(
   "MathObjects.pl",
   "PGML.pl",
   "PCCgraphMacros.pl",
+  "PGtikz.pl",
+  "ORCCA.pl",
+  "PCCmacros.pl",
   "PGcourse.pl",
 );
 
@@ -39,7 +42,7 @@ TEXT(beginproblem());
 
 Context("Numeric");
 Context()->noreduce('(-x)-y','(-x)+y');
-$refreshCachedImages=1;
+
 
 $m = non_zero_random(-3,3,1);
 $b = random(-4,4,1);
@@ -93,32 +96,28 @@ if ($m>0) {
 @xticks = @$xticks_ref;
 @yticks = @$yticks_ref;
 
-for my $i (0..0) {
-  $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
-   axes=>[0,0],
-   grid=>[$ticknum[0],$ticknum[1]],
-   size=>[xPixels(),yPixels()]
-  );
-  $gr[$i]->lb('reset');
-  for my $j (@xticks) {
-    if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label($j,0, $j,'black','center','top','large'));
-  }
+$left = ($leftOpen==1) ? 'hollowdot' : 'soliddot';
+$right = ($rightOpen==1) ? 'hollowdot' : 'soliddot';
 
-  for my $j (@yticks) {
-    if (abs($j)<10**(-10)) {next;}
-    $gr[$i]->lb( new Label(0, $j, $j,'black','right','middle','large'));
-  }
+$gr = createTikZImage();
+$gr->addToPreamble(latexImagePreamble());
+$gr->BEGIN_TIKZ
+\begin{axis}[
+    xmin = $min[0],
+    xmax = $max[0],
+    ymin = $min[1],
+    ymax = $max[1],
+    xtick =,
+    ytick =,
+    minor xtick =,
+    minor ytick =,
+  ]
+  \addplot+[-] coordinates {($domainLowX,$domainLowY) ($domainHighX,$domainHighY)};
+  \addplot[$left] coordinates {($domainLowX,$domainLowY)} node[below left] {\(($domainLowX,$domainLowY)\)};
+  \addplot[$right] coordinates {($domainHighX,$domainHighY)} node[below right] {\(($domainHighX,$domainHighY)\)};
+\end{axis}
+END_TIKZ
 
-  $gr[$i]->lb(new Label($max[0],0,'x','black','right','bottom','large'));
-  $gr[$i]->lb(new Label(0,$max[1],'y','black','left','top','large'));
-
-
-  if ($m>0) {$pos1 = 'top'; $pos2 = 'bottom'; $sign = -1;}
-  else {$pos1 = 'bottom'; $pos2 = 'top'; $sign = 1;}
-  $gr[$i]->lb( new Label($domainLowX,$domainLowY+$sign*$marksep[1]/8,"($domainLowX,$domainLowY)", 'blue','center',$pos1,'large'));
-  $gr[$i]->lb( new Label($domainHighX,$domainHighY-$sign*$marksep[1]/8,"($domainHighX,$domainHighY)", 'blue','center',$pos2,'large'));
-}
 
 $ALT = "graph of a linear segment from ($domainLowX,$domainLowY) to ($domainHighX,$domainHighY), with the point ($domainLowX,$domainLowY) $leftOpenClose and the point ($domainHighX,$domainHighY) $rightOpenClose";
 
@@ -127,21 +126,16 @@ Context("Interval");
 if (($leftOpen==1) && ($rightOpen==1)) {
    $intDomain = Compute("($domainLowX,$domainHighX)");
    $intRange = Compute("($rangeLowY,$rangeHighY)");
-   add_functions($gr[0], "$m*x+$b for x in ($domainLowX,$domainHighX) using color:blue and weight:1");
 } elsif (($leftOpen==0) && ($rightOpen==1)) {
    $intDomain = Compute("[$domainLowX,$domainHighX)");
    $intRange = $m>0 ? Compute("[$rangeLowY,$rangeHighY)") : Compute("($rangeLowY,$rangeHighY]");
-   add_functions($gr[0], "$m*x+$b for x in [$domainLowX,$domainHighX) using color:blue and weight:1");
 } elsif (($leftOpen==1) && ($rightOpen==0)) {
    $intDomain = Compute("($domainLowX,$domainHighX]");
    $intRange = $m>0 ? Compute("($rangeLowY,$rangeHighY]") : Compute("[$rangeLowY,$rangeHighY)");
-   add_functions($gr[0], "$m*x+$b for x in ($domainLowX,$domainHighX] using color:blue and weight:1");
 } else {
    $intDomain = Compute("[$domainLowX,$domainHighX]");
    $intRange = Compute("[$rangeLowY,$rangeHighY]");
-   add_functions($gr[0], "$m*x+$b for x in [$domainLowX,$domainHighX] using color:blue and weight:1");
 }
-
 
 ##############################################
 Context("LimitedNumeric");
@@ -152,7 +146,7 @@ A function is graphed.
 [@EnlargeImageStatementPGML()@]**
 
 
->>[@image(insertGraph($gr[0]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
+>>[@image($gr, width=>300, tex_size=>TeXscalar(), extra_html_tags=>"alt = '$ALT' title = '$ALT'") @]*<<
 
 [@KeyboardInstructions('Use interval notation.')@]**
 
@@ -164,23 +158,14 @@ END_PGML
 
 BEGIN_PGML_SOLUTION
 
-First, let's find the domain of this function. A function's domain is the collection of all its valid inputs. These are the [`x`] values for which we could use the graph to find an output.
-
-The end-point on the left side is [`([$domainLowX],[$domainLowY])`]. This point is [$leftOpenClose], so the value [`[$domainLowX]`] is [$leftInclusive] in the domain.
-
-The end-point on the right side is [`([$domainHighX],[$domainHighY])`]. This point is [$rightOpenClose], so the value [`[$domainHighX]`] is [$rightInclusive] in the domain.
+First, let's find the domain of this function. A function's domain is the collection of all its valid inputs. These are the [`x`] values for which we could use the graph to find an output. The end-point on the left side is [`([$domainLowX],[$domainLowY])`]. This point is [$leftOpenClose], so the value [`[$domainLowX]`] is [$leftInclusive] in the domain. The end-point on the right side is [`([$domainHighX],[$domainHighY])`]. This point is [$rightOpenClose], so the value [`[$domainHighX]`] is [$rightInclusive] in the domain.
 
 Any [`x`]-value in between [`[$domainLowX]`] and [`[$domainHighX]`] is a valid input. So the domain of the function is [`[$intDomain]`].
 
-----
 
-Next, let's find the range of this function. A function's range is the collection of possible outputs. These are the [`y`]-values of all of the points that we see shaded on the segment.
+Next, let's find the range of this function. A function's range is the collection of possible outputs. These are the [`y`]-values of all of the points that we see shaded on the segment. The end-point at the bottom is [`([$rangeLowX],[$rangeLowY])`]. This point is [$bottomOpenClose], so the value [`[$rangeLowY]`] is [$bottomInclusive] in the range. The end-point on the top is [`([$rangeHighX],[$rangeHighY])`]. This point is [$topOpenClose], so the value [`[$rangeHighY]`] is [$topInclusive] in the range.
 
-The end-point at the bottom is [`([$rangeLowX],[$rangeLowY])`]. This point is [$bottomOpenClose], so the value [`[$rangeLowY]`] is [$bottomInclusive] in the range.
-
-The end-point on the top is [`([$rangeHighX],[$rangeHighY])`]. This point is [$topOpenClose], so the value [`[$rangeHighY]`] is [$topInclusive] in the range.
-
-Every [`y`] value between [`[$rangeLowY]`] and [`[$rangeHighY]`] is a possible output, so the range of the function is [`[$intRange]`].
+Every [`y`]-value between [`[$rangeLowY]`] and [`[$rangeHighY]`] is a possible output, so the range of the function is [`[$intRange]`].
 
 END_PGML_SOLUTION
 

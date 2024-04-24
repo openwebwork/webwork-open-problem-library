@@ -1,0 +1,208 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+
+##############################################
+
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGgraphmacros.pl",
+  "PCCgraphMacros.pl",
+  "contextFraction.pl",
+  "parserPopUp.pl",
+  "niceTables.pl",
+  "PGcourse.pl",
+);
+
+$refreshCachedImages = 1;
+
+##############################################
+
+TEXT(beginproblem());
+Context("Fraction");
+Context()->reduction->set('(-x)-y'=>0);
+Context()->reduction->set('(-x)+y'=>0);
+
+sub output {
+  my ($n,$d) = shift->value;
+  if ($n==0) {return 0;}
+  if ($d==1) {
+    if ($n==1) {return "\pi";}
+      elsif ($n==-1) {return "-\pi";}
+      else {return "$n\pi";}
+  } else {
+    if ($n==1) {return "\frac{\pi}{$d}";}
+      elsif ($n==-1) {return "-\frac{\pi}{$d}";}
+      elsif ($n>0) {return "\frac{$n\pi}{$d}";}
+      else {
+        $Nn = -$n;
+        return "-\frac{$Nn\pi}{$d}";
+      }
+  }
+}
+
+$a = list_random(Fraction(1,2),Fraction(1,3),Fraction(2,3));
+
+$func = Formula("sin(x)")->reduce;
+$f[0] = Formula("sin($a*x)")->reduce;
+$aR = Real($a);
+$f[1] = Formula("sin(x/$aR)")->reduce;
+$f[2] = Formula("$a*sin(x)")->reduce;
+$f[3] = Formula("cos($a*x)")->reduce;
+
+$pf = (2/$a)->reduce;
+$pf1 = ($pf/4)->reduce;
+$pf2 = ($pf/2)->reduce;
+$pf3 = ($pf*3/4)->reduce;
+
+$fpf = (2*$a)->reduce;
+$fpf1 = ($fpf/4)->reduce;
+$fpf2 = ($fpf/2)->reduce;
+$fpf3 = ($fpf*3/4)->reduce;
+
+@alt = ();
+$alt[0] = "graph with the shape of y=sin(x) or y=cos(x), crossing the following 5 points in a period: (0,0), ($pf1 pi,1), ($pf2 pi,0), ($pf3 pi,-1), ($pf pi,0)";
+$alt[1] = "graph with the shape of y=sin(x) or y=cos(x), crossing the following 5 points in a period: (0,0), ($fpf1 pi,1), ($fpf2 pi,0), ($fpf3 pi,-1), ($fpf pi,0)";
+$alt[2] = "graph with the shape of y=sin(x) or y=cos(x), crossing the following 5 points in a period: (0,0), (pi/2,$a), (pi,0), (3pi/2,-$a), (2pi,0)";
+$alt[3] = "graph with the shape of y=sin(x) or y=cos(x), crossing the following 5 points in a period: (0,1), ($pf1 pi,0), ($pf2 pi,-1), ($pf3 pi,0), ($pf pi,1)";
+
+$bound = 2;
+
+$xmin = int(-pi);         #The viewing window
+$xmax = int(4*pi);
+$ymin = -$bound;
+$ymax = $bound;
+
+@graphs = ();             
+
+for ( my $i=0; $i<5; $i++ ) {
+   $graphs[$i] = init_graph($xmin,$ymin,$xmax,$ymax,
+          grid=>[$xmax-$xmin,$ymax-$ymin],axes=>[0,0],pixels=>[300,300]);
+
+   $graphs[$i]->lb('reset');
+   foreach my $j (int($xmin)..int($xmax)) {
+      $graphs[$i]->lb( new Label($xmin+0.3,  $j, $j,'black','center','middle'));
+      $graphs[$i]->lb( new Label($xmin+0.3, -$j,-$j,'black','center','middle'));
+      $graphs[$i]->lb( new Label($j,$ymin+0.3, $j,'black','center','middle'));
+      $graphs[$i]->lb( new Label( -$j,$ymin+0.3,-$j,'black','center','middle'));
+   }
+   $graphs[$i]->lb( new Label($xmax-0.3,0.2,'x','black','center','middle'));
+   $graphs[$i]->lb( new Label(0.2,$ymax-0.3,'y','black','center','middle'));
+
+  add_functions($graphs[$i], "$f[$i] for x in <$xmin,$xmax> " .
+    "using color:blue and weight:2");
+}
+
+sub shufflemap {
+    my $n = shift();
+    my $m = $n - 1;
+    my $zeroind;
+
+    my %map = ();
+ 
+    my @vals = (0..$m);
+    for ( my $i=0; $i<$m; $i++ ) {
+  my $j = random(0,$m-$i,1);
+  $map{$i} = $vals[$j];
+  $zeroind = $i if ( $map{$i} == 0 );
+  splice(@vals, $j, 1);
+    }
+    $map{$m} = $vals[0];
+    $zeroind = $m if ( $map{$m} == 0 );
+ 
+    return( { %map }, $zeroind );
+}
+
+($shuffle, $zero) = shufflemap(4);   #A random permutation function.  
+                                      #$zero is $shuffle(0), the index
+                                      #of the correct graph
+
+$pop = PopUp( [qw(? 1 2 3 4)], $zero+1 );
+
+
+
+$size = 180;
+$texsize = 100;
+
+##############################################
+
+BEGIN_PGML
+Choose the graph of the function [`f(x)=[$f[0]]`].
+
+    The correct graph is graph number [@ $pop->menu() @]*.
+
+[@EnlargeImageStatementPGML()@]**
+
+END_PGML
+
+BEGIN_TEXT
+$PAR
+
+\{LayoutTable(
+[
+['1.'.image(insertGraph( $graphs[ $shuffle->{0} ] ), tex_size=>$texsize,
+	      height=>$size, width=>$size, extra_html_tags=>'alt="$alt[$shuffle->{0}]" title = "$alt[$shuffle->{0}]"'),
+'2.'.image(insertGraph( $graphs[ $shuffle->{1} ] ), tex_size=>$texsize,
+	      height=>$size, width=>$size, extra_html_tags=>'alt="$alt[$shuffle->{1}]" title = "$alt[$shuffle->{1}]"'),
+'3.'.image(insertGraph( $graphs[ $shuffle->{2} ] ), tex_size=>$texsize,
+	      height=>$size, width=>$size, extra_html_tags=>'alt="$alt[$shuffle->{2}]" title = "$alt[$shuffle->{2}]"'),
+'4.'.image(insertGraph( $graphs[ $shuffle->{3} ] ), tex_size=>$texsize,
+	      height=>$size, width=>$size, extra_html_tags=>'alt="$alt[$shuffle->{3}]" title = "$alt[$shuffle->{3}]"'),]
+],
+align=>'>{\bfseries}l>{\bfseries}l>{\bfseries}l>{\bfseries}l',
+allcellcss=>'padding: 10px;',
+);
+\}
+
+END_TEXT
+
+
+##############################################
+
+ANS( $pop->cmp() );
+
+##############################################
+
+$answer = $zero+1;
+$pfShow = &output($pf);
+
+BEGIN_PGML_SOLUTION
+
+Compared to the graph of [`y=[$func]`], the graph of [`f(x)=[$f[0]]`] is a horizontal stretch by a factor of [`[$pf]`].
+
+If the function's formula is [`f(x)=A\sin(B(x-C))+D`], this formula calculates the function's new period:
+
+    [``\text{new period}=\frac{\text{old period}}{B}``]
+
+By this formula, we have:
+
+    [`` \text{new period} = \frac{2\pi}{[$a]} = [$pfShow]``]
+
+At the same time, the graph of [`y=[$func]`] passes [`(0,0)`].
+
+The correct answer is Graph [`[$answer]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

@@ -1,0 +1,134 @@
+# Plot the points along a quadratic function graph and then also plot the parabola.
+# Author: Alex Jordan
+
+###################################################################################
+# Setup and Macros
+###################################################################################
+DOCUMENT();
+
+loadMacros(
+	"PGstandard.pl",
+	"MathObjects.pl",
+	"PGML.pl",
+	"PGchoicemacros.pl",
+	"parserGraphTool.pl",
+        "PCCmacros.pl",
+	"PGcourse.pl",
+);
+
+###################################################################################
+# Variables and Formulas
+###################################################################################
+TEXT(beginproblem());
+
+Context("Numeric")->noreduce('(-x)-y','(-x)+y');
+($h,$k) = (-5..-1)[NchooseK(5,2)];
+$h *= list_random(-1,1);
+$f = Formula("x^2 - 2*$h x + (($h)^2+$k)")->reduce;
+
+@pts = ();
+push(@pts, "{point,(-8," . $f->eval(x=>-8) . ")}") if (abs($f->eval(x=>-8)) <= 7);
+for my $x (-7..7) {
+	push(@pts, "{point,($x," . $f->eval(x=>$x) . ")}") if (abs($f->eval(x=>$x)) <= 8);
+}
+push(@pts, "{point,(8," . $f->eval(x=>8) . ")}") if (abs($f->eval(x=>8)) <= 7);
+$n = scalar @pts;
+$points = join(',',@pts);
+
+$u = $h+1;
+$v = $f->eval(x=>$u);
+
+$gt = GraphTool($points.",{parabola,solid,vertical,($h,$k),($u,$v)}")->with(
+	availableTools => ["PointTool","VerticalParabolaTool"],
+	bBox => [-8, 8, 8, -8],
+	cmpOptions => {
+		list_checker => sub {
+			my ($correct, $student, $ans, $value) = @_;
+			my @errors;
+			# sort student points, parabolas, and other (which there shouldn't be any of)
+			my @studentpoints;
+			my @studentparabolas;
+			my @studentother;
+			for (@$student) {
+				if ($_->extract(1) eq 'point') {
+					push(@studentpoints, $_);
+				} elsif ($_->extract(1) eq 'parabola' && $_->extract(3) eq 'vertical') {
+					push(@studentparabolas, $_);
+				} else {
+					push(@studentother, $_);
+				}
+			}
+			push(@errors, "You haven't plotted any points.") unless (@studentpoints);
+			push(@errors, "You haven't plotted a curve yet.") unless (@studentparabolas);
+			push(@errors, "Your answer includes an object that is neither a point nor a vertical parabola.") if (@studentother);
+
+			my $extrapts = 0;
+			my $distinctpts = 0;
+			my $countpts = 0;
+			STUDENTPOINTS:
+			for my $j (@studentpoints) {
+				++$countpts;
+				if (($j->extract(2)->value)[1] != $f->eval(x=>(($j->extract(2)->value)[0]))) {
+					push(@errors, "The point graphed at " . $j->extract(2) . " is incorrect.");
+					$extrapts++;
+					next STUDENTPOINTS;
+				}
+				for my $i (0..($countpts-2)) {
+					next STUDENTPOINTS if ($j->extract(1) eq $student->[$i]->extract(1) && $j->extract(2) eq $student->[$i]->extract(2));
+				}
+				$distinctpts++;
+			}
+			push(@errors, "You've only plotted $distinctpts correct point".(($distinctpts > 1)?'s':'').".") if ($distinctpts > 0 && $distinctpts < $n);
+
+			my $extraprbs = 0;
+			my $distinctprbs = 0;
+			my $countprbs = 0;
+			STUDENTPARABOLAS:
+			for my $j (@studentparabolas) {
+				++$countprbs;
+				if (($j->extract(4) != Point($h,$k)) || ($j->extract(5)->value)[1] != $f->eval(x=>(($j->extract(5)->value)[0]))) {
+					push(@errors, "The parabola with vertex at " . $j->extract(4) . " passing through " . $j->extract(5) . " is incorrect.");
+					$extraprbs++;
+					next STUDENTPARABOLAS;
+				}
+				for my $i (0..($countprbs-2)) {
+					my ($hj,$kj) = $j->extract(4)->value;
+					my ($xj,$yj) = $j->extract(5)->value;
+					my ($hi,$ki) = $studentparabolas[$i]->extract(4)->value;
+					my ($xi,$yi) = $studentparabolas[$i]->extract(5)->value;
+					next STUDENTPARABOLAS if (
+						# has same vertex as an earlier parabola
+						($hj == $hi && $kj == $ki) && 
+						# assuming same vertex, yields same parabola
+						($yi - $ki)*($xj - $hj)**2 == ($yj - $kj)*($xi - $hi)**2
+					);
+				}
+				$distinctprbs++;
+			}
+
+			my $score = max(scalar(@{$correct}),scalar(@{$student}));
+			$score *= $distinctpts/$n;
+			$score /= 2 if ($extrapts);
+			$score /= 2 unless ($distinctprbs == 1);
+			$score /= 2 if ($extraprbs);
+			return ($score, @errors);
+		}
+	}
+);
+
+###################################################################################
+# Main Text
+###################################################################################
+
+BEGIN_PGML
+Plot points for the equation [`y=[$f]`].
+Then graph a curve that passes through these points.
+
+[@KeyboardInstructions('Plot as many points as can fit in this viewing window and have integer coordinates.')@]**
+ 
+[_]{$gt}
+END_PGML
+
+ENDDOCUMENT();
+
+

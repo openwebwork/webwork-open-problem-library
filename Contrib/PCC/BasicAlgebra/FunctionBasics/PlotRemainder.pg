@@ -1,0 +1,107 @@
+# Plot the points along a quadratic function graph and then also plot the parabola.
+# Author: Alex Jordan
+
+###################################################################################
+# Setup and Macros
+###################################################################################
+DOCUMENT();
+
+loadMacros(
+	"PGstandard.pl",
+	"MathObjects.pl",
+	"PGML.pl",
+	"PGchoicemacros.pl",
+	"parserGraphTool.pl",
+        "PCCmacros.pl",
+	"PGcourse.pl",
+);
+
+###################################################################################
+# Variables and Formulas
+###################################################################################
+TEXT(beginproblem());
+
+Context("Numeric")->noreduce('(-x)-y','(-x)+y');
+$m = random(3,5,1);
+
+package NewFunc;
+our @ISA = qw(Parser::Function::numeric2);
+
+sub modm {
+  shift; my $x = shift; my $mod = shift;
+  return $x % $mod;
+}
+
+package main;
+
+Context()->functions->add(modm => {class => 'NewFunc'});
+$f = Formula("modm(x,$m)");
+
+@pts = ();
+for my $x (0..7) {
+	push(@pts, "{point,($x," . $f->eval(x=>$x) . ")}") if (abs($f->eval(x=>$x)) <= 6);
+}
+$n = scalar @pts;
+$points = join(',',@pts);
+
+$gt = GraphTool($points)->with(
+	availableTools => ["PointTool"],
+	bBox => [-0.5, 6, 7.5, -0.5],
+	cmpOptions => {
+		list_checker => sub {
+			my ($correct, $student, $ans, $value) = @_;
+			my @errors;
+			# sort student points, and other (which there shouldn't be any of)
+			my @studentpoints;
+			my @studentother;
+			for (@$student) {
+				if ($_->extract(1) eq 'point') {
+					push(@studentpoints, $_);
+				} else {
+					push(@studentother, $_);
+				}
+			}
+			push(@errors, "You haven't plotted any points.") unless (@studentpoints);
+			push(@errors, "Your answer includes an object that is not a point.") if (@studentother);
+
+			my $extrapts = 0;
+			my $distinctpts = 0;
+			my $countpts = 0;
+			STUDENTPOINTS:
+			for my $j (@studentpoints) {
+				++$countpts;
+				if (($j->extract(2)->value)[1] != $f->eval(x=>(($j->extract(2)->value)[0]))) {
+					push(@errors, "The point graphed at " . $j->extract(2) . " is incorrect.");
+					$extrapts++;
+					next STUDENTPOINTS;
+				}
+				for my $i (0..($countpts-2)) {
+					next STUDENTPOINTS if ($j->extract(1) eq $student->[$i]->extract(1) && $j->extract(2) eq $student->[$i]->extract(2));
+				}
+				$distinctpts++;
+			}
+			push(@errors, "You've only plotted $distinctpts correct point".(($distinctpts > 1)?'s':'').".") if ($distinctpts > 0 && $distinctpts < $n);
+
+			my $score = max(scalar(@{$correct}),scalar(@{$student}));
+			$score *= $distinctpts/$n;
+			$score /= 2 if ($extrapts);
+			return ($score, @errors);
+		}
+	}
+);
+
+###################################################################################
+# Main Text
+###################################################################################
+
+BEGIN_PGML
+Plot points for the funciton [`f`] where [`f(x)`] is the remainder when you divide [`x`] by [`[$m]`].
+
+[@KeyboardInstructions('Plot as many points as can fit in this viewing window and have integer coordinates.')@]**
+ 
+[_]{$gt}
+END_PGML
+
+ENDDOCUMENT();
+
+

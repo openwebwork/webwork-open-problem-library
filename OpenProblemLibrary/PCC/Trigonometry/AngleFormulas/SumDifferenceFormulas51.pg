@@ -1,0 +1,540 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "extraAnswerEvaluators.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "unionTables.pl",
+  "niceTables.pl",
+  "AnswerFormatHelp.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+sub PF {PGML::Format(@_)};
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+
+# Input is a number n. Output is ($out, $in)
+# in the simplified form of $out*sqrt($in).
+sub radSimplify {
+   my $n = shift;
+   my $out = 1;
+   my $in = $n;
+   my $prime = 2;
+   my $lastPrime = -1;
+   while (1) {
+      while ($n%$prime==0) {
+         if ($prime == $lastPrime) {
+            $out *= $prime;
+            $lastPrime = -1;
+            $in = $in/$prime**2;
+         } else {
+            $lastPrime = $prime;
+         }
+         $n=$n/$prime;
+      }
+      if ($n==1) {return ($out, $in);}
+      $prime = &nextPrime($prime);
+   }
+}
+
+#Input is $outT*sqrt($inT) / $outB*sqrt($inB)
+#output is rationalized $num*sqrt($in1)/$den
+sub rationalize {
+  my ($outT, $inT, $outB, $inB) = @_;
+  my ($out1, $in1) = &radSimplify($inT*$inB);
+  Context("Fraction");
+  my ($num,$den) = Fraction($outT*$out1,$outB*$inB)->reduce->value;
+  Context("LimitedRadical");
+  if ($den==1) {
+    if ($num==1) {
+      return ($in1==1) ? Formula("1") : Formula("sqrt($in1)");
+    } elsif ($num==-1) {
+      return ($in1==1) ? Formula("-1") : Formula("-sqrt($in1)");
+    } else {
+      return ($in1==1) ? Formula("$num") : Formula("$num*sqrt($in1)");
+    }
+  } else {
+    if ($num==1) {
+      return ($in1==1) ? Formula("1/$den") : Formula("sqrt($in1)/$den");
+    } elsif ($num==-1) {
+      return ($in1==1) ? Formula("-1/$den") : Formula("-sqrt($in1)/$den");
+    } else {
+      return ($in1==1) ? Formula("$num/$den") : Formula("$num*sqrt($in1)/$den");
+    }
+  }
+}
+
+
+  do {
+    do {
+      $height0Out = -random(1,3,1);
+      $height0In = list_random(1,2,3);
+      $hypotenuse0Out = random(int(abs($height0Out)*$height0In**2)+2,int(abs($height0Out)*$height0In**2)+10,1);
+    } until (gcd($height0Out,$hypotenuse0Out)==1);
+    $hypotenuse0In = 1;
+    ($base0Out,$base0In) = &radSimplify($hypotenuse0Out**2-$height0Out**2*$height0In);
+    ($out,$in) = &radSimplify(abs($height0In*$base0In));
+  } until
+     (!($base0In==1 && $height0In==1 && $hypotenuse0In==1))
+     && !(($base0Out>0)
+     && ($height0Out>0))
+     && ($in<=5)
+     && (sqrt($height0In*$base0In) != int(sqrt($height0In*$base0In)));
+
+  $base0Out = $base0Out*random(-1,1,2);
+  if ($base0Out*$height0Out>0) {
+    $Q0 = ($base0Out>0) ? "I" : "III";
+    $int0 = ($base0Out>0) ? "\left(0,\frac{\pi}{2}\right)" : "\left(\pi,\frac{3\pi}{2}\right)";
+  } else {
+    $Q0 = ($base0Out>0) ? "IV" : "II";
+    $int0 = ($base0Out>0) ? "\left(\frac{3\pi}{2},2\pi\right)" : "\left(\frac{\pi}{2},\pi\right)";
+  }
+
+Context("LimitedRadical");
+  if ($base0In==1) {
+    $base0 = $base0Out;
+    $absBase = abs($base0Out);
+  } elsif (abs($base0Out)==1) {
+    $base0 = ($base0Out>0) ? Formula("sqrt($base0In)") : Formula("-sqrt($base0In)");
+    $absBase = Formula("sqrt($base0In)");
+  } else {
+    $base0 = Formula("$base0Out*sqrt($base0In)");
+    $absBase0Out = abs($base0Out);
+    $absBase0 = Formula("$absBase0Out*sqrt($base0In)");
+  }
+
+  if ($height0In==1) {
+    $height0 = $height0Out;
+    $absHeight0 = abs($height0Out);
+  } elsif (abs($height0Out)==1) {
+    $height0 = ($height0Out>0) ? Formula("sqrt($height0In)") : Formula("-sqrt($height0In)");
+    $absHeight0 = Formula("sqrt($height0In)");
+  } else {
+    $height0 = Formula("$height0Out*sqrt($height0In)");
+    $absHeight0Out = abs($height0Out);
+    $absHeight0 = Formula("$absHeight0Out*sqrt($height0In)");
+  }
+
+  $hypotenuse0 = $hypotenuse0Out;
+
+  $sine0 = &rationalize($height0Out,$height0In,$hypotenuse0Out,$hypotenuse0In);
+  $cosine0 = &rationalize($base0Out,$base0In,$hypotenuse0Out,$hypotenuse0In);
+  $tangent0 = &rationalize($height0Out,$height0In,$base0Out,$base0In);
+
+  @trigs0 = ($sine0,$cosine0,$tangent0);
+
+Context("Numeric");
+
+$r = 5;
+$P0x = $r*$base0Out*sqrt($base0In)/($hypotenuse0Out*sqrt($hypotenuse0In));
+$P0y = $r*$height0Out*sqrt($height0In)/($hypotenuse0Out*sqrt($hypotenuse0In));
+
+@graph = ();
+$graph[0] = init_graph(-9,-9,9,9,'axes'=>[0,0],'grid'=>[1,1]);
+$graph[0]->lb('reset');
+
+$xfuncAlpha = sub { my $t = shift();
+  return $r*cos($t); };
+$yfuncAlpha = sub { my $t = shift();
+  return $r*sin($t); };
+$fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[0] );
+$fnAlpha->domain(0,2*pi);
+
+$graph[0]->stamps(closed_circle( $P0x, $P0y, red ));
+$graph[0]->moveTo(0,0);
+$graph[0]->lineTo($P0x,$P0y,red,2);
+$graph[0]->lineTo($P0x,0,red,2);
+$graph[0]->lineTo(0,0,red,2);
+
+$xShift = ($P0x>0) ? -0.2 : 0.2;
+$yShift = ($P0y>0) ? 0.2 : -0.42;
+$graph[0]->moveTo($P0x,$yShift);
+$graph[0]->lineTo($P0x+$xShift,$yShift,red,2);
+$graph[0]->lineTo($P0x+$xShift,0,red,2);
+
+$LORHeight = ($P0x>0) ? "left" : "right";
+$TOBBase = ($P0y>0) ? "top" : "bottom";
+$LORHyp = ($P0x>0) ? "right" : "left";
+$TOBHyp = ($P0y>0) ? "bottom" : "top";
+$LORShift = ($P0x>0) ? 0.2 : -0.2;
+$graph[0]->lb(new Label($P0x+$LORShift,$P0y/2,"$height0",'red',$LORHeight,'middle',large));
+$graph[0]->lb(new Label($P0x/2,0,"$base0",'red','center',$TOBBase,large));
+$graph[0]->lb(new Label($P0x/2,$P0y/2,"$hypotenuse0",'red',$LORHyp,$TOBHyp,large));
+$graph[0]->lb(new Label($P0x,$P0y,"P",'red',$LORHeight,$TOBHyp,large));
+
+
+$alt[0] = "This is the graph of a circle with point P on the circle. A right triangle is formed at vertices (0,0), P($base0,$height0) and ($base0,0). The base is marked as $base0, height marked as $height0 and hypotenuse marked as $hypotenuse0.";
+
+$fig0 = image(insertGraph($graph[0]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[0]' title = '$alt[0]' ");
+
+
+Context("LimitedFraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+
+@triples = (
+  [3,4,5],
+);
+$in = 0;
+
+$quadrant = random(2,4,1);
+
+if ($quadrant==2) {
+  my $i = random(0,1,1);
+  my $j = ($i+1)%2;
+  $base1 = -$triples[$in][$i];
+  $height1 = $triples[$in][$j];
+  $int1 = "\left(\frac{\pi}{2},\pi\right)";
+  $Q1 = "II";
+} elsif ($quadrant==3) {
+  my $i = random(0,1,1);
+  my $j = ($i+1)%2;
+  $base1 = -$triples[$in][$i];
+  $height1 = -$triples[$in][$j];
+  $Q1 = "III";
+  $int1 = "\left(\pi,\frac{3\pi}{2}\right)";
+} else {
+  my $i = random(0,1,1);
+  my $j = ($i+1)%2;
+  $base1 = $triples[$in][$i];
+  $height1 = -$triples[$in][$j];
+  $Q1 = "IV";
+  $int1 = "\left(\frac{3\pi}{2},2\pi\right)";
+}
+$hypotenuse1 = $triples[$in][2];
+$absBase1 = abs($base1);
+$absHeight1 = abs($height1);
+
+#sine, cosine, tangent, cosecant, secant cotangent
+@trigs1 = (
+  Fraction($height1,$hypotenuse1),
+  Fraction($base1,$hypotenuse1),
+  Fraction($height1,$base1),
+);
+
+$r = 5;
+$P1x = Fraction($r*$base1,$hypotenuse1)->reduce;
+$P1y = Fraction($r*$height1,$hypotenuse1)->reduce;
+
+$graph[1] = init_graph(-9,-9,9,9,'axes'=>[0,0],'grid'=>[1,1]);
+$graph[1]->lb('reset');
+
+$xfuncAlpha = sub { my $t = shift();
+  return $r*cos($t); };
+$yfuncAlpha = sub { my $t = shift();
+  return $r*sin($t); };
+$fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[1] );
+$fnAlpha->domain(0,2*pi);
+
+$graph[1]->stamps(closed_circle( Real($P1x), Real($P1y), red ));
+$graph[1]->moveTo(0,0);
+$graph[1]->lineTo(Real($P1x),Real($P1y),red,2);
+$graph[1]->lineTo(Real($P1x),0,red,2);
+$graph[1]->lineTo(0,0,red,2);
+
+$xShift = ($P1x>0) ? -0.4 : 0.4;
+$yShift = ($P1y>0) ? 0.4 : -0.4;
+$graph[1]->moveTo(Real($P1x),$yShift);
+$graph[1]->lineTo(Real($P1x)+$xShift,$yShift,red,2);
+$graph[1]->lineTo(Real($P1x)+$xShift,0,red,2);
+
+$LORHeight = ($P1x>0) ? "left" : "right";
+$TOBBase = ($P1y>0) ? "top" : "bottom";
+$LORHyp = ($P1x>0) ? "right" : "left";
+$TOBHyp = ($P1y>0) ? "bottom" : "top";
+$graph[1]->lb(new Label(Real($P1x),Real($P1y)/2,"$height1",'red',$LORHeight,'middle',large));
+$graph[1]->lb(new Label(Real($P1x)/2,0,"$base1",'red','center',$TOBBase,large));
+$graph[1]->lb(new Label(Real($P1x)/2,Real($P1y)/2,"$hypotenuse1",'red',$LORHyp,$TOBHyp,large));
+$graph[1]->lb(new Label(Real($P1x),Real($P1y),"P($base1,$height1)",'red',$LORHeight,$TOBHyp,large));
+
+
+$alt[1] = "This is the graph of a circle with point P($base1,$height1) on the circle. A right triangle is formed at vertices (0,0), ($base1,$height1) and ($base1,0). The base is marked as $base1, height marked as $height1 and hypotenuse marked as $hypotenuse1.";
+
+$fig1 = image(insertGraph($graph[1]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[1]' title = '$alt[1]' ");
+
+
+#Input is $outT*sqrt($inT) / $outB*sqrt($inB)
+#output is ($num,$in1,$den) in $num*sqrt($in1)/$den
+sub tanNums {
+  my ($outT, $inT, $outB, $inB) = @_;
+  my ($out1, $in1) = &radSimplify($inT*$inB);
+  Context("Fraction");
+  my ($num,$den) = Fraction($outT*$out1,$outB*$inB)->reduce->value;
+  return ($num,$in1,$den);
+}
+
+sub produceLine0 {
+  my $s = shift;
+  my $line0Num = $trigs0[2]->TeX;
+  my ($tan0Out,$tan0In,$tan0Den) = &tanNums($height0Out,$height0In,$base0Out,$base0In);
+
+  my $numS0 = "";
+  my $tN = (-$trigs1[2])->reduce;
+  if ($s eq "+") {
+    $numS0 = ($trigs1[2]>0) ? "+".$trigs1[2]->TeX : "-".$tN->TeX;
+  } else {
+    $numS0 = ($trigs1[2]>0) ? "-".$trigs1[2]->TeX : "+".$tN->TeX;
+  }
+  $line0Num .= $numS0;
+
+  $line0Den = "";
+  Context("Fraction");
+  my ($num1,$den1) = Fraction($tan0Out*$height1,$tan0Den*$base1)->reduce->value;
+  $line0Den .= "1";
+  $s1 = ($s eq "+") ? "-" : "+";
+  if ($num1>0) {
+    if ($num1==1) {$line0Den .= "$s1\frac{\sqrt{$tan0In}}";}
+      else {$line0Den .= "$s1\frac{$num1\sqrt{$tan0In}}";}
+  } else {
+    if ($num1==-1) {$line0Den .= "$s\frac{\sqrt{$tan0In}}";}
+      else {
+        $num1N = -$num1;
+        $line0Den .= "$s\frac{$num1N\sqrt{$tan0In}}";
+      }
+  }
+  $line0Den .= "{$den1}";
+  return (
+    $line0Num,
+    $line0Den,
+    $tan0In,
+    Fraction($tan0Out,$tan0Den),
+    Fraction($height1,$base1),
+    Fraction($num1,$den1)
+  );
+}
+
+sub produceLine1 {
+  my ($lineNum,$lineDen,$f1,$f2,$f3) = @_;
+  my ($f1n,$f1d) = $f1->value;
+  my ($f2n,$f2d) = $f2->value;
+  my ($f3n,$f3d) = $f3->value;
+
+  my $com = lcm(lcm($f1d,$f2d),$f3d);
+  $r = "\frac{\left(".$lineNum."\right)\cdot$com}{\left(".$lineDen."\right)\cdot$com}";
+  return ($r,$com);
+}
+
+sub produceLine2 {
+  my ($f1,$f2,$f3,$sq,$com,$s) = @_;
+  my ($f1n,$f1d) = $f1->value;
+  my ($f2n,$f2d) = $f2->value;
+  my ($f3n,$f3d) = $f3->value;
+
+  my $lineNum = "";
+  my $a = $com/$f1d*$f1n;
+  my $b = $com/$f2d*$f2n;
+  my $sN = ($s eq "+") ? "-" : "+";
+  my $bN = -$b;
+  if (abs($a)!=1) {
+    $lineNum .= ($b>0) ? "$a\sqrt{$sq}$s$b" : "$a\sqrt{$sq}$sN$bN";
+  } else {
+    $lineNum .= ($a==1) ? "\sqrt{$sq}$s$b" : "-\sqrt{$sq}$sN$bN";
+  }
+  my $lineDen = "";
+  my $c = $com/$f3d*$f3n;
+  my $cN = -$c;
+  if (abs($c)!=1) {
+    $lineDen .= ($c>0) ? "$com$sN$c\sqrt{$sq}" : "$com$s$cN\sqrt{$sq}";
+  } else {
+    $lineDen .= ($c==1) ? "$com$sN\sqrt{$sq}" : "$com$s\sqrt{$sq}";
+  }
+  return ($lineNum,$lineDen,$a,$b,$com,$c);
+}
+
+sub produceLine3 {
+  my ($num,$den,$c,$d,$sq,$s) = @_;
+  my $sN = ($s eq "+") ? "-" : "+";
+  my $conj = "";
+
+  if (abs($d)==1) {
+    $conj = ($d>0) ? "\left($c$s\sqrt{$sq}\right)" : "\left($c$sN\sqrt{$sq}\right)";
+  } else {
+    $dN = -$d;
+    $conj = ($d>0) ? "\left($c$s$d\sqrt{$sq}\right)" : "\left($c$sN$dN\sqrt{$sq}\right)";
+  }
+  return "\frac{\left($num\right)\cdot$conj}{\left($den\right)\cdot$conj}";
+}
+
+sub produceLine4 {
+  my ($a,$b,$c,$d,$sq,$s) = @_;
+  my $g = ($c)**2-($d)**2*$sq;
+  my $e = $a*$d*$sq+$b*$c;
+  my $f = $a*$c+$b*$d;
+  if ($s ne "+") {$e=-$e;}
+  my $r = "\frac{$e+$f\sqrt{$sq}}{$g}";
+  if ($g<0) {
+    $gN = -$g; $eN = -$e; $fN = -$fN;
+    $r .= "\\ &= \frac{$e+$f\sqrt{$sq}}{$g}";
+  }
+  my $com = gcd($g,gcd($e,$f));
+  my $h = $e/$com;
+  my $i = $f/$com;
+  my $j = $g/$com;
+  my $reducedNum = "";
+  if ($com!=1) {
+    if (abs($i)==1) {
+      $reducedNum = ($i>0) ? "$h+\sqrt{$sq}" : "$h-\sqrt{$sq}";
+      $r .=  "\\ &= \frac{$com\left($reducedNum\right)}{$g}";
+    } else {
+      $reducedNum = ($i>0) ? "$h+$i\sqrt{$sq}" : "$h$i\sqrt{$sq}";
+      $r .=  "\\ &= \frac{$com\left($reducedNum\right)}{$g}";
+    }
+    $r .= "\\ &= \frac{$reducedNum}{$j}";
+  }
+  Context("Numeric");
+  my $ans = Compute("($h+$i*sqrt($sq))/$j");
+  Context("LimitedRadical");
+  my $ansShow = Formula("($h+$i*sqrt($sq))/$j");
+  return ($r,$ans,$ansShow);
+}
+
+($line0Num,$line0Den,$sq,$frac1,$frac2,$frac3) = produceLine0("+");
+$line0 = "\frac{".$line0Num."}{".$line0Den."}";
+($line1,$com) = produceLine1($line0Num,$line0Den,$frac1,$frac2,$frac3);
+($line2Num,$line2Den,$a,$b,$c,$d) = produceLine2($frac1,$frac2,$frac3,$sq,$com,"+");
+$line2 = "\frac{".$line2Num."}{".$line2Den."}";
+$line3 = produceLine3($line2Num,$line2Den,$c,$d,$sq,"+");
+($line4,$tanSum,$tanSumShow) = produceLine4($a,$b,$c,$d,$sq,"+");
+
+($line10Num,$line10Den,$sq,$frac1,$frac2,$frac3) = produceLine0("-");
+$line10 = "\frac{".$line10Num."}{".$line10Den."}";
+($line11,$com) = produceLine1($line10Num,$line10Den,$frac1,$frac2,$frac3);
+($line12Num,$line12Den,$a,$b,$c,$d) = produceLine2($frac1,$frac2,$frac3,$sq,$com,"-");
+$line12 = "\frac{".$line12Num."}{".$line12Den."}";
+$line13 = produceLine3($line12Num,$line12Den,$c,$d,$sq,"-");
+($line14,$tanDif,$tanDifShow) = produceLine4($a,$b,$c,$d,$sq,"-");
+
+##############################################################
+
+BEGIN_PGML
+
+If it's given that
+
+* [`\sin(\alpha)=[$trigs0[0]]`] and [`\alpha\in[$int0]`],
+* [`\cos(\beta)=[$trigs1[1]]`] and [`\beta\in[$int1]`],
+
+evaluate the following.
+
+[@KeyboardInstructions(
+"\n"
+.'* Use [|sqrt()|]* for the square root symbol. For example: [`\\sqrt{2}=`][|sqrt(2)|]*.'
+."\n"
+.'* Rationalize the denominator if needed.'
+)@]**
+
+a) [`\tan(\alpha+\beta)=`][_____________]{$tanSum->cmp(correct_ans_latex_string=>($tanSumShow->TeX))}
+
+a) [`\tan(\alpha-\beta)=`][_____________]{$tanDif->cmp(correct_ans_latex_string=>($tanDifShow->TeX))}
+
+END_PGML
+
+##############################################################
+
+$showPartialCorrectAnswers = 1;
+
+
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+To calculate [`\tan(\alpha+\beta)`], we will use the formula
+
+    [`` \tan(\alpha+\beta) = \frac{\tan(\alpha)+\tan(\beta)}{1-\tan(\alpha)\tan(\alpha)} ``]
+
+[`\sin(\alpha)`] and [`\cos(\beta)`] are given. We need to find the values of [`\tan(\alpha)`] and [`\tan(\beta)`].
+
+###Calculating [`\tan(\alpha)`]
+
+It's given that [`\sin(\alpha)=[$trigs0[0]]`] and [`\alpha\in[$int0]`]. We can sketch [`\alpha`] in a non-Unit Circle:
+
+>>[@ $fig0 @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+The triangle's base is calculated by [`\sqrt{([$hypotenuse0])^2-\left([$height0]\right)^2}=[$absBase0]`].
+
+We can see [`\tan(\alpha)=\frac{[$height0]}{[$base0]}=[$trigs0[2]]`].
+
+###Calculating [`\tan(\beta)`]
+
+It's given that [`\cos(\beta)=[$trigs1[1]]`] and [`\beta\in[$int1]`]. We can sketch [`\beta`] in a non-Unit Circle:
+
+>>[@ $fig1 @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+The triangle's height is calculated by [`\sqrt{([$hypotenuse1])^2-\left([$base1]\right)^2}=[$absHeight1]`].
+
+We can see [`\tan(\beta)=[$trigs1[2]]`].
+
+###Calculating [` \tan(\alpha+\beta) `]
+
+    [``\begin{aligned}
+  \tan(\alpha+\beta) &= \frac{\tan(\alpha)+\tan(\beta)}{1-\tan(\alpha)\tan(\alpha)} \\
+  &= \frac{\left([$trigs0[2]]\right)+\left([$trigs1[2]]\right)}{1-\left([$trigs0[2]]\right)\left([$trigs1[2]]\right)} \\
+  &= [$line0] \\
+  &= [$line1] \\
+  &= [$line2] \\
+  &= [$line3] \\
+  &= [$line4]
+    \end{aligned}``]
+
+###Calculating [` \tan(\alpha-\beta) `]
+
+    [``\begin{aligned}
+  \tan(\alpha-\beta) &= \frac{\tan(\alpha)-\tan(\beta)}{1+\tan(\alpha)\tan(\alpha)} \\
+  &= \frac{\left([$trigs0[2]]\right)-\left([$trigs1[2]]\right)}{1+\left([$trigs0[2]]\right)\left([$trigs1[2]]\right)} \\
+  &= [$line10] \\
+  &= [$line11] \\
+  &= [$line12] \\
+  &= [$line13] \\
+  &= [$line14]
+    \end{aligned}``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

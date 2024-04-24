@@ -1,0 +1,226 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "parserOneOf.pl",
+  "PCCmacros.pl",
+  "contextFraction.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Fraction");
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+
+%ab = (
+  Formula("1/2") => [Formula("2"),-Formula("1")],
+  -Formula("1/2") => [Formula("2"),Formula("1")],
+  Formula("1") => [Formula("1"),-Formula("1")],
+  -Formula("1") => [Formula("1"),Formula("1")],
+);
+
+@sinV = ();
+$sinV[0] = list_random(Formula("1"),-Formula("1"),"DNE");
+if ($sinV[0] eq "DNE") {
+  $sinV[0] = random(2,5,1)*random(-1,1,2);
+  $ab{Formula($sinV[0])} = [Formula("1"),-Formula("$sinV[0]")];
+}
+$sinV[1] = list_random(Formula("1/2"),-Formula("1/2"));
+
+#$start[0][#] are points in first graph with inverse trig values
+#$start[1][#] are points in second graph with solutions
+@start = ();
+if (abs($sinV[0])==1) 
+  {$start[0][0]=specialAngle(arcsin(Compute($sinV[0])));}
+$start[0][scalar(@{$start[0]})] = specialAngle(arcsin(Compute($sinV[1])));
+if ($start[0][scalar(@{$start[0]})-1]>0) {
+    $start[0][scalar(@{$start[0]})]=specialAngle(pi-Compute($start[0][scalar(@{$start[0]})-1]));
+  } else {
+    $start[0][scalar(@{$start[0]})]=specialAngle(-pi-Compute($start[0][scalar(@{$start[0]})-1]));
+  }
+
+
+$a0 = Compute($ab{$sinV[0]}->[0]);
+$b0 = Compute($ab{$sinV[0]}->[1]);
+$a1 = Compute($ab{$sinV[1]}->[0]);
+$b1 = Compute($ab{$sinV[1]}->[1]);
+$b0N = Compute(-$b0);
+$b1N = Compute(-$b1);
+
+$factor0 = ($b0>0) ? "\sin(x)+$b0" : "\sin(x)$b0";
+$factor1 = ($b1>0) ? "2\sin(x)+1" : "2\sin(x)-1";
+
+$c = Compute($a0*$b1+$a1*$b0);
+$d = Compute($b0*$b1);
+if (abs($c)==1) {
+  $quadEquation = ($c>0) ? "2\sin^2(x)+\sin(x)+$d" : "2\sin^2(x)-\sin(x)+$d";
+  $left = ($c>0) ? "\sin(x)+2" : "-\sin(x)+2";
+} else {
+  $quadEquation = "2\sin^2(x)+$c\sin(x)+$d";
+  $left = "$c\sin(x)+2";
+}
+$right = "2\cos^2(x)-$d";
+
+@points = "";
+if ($sinV[0]==1) {
+  $points[0] .= "pi/2, $start[0][1] and $start[0][2]";
+} elsif ($sinV[0]==-1) {
+  $points[0] .= "-pi/2, $start[0][1] and $start[0][2]";
+} else {
+  $points[0] .= "$start[0][0] and $start[0][1]";
+}
+
+for my $j (0..scalar(@{$start[0]})-1) {
+  for my $i (-2..2) {
+    my $c = Compute($start[0][$j]->string)+2*$i*pi;
+    if ( ($c>=0) && ($c<2*pi) )  {
+      $start[1][scalar(@{$start[1]})] = specialAngle($c);
+      $points[1] .= $start[1][scalar(@{$start[1]})-1]->string.", ";
+    }
+  }
+}
+$points[1] = substr($points[1],0,length($points[1])-2);
+$ans = List(@{$start[1]});
+
+$r = 5;
+for my $i (0..1) {
+  $graph[$i] = init_graph(-6,-6,6,6,'axes'=>[0,0],'grid'=>[1,1]);
+  $graph[$i]->lb('reset');
+
+  $xfuncAlpha = sub { my $t = shift();
+    return $r*cos($t); };
+  $yfuncAlpha = sub { my $t = shift();
+    return $r*sin($t); };
+  $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[$i] );
+  $fnAlpha->domain(0,2*pi);
+
+  for my $j (0..scalar(@{$start[$i]})-1) {
+    $Px = Compute("$r*cos($start[$i][$j])")->reduce;
+    $Py = Compute("$r*sin($start[$i][$j])")->reduce;
+    $graph[$i]->stamps(closed_circle($Px,$Py,red));
+    $graph[$i]->moveTo(0,0);
+    $graph[$i]->lineTo($Px,$Py,red,2);
+    $graph[$i]->lineTo($Px,0,red,2);
+    $graph[$i]->lineTo(0,0,red,2);
+
+    if ( ($Px!=0) && ($Py!=0) ) {
+      $xShift = ($Px>0) ? -0.4 : 0.4;
+      $yShift = ($Py>0) ? 0.4 : -0.4;
+      $graph[$i]->moveTo($Px,$yShift);
+      $graph[$i]->lineTo($Px+$xShift,$yShift,red,2);
+      $graph[$i]->lineTo($Px+$xShift,0,red,2);
+    }
+
+    $td = $Py>=0 ? 'bottom' : 'top';
+    $graph[$i]->lb(new Label($Px,$Py,"$start[$i][$j]",'red','center',$td,large));
+  }
+
+  $alt[$i] = "This is the graph of a circle with points $points[$i] on the circle.";
+
+  $fig[$i] = image(insertGraph($graph[$i]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[$i]' title = '$alt[$i]' ");
+}
+
+
+
+
+##############################################################
+
+BEGIN_PGML
+
+Solve the equation
+
+    [``[$left]=[$right] \text{ where }x\in[0,2\pi)``]
+
+[@KeyboardInstructions(
+"\n"
+.'* Enter multiple answers separated by commas, as in [|pi/4, 3pi/4|]*.'
+."\n"
+.'* Use [|pi|]* to represent [`\pi`].'
+."\n"
+.'* Type [|no solution|]* if there is no solution.'
+)@]**
+
+    [`x=`][________________________________________]{$ans}
+    
+    
+END_PGML
+
+##############################################################
+
+$right1 = "2\left(1-\sin^2(x)\right)-$d";
+$right2 = "2-2\sin^2(x)-$d";
+
+$s1 = "";
+if (abs($b0N)>1) {
+  $s1 = "\sin^{-1}($b0N) \text{ has no solution.}";
+  $s2 = "x=\sin^{-1}\left(".$sinV[1]->TeX."\right)";
+} else {
+  $s2 = "x=\sin^{-1}\left(".$sinV[1]->TeX."\right) \text{ or } x=\sin^{-1}($b0N)";
+}
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+When there are [`\sin(x)`] and [`\cos(x)`] in the same equation, we should try to use the formula [`\sin^2(x)+\cos^2(x)=1`] to remove one of them.
+
+    [``\begin{aligned}
+  [$left] &= [$right] \\
+  [$left] &= [$right1] \\
+  [$left] &= [$right2] \\
+  [$quadEquation] &= 0 \\
+  ([$factor1])([$factor0]) &= 0 \\
+  [$factor1] &=0 \text{ or } [$factor0]=0 \\
+  \sin(x) &= [$sinV[1]] \text{ or } \sin(x) = [$b0N] \\
+  x &= \sin^{-1}\left([$sinV[1]]\right) \text{ or } x=\sin^{-1}([$b0N]) \\
+    \end{aligned}``]
+    
+Recall that the range of [`\sin^{-1}(x)`] is [`\left[ -\frac{\pi}{2},\frac{\pi}{2} \right] `]. [`[$s1]`]
+
+On the Unit Circle, we need to identify all values which make [`[$s2]`] true:
+
+>>[@ $fig[0] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+We need to find corresponding values in the range of [`[0,2\pi)`]:
+
+>>[@ $fig[1] @]*<<
+
+Solutions are [`[$ans]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
