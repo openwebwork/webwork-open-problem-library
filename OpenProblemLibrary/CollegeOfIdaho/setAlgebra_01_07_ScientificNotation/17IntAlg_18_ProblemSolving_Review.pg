@@ -21,9 +21,10 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "extraAnswerEvaluators.pl",
+  "PGML.pl",
+  "parserNumberWithUnits.pl",
+  "parserImplicitPlane.pl",
   "contextCurrency.pl",
-  "CofIdaho_macros.pl",
   "PGcourse.pl"
 );
 
@@ -40,44 +41,75 @@ $displayPrice = Currency($price);
 $d = random(2000,2900,10);
 $depreciation = Currency($d);
 
-$answer = random(5,12,1);
-$b = $price - $d*($answer);
+$ans_b = random(5,12,1);
+$b = $price - $d*($ans_b);
 $value = Currency($b);
+
+$ans_b = NumberWithUnits("$ans_b years",{newUnit=>'years'});
+
+Context("ImplicitPlane");
+Context()->variables->are(t=>"Real");
+
+$ans_str = " $price - $d * t = $b";
+
+# Context("ImplicitPlane") enables Formula objects to hold equations.
+# The Formula object performs all the type checks on the 
+# student's answer before it reaches the custom pickyChecker. 
+# See example below.
+
+# create a pickyChecker that we can use on a Formula object
+
+sub pickyChecker {
+  my $cor_str = shift ;  # the correct answer string
+  return sub {
+    my ($correct, $student, $ansHash) = @_;
+    my ($cor_left, $cor_right) = split "=", $cor_str;
+    my $stu_str = $ansHash->{original_student_ans};
+    ${$ansHash}{student_ans}=$stu_str;
+    ${$ansHash}{preview_latex_string}=$stu_str;
+    ${$ansHash}{correct_ans_latex_string}=$cor_str;
+    my ($stu_left, $stu_right) = split "=", $stu_str;
+    $cor_left = Formula($cor_left);
+    $cor_right = Formula($cor_right);
+    $stu_left = Formula($stu_left);
+    $stu_right = Formula($stu_right);
+    if ( ($cor_left == $stu_left && $cor_right == $stu_right) ||
+         ($cor_right == $stu_left && $cor_left == $stu_right)
+       ){ return 1; }
+    else { return 0; }
+  }
+}
+
+$ans_a = Formula($ans_str)->cmp(checker=>pickyChecker($ans_str));
 
 ######################################
 #  Main text
 
-BEGIN_TEXT
-In 2003, the price of a certain automobile was approximately 
-$displayPrice with a depreciation of $depreciation per year.  After how many
-years will the car's value be $value?
-$PAR
-a) Write an equation to model the problem.  Let $BITALIC t $EITALIC
-represent the number of years after 2003.
-$BR
-Answer: \{ans_rule(20) \}
-$PAR
-b) Solve the equation to answer the question above. (Note: Include the units, in this case $BITALIC years.$EITALIC)
-$BR
-Answer: \{ans_rule(20) \}
-END_TEXT
+BEGIN_PGML
+In 2003, the price of a certain automobile was approximately [$displayPrice] with a depreciation of [$depreciation] per year.  After how many
+years will the car's value be [$value]?
 
-######################################
-#  Answers
-#  Note:  This should been to be changed whenever an Equation
-#         MathObject is written or a better equation checker is written.
+a) Write an equation to model the problem.  Let [`t`] 
+represent the number of years after 2003.  Your equation should strictly model the wording of the problem.
 
-$ans_a = " $price - $d * t = $b";
-ANS(Picky_equation_cmp($ans_a));
+    Answer: [_]{$ans_a}{20}
 
-$ans_b = $answer;
-$units = "years";
-ANS(num_and_unit_checker($ans_b,$units));
+b) Solve the equation to answer the question above. (Include the units, in this case, years.)
 
-$showPartialCorrectAnswers = 1;
+    Answer: [_]{$ans_b}{20}
+END_PGML
 
-######################################
+BEGIN_PGML_SOLUTION
+Part a) If [`t`] years have gone by since 2003 then the value of the car will have fallen by [`[$d] t `] so its value will be
+    [` [$price] - [$d] t = [$b] `]    
+dollars.
 
+Part b)    
+    [``\begin{gathered} [$price] - [$d] t = [$b] \\
+    [$price] - [$b] = [$d] t \\
+    [@ $price - $b @] = [$d] t \\
+    [@ $price - $b @]/[$d] = [@ ($price - $b)/$d @] = t \end{gathered} ``]    
+So after [$ans_b] the value of the car will be [$value].
+END_PGML_SOLUTION
 
-;
 ENDDOCUMENT();
