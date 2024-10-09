@@ -11,6 +11,7 @@
 ## MLT(groupingSpecialF)
 ## MLTleader(1)
 ## Level(3)
+## MO(1)
 ## TitleText1('College Algebra')
 ## AuthorText1('Stewart, Redlin, Watson')
 ## EditionText1('3')
@@ -20,15 +21,11 @@
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGcourse.pl"
-);
+loadMacros('PGstandard.pl', 'MathObjects.pl','PGML.pl', "parserMultiAnswer.pl", 'PGcourse.pl');
 
-$showPartialCorrectAnswers = 1;
-
-TEXT(beginproblem());
+Context("Numeric");
+Context()->variables->are(a => "Real", b => "Real", c => "Real");
+Context()->noreduce('x^(-a)');
 
 $A = random(1,9,1);
 $B = non_zero_random(-8,8,1);
@@ -39,31 +36,70 @@ $C = random(1, 9,1);
 $c1 = $A**2;
 $c2 = 2*$A*$B;
 $c3 = $B**2;
-$c4 = -$C**2;
+$c4 = $C**2;
 
 $e = random(2,7,1);
 $e2 = 2*$e;
 
 $E = non_zero_random(-8,8,2);
 
-BEGIN_TEXT
+$expr1 = Formula("$c1*a^$e2 + $c2*a^$e*b + $c3*b^2")->reduce;
+$expr2 = Formula("$c4*c^$E")->reduce;
 
-The polynomial \($c1 a^{$e2} + $c2 a^{$e}b + $c3 b^2 + $c4 c^{$E}\) 
-can be factored into
-the product of two polynomials, \(A \cdot B \) 
-where the coefficient of \(c\) in \(A\) is
-less than the coefficient of \(c\) in \(B\).  Find \(A\) and \(B\).
-$BR
-$BR
-\(A = \) \{ans_rule(10)\}
-$BR
-\(B = \) \{ans_rule(10)\}
-END_TEXT
+$expr3 = Formula("$A*a**$e+$B*b")->reduce;
+$expr4 = Formula("$C*c**($E/2)")->reduce;
 
-$ans1 = "$A*a**$e+$B*b-$C*c**($E/2)";
-$ans2 = "$A*a**$e+$B*b+$C*c**($E/2)";
+$ans = MultiAnswer($expr3+$expr4, $expr3-$expr4)->with(
+  singleResult => 0,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $f1stu, $f2stu ) = @{$student};
+      my ( $f1, $f2 ) = @{$correct};
+      if ( $expr1-$expr2 == $f1stu*$f2stu ){
+        @score = (1,1); #default 
+        # but check for constants
+        if ($f1stu->D('a')->isZero && 
+            $f1stu->D('b')->isZero &&
+            $f1stu->D('c')->isZero){
+          $self->setMessage(1,"Constant expressions aren't allowed here");
+          @score = (0,0);
+        }
+        if ($f2stu->D('a')->isZero && 
+            $f2stu->D('b')->isZero &&
+            $f2stu->D('c')->isZero){
+          $self->setMessage(2,"Constant expressions aren't allowed here");
+          @score = (0,0);
+        }
+      }
+      return @score;
+  }
+);
 
-ANS(fun_cmp ($ans1, var=>['a','b','c']));
-ANS(fun_cmp ($ans2, var=>['a','b','c']));
+
+BEGIN_PGML
+
+The expression [`[$expr1]-[$expr2]`] 
+can be factored into a product of two expressions,    
+    [`[$expr1] - [$expr2]=A \cdot B `]     
+where neither [`A`] nor [`B`] is a constant.  
+
+Find [`A`] and [`B`].  
+  
+    [`A = `] [_]{$ans}{15}
+  
+    [`B = `] [_]{$ans}{15}
+END_PGML
+
+BEGIN_PGML_SOLUTION
+    [``\begin{aligned} 
+    & \Big([$expr1]\Big)-[$expr2] \\
+    &=([$expr3])^2 -([$expr4])^2 \end{aligned} ``]    
+is the difference of two squares, so it breaks down into a product of two factors    
+    [``\begin{aligned}
+    &([$expr3])^2 -([$expr4])^2\\
+    &= ([$expr3]-[$expr4])([$expr3]+[$expr4]) \end{aligned} ``]
+    
+END_PGML_SOLUTION
+
+
 ENDDOCUMENT();        # This should be the last executable line in the problem.;
-
