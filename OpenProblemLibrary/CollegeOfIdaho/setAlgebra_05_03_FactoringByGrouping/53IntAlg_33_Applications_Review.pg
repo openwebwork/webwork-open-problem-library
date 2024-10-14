@@ -24,55 +24,86 @@ DOCUMENT(); # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "PGML.pl",
+  "parserImplicitPlane.pl",
   "contextCurrency.pl",
-  "CofIdaho_macros.pl",
   "PGcourse.pl"
 );
 
-TEXT(beginproblem());
-
 $a = random(10,30,5);
-$answer = random(600,1300,10);
-$b = $answer*(1-$a/100);
+$ans_b = random(600,1300,10);
+$p = $a/100;
+$b = $ans_b*(1-$p);
 
 Context("Currency");
 $salePrice = Currency($b);
+$ans_b = Currency($ans_b);
+
+Context("ImplicitPlane");
+Context()->variables->are(x=>"Real");
+
+$ans_str = "x - $a/100*x = $b";;
+
+# Context("ImplicitPlane") enables Formula objects to hold equations.
+# The Formula object performs all the type checks on the 
+# student's answer before it reaches the custom pickyChecker. 
+# See example below.
+
+# create a pickyChecker that we can use on a Formula object
+
+sub pickyChecker {
+  my $cor_str = shift ;  # the correct answer string
+  return sub {
+    my ($correct, $student, $ansHash) = @_;
+    my ($cor_left, $cor_right) = split "=", $cor_str;
+    my $stu_str = $ansHash->{original_student_ans};
+    ${$ansHash}{student_ans}=$stu_str;
+    ${$ansHash}{preview_latex_string}=$stu_str;
+    ${$ansHash}{correct_ans_latex_string}=$cor_str;
+    my ($stu_left, $stu_right) = split "=", $stu_str;
+    $cor_left = Formula($cor_left);
+    $cor_right = Formula($cor_right);
+    $stu_left = Formula($stu_left);
+    $stu_right = Formula($stu_right);
+    if ( ($cor_left == $stu_left && $cor_right == $stu_right) ||
+         ($cor_right == $stu_left && $cor_left == $stu_right)
+       ){ return 1; }
+    else { return 0; }
+  }
+}
+
+$ans_a = Formula($ans_str)->cmp(checker=>pickyChecker($ans_str));
 
 ######################################
 #  Setup
 
-BEGIN_TEXT
-After a $a$PERCENT reduction, you purchase a new computer for $salePrice.
+BEGIN_PGML
+After a [$a]% reduction, you purchase a new computer for [$salePrice].
 What was the computer's price before the reduction?
-$PAR
-a) Write an equation to model the problem.  Let $BITALIC x $EITALIC 
-represent the price of the computer before the reduction.
-$BR
-Answer: \{ans_rule(20) \}
-$PAR
+
+a) Write an equation to model the problem.  Let [`x`] 
+represent the price of the computer before the reduction. Your answer must strictly model the wording of the problem.
+
+    Answer: [_]{$ans_a}{20}
+
 b) Solve the equation to find the answer to the question above.
-$BR
-Answer: \{ans_rule(20) \}
 
-END_TEXT
+    Answer: [_]{$ans_b}{20}
+END_PGML
 
-######################################
-#  Answer
+BEGIN_PGML_SOLUTION
+Part a)
+    [`x`] dollars was price before reduction  
+    [`[$p]x`] dollars was amount of price reduction    
+so    
+    [`x - [$p]x = [$b]`]    
+is the sales price in dollars, after the reduction.
 
-#  Note:  This should been to be changed whenever an Equation
-#         MathObject is written or a better equation checker is written.
+Part b)
+    [``\begin{gathered} x - [$p]x = [$b] \\
+    [@ 1- $p @]x = [$b]\\
+    x = [$b]/[@ 1- $p @] = [@ $b/( 1- $p) @] \end{gathered} ``]    
+[$ans_b] was the price before it was reduced.
+END_PGML_SOLUTION
 
-$ans_a = "x - $a/100*x = $b";
-ANS(Picky_equation_cmp($ans_a));
-
-Context("Currency");
-$ans = Compute($answer);
-ANS($ans->cmp);
-
-$showPartialCorrectAnswers = 1;
-
-######################################
-
-
-;
 ENDDOCUMENT();

@@ -22,54 +22,85 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl",
+  "PGML.pl",
+  "parserImplicitPlane.pl",
   "PGcourse.pl"
 );
-
-TEXT(beginproblem());
 
 ######################################
 #  Setup
 
+Context("ImplicitPlane");
+Context()->variables->are(x=>"Real");
+
 $a = random(1,8,1);
 $num = random(2,4,1);
 @number = ("two", "three", "four");
-$answer = random(3,8,1);
-$b = $num * $answer - $a;
+$ans_b = Real(random(3,8,1)); # answer for part b
+$b = $num * $ans_b - $a;
+
+# Correct answer string for part a.  
+
+$ans_str = "$num x - $a = $b";
+
+# Context("ImplicitPlane") enables Formula objects to hold equations.
+# The Formula object performs all the type checks on the 
+# student's answer before it reaches the custom pickyChecker. 
+# See example below.
+
+# create a pickyChecker that we can use on a Formula object
+
+sub pickyChecker {
+  my $cor_str = shift ;  # the correct answer string
+  return sub {
+    my ($correct, $student, $ansHash) = @_;
+    my ($cor_left, $cor_right) = split "=", $cor_str;
+    my $stu_str = $ansHash->{original_student_ans};
+    ${$ansHash}{student_ans}=$stu_str;
+    ${$ansHash}{preview_latex_string}=$stu_str;
+    ${$ansHash}{correct_ans_latex_string}=$cor_str;
+    my ($stu_left, $stu_right) = split "=", $stu_str;
+    $cor_left = Formula($cor_left);
+    $cor_right = Formula($cor_right);
+    $stu_left = Formula($stu_left);
+    $stu_right = Formula($stu_right);
+    if ( ($cor_left == $stu_left && $cor_right == $stu_right) ||
+         ($cor_right == $stu_left && $cor_left == $stu_right)
+       ){ return 1; }
+    else { return 0; }
+  }
+}
+
+$ans_a = Formula($ans_str)->cmp(checker=>pickyChecker($ans_str));
 
 ######################################
 #  Main text
 
-BEGIN_TEXT
-When $number[$num-2] times a number is decreased by $a, the result is
-$b.
-$PAR
-a) Write an equation to model the problem.  Use $BITALIC x $EITALIC to
-represent the number.
-$BR
-Answer: \{ans_rule(20) \}
-$PAR
+BEGIN_PGML
+When [$number[$num-2]] times a number is decreased by [$a], the result is [$b].
+
+a) Write an equation to model the problem.  Use _x_ to
+represent the number.  
+Your equation must strictly model the 
+wording in the sentence.  
+
+    Answer: [_____]{$ans_a}{10}
+
 b) Solve the equation to find the number:
-$BR
-Answer: \{ans_rule(20) \}
 
-END_TEXT
+    Answer: [_____]{$ans_b}
 
-######################################
-#  Answers
-#  Note:  This should been to be changed whenever an Equation
-#         MathObject is written or a better equation checker is written.
+END_PGML
 
-$ans_a = "$num * x - $a=$b";
-ANS(Picky_equation_cmp($ans_a));
+BEGIN_PGML_SOLUTION
+Part a)  
+    * "[$number[$num-2]] times a number" becomes "[`[$num]x`]"
+    * "[$number[$num-2]] times a number decreased by [$a]" becomes "[`[$num]x-[$a]`]"
+    * "the result is" becomes "=", so the equation is  
+    * [`[$num]x-[$a]=[$b]`]    
 
-$ans_b = Real($answer);
-ANS($ans_b->cmp);
+Part b)    
+        [``\begin{gathered} [$num]x-[$a] = [$b] \\ [$num]x = [$b]+[$a] = [@ $b+$a @] \\  x = [@ $b+$a @]/[$num] = [@ ($b+$a)/$num @] \end{gathered}``]
+END_PGML_SOLUTION
 
-$showPartialCorrectAnswers = 1;
-
-######################################
-
-
-;
 ENDDOCUMENT();
