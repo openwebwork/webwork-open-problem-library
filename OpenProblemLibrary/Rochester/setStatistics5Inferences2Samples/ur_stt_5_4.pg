@@ -7,6 +7,7 @@
 ## DBsection(Independent samples - t)
 ## Date(6/3/2002)
 ## Level(3)
+## MO(1)
 ## TitleText1('Mathematical Statistics')
 ## AuthorText1('Wackerly, Mendenhall, Scheaffer')
 ## EditionText1('6')
@@ -21,75 +22,120 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "PGnumericalmacros.pl",
+  "PGML.pl",
+  "niceTables.pl",
+  "parserPopUp.pl",
   "PGstatisticsmacros.pl",
   "PGcourse.pl"
 );
 
-TEXT(beginproblem());
-$showPartialCorrectAnswers = 1;
+# Answers that require looking up the t-statistic
+# allow (0.5)% errors because students may use tables or 
+# other sources with varying accuracies
 
-$n1 = random(60,150,10);
-$x1 = random(7.0, 8.0, 0.1);
-$s1 = random(3.4, 3.8, 0.2);
-$n2 = random(45, 105, 10);
-$x2 = random(5.0, 6.0, 0.1);
-$s2 = random(3.3, 3.7, 0.2);
+Context("Numeric");
 
-$alpha = random(0.01, 0.05, 0.01);
+$tol = .005; # allow (0.5)% error
 
-$stat = ($x1 - $x2) / sqrt($s1**2/$n1 + $s2**2/$n2);
-$crit = udistr($alpha);
+do { 
+  $n1 = random(60,150,10);
+  $x1 = random(7.0, 8.0, 0.1);
+  $s1 = random(3.4, 3.8, 0.2);
+  $n2 = random(45, 105, 10);
+  $x2 = random(5.0, 6.0, 0.1);
+  $s2 = random(3.3, 3.7, 0.2);
+  
+  $df = $n1+$n2-2;
+  
+  $alpha = random(0.01, 0.05, 0.01);
+  $halfalpha = $alpha/2;
+  
+  $stat = Real(($x1 - $x2) / sqrt($s1**2/$n1 + $s2**2/$n2));
+  $crit = Real(tdistr($df,$alpha))->with(tolerance=>$tol);
+} until (abs($stat-$crit)>0.1*$crit);  # so $choice isn't close 
 
-if ($stat > $crit) { $tag = 0; } else { $tag = 1; }
-
-@ans = ('Yes','No');
-
-$mc = new_multiple_choice();
-
-$mc -> qa ('Is there sufficient evidence to support the claim that student cars are older
-            than faculty cars?', $ans[$tag]);
-
-$mc -> extra ($ans[1-$tag]);
+$choice = $stat > $crit ? "Yes" : "No";
+$YN = DropDown(["Yes","No"], $choice);
 
 $perc = (1-$alpha)*100;
 
-$z = udistr($alpha/2);
-$e = $z * sqrt($s1**2/$n1 + $s2**2/$n2);
-$min = $x1 - $x2 - $e;
-$max = $x1 - $x2 + $e;
+$t = tdistr($df,$halfalpha);
+$e = Real($t * sqrt($s1**2/$n1 + $s2**2/$n2))->with(tolerance=>$tol);
+$min = Real($x1 - $x2 - $e)->with(tolerance=>$tol);
+$max = Real($x1 - $x2 + $e)->with(tolerance=>$tol);
 
-BEGIN_TEXT
+BEGIN_PGML
+Randomly selected [$n1] student cars have ages with a mean of [$x1] years and a 
+standard deviation of [$s1] years, while randomly selected [$n2] faculty cars have
+ages with a mean of [$x2] years and a standard deviation of [$s2] years. 
 
-Randomly selected \( $n1 \) student cars have ages with a mean of \( $x1 \) years and a 
-standard deviation of \( $s1 \) years, while randomly selected \( $n2 \) faculty cars have
-ages with a mean of \( $x2 \) years and a standard deviation of \( $s2 \) years. $BR
+1. Use a t-test with significance level [$alpha] to test the claim that student cars are 
+older than faculty cars. 
 
-1. \( \ \) Use a \( $alpha \) significance level to test the claim that student cars are 
-older than faculty cars. $BR
+    a) The test statistic is [_]{$stat}{10}
 
-The test statistic is \{ans_rule(35)\} $BR
+    b) The critical value is [_]{$crit}{10}
 
-The critical value is \{ans_rule(35)\} $BR
+    c) Is there sufficient evidence to support the claim that student cars are older than faculty cars?  [_]{$YN}
 
-\{ $mc -> print_q() \} $BR
-\{ $mc -> print_a() \} $BR
-
-2. \( \ \) Construct a \( $perc\)$PERCENT confidence interval estimate of the difference
-\( \mu_1 - \mu_2 \), where \( \mu_1 \) is the mean age of student cars and \( \mu_2 \)
+2. Construct a [$perc]% confidence interval estimate of the difference
+[`\mu_1 - \mu_2`], where [`\mu_1`] is the mean age of student cars and [`\mu_2`]
 is the mean age of faculty cars.
 
-\{ans_rule(35)\}\( < (\mu_1 - \mu_2) < \)\{ans_rule(35)\}
+     [_]{$min}{10} [`< (\mu_1 - \mu_2) <`] [_]{$max}{10}
+END_PGML
 
-END_TEXT
+$dat = DataTable(
+  [
+    [' ' , 'n', 'sample mean', 'sample std.dev.' ],
+    ['students', "\(n_1\)=$n1", "\(\bar{x}_1\)=$x1", "\(s_1\)=$s1"],
+    ['faculty', "\(n_2\)=$n2", "\(\bar{x}_2\)=$x2", "\(s_2\)=$s2"],
+  ],
+  align => 'lccc',
+  center =>0
+);
 
-ANS(num_cmp($stat));
-ANS(num_cmp($crit,tol=>0.01));
-ANS(radio_cmp($mc->correct_ans));
-ANS(num_cmp($min,tol=>0.001));
-ANS(num_cmp($max,tol=>0.001));
+BEGIN_PGML_SOLUTION
+Our goal is to use data from the sample of student and faculty cars:
+
+    [$dat]*
+
+to infer something about the overall population means [`\mu_1`] and [`\mu_2`].
+
+\1.  In this part we'll use a one-sided t-test because we're asked to test the claim that the students' cars are older than the faculty cars, that is, [`\mu_1-\mu_2>0`]. 
+ 
+a) The test statistic is    
+
+    [`` t= \frac{\bar{x}_1-\bar{x}_2}{\sqrt{s_1^2/n_1+s_2^2/n_2}} \approx [$stat] ``]. 
+
+\b) The parameter [`p`] for the t-distribution is the significance level [`p = [$alpha]`] because this is a one-sided test.  The degrees of freedom for the t distribution are [`df = n_1+n_2-2 = [$df]`].  Plug [`p = [$alpha]`] and [`df = [$df]`] into a t-statistic calculator or table to find the
+
+    critical value = [$crit] for the t-statistic.
+
+\c) The evidence supports the claim if [`t`] > critical value, so the answer to part c) is [$choice].   
+
+\2. The confidence interval for the difference [`\mu_1-\mu_2`] is an interval centered at [`\bar{x}_1-\bar{x}_2`].  The width of the interval is calculated using the t-distribution. Because [`\mu_1-\mu_2`] could be above or below the center we'll treat the t-distribution as we would for two-sided t-test.  
+
+We're looking for a [$perc]% confidence interval so (100-[$perc])% = [@ $alpha/2 @] of the area in the t-distribution lies outside the region that represents the interval. Thus we'll use the t-distribution with parameter    
+
+    [`p = [$halfalpha]`] and [$df] degrees of freedom.    
+
+From a t-distribution calculator or table one obtains the critical value    
+
+    [`t = [$t]`]
+
+The endpoints of the interval are    
+
+    [`\bar{x}_1-\bar{x}_2\pm e`]
+
+where    
+
+    [``e = t\sqrt{\frac{s_1^2}{n_1}+\frac{s_2^2}{n_2}} = [$e]``]    
+
+so the [$perc]% confidence interval is 
+
+    [`[$min] < \mu_1-\mu_2 < [$max]`]
+END_PGML_SOLUTION
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.
 
