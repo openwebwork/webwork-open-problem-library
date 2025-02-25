@@ -12,90 +12,87 @@
 ## Author2('Jason Aubrey')
 ## Institution('University of Missouri')
 
-########################################################################
+## Updated 2025.02 by Peter Staab, switch to PGML
 
-DOCUMENT();      
+DOCUMENT();
 
-loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "contextCurrency.pl",
-  "answerHints.pl",
-  "PGcourse.pl"
-);
-
-# Print problem number and point value (weight) for the problem
-TEXT(beginproblem());
-
-# Show which answers are correct and which ones are incorrect
-$showPartialCorrectAnswers = 1;
-
-##############################################################
-#
-#  Setup
-#
-#
-
-Context("Numeric");
-
-$interest = random(500,1500,100);
-$annual_interest_rate = random(2,8,0.001);
-$e = Real("e");
-$compoundings_per_year = list_random(0,4,12,52,365);
-
-if($compoundings_per_year == 0){
-$periodically = continuously;}
-elsif($compoundings_per_year == 4){
-$periodically = quarterly;}
-elsif($compoundings_per_year == 12){
-$periodically = monthly;}
-elsif($compoundings_per_year == 52){
-$periodically = weekly;}
-elsif($compoundings_per_year == 365){
-$periodically = daily;}
-
-if($compoundings_per_year == 0){
-$apy = exp($annual_interest_rate/100) - 1;
-$answer = $interest/$apy;}
-else{
-$apy = (1+$annual_interest_rate/($compoundings_per_year*100))**$compoundings_per_year - 1;
-$answer = $interest/$apy;}
+loadMacros('PGstandard.pl', 'PGML.pl', 'contextCurrency.pl', 'PGcourse.pl');
 
 Context("Currency");
-$interest = Currency($interest);
-$answer = Currency($answer);
 
-##############################################################
-#
-#  Text
-#
+$interest = Currency(random(500, 1500, 100));
+$apr      = random(2, 8, 0.001);
+$k        = list_random(0, 4, 12, 52, 365);
+$i = 0.01*$apr/$k; 
 
-Context()->texStrings;
-BEGIN_TEXT
+$periodically =
+    $k == 0    ? 'continuously'
+    : $k == 4  ? 'quarterly'
+    : $k == 12 ? 'monthly'
+    : $k == 52 ? 'weekly'
+    :            'daily';
 
-Most scholarships are established by making a one time deposit into an account.  The scholarship money is then taken from the earned interest on the account at the end of each investment year.  How much money should you deposit into an account earning an annual interest rate of \($annual_interest_rate $PERCENT\) compounded $periodically to establish an annual scholarship worth \($interest\)?
+$apy = $k == 0 ? exp($apr / 100) - 1 : (1 + $i)**$k - 1;
+$amt = $interest / $apy;
 
-$PAR
-\{ANS_RULE(10)\}
-$PAR
+BEGIN_PGML
 
-(${BBOLD}Note:$EBOLD Your answer should have a dollar sign and be accurate to two decimal places)
+Many scholarships are established by making a one time deposit into an account.  The scholarship money is then taken from the earned interest on the account at the end of each investment year.  How much money should you deposit into an account earning an annual interest rate of [$apr]% compounded [$periodically] to establish an annual scholarship worth [`[$interest]`]?
 
-END_TEXT
-Context()->normalStrings;
+ [_]{$amt}
 
+(*Note:* Your answer should have a dollar sign and be accurate to two decimal places)
 
-$showHint = 3;
-BEGIN_HINT
-You need to determine how much money needs to be deposited in the account such that after one year, you earn $interest in interest.
-END_HINT
+END_PGML
 
-##############################################################
-#
-#  Answers
-#
-#
-ANS(Compute($answer)->with(tolerance=>.05)->cmp);
+if ($k == 0) {
+BEGIN_PGML_HINT
+You need to determine how much money needs to be deposited in the account such that after one year, you earn [$interest] in interest. 
 
-COMMENT('MathObject version', 'Hint included');
+Do determine the amount, use the future value formula:
+[```  P_t = P e^{rt} ```] 
+and realize that the interest made is [`` I = P_t - P = P e^{rt} - P = P(1-e^{rt})``]
+
+Solve this for [`P`] with the given information. 
+END_PGML_HINT
+} else {
+BEGIN_PGML_HINT
+You need to determine how much money needs to be deposited in the account such that after one year, you earn [$interest] in interest. 
+
+Do determine the amount, use the future value formula:
+[```  P_t = P(1+i)^t ```] 
+with [`i`] as the periodic interest rate and [`t`] as the number of period in a year.  Then realize that the interest made is [`` I = P_t - P = P(1+i)^t - P = P\left((1+i)^t-1\right)``]
+
+Solve this for [`P`] with the given information. 
+END_PGML_HINT
+}
+
+if ($k == 0) {
+BEGIN_PGML_SOLUTION
+Since in this situation, the interest is compounded continuously, the amount is given by
+[``` A = P e^{rt} ```]
+where [`P`] is the original amount, [`r`] is the annual rate as a fraction and [`t`] is the time period. 
+
+The interest generate is the total amount minus the original amount or
+[``` I = P e^{rt} - P = P(e^{rt}-1)```]
+Solving for [`P`] results in
+[``` P = \frac{I}{e^{rt}-1}```]
+Using [`I = [$interest]`], and [`r = [@ 0.01*$apr@]`] and since the desire is to use the interest after one year, then [`t=1`].  Substituting these values results in 
+[``` P = [$amt] ```]
+END_PGML_SOLUTION
+
+} else {
+BEGIN_PGML_SOLUTION
+We will use the equation
+[``` A = P\left(1+i\right)^t ```]
+where [`P`] is the amount in account originally, [`A`] is the amount after [`t`] compounding periods, with  [`i=r/k`], the periodic percentage rate (as a fraction) and [`k`] the number of compounding periods per year.
+
+If we only want the interest, we subtract off the original amount, so 
+[```  I  = P\left(1+i\right)^t - P = P\left(\left(1+i\right)^t-1\right) ```]
+or solving for [`P`]
+[```P = \frac{I}{\left(1+i\right)^t-1}```]
+with [`I=[$interest]`], [``i=\frac{r}{k} = \frac{[@ 0.01*$apr@]}{[$k]} = [@ sprintf('%.6f',$i) @]``], and since this is desired in one year, [`t=[$k]`].  The result is
+[```P = [$amt]```]
+END_PGML_SOLUTION
+}
 ENDDOCUMENT();

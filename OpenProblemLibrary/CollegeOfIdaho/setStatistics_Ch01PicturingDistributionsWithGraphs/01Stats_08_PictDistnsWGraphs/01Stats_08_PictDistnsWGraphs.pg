@@ -12,78 +12,93 @@
 ## Problem1('')
 ## KEYWORDS('statistics', 'quantitative data', 'categorical data', 'histogram')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();    # This should be the first executable line in the problem.
 
 loadMacros(
-  "PGstandard.pl",
-  "PGgraphmacros.pl",
-  "PGchoicemacros.pl",
-  "PGcourse.pl"
+    'PGstandard.pl',         'PGML.pl',
+    'parserRadioButtons.pl', 'PGtikz.pl',
+    'PGcourse.pl'
 );
 
-TEXT(beginproblem());
-
-######################################
 #  Setup
 
-@ThreeProblems = (0,1,2);  #Order the problems
-@scramble = NchooseK(3,3);
-@order = @ThreeProblems[@scramble];
+# Create a distribution to more easily answer the questions below
+do {
+    @y     = map { random(50 - 15 * $_, 60 - 15 * $_) } (0 .. 3);
+    $y[$_] = random(0, 1) * random(0, 3) for (4 .. 9);
+    $y[10] = random(1, 2);
+    $total = 0;
+    $total += $_ for @y;
+    $over30 = 0;
+    $over30 += $y[$_] for (3 .. 10);
+} until ($over30 / $total > 0.08 && $over30 / $total < 0.12);
 
-$mc[0] = new_multiple_choice();
-     $mc[0]->qa("The number of students with under 10 dollars in their possession is closest to ","60 "); 
-     $mc[0]->extra("50 ", 
-	"40 ", 
-        "70 ");
-     
-$mc[1] = new_multiple_choice();
-     $mc[1] ->qa("The histogram ","all of the above."); 
-     $mc[1]->extra("is skewed right. ", 
-	"has an outlier. ", 
-        "is asymmetric. ");
-     $mc[1]->makeLast("all of the above.");
+# create the tikz code to make the bars for this.
+$bars = '';
+for $i (0 .. $#y) {
+    $bars .=
+        "\filldraw[fill=LightBlue, draw = black] ({10*$i/12},0) rectangle ({(10*($i+1))/12}, {$y[$i]/7}); \n";
+}
 
-$mc[2] = new_multiple_choice();
-     $mc[2] ->qa("The percentage of students with over 20 dollars in their possession is",
-	"about 20$PERCENT."); 
-     $mc[2]->extra("about 10$PERCENT.", 
-	"about 30$PERCENT. ", 
-        "over 40$PERCENT.");
+$graph = createTikZImage();
+$graph->tikzLibraries('arrows.meta');
+$graph->tikzOptions('yscale = 0.6');
+$graph->BEGIN_TIKZ
+\tikzset{>={Stealth[scale=1.25]}}
+\filldraw[
+    draw=LightBlue,
+    fill=white,
+    rounded corners=10pt,
+    thick, use as bounding box
+] (-1.25,-1) rectangle (10,10);
+\foreach \y in {5,10,...,60} 
+    \draw[lightgray] (-0.5,{\y/7}) -- ({115/12},{\y/7});
+\draw (-0.5,0) -- (9.5,0) -- (9.5,9.5)-- (-0.5, 9.5) --cycle; 
+\foreach \x in {0,10,...,110}
+    \draw({\x/12},5pt) -- ({\x/12},-5pt) node [below] {\(\x\)};
 
-######################################
-#  Main text
+%\foreach \y in {1,...,20} \draw[thin, lightgray] (0,{\y/2.5}) -- (9.5,{\y/2.5});
+\foreach \y in {10,20,...,60}
+    \draw (-0.4,{\y/7}) -- (-0.6,{\y/7}) node[left] {\(\y\)};
+$bars
 
-BEGIN_TEXT
-In a statistics class with 136 students, the professor records how much money 
-each student has in their possession during the first class of the semester.  
-The histogram below is of the data collected.
-($BBOLD Click on the image for a larger view. $EBOLD)
-$PAR
-\{ image("Ref_1_4.gif", height=>300, width=>400, tex_size => 200) \}
+END_TIKZ
 
-$PAR
-(a)   \{ $mc[$order[0]] -> print_q() \}
-$BR
-\{$mc[$order[0]] -> print_a() \}
+$rb2 = RadioButtons(
+    [ 'symmetric', 'skewed right', 'skewed left', 'none of the above' ], 1);
 
-$PAR
-(b)   \{ $mc[$order[1]] -> print_q() \}
-$BR
-\{$mc[$order[1]] -> print_a() \}
-
-$PAR
-(c)   \{ $mc[$order[2]] -> print_q() \}
-$BR
-\{$mc[$order[2]] -> print_a() \}
-END_TEXT
-
-######################################
-#  Answers
+$rb3 = RadioButtons(
+    [ 'above 30%', 'between 20% and 30%', 'about 10%', 'less than 3%' ], 2);
 
 $showPartialCorrectAnswers = 0;
 
-ANS(radio_cmp($mc[$order[0]]->correct_ans));
-ANS(radio_cmp($mc[$order[1]]->correct_ans));
-ANS(radio_cmp($mc[$order[2]]->correct_ans));
+BEGIN_PGML
+In a statistics class with [$total] students, the professor records how much money
+each student has in their possession during the first class of the semester.
+The histogram below is of the data collected.
+
+
+[! alt text !]{$graph}{450}
+
+a) The number of students with under $10 in their possession is [_]{$y[0]}{5}
+
+b) The histogram is 
+
+    [_]{$rb2}
+
+c) The percentage of students with over $20 in their possession is
+
+    [_]{$rb3}
+END_PGML
+
+BEGIN_PGML_SOLUTION
+For this, read off the approximate bar heights to answer the questions. 
+
+a) This needs a careful eye, but the answer is [$y[0]]. 
+
+b) Because there is a large peak on the left and a long tail to the right, this is _skewed right_. 
+
+c) For this, total all of the heights of the bars.  The total heights of those over $30 is [$over30] and since there are [$total] students, this is about 10%. 
+END_PGML_SOLUTION
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.
