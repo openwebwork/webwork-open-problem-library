@@ -25,13 +25,9 @@
 DOCUMENT();
 
 loadMacros(
-  "PGgraphmacros.pl",
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "PGML.pl",
-  "parserNumberWithUnits.pl",
-  "PCCmacros.pl",
-  "PGcourse.pl",
+    "PGstandard.pl", "PGML.pl",
+    'plots.pl',      "parserNumberWithUnits.pl",
+    "PCCmacros.pl",  "PGcourse.pl"
 );
 
 ##############################################
@@ -40,101 +36,117 @@ Context("Numeric");
 
 $unit = "ft";
 
+$base = random(15, 25);
 do {
-   $base = random(15,25,1);
-   $heightRectangle = random(8,14,1);
-   do {$heightTriangle = random(8,14,1);} until ($heightTriangle!=$heightRectangle);
-} until ($heightRectangle+$heightTriangle<$base);
-$height = $heightRectangle + $heightTriangle;
-$xcross = $base/2;
-$leftSide = round(sqrt($heightTriangle**2+$xcross**2));
-$rightSide = $leftSide;
+    $heightRectangle = random(8, 14);
+    $heightTriangle  = random(8, 14);
+    } until ($heightTriangle != $heightRectangle
+        && $heightRectangle + $heightTriangle < 25);
+$xcross   = $base / 2;
+$leftSide = $rightSide = round(sqrt($heightTriangle**2 + $xcross**2));
 
-$xmin = 0;         #The viewing window
-$xmax = $base*240/210;
-$ymin = 0;
-$ymax = (210*$height/$base+30)*$height/(210*$height/$base);
+$graph = Plot(
+    xmin         => -$leftSide - 2,
+    xmax         => $rightSide + 2,
+    ymin         => -$heightRectangle - 2,
+    ymax         => $heightTriangle + 2,
+    xvisible     => 0,
+    yvisible     => 0,
+    show_grid    => 0,
+    aspect_ratio => 1
+);
 
-$labelShift = $xmax/40;
-$cornersize = $xmax*10/240;
+$graph->add_dataset(
+    [ -$leftSide, -$heightRectangle ],
+    [ $rightSide, -$heightRectangle ],
+    [ $rightSide, 0 ],
+    [ 0,          $heightTriangle ],
+    [ -$leftSide, 0 ],
+    [ -$leftSide, -$heightRectangle ],
+    color => 'darkblue'
+);
+$graph->add_dataset(
+    [
+        [ 0, 0 ], [ 0, $heightTriangle ],
+        width     => 1,
+        linestyle => 'dashed',
+        color     => 'darkblue'
+    ],
+    [
+        [ -$leftSide, 0 ], [ $rightSide, 0 ],
+        width     => 1,
+        linestyle => 'dashed',
+        color     => 'darkblue'
+    ]
+);
+$graph->add_dataset(
+    [
+        [ -$leftSide + 0.5, -$heightRectangle ],
+        [ -$leftSide + 0.5, -$heightRectangle + 0.5 ],
+        [ -$leftSide,       -$heightRectangle + 0.5 ],
+        color => 'darkblue'
+    ],
+    [
+        [ $rightSide - 0.5, -$heightRectangle ],
+        [ $rightSide - 0.5, -$heightRectangle + 0.5 ],
+        [ $rightSide,       -$heightRectangle + 0.5 ],
+        color => 'darkblue'
+    ],
+    [
+        [ -0.5, 0 ], [ -0.5, 0.5 ], [ 0, 0.5 ], color => 'darkblue'
+    ]
+);
 
-$perimeter = $base + $leftSide + $rightSide+2*$heightRectangle;
-$area = $base*$heightTriangle/2+$base*$heightRectangle;
+$graph->add_label(0, -$heightRectangle, "$base ft", v_align => 'bottom');
+$graph->add_label(
+    -0.5 * $leftSide,
+    0.5 * $heightTriangle + 0.5,
+    "$leftSide ft", v_align => 'bottom'
+);
+$graph->add_label(
+    0.5 * $rightSide,
+    0.5 * $heightTriangle + 0.5,
+    "$rightSide ft",
+    v_align => 'bottom'
+);
+$graph->add_label(
+    0,
+    0.4 * $heightTriangle,
+    "$heightTriangle ft",
+    h_align => 'left'
+);
+$graph->add_label(
+    $rightSide,
+    -0.5 * $heightRectangle,
+    "$heightRectangle ft",
+    h_align => 'right'
+);
 
-$baseU = NumberWithUnits("$base $unit");
+$perimeter = $base + $leftSide + $rightSide + 2 * $heightRectangle;
+$area      = $base * $heightTriangle / 2 + $base * $heightRectangle;
+
+$baseU            = NumberWithUnits("$base $unit");
 $heightRectangleU = NumberWithUnits("$heightRectangle $unit");
-$heightTriangleU = NumberWithUnits("$heightTriangle $unit");
-$leftSideU = NumberWithUnits("$leftSide $unit");
-$rightSideU = NumberWithUnits("$rightSide $unit");
-$perimeterU = NumberWithUnits("$perimeter $unit");
-$areaU = NumberWithUnits("$area $unit^2");
+$heightTriangleU  = NumberWithUnits("$heightTriangle $unit");
+$leftSideU        = NumberWithUnits("$leftSide $unit");
+$rightSideU       = NumberWithUnits("$rightSide $unit");
+$perimeterU       = NumberWithUnits("$perimeter $unit");
+$areaU            = NumberWithUnits("$area $unit^2");
 
-@x = (
-   ($xmax-$base)/2,
-   ($xmax-$base)/2+$xcross,
-   ($xmax+$base)/2
-);
-@y = (
-   ($ymax-$heightRectangle-$heightTriangle)/2,
-   ($ymax-$heightRectangle-$heightTriangle)/2+$heightRectangle,
-   ($ymax+$heightRectangle+$heightTriangle)/2
-);
-
-$picture = init_graph($xmin,$ymin,$xmax,$ymax,
-      pixels=>[240,240*$ymax/$xmax]);
-
-$picture->lb( new Label($x[1], $y[0],"$baseU",'black','center','top','large'));
-$picture->lb( new Label($x[1],($y[1]+$y[2])/2,"$heightTriangleU",'black','center','bottom','large','vertical'));
-$picture->lb( new Label($x[2],($y[0]+$y[1])/2,"$heightRectangleU",'black','center','bottom','large','vertical'));
-$picture->lb( new Label(($x[0]+$x[1])/2, ($y[1]+$y[2])/2,"$leftSideU",'black','right','bottom','large'));
-$picture->lb( new Label(($x[1]+$x[2])/2,($y[1]+$y[2])/2,"$rightSideU",'black','left','bottom','large'));
-
-$picture->new_color("darkblue",  100,100,255); 
-
-$picture->moveTo($x[0],$y[0]);
-$picture->lineTo($x[0],$y[1], darkblue,3);
-$picture->lineTo($x[1],$y[2], darkblue,3); 
-$picture->lineTo($x[2],$y[1], darkblue,3);
-$picture->lineTo($x[2],$y[0], darkblue,3);
-$picture->lineTo($x[0],$y[0], darkblue,3);
-
-$picture->moveTo($x[1],$y[2]);
-$picture->lineTo($x[1],$y[1], red,1,"dashed");
-
-$picture->moveTo($x[0],$y[1]);
-$picture->lineTo($x[2],$y[1], red,1,"dashed");
-
-$picture->moveTo($x[0],$y[0]+$cornersize);
-$picture->lineTo($x[0]+$cornersize,$y[0]+$cornersize, darkblue,1);
-$picture->lineTo($x[0]+$cornersize,$y[0], darkblue,1);
-
-$picture->moveTo($x[2],$y[0]+$cornersize);
-$picture->lineTo($x[2]-$cornersize,$y[0]+$cornersize, darkblue,1);
-$picture->lineTo($x[2]-$cornersize,$y[0], darkblue,1);
-
-$picture->moveTo($x[1],$y[1]+$cornersize);
-$picture->lineTo($x[1]-$cornersize,$y[1]+$cornersize, red,1,'dashed');
-$picture->lineTo($x[1]-$cornersize,$y[1], red,1,'dashed');
-
-$alt = "The graph shows a polygon with a rectangle at the bottom and a triangle on top of it. The base of the triangle overlaps the top base of the rectangle. For the rectangle, its base is $baseU, and its height is $heightRectangleU. For the triangle, its height is $heightTriangleU, both its left side and right side are $leftSideU.";
-
-##############################################
-
-TEXT(beginproblem());
+$alt =
+    "The graph shows a polygon with a rectangle at the bottom and a triangle on top of it. The base of the triangle overlaps the top base of the rectangle. For the rectangle, its base is $baseU, and its height is $heightRectangleU. For the triangle, its height is $heightTriangleU, both its left side and right side are $leftSideU.";
 
 BEGIN_PGML
 
 Find the perimeter and area of this polygon.
 
->>[@ image(insertGraph( $picture  ),  width=>240, extra_html_tags => "alt = '$alt' title = '$alt' ") @]*<<
+>>[!$alt!]{$graph}{300} <<
 
-    Its perimeter is [_]{$perimeterU}{5} and its area is [_]{$areaU}{5}. 
+    Its perimeter is [_]{$perimeterU}{10} and its area is [_]{$areaU}{15}.
 
 [@KeyboardInstructions(q!(Use [|ft|]* for feet and [|ft^2|]* for square feet.)!)@]**
 
 END_PGML
-
-##############################################
 
 BEGIN_PGML_SOLUTION
 
