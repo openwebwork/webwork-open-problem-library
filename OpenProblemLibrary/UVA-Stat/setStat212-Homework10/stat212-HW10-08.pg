@@ -1,5 +1,4 @@
-##DESCRIPTION
-##
+# DESCRIPTION
 ## CMMK tagged this problem
 
 ## DBsubject(Statistics)
@@ -17,102 +16,121 @@
 ## Section1('.')
 ## Problem1('')
 ## KEYWORDS('statistics','Inference about a population')
+# ENDDESCRIPTION
 
-
-##ENDDESCRIPTION
-
-DOCUMENT();        # This should be the first executable line in the problem.
-
+DOCUMENT();
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "PGnumericalmacros.pl",
+  "PGML.pl",
   "PGstatisticsmacros.pl",
-  "extraAnswerEvaluators.pl",
+  "niceTables.pl",
+  "parserRadioButtons.pl",
   "PGcourse.pl"
 );
 
-TEXT(beginproblem());
-$showPartialCorrectAnswers = 0;
-install_problem_grader(~~&std_problem_grader);
+$showPartialCorrectAnswers = 1;
 
-$tstat = 4;
-while (abs($tstat) > 3.5) {
+# Perl Numbers
 $mu = random(15,25,1);
-$dat1 = $mu + random(-5,5,1);
-$dat2 = $mu + random(-5,5,1);
-$dat3 = $mu + random(-5,5,1);
-$dat4 = $mu + random(-5,5,1);
-$dat5 = $mu + random(-5,5,1);
-$dat6 = $mu + random(-5,5,1);
-$dat7 = $mu + random(-5,5,1);
-$dat8 = $mu + random(-5,5,1);
-$dat9 = $mu + random(-5,5,1);
-$dat10 = $mu + random(-5,5,1);
 $n = 10;
-$df = $n - 1;
-$xbar = ($dat1+$dat2+$dat3+$dat4+$dat5+$dat6+$dat7+$dat8+$dat9+$dat10)/$n;
-$svar = (($dat1-$xbar)**2+($dat2-$xbar)**2+($dat3-$xbar)**2+($dat4-$xbar)**2+
-($dat5-$xbar)**2+($dat6-$xbar)**2+($dat7-$xbar)**2+($dat8-$xbar)**2+($dat9-$xbar)**2+
-($dat10-$xbar)**2)/($n-1);
-$s = sqrt($svar);
+@data = ();
+foreach (1..$n){ push(@data, $mu + random(-5,5,1)) ;}
+$tab = DataTable([~~@data]);
+($t,$df,$p)=t_test($mu,@data);
+$mean = stats_mean(@data);
+$sd = stats_sd(@data); # sample standard deviation 
 $siglev = random(1,10,1);
-$alpha2 = $siglev/200;
-$alpha = 2*$alpha2;
-$tstat = ($xbar-$mu)/($s/sqrt($n));
-$tcrit = tdistr($df,$alpha2);
-$pval = 2*tprob($df,abs($tstat));
-}
+$alpha = $siglev/100;
+$tcrit = tdistr($df,$alpha/2); # critical value
 
-$mc = new_multiple_choice();
+# Convert Perl numbers to Real objects.  It seems to be 
+# important that the inputs to tdistr not be MathObjects.
 
-@ans = ("Reject \(H_0\).", "Do Not Reject \(H_0\).",
-        "Reject \(H_1\).", "Do Not Reject \(H_1\).");
+Context("Numeric");
+Context()->flags->set(
+  tolerance => 0.1,
+  tolType => "relative",
+);
+$t = Real($t);
+$p = Real($p);
+$sd=Real($sd);
+$alpha = Real($alpha);
+$tcrit = Real($tcrit);
 
-if ($pval < $alpha) {$tag = 0;} else {$tag = 1;}
+#rejection region
+Context("Interval");
+Context()->flags->set(
+  tolerance => 0.1,
+  tolType => "relative",
+);
 
-$mc -> qa('D. Your decision for the hypothesis test:', $ans[$tag]);
+$rej_reg = Compute("(-infinity,-$tcrit) U ($tcrit,infinity)");
 
-$mc -> extra($ans[1-$tag],$ans[2],$ans[3]);
+#$mc = new_multiple_choice();
 
-BEGIN_TEXT
+if ($p < $alpha) {$tag = 0;} else {$tag = 1;}
+$radio = RadioButtons(["Reject \(H_0\).", "Do Not Reject \(H_0\).",
+        "Reject \(H_1\).", "Do Not Reject \(H_1\)."], $tag);
 
+BEGIN_PGML
 A random sample of 10 observations was drawn from a large normally 
-distributed population.  The data is below.  
-$PAR
-\[
-\begin{array}{ccccccccccc} 
-$dat1 & $dat2 & $dat3 & $dat4 & $dat5 & $dat6 & $dat7 & $dat8 & $dat9 & $dat10 
-\end{array}
-\]
-$PAR
-Test to determine if we can infer at the $siglev$PERCENT significance level that the 
-population mean is not equal to $mu, filling in the requested 
-information below.
-$PAR
+distributed population.  The data are below.    
 
-A. The value of the standardized test statistic: \{ ans_rule(25) \}
-$PAR
-$BBOLD Note:$EBOLD For the next part, your answer should use interval notation.  An
-answer of the form \((-\infty, a)\) is expressed (-infty, a), an answer of the 
-form \((b, \infty)\) is expressed (b, infty), and an answer of the 
-form \((-\infty, a) \cup (b, \infty)\) is expressed (-infty, a)U(b, infty).
-$PAR
-B. The rejection region for the standardized test statistic: \{ ans_rule(40) \} $PAR 
-$PAR
-C. The p-value is \{ ans_rule(25) \} $PAR
+[@ $tab @]*
 
+Test to determine if, at the [$siglev]% significance level, we can infer that the 
+population mean is not equal to [$mu], filling in the requested 
+information below.   
 
-\{ $mc ->print_q() \} $BR
-\{ $mc ->print_a() \}
+\A. The value of the standardized test statistic is: [_]{$t}{10}
 
-END_TEXT
+_Note:_ For the part B, your answer should use interval notation.  [@ helpLink("interval") @]* 
 
-ANS(num_cmp($tstat));
-ANS(interval_cmp("(-infty,-$tcrit)U($tcrit,infty)", sloppy=>'yes'));
-ANS(num_cmp($pval));
-ANS(radio_cmp($mc->correct_ans));
+\B. The rejection region for the standardized test statistic is:  [_]{$rej_reg}{15}  
 
+\C. The p-value is [_]{$p}{10}
 
-ENDDOCUMENT();       # This should be the last executable line in the problem.
+\D. Your decision for the hypothesis test.  ([`H_0`] is the null hypothesis, [`H_1`] is the alternative).
+
+    [_]{$radio}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+The null hypothesis [`H_0`] says 
+
+    population mean = [`\mu`] = [`[$mu]`]  (Null hypothesis)
+
+Our random sample of [`n=[$n]`] values [`x`] has 
+
+    sample mean = [`\bar{x}=\sum x/n`] = [`[$mean]`]  
+
+    sample standard deviation = [``s=\sqrt{\frac{\sum (x-\bar{x})^2}{n-1}}``] = [`[$sd]`]    
+
+    test statistic = [``t=\frac{\bar{x}-\mu}{s/\sqrt{n}}``]=[`[$t]`]
+
+Use a two-sided t-test because the sample is small, and we are testing whether [`\mu`] is different (larger or smaller, hence "two-sided") from the nominal value [$mu].  T-test calculators are available on the internet for computing [`p`] (search for "two-sided t-test calculator").  
+
+On the two-sided t-distribution with [`n-1=[$df]`] degrees of freedom, the p-value for the test statistic is 
+
+    [`p=[$p]`].  
+
+Compare [`p`] with the required significance level 
+[`\alpha=[$alpha]`].  If [`p<\alpha`] then the data support rejecting the null hypothesis. Otherwise the data don't support rejecting the null hypothesis.  
+
+A related way to decide whether or not to reject the null hypothesis is by finding the ``rejection region``.  This is the set of hypothetical values of the test statistic that should cause one to reject the null hypothesis.  It the set of numbers whose *absolute value is larger* than the so-called "critical value", [`t_{\text{crit}}`].  T-test calculators on the internet can produce the critical value.  
+
+In our case, the two-sided t-test calculator says that 
+
+    [`t_{\text{crit}}= [$tcrit]`].
+
+so
+ 
+    rejection region = [``[$rej_reg]``]. 
+
+If the test statistic is in the rejection region then the data support rejecting the null hypothesis. Otherwise the data don't support rejecting the null hypothesis.
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
+
