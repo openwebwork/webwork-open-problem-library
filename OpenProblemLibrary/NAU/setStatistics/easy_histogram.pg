@@ -1,4 +1,6 @@
 ##DESCRIPTION
+## Interpret a bar graph
+##ENDDESCRIPTION
 ## DBsubject(Statistics)
 ## DBchapter(Exploratory data analysis/descriptive statistics)
 ## DBsection(Graphical representations)
@@ -6,53 +8,104 @@
 ## Author(N.Spencer Sitton)
 ## Level(3)
 ## KEYWORDS('histogram')
-##ENDDESCRIPTION
 
 # File Created: 07/11/05
-# Problem Author: 
+# Problem Author:
 # Location: Northern Arizona University
 
-DOCUMENT();     
-loadMacros(
-  "PGstandard.pl",
-  "PGnauStats.pl",
-  "PGstatisticsmacros.pl",
-  "PGnumericalmacros.pl",
-  "PGcourse.pl"
-);
-TEXT(&beginproblem);
+# UPDATED on 2022.06.30 by Peter Staab, Fitchburg State University
+# Graph updated to use PGML, tikz and add alt tag for accessibility.
 
-$n = 50;
-$max = random( 29, 44, 5 );
-for( $i = 0; $i < $n; $i++ ){ $val = random( 0, $max, 1 );
-  push @list, $val;
-}  
-$name = list_random( 'Mathematics and Statistics', 'Chemistry', 'Biology', 'English' );
-$num = random( 5, $max - 10, 5 );
-@dir = ( $num.' or more ', ' less than '.$num );
-$ind = random( 0, 1 );
-foreach $val(@list){
-  if( $val < $num ){ push @newlist1, $val 
-  }else{ push @newlist2, $val } 
+DOCUMENT();
+loadMacros("PGstandard.pl", "PGML.pl", "PGtikz.pl");
+
+$n   = 50;
+$max = random(29, 44, 5);
+push(@list, random(0, $max)) for (0 .. $n - 1);
+
+$name = list_random('Mathematics and Statistics', 'Chemistry', 'Biology',
+    'English');
+$title    = "$name Faculty";
+$num      = random(5, $max - 10, 5);
+@dir      = ("$num or more ", " less than $num");
+$ind      = random(0, 1);
+$num_bins = ($max + 1) / 5;
+$bins[$_] = 0 for (0 .. $num_bins - 1);
+
+for $val (@list) {
+    if ($val < $num) {
+        push @newlist1, $val;
+    } else {
+        push @newlist2, $val;
+    }
+    $bins[ floor($val / 5) ]++;
 }
-if( $ind == 0 ){ $ans1 = ( 100 * scalar( @newlist2 ) ) / $n;
-}else{ $ans1 = ( 100 * scalar( @newlist1 ) ) / $n;} 
 
-BEGIN_TEXT
+# Determine the largest bar as well as create the alternate text
 
-The histogram below gives the length of service of members of the Department of $name at a particular
-university. The classes, in years of service, are 0\(-\)4.9, 5\(-\)9.9, etc., and the vertical axis represents the 
-number of faculty.
-$PAR
+$alttext =
+    "A bar graph with number of years on the vertical axis and years of service on the horizontal axis. ";
+$ymax = 0;
+for $i (0 .. $num_bins - 1) {
+    $ymax = $bins[$i] if ($bins[$i] > $ymax);
+    $alttext .=
+        "The bar between "
+        . 5 * $i . " and "
+        . 5 * ($i + 1)
+        . " has height "
+        . $bins[$i] . ". ";
+}
 
-What percent of the department faculty have $dir[$ind] years of service?$BR
-Answer: \{ans_rule( 15 )\}$PERCENT $PAR
+# These are useful for setting the bounds of the plot
+$ymax1 = $ymax + 1;
+$ymax2 = $ymax + 2;
+$ymax3 = $ymax + 3;
+$xmax1 = $max + 1;
+$xmax2 = $max + 2;
+$mid   = 0.5 * $xmax1;
 
-\{ Plot( Histogram( @list, bins => ( $max + 1 ) / 5, axislabel => 'Years of Service', 
-                                     labelcount => $n, title => $name.' Faculty'  ) )  \} $BR
+$ans1 = $ind == 0 ? 100 * scalar(@newlist2) / $n : 100 * scalar(@newlist1) / $n;
 
-END_TEXT
+$graph_image = createTikZImage();
+$graph_image->texPackages(["ifthen"]);
+$graph_image->tikzLibraries("arrows.meta");
+$graph_image->tikzOptions("xscale=0.5, every node/.style={scale=1.5}");
 
-ANS( num_cmp( $ans1 ) );
+$graph_image->BEGIN_TIKZ
+\filldraw[
+    draw=LightBlue,
+    fill=white,
+    rounded corners=10pt,
+    thick,use as bounding box
+] (-2,-2) rectangle ($xmax2, $ymax3);
+\draw[<->,thick] (0,0) rectangle ($xmax1,$ymax1);
+\draw ($mid,$ymax2) node {\Huge $title};
+\foreach \x in {5,10,...,$xmax1} \draw[gray] (\x,0) -- (\x,-0.5) node[below] {\x};
+\foreach \y in {1,2,...,$ymax1} \draw[thin, gray] (0,\y) -- (-0.25,\y) node[left]{\y};
+\filldraw[thick, fill=blue!20] (0,0) rectangle(5,$bins[0]);
+\filldraw[thick, fill=red!20] (5,0) rectangle(10,$bins[1]);
+\filldraw[thick, fill=yellow!50] (10,0) rectangle(15,$bins[2]);
+\filldraw[thick, fill=magenta!20] (15,0) rectangle(20,$bins[3]);
+\filldraw[thick, fill=blue!20] (20,0) rectangle(25,$bins[4]);
+\filldraw[thick, fill=red!20] (25,0) rectangle(30,$bins[5]);
+\ifthenelse{$num_bins > 6}{\filldraw[thick, fill=yellow!50] (30,0) rectangle(35,$bins[6]);}{}
+\ifthenelse{$num_bins > 7}{\filldraw[thick, fill=magenta!20] (35,0) rectangle(40,$bins[7]);}{}
+\ifthenelse{$num_bins > 8}{\filldraw[thick, fill=blue!20] (40,0) rectangle(45,$bins[8]);}{}
+END_TIKZ
 
-ENDDOCUMENT();      
+BEGIN_PGML
+
+The histogram below gives the length of service of members of the
+Department of [$name] at a particular
+university. The horizontal axis represents years of service in intervals
+0 to 4.9, 5 to 9.9, etc., and the vertical axis represents the number of
+faculty.
+
+>> [! [$alttext] !]{$graph_image}{400} <<
+
+What percent of the department faculty have [$dir[$ind]] years of service?
+[_____]{$ans1}
+
+END_PGML
+
+ENDDOCUMENT()

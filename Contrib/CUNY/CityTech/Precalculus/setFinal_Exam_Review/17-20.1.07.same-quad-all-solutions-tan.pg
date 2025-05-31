@@ -1,0 +1,334 @@
+##DESCRIPTION
+##  Trigonometry problem: Solve a trig equation - ALL solutions required
+##ENDDESCRIPTION
+
+##KEYWORDS('trigonometry', 'trig functions', 'trigonometric functions', 'analytic trigonometry', 'trigonometric equation')
+
+## DBsubject(Trigonometry)
+## DBchapter(Analytic trigonometry)
+## DBsection(Solving trigonometric equations exactly)
+## Author(K. Andrew Parker)
+## Institution(CUNY City Tech)
+## Language(en)
+
+########################################################################
+
+DOCUMENT();      
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+ "niceTables.pl",
+   "PGML.pl",
+);
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+##############################################################
+#
+#  Setup
+#
+#
+Context("Numeric");
+Context()->flags->set(
+  reduceConstants=>0,
+  reduceConstantFunctions=>0
+);
+Context()->variables->add(n=>['Real',limits=>[-10,10]]);
+
+Parser::Number::NoDecimals();
+Context()->{error}{msg}{"You are not allowed to type decimal numbers in this problem"} 
+  = "Please state your answer in radians, using fractions of 'pi' rather than decimal approximations.";
+
+# unit circle hash for each denom
+%unit = (
+  6 => {
+    x => Formula("sqrt(3)/2"),
+    nx => Formula("-sqrt(3)/2"),
+    x2 => Formula("3/4"),
+    y => Formula("1/2"),
+    ny => Formula("-1/2"),
+    y2 => Formula("1/4"),
+    t => Formula("1/sqrt(3)"),
+    nt => Formula("-1/sqrt(3)"),
+    t2 => Formula("1/3")
+  },
+  3 => {
+    x => Formula("1/2"),
+    nx => Formula("-1/2"),
+    x2 => Formula("1/4"),
+    y => Formula("sqrt(3)/2"),
+    ny => Formula("-sqrt(3)/2"),
+    y2 => Formula("3/4"),
+    t => Formula("sqrt(3)/1"),
+    nt => Formula("-sqrt(3)/1"),
+    t2 => Formula("3/1")
+  },
+  4 => {
+    x => Formula("sqrt(2)/2"),
+    nx => Formula("-sqrt(2)/2"),
+    x2 => Formula("1/2"),
+    y => Formula("sqrt(2)/2"),
+    ny => Formula("-sqrt(2)/2"),
+    y2 => Formula("1/2"),
+    t => Formula("1/1"),
+    nt => Formula("-1/1"),
+    t2 => Formula("1/1")
+  }
+);
+
+# choose reference angle and generate necessary secondary numerators
+$denom = list_random(3,4,6);
+$dminus1 = $denom-1;
+$dplus1 = $denom+1;
+$twodminus1 = 2*$denom-1;
+
+# hash to provide principal solutions in [0,2pi)
+# $principal{$trigFunction}{$isPositive}
+%principal = (
+  sin => {
+    1 => Formula("pi/$denom"),
+    0 => Formula("$twodminus1 pi/$denom"), # or -pi/$denom outside [0,2pi)
+  },
+  cos => {
+    1 => Formula("pi/$denom"),
+    0 => Formula("$dminus1 pi/$denom"),
+  },
+  tan => {
+    1 => Formula("pi/$denom"),
+    0 => Formula("$twodminus1 pi/$denom"),  # or -pi/$denom outside [0,2pi)
+  }
+);
+
+# hash to provide secondary solutions in [0,2pi)
+# $secondary{$trigFunction}{$isPositive}
+%secondary = (
+  sin => {
+    1 => Formula("$dminus1 pi/$denom"),
+    0 => Formula("$dplus1 pi/$denom"),
+  },
+  cos => {
+    1 => Formula("$twodminus1 pi/$denom"),
+    0 => Formula("$dplus1 pi/$denom"),
+  },
+  tan => {
+    1 => Formula("$dplus1 pi/$denom"),
+    0 => Formula("$dminus1 pi/$denom"),
+  }
+);
+
+# for generating a hashkey
+# usage: row = sin/cos/tan
+#        column = squared/Q1/Q2/Q3/Q4
+@select = ( [ 'y2', 'y', 'y', 'ny', 'ny' ],
+            [ 'x2', 'x', 'nx', 'nx', 'x' ],
+            [ 't2', 't', 'nt', 't', 'nt' ] 
+);
+
+### Randomly select quadrant and trig function to use
+$quad = random(1,4,1); 
+@trig = ("sin","cos","tan");
+@trigFull = ("sine", "cosine", "tangent"); # for display
+#$function = random(0,2,1); 
+$function = 2;
+$trigFunction = $trigFull[$function]; # display name for hint/solution
+### Select a second trig function as common factor = 0
+# to avoid reduction-confusion, we don't pair cosine and tangent
+$function2 = ( $function == 0 ) ? random(1,2,1) : 0;
+$trigFunction2 = $trigFull[$function2];
+
+
+### Generate a hash key for retrieving result from unit circle hash
+$hashKey = $select[$function][$quad];
+
+### Pull the proper ratio from the unit circle hash and generate coefficients
+$ratio = Formula("$unit{$denom}{$hashKey}");
+$hashKey =~ tr/n//d;
+$absRatio = Formula("$unit{$denom}{$hashKey}");
+$A = Formula($absRatio->{tree}{rop});
+$B = Formula($absRatio->{tree}{lop});
+
+$LHS = ($A == 1) ? Formula("$trig[$function]^2(x)") : Formula("$A $trig[$function]^2(x)");
+if ($ratio < 0) { 
+  $LHS = ($B == 1) ? Formula("$LHS + $trig[$function](x)") : Formula("$LHS + $B $trig[$function](x)");
+  } else {
+  $LHS = ($B == 1) ? Formula("$LHS - $trig[$function](x)") : Formula("$LHS - $B $trig[$function](x)");
+};
+$RHS = Formula("0");
+
+$isPos = ($ratio > 0) ? 1 : 0;
+$ans1 = Formula("$principal{$trig[$function]}{$isPos} + 2pi n");
+$ans2 = Formula("$secondary{$trig[$function]}{$isPos} + 2pi n");
+$ans3 = ($function == 1) ? Formula("pi/2 + 2pi n") : Formula("0 + 2pi n");
+$ans4 = ($function == 1) ? Formula("3 pi / 2 + 2pi n") : Formula("pi + 2pi n");
+$ans = List( $ans1, $ans2, $ans3, $ans4 );
+
+$correctDepth = 3; # correct values will be measured +/- 2pi * this parameter
+$studentDepth = 10; # student values will be +/- 2pi * this parameter
+                    # should be at least 2x larger in case of tangent
+
+$periodicCheck = sub {
+     my ($correct,$student,$ansHash,$value) = @_;
+     my $m = scalar(@$correct);  # number of correct answers
+     my $n = scalar(@$student);  # number of student answers
+     my $score = 0;              # number of correct student answers
+     my @errors = ();            # stores error messages
+     my $i, $j;                  # loop counters
+     my $correctSet = Set();
+     foreach my $k (0..$m-1) {
+         $correctSet = Set($correctSet + Set($correct->[$k]->eval(n=>0)));
+         foreach my $l (1..$correctDepth) {
+            $correctSet = Set($correctSet + Set($correct->[$k]->eval(n=>$l), $correct->[$k]->eval(n=>-$l)));
+         }
+     }
+     #
+     #  Loop though the student answers
+     ##
+     my $studentCumulative = Set();
+     for ($i = 0; $i < $n; $i++) {
+       my $ith = Value::List->NameForNumber($i+1);
+       my $p = $student->[ $i ];   # i-th student answer
+       my $Dp = $p -> D('n');    # positive? negative? ZERO??
+       my $DDp = $Dp -> D('n');  # make sure students aren't overcomplicating
+       #
+       #  Check that the student's answer contains "n" (hopefully 2 pi n)
+       #
+       if ( $Dp == 0 ) {
+          push(@errors,"Your $ith answer is a single solution when it should be an expression that represents multiple values.");
+          push(@errors,"Your $ith answer is not a solution to the given equation.") if ($LHS->eval(x=>$p) != $RHS); # update this if RHS is nonconstant
+          next;
+       }
+       #
+       #  Make sure that student's answer contains "n"
+       #
+       if ( $DDp != 0 ) {
+          push(@errors,"You're overcomplicating your $ith answer.");
+          next;
+       }
+       #
+       #  Check that the answer hasn't been given before
+       #
+       my $studentSet = Set($p->eval(n=>0));
+       my $used = 0;
+       foreach my $k (1..$studentDepth) {
+          $studentSet = Set($studentSet + Set($p->eval(n=>$k), $p->eval(n=>-$k)));
+       }
+       if ( $studentSet->intersects($studentCumulative) ) {
+          push(@errors, "Your $ith expression represents overlapping values with a previous answer.");
+          $used = 1; last;
+       }       
+       #
+       #  If not already used, check that it satisfies the equation
+       #    and increase the score if so.
+       #
+       if (!$used) {
+         my @studentValues = $studentSet->value;
+         my $l = scalar(@studentValues);
+         my $incorrect = 0;
+         foreach my $k (0..$l-1) {
+            # note to self : update this evaluation if RHS is nonconstant
+            if ($LHS->eval(x=>$studentValues[$k]) != $RHS) {$incorrect++}
+         }
+         if ( $incorrect == 0) {
+            $score++;
+         } else {
+            push(@errors,"Your $ith expression represents values that do not solve the equation.") unless $ansHash->{isPreview};
+         }
+         $studentCumulative = Set( $studentCumulative + $studentSet );
+       }
+     }
+     #
+     #  Check that there are the right number of answers
+     #
+     if (!$ansHash->{isPreview}) {
+       push(@errors,"You have not expressed all possible solutions.") if !$studentCumulative->contains($correctSet);
+       # if the student answers cover the necessary solution,
+       # and there's been no mistakes, and we're still shy
+       # of the required number of solutions based on the input list
+       # _still_ give full credit because there's been a more
+       # condensed solution possible (tangent)
+       if ( $studentCumulative->contains($correctSet) && $score == $n && $score < $m ) { $score = $m };
+       # push(@errors,"You have given too many solutions") if $score > 4 && $i != $score;
+     } 
+     return ($score,@errors);
+   };
+ 
+ 
+ 
+$SignSol = "+"; if ($ratio > 0) {$SignSol = "-"; };
+$DrSiSol = "-"; if ($ratio > 0) {$DrSiSol = ""; };
+
+$PrinSol = Formula("pi/$denom");
+
+$WriteTanSol = Formula("$A tan(x)");
+$ExtraA = ", and so `tan(x)=$DrSiSol $B/$A`"; 
+$ExtraB = Formula("$B/$A");
+if ($A==1) 
+  {$WriteTanSol = Formula("tan(x)");
+   $ExtraA = "";
+   $ExtraB = Formula("$B");;};
+
+
+##############################################################
+#
+#  Text
+#
+#
+
+BEGIN_PGML
+
+Solve for [`x`]:
+>> [`` \large [$LHS] = [$RHS] ``] <<
+
+Give expressions to represent all solutions to the equation:
+
+    [`x = `] [________________________________________]{$ans->cmp(showLengthHints=>0, list_checker=>$periodicCheck)}
+
+* Give your answer in radians.
+* Separate multiple solutions with commas.
+* Use "[`n`]" as the parameter in your solution(s).
+* Do not use decimal approximations. Use 'pi' to represent [` \pi `].
+
+[@ LayoutTable(
+  [
+    [['\(\large\textbf{Exit Problem}\)', midrule=>1,   rowtop=>2, rowcolor=>"black", color=>"white", halign=>'c']],
+    [['Pretend that the following problem is on the final exam and with pen and paper, work out the solution. Bring your work to class for the review session.', midrule=>1]],
+    [['Find all exact solutions in radians.
+', midrule=>0, rowcolor=>"white"]],
+    [['\( \tan^2x-\tan x=0 \)
+', rowbottom=>2, rowcolor=>"white"]],
+  ],
+  align=>'!{\vrule width 2pt}X!{\vrule width 2pt}',
+  booktabs => 0,
+  allcellcss=>'padding: 2pt;',
+) @]***
+
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+
+We start by factoring the left-hand side of the equation:
+[```
+\tan(x)\cdot \big([$WriteTanSol][$SignSol][$B]\big)=0
+```]
+This splits into the two separate equations:
+
+(a) [`\tan(x)=0`]
+
+(b) [`[$WriteTanSol][$SignSol][$B]=0`]
+
+* We solve (a) by taking [`\tan^{-1}(0)=0`]. Therefore, the general solution from (a) is: [```x=0+\pi n```] where [`n`] can be any integer.
+
+* To solve (b), we write [`[$WriteTanSol][$SignSol][$B]=0`] as [`[$WriteTanSol]=[$DrSiSol][$B]`]
+[$ExtraA]. Now, [`\tan^{-1}\big([$DrSiSol]`][`[$ExtraB]`][`\big)=[$DrSiSol][$PrinSol]`]. Therefore, the general solution from (b) is: [```x=[$DrSiSol][$PrinSol]+\pi n```] where [`n`] can be any integer.
+
+END_PGML_SOLUTION
+
+
+ENDDOCUMENT();        
+

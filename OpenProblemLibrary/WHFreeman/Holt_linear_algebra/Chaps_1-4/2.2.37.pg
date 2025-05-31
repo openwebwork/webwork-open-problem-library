@@ -18,116 +18,70 @@
 DOCUMENT();
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "parserPopUp.pl",
-  "MathObjects.pl",
-  "freemanMacros.pl",
+  "PGML.pl",
+  "parserCheckboxList.pl",
   "PGcourse.pl"
 );
 
-# make sure we're in the context we want
-Context("Numeric");
-# We start by producing the row reduced matrix.
-# This is upper triangular
-$red11=1;
-$red12=random(1,5,1)*random(-1,1,2);
-$red13=random(1,5,1)*random(-1,1,2);
-$red21=0;
-$red22=1;
-$red23=random(1,5,1)*random(-1,1,2);
-$red31=0;
-$red32=0;
-$red33=1;
-
-# Next we produce the scalars that will be used in Gauss elimination.
-# This is an lower triangular matrix
-$m11=random(1,6,1)*random(-1,1,2);
-$m12=0;
-$m13=0;
-$m21=random(1,5,1)*random(-1,1,2);
-$m22=random(1,5,1)*random(-1,1,2);
-$m23=0;
-$m31=random(1,5,1)*random(-1,1,2);
-$m32=random(1,5,1)*random(-1,1,2);
-$m33=random(1,5,1)*random(-1,1,2);
-
-# We are ready to produce our matrix A.
-$A11=$m11*$red11+$m12*$red21+$m13*$red31;
-$A12=$m11*$red12+$m12*$red22+$m13*$red32;
-$A13=$m11*$red13+$m12*$red23+$m13*$red33;
-$A21=$m21*$red11+$m22*$red21+$m23*$red31;
-$A22=$m21*$red12+$m22*$red22+$m23*$red32;
-$A23=$m21*$red13+$m22*$red23+$m23*$red33;
-$A31=$m31*$red11+$m32*$red21+$m33*$red31;
-$A32=$m31*$red12+$m32*$red22+$m33*$red32;
-$A33=$m31*$red13+$m32*$red23+$m33*$red33;
 
 $a1=random(2,9,1)*random(-1,1,2);
 $a2=random(2,9,1)*random(-1,1,2);
 $a3=random(2,9,1)*random(-1,1,2);
 
+Context("Vector");
+$i = Compute("i");
+$k = Compute("k");
 
-# the arguments of PopUp are [list of answers], 
-#    correct answer
-$mc = new_checkbox_multiple_choice();
-$mc->qa(
-"",
-"The vector \(\left[{\begin{matrix}1 \cr 0 \cr 0 \cr \end{matrix}}\right]\) is not in the span.",
-"The vector \(\left[{\begin{matrix}0 \cr 1 \cr 0 \cr \end{matrix}}\right]\) is not in the span.",
-"The vector \(\left[{\begin{matrix}$a1 *$A12 \cr $a1 *$A22 \cr $a1 *$A32+1 \cr \end{matrix}}\right]+
-$a2 \left[{\begin{matrix}$A11 \cr $A21 \cr $A31 \cr \end{matrix}}\right]\\) is not in the span.",
-"The vector \(\left[{\begin{matrix}$a3*$A11+4 \cr $a3*$A21 \cr $a3*$A31 \cr \end{matrix}}\right]\) is not in the span."
-);
-$mc->extra(
-"The vector \(\left[{\begin{matrix}$A11 \cr $A21 \cr $A31 \cr \end{matrix}}\right]\) is not in the span.",
-"The vector \(\left[{\begin{matrix}$A12 \cr $A22 \cr $A32 \cr \end{matrix}}\right]\) is not in the span.",
-"The vector \($a1 \left[{\begin{matrix}$A12 \cr $A22 \cr $A32 \cr \end{matrix}}\right]+
-$a2 \left[{\begin{matrix}$A11 \cr $A21 \cr $A31 \cr \end{matrix}}\right]\\) is not in the span.",
-"The vector \($a2\left[{\begin{matrix}$A12 \cr $A22 \cr $A32 \cr \end{matrix}}\right]\) is not in the span.",
-"The vector \(\left[{\begin{matrix}0 \cr 0 \cr 0 \cr \end{matrix}}\right]\) is not in the span.",
-"All vectors in \({\mathbb R}^3\) are in the span."
-);
-$mc->makeLast("We cannot tell which vectors are in the span.");
+# We need vectors u1,u2 in R^3 whose span does not include (1,0,0) or (0,0,1).
+# It's enough that the first and third components of their cross product
+# are not zero     
 
-TEXT(beginproblem());
-$showPartialCorrectAnswers = 0;
-Context()->texStrings;
-BEGIN_TEXT
-\{ textbook_ref_exact("Holt Linear Algebra", "2.2","7") \} 
-$PAR
-Let 
-\({\bf u}_1 = \left[{\begin{matrix}$A11 \cr $A21 \cr $A31 \cr \end{matrix}}\right]\), and
-\({\bf u}_2 = \left[{\begin{matrix}$A12 \cr $A22 \cr $A32 \cr \end{matrix}}\right]\).
+do { $u1 = Vector(random(-7,7),random(-7,7),random(-7,7));
+     $u2 = Vector(random(-7,7),random(-7,7),random(-7,7));
+     $uXu = $u1->cross($u2);
+     $uXu_1 =$uXu->dot($i);
+     $uXu_3 =$uXu->dot($k);
+   } until ($uXu_1 != 0 && $uXu_3 !=0);
 
-$PAR
-Select all  of the vectors that are not in the span of 
-\(\lbrace {\bf u}_1, {\bf u}_2 \rbrace\).
-$PAR
- 
-$PAR
-\{ $mc->print_a() \}
-$PAR
+($A11,$A21,$A31)=$u1->value;
+($A12,$A22,$A32)=$u2->value;
 
-END_TEXT
-Context()->normalStrings;
-
-$showPartialCorrectAnswers = 1;
-
-ANS( checkbox_cmp( $mc->correct_ans() ) );
+$checks = CheckboxList([
+  # answers involving basis vectors and scalar multiples 
+  [  "The vector \(\begin{bmatrix}1 \cr 0 \cr 0 \cr \end{bmatrix}\) is not in the span.", #true
+     "The vector \({\begin{bmatrix}0 \cr 0 \cr 1 \cr \end{bmatrix}}\) is not in the span.", #true
+     "The vector \(\left[{\begin{matrix}$A11 \cr $A21 \cr $A31 \cr \end{matrix}}\right]\) is not in the span.", #false
+    "The vector \(\left[{\begin{matrix}$A12 \cr $A22 \cr $A32 \cr \end{matrix}}\right]\) is not in the span.", #false
+    "The vector \($a2\left[{\begin{matrix}$A12 \cr $A22 \cr $A32 \cr \end{matrix}}\right]\) is not in the span.", #false
+    "The vector \(\left[{\begin{matrix}0 \cr 0 \cr 0 \cr \end{matrix}}\right]\) is not in the span."], #false
+  [ "The vector \(\left[{\begin{matrix}$a1 *$A12 \cr $a1 *$A22 \cr $a1 *$A32+1 \cr \end{matrix}}\right]+
+    $a2 \left[{\begin{matrix}$A11 \cr $A21 \cr $A31 \cr \end{matrix}}\right]\\) is not in the span.", #true
+    "The vector \(\left[{\begin{matrix}$a3*$A11+4 \cr $a3*$A21 \cr $a3*$A31 \cr \end{matrix}}\right]\) is not in the span.", #true
+    "The vector \($a1 \left[{\begin{matrix}$A12 \cr $A22 \cr $A32 \cr \end{matrix}}\right]+ $a2 \left[{\begin{matrix}$A11 \cr $A21 \cr $A31 \cr \end{matrix}}\right]\\) is not in the span.", #false
+    "All vectors in \({\mathbb R}^3\) are in the span."], #false
+    "We cannot tell which vectors are in the span." #false
+  ],
+  [0,1,6,7],labels=>"ABC",separator=>"$PAR");
 
 
-Context()->texStrings;
-SOLUTION(EV3(<<'END_SOLUTION'));
-$PAR SOLUTION $PAR
-Any linear combination of the vectors, including the zero vector is in the span.
-$BR
-One can easily show that the vectors 
-\[\left[{\begin{matrix}1 \cr 0 \cr 0 \cr \end{matrix}}\right], 
-\left[{\begin{matrix}0 \cr 1 \cr 0 \cr \end{matrix}}\right], 
-\left[{\begin{matrix}0 \cr 0 \cr 1 \cr \end{matrix}}\right]
-\]
-are not in the span.  Thus if we take any vector in the span and change one coordinate, we get a vector not in the span.
-END_SOLUTION
-Context()->normalStrings;
+
+BEGIN_PGML
+Let [`\mathbf{u_1}=[$u1]`] and [`\mathbf{u_2}=[$u2]`].  
+
+Select all the *true* statements below.  Here, "the span" means the span of [`\{\mathbf{u_1},\mathbf{u_2}\}`] in [``\mathbb{R}^3``].
+
+[_]{$checks}
+END_PGML
+
+BEGIN_PGML_SOLUTION
+Any linear combination of [`\mathbf{u_1}`] and [`\mathbf{u_2}`], including the zero vector, is in the span.  One can easily check to see whether or not a given vector [``\mathbf{v}\in \mathbb{R}^3``] is in the span is by attempting to solve the equation [`\mathbf{v} = s\mathbf{u_1}+t\mathbf{u_2}`] for the scalars [`s`] and [`t`]; [`\mathbf{v}`] is in the span if there is a solution, otherwise it is not.  
+
+Another method is by using the cross product [`\mathbf{u_1}\times \mathbf{u_2}`] which is perpendicular to the span.  In our case [`0\neq \mathbf{u_1}\times \mathbf{u_2}`], so [``\mathbf{v}\in \mathbb{R}^3``] is in the span if and only if [`0\neq \mathbf{v} \cdot (\mathbf{u_1}\times \mathbf{u_2})`]. 
+
+Using either of these methods one can easily show that the standard basis vectors 
+[``\begin{bmatrix}1 \cr 0 \cr 0 \cr \end{bmatrix}``], 
+[``\begin{bmatrix}0 \cr 0 \cr 1 \cr \end{bmatrix}``]
+are *not* in the span.  Thus if we take any vector in the span and change either its first or its third coordinate, we get a vector that is not in the span. One can use this fact to check a couple of the choices in the list. 
+END_PGML_SOLUTION
 
 ENDDOCUMENT();

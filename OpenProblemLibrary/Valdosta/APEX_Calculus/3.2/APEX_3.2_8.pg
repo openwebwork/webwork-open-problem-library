@@ -1,15 +1,5 @@
 #Problem APEX 3.2.8
 
-DOCUMENT();
-
-# Load whatever macros you need for the problem
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "MathObjects.pl",
-  "PGcourse.pl"
-);
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Applications of differentiation)
 ## DBsection(Mean value theorem)
@@ -24,76 +14,122 @@ loadMacros(
 ## Section1('3.2')
 ## Problem1('8')
 
-TEXT(beginproblem());
-$showPartialCorrectAnswers = 1;
+DOCUMENT();
 
-$a = random(2,9,1) * random(-1,1,2);
-$b = random(2,8,1);
+# Load whatever macros you need for the problem
+loadMacros(
+    'PGstandard.pl',             'PGML.pl',
+    'parserRadioMultiAnswer.pl', 'PGcourse.pl'
+);
+
+Context('Numeric')->noreduce('(-x)-y', '(-x)+y');
+$a  = random(2, 9, 1) * random(-1, 1, 2);
+$b  = random(2, 8, 1);
 $b2 = 2 * $b;
-$c = random(1,5,1)*random(-1,1,2);
+$c  = random(1, 5, 1) * random(-1, 1, 2);
 
 $p1 = "\pi/$b";
 $p2 = "4\pi/$b";
 
 ## Adjustments if $b is even:
 if ($b == 2) {
-   $p2 = "2\pi";
+    $p2 = "2\pi";
 }
 if ($b == 4) {
-   $p2 = "\pi";
+    $p2 = "\pi";
 }
 if ($b == 6) {
-   $p2 = "2\pi/3";
+    $p2 = "2\pi/3";
 }
 if ($b == 8) {
-   $p2 = "\pi/2";
+    $p2 = "\pi/2";
 }
 
-$ab = $a*$b;
+$ab = $a * $b;
 
-$f = "$c + $a \sin $b x";
+$f  = Compute("$c + $a*sin ($b*x)")->reduce();
 $y1 = $c;
 
-$crit = List( 3*pi/$b2, 5*pi/$b2, 7*pi/$b2 );
+$crit = Compute("3*pi/$b2, 5*pi/$b2, 7*pi/$b2");
 
-BEGIN_TEXT
-$PAR
-A function \(f(x)\) and interval \([a, b]\) are given.
-Check if Rolle's Theorem can be applied to \(f\) on \([a, b]\).
-If so, find all values \(c\) in \([a, b]\) such that \(f'(c) = 0\).
-$BR
-Note, if Rolle's Theorem does not apply, enter $BBOLD DNE
-$EBOLD for the \(c\) value.
-$PAR
-\[
-  f(x) = $f \qquad \textrm{on} \; [$p1, $p2]
-\]
-\(c=\) \{ans_rule(20) \} (Separate multiple answers by commas.)
+$crit1 = Compute("3*pi/$b2");
+$crit2 = Compute("5*pi/$b2");
+$crit3 = Compute("7*pi/$b2");
 
-END_TEXT
+$RMA = RadioMultiAnswer(
+    [
+        [
+            "Rolle's Theorem can be applied, and \(c=\) %s. "
+                . '(Enter all values separated by commas)',
+            $crit
+        ],
+        ["Rolle's Theorem can not be applied."]
+    ],
+    0,
+    checker => sub {
+        my ($correct, $student, $self, $ans) = @_;
+        # the student must answer the multiple choice correctly first
+        return 0 unless $student->[0] == $correct->[0];
 
-ANS( $crit->cmp() );
+        # the contents contain the index of the answer objects
+        my $index = $correct->[0];
 
+        # but we cannot compare the lists directly, so extract the entries
+        my @c = $correct->[$index][0]->value;
+        my @s = $student->[$index][0]->value;
 
-SOLUTION(EV3(<<'END_SOLUTION'));
-$BR$BBOLD Solution:$EBOLD 
-$PAR
-\(f(x) = $f\) is continuous and
-differentiable on any interval.  
-$BR
-\(f($p1) = f($p2) = $y1\),
+        # partial credit starts at 0
+        my $score = 0;
+        for (my $i = 0; $i < scalar @c; $i++) {
+            my $found = 0;    # change this to 1 if we find a match in @s
+            for (my $j = 0; $j < scalar @s; $j++) {
+                next unless $s[$j];    # skip undefined entries
+                if ($c[$i] == $s[$j]) {
+                    $found = 1;        # a student entry matched!
+                    $s[$j] = undef;    # don't let it match again
+                    last;    # break so we can increment score and move on
+                }
+            }
+            $score += $found;    # score goes up if we found a match
+        }
+
+        # return the score out of the larger length of the two lists
+        return ($score / max(scalar @s, scalar @c));
+    },
+    checkTypes => 0
+);
+
+BEGIN_PGML
+
+A function [`f(x)`] and interval [`[a, b]`] are given.
+Check if Rolle's Theorem can be applied to [`f`] on [`[a, b]`].
+If so, find all values [`c`] in [`[a, b]`] such that [`f'(c) = 0`].
+
+[`` f(x) = [$f] \qquad \textrm{on} \; [[$p1], [$p2]] ``]
+
+[_]{$RMA}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+[`f(x) = [$f]`] is continuous and differentiable on any interval.
+
+[`f([$p1]) = f([$p2]) = [$y1]`],
 so Rolle's Theorem implies there must be at least one
-value \(c\) in \( ($p1, $p2) \) such that \(f'(c) = 0\).
-$BR
-Set \(f'(x) = 0 \) to find the value(s).
-\[
-  f'(x) = $ab \cos $b x = 0 \;\Rightarrow\; \cos $b x = 0.
-\]  
-There are three solutions on \( ($p1, $p2) \):
-\[
-  x = \frac{3\pi}{$b2},\; \frac{5\pi}{$b2},\; \frac{7\pi}{$b2}.
-\]
-END_SOLUTION
+value [`c`] in [` ([$p1], [$p2]) `] such that [`f'(c) = 0`].
 
-ENDDOCUMENT();    
+Set [`f'(x) = 0 `] to find the value(s).
 
+[``
+  f'(x) = [$ab] \cos ([$b] x) = 0 \;\Rightarrow\; \cos [$b] x = 0.
+``]
+
+There are three solutions on [` ([$p1], [$p2]) `]:
+
+[``
+  x = \frac{3\pi}{[$b2]},\; \frac{5\pi}{[$b2]},\; \frac{7\pi}{[$b2]}.
+``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

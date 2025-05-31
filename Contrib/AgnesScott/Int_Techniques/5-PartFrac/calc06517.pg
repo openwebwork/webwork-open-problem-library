@@ -1,0 +1,275 @@
+##DESCRIPTION
+## Solving integrals using polynomial division and partial fractions
+##ENDDESCRIPTION
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Techniques of integration)
+## DBsection(Partial fractions)
+## Institution(Agnes Scott College)
+## Author(Larry Riddle)
+## Level(3)
+## MO(1)
+## TitleText1('APEX Calculus')
+## AuthorText1('Hartman')
+## EditionText1('4.0')
+## Section1('6.6')
+## Problem1('17')
+
+
+DOCUMENT();
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "scaffold.pl",
+  "niceTables.pl",
+  "parserMultiAnswer.pl",
+  "parserFormulaUpToConstant.pl",
+  "contextFraction.pl",
+  "PGML.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+
+Context("Fraction-NoDecimals");
+Context()->noreduce('(-x)-y');   # prevents -a - b from becoming -(a+b)
+Context()->noreduce('(-x)-y','(-x)+y');  # prevents reverse order to remove initial negative. 
+Context()->variables->set(x=>{limits=>[-10,-8]});  # guarantees error message if no absolute value with ln
+
+$c1 = non_zero_random(-3,3);
+do {$c2 = non_zero_random(-4,4);} until ($c2 != $c1 && $c2+$c1!=0); 
+$den = Formula("x^2+($c1+$c2)x+$c1*$c2")->reduce();
+$f = Formula("(x^3)/$den")->reduce();
+$A = Fraction(-$c1**3,$c2-$c1);
+$B = Fraction($c2**3,$c2-$c1);
+$C = Formula("x-($c1+$c2)")->reduce();
+$den1 = Formula("x+$c1")->reduce();
+$den2 = Formula("x+$c2")->reduce();
+$intans = Formula("x^2/2-($c1+$c2)x + $A*ln(abs(x+$c1))+$B*ln(abs(x+$c2))")->reduce();
+
+$multians = MultiAnswer($C, $A, $den1, $B, $den2)->with(
+  singleResult => 0,
+  allowBlankAnswers => 1,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $cstu, $astu, $f1stu, $bstu, $f2stu ) = @{$student};
+      my ( $c3, $a1, $f1, $b2, $f2 ) = @{$correct};
+      if ($astu eq '' || $f1stu eq '' || $bstu eq '' || $f2stu eq '' || $cstu eq "") {
+          my @L = ($cstu, $astu, $f1stu, $bstu, $f2stu);
+          for ($i; $i<5; $i++) {
+               $self->setMessage($i+1,"Answers not checked until there is a value in each blank")
+                 if $L[$i] eq '';
+          }
+          return [0,0,0,0,0]
+      } elsif ( ( $c3==$cstu && $a1==$astu && $f1==$f1stu && $b2==$bstu && $f2==$f2stu) || 
+                ( $c3==$cstu && $a1==$bstu && $f1==$f2stu && $b2==$astu && $f2==$f1stu) ) {
+          return [1,1,1,1,1]
+      } elsif ($c3 != $cstu) {
+          $self->setMessage(1,"Check your polynomial division to reduce the degree of the numerator. Other answers cannot be checked until that is correct.");
+          return [0,0,0,0,0]
+      } elsif (($cstu + $astu/$f1stu + $bstu/$f2stu) == $f) {
+          my $ok2 = 1;
+          my $ok3 = 1;
+          if (($astu/$f1stu==$a1/$f1 && $a1 != $astu) ||
+             ($astu/$f1stu==$b2/$f2 && $b2 != $astu)) {
+             $self->setMessage(2,"Simplify your first fraction");
+             $self->setMessage(3,"Simplify your first fraction");
+             $ok2 = 0;
+          }
+          if (($bstu/$f2stu==$b2/$f2 && $b2 != $bstu) ||
+             ($bstu/$f2stu==$a1/$f1 && $a1 != $bstu)) {
+             $self->setMessage(4,"Simplify your second fraction");
+             $self->setMessage(5,"Simplify your second fraction");
+             $ok3 = 0;
+          }           
+          return [1,$ok2,$ok2,$ok3,$ok3];
+      } elsif ( ( $a1==$bstu && $f1==$f1stu && $b2==$astu && $f2==$f2stu) || 
+                ( $a1==$astu && $f1==$f2stu && $b2==$bstu && $f2==$f1stu) ) {
+          $self->setMessage(2,"Which term in the denominator does this value go with?");
+          $self->setMessage(5,"Which term in the denominator does this value go with?");
+          return [1,0,1,0,1];      
+      } elsif ( ( $f1==$f1stu && $f2==$f2stu) || ( $f1==$f2stu && $f2==$f1stu) ) {
+          my $ok1 = 1;
+          my $ok2 = 1;
+          if (($f1==$f1stu && $a1!=$astu) || ($f2==$f1stu && $b2!=$astu)) {
+             $ok1 = 0;          
+          }
+          if (($f2==$f2stu && $b2!=$bstu) || ($f1==$f2stu && $a1!=$bstu )) {
+             $ok2 = 0;          
+          }
+          return [$ok1,1,$ok2,1];
+      } elsif ( $f1stu*$f2stu != $f1*$f2 ) {
+          $self->setMessage(2,"Check your factorization of the denominator");
+          $self->setMessage(4,"Check your factorization of the denominator");
+          return [1,0,0,0,0];
+      } else {
+          return [1,0,0,0,0];
+      }
+   }
+);
+
+#
+#  Display the answer blanks properly in different modes
+#
+Context()->texStrings;
+
+if ($displayMode eq 'TeX') {
+   $partfrac = "\(\displaystyle $f = \underline{\quad\quad\quad} + \frac{\quad\quad}{\quad\quad\quad} + \frac{\quad\quad}{\quad\quad\quad}\)";
+  } else {
+   $partfrac =
+   DataTable(
+   [
+    ["\( \displaystyle $f \,= \)",
+    $multians->ans_rule(6),"\(+\)",$multians->ans_rule(6).$BR.$HR.$multians->ans_rule(6),
+    "\(+\)",[$multians->ans_rule(6).$BR.$HR.$multians->ans_rule(6),
+    rowcss => 'vertical-align:middle;']],
+   ], 
+   center => 0
+   );
+}
+Context()->normalStrings;
+
+BEGIN_PGML
+
+The goal of this problem is to evaluate [``\int [$f]\;dx``] using partial fractions.
+
+END_PGML
+
+Scaffold::Begin(open_first_section => 0);
+
+Section::Begin("Part 1: The Partial Fraction Setup",
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Since the degree of the numerator is less than the degree of the denominator, begin by using polynomial long division to reduce the degree of the numerator. The result will be a polynomial plus a new rational function with the same denominator as the integrand.
+Perform the partial fraction decomposition of this new rational function and find the values of the coefficients. Give the coefficients as exact integers or fractions. (If you use a decimal number, all answers will be marked as incorrect.) The first answer blank is for the polynomial and the others are for the partial fraction decomposition.
+
+[$partfrac]***
+
+END_PGML
+
+ANS( $multians->cmp() );
+
+if ($c1 == -1) {
+   $c1d = "-"
+} elsif ($c1 == 1) {
+   $c1d = ""
+} else {
+   $c1d = $c1
+}
+
+if ($c2 == -1) {
+   $c2d = "-"
+} elsif ($c2 == 1) {
+   $c2d = ""
+} else {
+   $c2d = $c2
+}
+
+$n = $c1*$c1+$c1*$c2+$c2*$c2;
+$m = $c1*$c1*$c2+$c1*$c2*$c2;
+
+if ($c1+$c2 == 1) {
+   $csum = "+";
+   $csumn = "-";
+} elsif ($c1+$c2 == -1) {
+   $csum = "-";
+   $csumn = ""
+} else {
+   $csum = $c1+$c2;
+   $csumn = -($c1+$c2);
+}
+
+if ($n+$c1*$c2 == 1) {
+   $xcoeff = "-"
+} elsif ($n+$c1*$c2 == -1) {
+   $xcoeff = "" 
+} else {
+   $xcoeff = -($n+$c1*$c2)
+}
+
+BEGIN_PGML_SOLUTION
+Polynomial long division will result in
+
+[`
+\begin{array}{rrr|rrrr}
+    &          &            &   &    & x  & -[$c1+$c2] \\\hline
+x^2 & [$csum]x & +[$c1*$c2] &   x^3  & 0  & 0 & 0 \\
+    &          &            &   \underline{x^3}  & \underline{+[$csum]x^2} & \underline{+[$c1*$c2]x} & \underline{\quad 0}\\
+    &          &            &   & [$csumn]x^2 & -[$c1*$c2]x  & 0 \\
+    &          &            &   & \underline{[$csumn]x^2} & \underline{[$xcoeff]x} & \underline{-[$m]} \\
+    &          &            &   &    & [$n]x  &  +[$m] 
+\end{array}
+`]
+
+Therefore
+
+>>[``[$f] = [$C] + \frac{[$n]x + [$m]}{[$den]}``]<<
+
+The denominator factors as [`([$den1])([$den2])`]. Therefore the partial fraction decomposition would be
+
+>>[``\frac{[$n]x + [$m]}{[$den]} = \frac{A}{[$den1]} + \frac{B}{[$den2]}``]<<
+
+To solve for [`A`] and [`B`], multiply both sides by [`([$den1])([$den2])`].
+
+>>[`[$n]x+[$m] = A([$den2]) + B([$den1]) = (A+B)x + ([$c2d]A+[$c1d]B)`]<<
+
+Collecting like terms,
+
+>>[`
+\begin{aligned}
+A+B &= [$n] \\
+[$c2d]A+[$c1d]B &= [$m]
+\end{aligned}
+`]<<
+
+Solving the two equations gives [`A = [$A]`] and [`B = [$B]`]. Therefore
+
+>>[``[$f] = [$C] + \frac{[$A]}{[$den1]} + \frac{[$B]}{[$den2]}``]<<
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 2: Evaluating the Integral",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Now integrate the partial fractions to evaluate the integral.
+
+[``\int [$f]\;dx = \,``][_]{$intans->cmp(upToConstant=>1)->withPostFilter(sub { 
+  my $ans = shift; 
+  $ans->{ans_message} = "See the Hint" 
+    if ($ans->{ans_message} eq "The domain of your function doesn't match that of the correct answer");
+  return $ans; 
+  })}{45}[`\;+\;C`]
+
+END_PGML
+
+BEGIN_PGML_HINT
+Your answer may require absolute values.
+
+END_PGML_HINT
+
+
+BEGIN_PGML_SOLUTION
+From Part 1 we know that
+
+[``
+\begin{aligned}
+\int [$f] \,dx &= \int ([$C])\,dx +  \int \frac{[$A]}{[$den1]}\,dx + \int \frac{[$B]}{[$den2]}\,dx \\ \\
+&= [$intans] + C
+\end{aligned}
+``]
+
+END_PGML_SOLUTION
+
+Section::End();
+Scaffold::End();
+
+COMMENT('Randomization provides 36 different possible versions of this question.');
+
+ENDDOCUMENT();

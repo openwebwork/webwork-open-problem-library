@@ -11,67 +11,97 @@
 # File Created: 6/14/05
 # Location: Northern Arizona University
 
+## Updated by Peter Staab, Fitchburg State University (2023.07.22)
+
 DOCUMENT();
 loadMacros(
-  "PGstandard.pl",
-  "PGnauStats.pl",
-  "PGcourse.pl"
+    "PGstandard.pl", "PGnauStats.pl",
+    "PGcourse.pl",   "parserRadioButtons.pl",
+    "PGML.pl",       "PGtikz.pl"
 );
 
-TEXT(beginproblem());
-
-$low = random (130, 180,1);
-$high = random (330, 380,1);
+$low   = random(130, 180, 1);
+$high  = random(330, 380, 1);
 $range = $high - $low;
 
-push @dat, $low;
-push @dat, int random($low + $range/5, $low + $range/4,1);
-push @dat, int random($low + $range/3, $high - $range/3,1);
-push @dat, int random($high - $range/4,$high - $range/5,1);
-push @dat, $high;
+push @dat, $low, int random($low + $range / 5, $low + $range / 4, 1),
+    int random($low + $range / 3, $high - $range / 3, 1),
+    int random($high - $range / 4, $high - $range / 5, 1), $high;
 
-$graph = BoxPlot(@dat);
-
-@slice = NchooseK(4,2);
-$offset = random (0,1,1);
-@slice = num_sort(@slice);
+# @slice = NchooseK(4,2);
+@slice  = random_subset(2, 0 .. 3);
+$offset = random(0, 1);
+@slice  = num_sort(@slice);
 
 $diff = $slice[1] - $slice[0];
-$ans = $diff*25;
+$ans  = $diff * 25;
 
-$from = "\(\~~$$dat[$slice[0] + $offset],000\)";
-$to = "\(\~~$$dat[$slice[1] + $offset],000\)";
+$from = $dat[ $slice[0] + $offset ];
+$to   = $dat[ $slice[1] + $offset ];
 
-$mc = new_multiple_choice();
-
-$mc->qa("", "\($ans% \)");
-
-for ($i = 0; $i < 5; $i++){
-  do {
-    $rnd = random(5,95,5);
-  } while ($rnd == $ans);
-  push @other, "\($rnd%\)";
+# pick some other random choices not including the answer
+for $i (0 .. 4) {
+    do {
+        $rnd = random(5, 95, 5);
+    } while ($rnd == $ans || grep {/$rnd/} @other);
+    push @other, $rnd;
 }
 
-$mc->extra(@other[NchooseK(5,3)]);
+@opts = num_sort(@other[ NchooseK(5, 3) ], $ans);
+my ($index) = grep { $opts[$_] eq $ans } (0 .. @opts - 1);
 
-$mc->makeLast("None of the Above");
+@opts = map { $_ . "$PERCENT" } @opts;
 
-BEGIN_TEXT
-$PAR
-The boxplot below represents annual salaries of attorneys in 
-thousands of dollars in Los Angeles.  About what percentage 
-of the attorneys have salaries between $from and $to?
-\{$mc -> print_q \}
-$BR
-\{$mc -> print_a \}
-$BR
-\{Plot($graph, tex_size=>900); \}
-$PAR
-$BR
+# Not sure why \@opts doesn't work in a RadioButton.
+$radio = RadioButtons([ @opts, "None of these" ], $index);
 
-END_TEXT
+# helpful for the graph
 
-ANS(str_cmp($mc->correct_ans));
+$xmin    = floor($low / 50) * 50 - 50;
+$xmax    = ceil($high / 50) * 50 + 50;
+$xmid    = 0.5 * ($xmin + $xmax);
+$xmin50  = $xmin + 50;
+$xmin100 = $xmin + 100;
+$xmax50  = $xmax - 50;
+
+$graph = createTikZImage();
+$graph->tikzOptions("xscale=0.05");
+
+$graph->BEGIN_TIKZ
+\filldraw[
+    draw=LightBlue,
+    fill=white,
+    rounded corners=10pt,
+    thick,use as bounding box
+] ({$xmin-10},-0.5) rectangle ({$xmax+10},5);
+\draw[<->,thick] ($xmin,0) rectangle ($xmax,4);
+\draw ($xmid,4.5) node {\large Box and whiskers plot of salaries in thousands of dollars.};
+\draw ($xmin,1) -- ($xmax,1);
+\foreach \x in {$xmin50,$xmin100,...,$xmax50} \draw (\x,1)--(\x,0.75) node[below] {\x};
+\draw ($dat[0],2.5) -- ($dat[1],2.5);
+\filldraw[black,fill=blue!20]  ($dat[1],2) rectangle($dat[3],3);
+\draw ($dat[2],2) -- ($dat[2],3);
+\draw ($dat[3],2.5) -- ($dat[4],2.5);
+END_TIKZ
+
+$alttext =
+    "alt='Box and whiskers plot for salaries listed in thousands of "
+    . "dollars.  The left whisker is from $dat[0] to $dat[1].  The box is "
+    . "between $dat[1] and $dat[3]. The middle line is at $dat[2] and the "
+    . "right whisker runs from $dat[3] to $dat[4]'";
+
+BEGIN_PGML
+
+The boxplot below represents annual salaries of attorneys in
+thousands of dollars in Los Angeles.
+
+>>[![$alttext]!]{$graph}{600}<<
+
+About what percentage of the attorneys have salaries between 
+$[$from],000 and $[$to],000?
+
+[_]{$radio}
+
+END_PGML
 
 ENDDOCUMENT();

@@ -1,123 +1,156 @@
-#Problem APEX 1.5.38
-
-DOCUMENT();
-
-# Load whatever macros you need for the problem
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "parserPopUp.pl",
-  "extraAnswerEvaluators.pl",
-  "MathObjects.pl",
-  "PGcourse.pl"
-);
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Limits and continuity)
 ## DBsection(Continuity - intermediate value theorem)
 ## Institution(Valdosta State University)
 ## Author(S. V. Ault)
 ## Level(3)
+## MO(1)
 ## TitleText1('APEX Calculus')
 ## AuthorText1('Hartman')
 ## EditionText1('3.0')
 ## Section1('1.5')
 ## Problem1('38')
 
-$showPartialCorrectAnswers = 1;
+#Problem APEX 1.5.38
 
-@int1 = "[0.5, 0.6]";
-$mid1 = 0.55;
-$inq1 = PopUp(["?", "negative", "positive"], "positive");
+DOCUMENT();
 
-@int2 = "[0.5, 0.55]";
-$mid2 = 0.525;
-$inq2 = PopUp(["?", "negative", "positive"], "positive");
+# Load whatever macros you need for the problem
+loadMacros('PGstandard.pl', 'PGML.pl', 'niceTables.pl', 'PGcourse.pl');
 
-@int3 = "[0.5, 0.525]";
-$mid3 = 0.5125;
-$inq3 = PopUp(["?", "negative", "positive"], "negative");
+Context("Numeric");
 
-@int4 = "[0.5125, 0.525]";
-$mid4 = 0.51875;
-$inq4 = PopUp(["?", "negative", "positive"], "negative");
+# a continuous function
 
-@int5 = "[0.51875, 0.525]";
+$f = Formula("cos(x)-ln(x)"); 
+$f->perlFunction("F"); # speeds up computation
 
-$ans = 0.52;
+# accurate root of f
+$accuRoot = Real(1.3029640012160126);
 
-TEXT(beginproblem());
+$n = 5; #number of rows below the header in the dataTable
 
-BEGIN_TEXT
-Use the $BBOLD Bisection Method $EBOLD to approximate,
-accurate to two decimal places, the value of the root
-of the function, \( f(x) = \sin x - 1/2 \) on the
-interval \( [0.5, 0.6] \)
-$BR
-(Fill in the table below as in Figure 1.29 of the textbook.)
-$BR$BR
-Iteration 1. $SPACE $SPACE Interval = \{ans_rule(12)\},
-$SPACE $SPACE Midpiont Sign: \( f(\)\{ans_rule(8)\}\()\) is
-  \{ $inq1->menu() \}.$BR
-Iteration 2. $SPACE $SPACE Interval = \{ans_rule(12)\},
-$SPACE $SPACE Midpiont Sign: \( f(\)\{ans_rule(8)\}\()\) is
-  \{ $inq2->menu() \}.$BR
-Iteration 3. $SPACE $SPACE Interval = \{ans_rule(12)\},
-$SPACE $SPACE Midpiont Sign: \( f(\)\{ans_rule(8)\}\()\) is
-  \{ $inq3->menu() \}.$BR
-Iteration 4. $SPACE $SPACE Interval = \{ans_rule(12)\},
-$SPACE $SPACE Midpiont Sign: \( f(\)\{ans_rule(8)\}\()\) is
-  \{ $inq4->menu() \}.$BR
-Iteration 5. $SPACE $SPACE Interval = \{ans_rule(12)\}.
+# find initial interval [L,R] with endpoints chosen so that, 
+# i) f(L) and f(R) have different sides and 
+# ii) applying the bisection method $n times requires choosing at least 
+# two left half-intervals and two right half-intervals
+# To accomplish (ii) expand ($accuRoot-L)/(R-L) as a binary "decimal" 
+# and require that at least 2 zeroes and at least 2 ones 
+# are among the first five binary digits 
+
+# 5 digit binaries with at most one 0 or at most one 1.
+@badBinary = (0,63);
+for ($i=0; $i<$n; $i++){
+  push @badBinary, (2**$i, 2**($n+1)-2**($i+1));
+}
+
+# randomize L and R 
+do { 
+  $L = 0.1*random(5,10); 
+  $R = 0.1*random(16,20);
+  $trunc = floor(2**($n+1)*($accuRoot-$L)/($R-$L));
+  $isGood = 1;
+  foreach $bad (@badBinary) {
+    if ($trunc == $bad) { $isGood = 0; }
+  }
+} until ($isGood);
+
+# subroutine implementing one bisection method step
+# usage: bisect($L,$R)
+#
+# Given endpoints of an interval [L,R] where 0 is between 
+# F(L) and f(R) (inclusive), returns the midpoint M of [L,R] and 
+# the endpoints of a half interval [$Lnew,$Rnew] of the same type 
+
+sub bisect {
+  my ($L,$R) = @_;
+  my $M = ($L+$R)/2;
+  my $Lnew, $Rnew;
+  # do F($M) and F($R) have opposite signs?
+  if (F($M)*F($R) < 0 ){ $Lnew = $M; $Rnew = $R; }  
+  else { $Lnew = $L; $Rnew = $M; }
+  return [$Lnew,$M,$Rnew];
+} 
+
+###Answers
+
+# array containing answer table entries
+@tbl = ();
+$tbl[0][0]=$L; 
+$tbl[0][2]=$R;
+for ($i=1; $i<$n+1; $i++){
+  ($tbl[$i][0], $tbl[$i-1][1], $tbl[$i][2]) = 
+     @{bisect($tbl[$i-1][0], $tbl[$i-1][2])};
+}
+$tbl[$n][1]=($tbl[$n][0] + $tbl[$n][2])/2;
+
+# make them all math objects for grading
+for ($i=0;$i<$n+1;$i++){
+  for ($j=0;$j<3;$j++){
+    $tbl[$i][$j]=Real($tbl[$i][$j]);
+  }
+}
+
+# estimate of max solution error 
+
+$solerror = Real( ($R-$L)/2**($n+1) );
+
+# explanation of bisection method, to be inserted into 
+# knowlLink
+
+$explainBisection = qq(
+Suppose \\(f\\) is continuous on a closed interval, let's call it \\([L,R]\\) so \\(L\\) is the left endpoint and \\(R\\) is the right endpoint.  Suppose and \\(f(L)\\) and \\(f(R)\\) have opposite signs (one is negative and the other is positive).  The ${BBOLD}intermediate value theorem${EBOLD} says that there is a point \\(c \\in [L,R]\\) such that \\(f(c)=0\\),  but it does not say what \\(c\\) is.  
 $PAR
-Accurate to two decimal places, the root is \{ans_rule(5)\}
-(give answer to two decimal places only).
-END_TEXT
-
-
-SOLUTION(EV3(<<'END_SOLUTION'));
-$BR$BBOLD Solution:$EBOLD 
+The ${BBOLD}bisection method${EBOLD} is a simple way to approximate \\(c\\).  Cut the interval in half.  One of the halves must contain \\(c\\). Cut that interval in half.  One of the new halves must contain \\(c\\).  Cut that interval in half and ... repeat again and again as many times as you like until you get a very small interval, as small as you like, that contains \\(c\\).  If you make the interval small enough its midpoint will be pretty good approximations of \\(c\\). 
 $PAR
-First, we check the signs at the endpoints of the interval
-\( [0.5, 0.6] \)
-\[
-  f(0.5) = \sin(0.5) - 1/2 \approx -0.02 \qquad
-  f(0.5) = \sin(0.6) - 1/2 \approx 0.06.
-\]
-Then check the midpoint, \( x= 0.55 \).
-\[
-  f(0.55) = \sin(0.55) - 1/2 \approx 0.23 > 0.
-\]
-This implies the next interval should be \( [0.5, 0.55] \).  Continue
-in this way, until the interval is small enough to give the
-solution to two decimal places.  The list of intervals is:
-\[
-  [0.5, 0.6], [0.5, 0.55], [0.5, 0.525], [0.5125, 0.525], 
-  [0.51875, 0.525].
-\]
-Every value in the interval \( [0.51875, 0.525] \) rounds to 0.52.
-END_SOLUTION
+When you cut \\([L,R]\\) in half how do you tell which half contains \\(c\\)?  That is very easy! Let \\(M = (L+R)/2\\) be the midpoint of the interval.  If \\(f(M)=0\\) then STOP!  You have found \\(c\\)!  Otherwise \\(f(M)\\) is either positive or negative, so either \\(f(M)\\) and \\(f(L)\\) have opposite signs, or  \\(f(M)\\) and \\(f(R)\\) have opposite signs.  Therefore:$BR    
+$SPACE$SPACE$SPACE$SPACE If \\(f(M)\\) and \\(f(L)\\) have opposite signs the half-interval \\([L,M]\\) contains \\(c\\). $BR
+$SPACE$SPACE$SPACE$SPACE If \\(f(M)\\) and \\(f(R)\\) have opposite signs the half-interval \\([M,R]\\) contains \\(c\\).
+$PAR
+That's all there is to it. There are other ways to approximate solutions that are much more efficient than the bisection method, but the bisection method is simple and it works. 
+);
 
-ANS(interval_cmp(@int1));
-ANS(num_cmp($mid1));
-ANS(str_cmp($inq1->correct_ans()));
+BEGIN_PGML
+[@ knowlLink("The bisection method", 
+  value=> escapeSolutionHTML(EV3P($explainBisection)),base64=>1 ) @]* 
 
-ANS(interval_cmp(@int2));
-ANS(num_cmp($mid2));
-ANS(str_cmp($inq2->correct_ans()));
+Grab a calculator (or, better, a spreadsheet; there are many free calculators and spreadsheets on the internet).  We're going to use the *bisection method* to approximate the solution of the equation 
+[``` \cos(x) - \ln(x)  = 0```]
+on the interval [`[[$L],[$R]]`]. (If you don't know the bisection method, click the "bisection method" link above for an explanation).  
 
-ANS(interval_cmp(@int3));
-ANS(num_cmp($mid3));
-ANS(str_cmp($inq3->correct_ans()));
+The left and right endpoints of this interval are given on the first line of the table below, under the headings "Left" and "Right".  Find the midpoint, enter it into the first row under the heading "Mid".  Evaluate the sign of [`f(x)=\cos(x)-\ln(x)`] at the left, right, and mid points of the interval, and use the *intermediate value theorem* to decide which half-interval contains the solution. Enter the left and right endpoints of this half-interval on the second line, and then just repeat the process: enter the midpoint on the second line, determine which half of the interval on the second line contains the solution and enter its endpoints on the third line of the table, and so on ... until the table is completely filled in.  
 
-ANS(interval_cmp(@int4));
-ANS(num_cmp($mid4));
-ANS(str_cmp($inq4->correct_ans()));
+Among the numbers in the table, the midpoint in the last row is the best approximation of the exact solution.  The largest possible error in this approximation is the distance from the midpoint to either of the endpoints in the last row.  
 
-ANS(interval_cmp(@int5));
+[@ knowlLink("(Don't round off!)", value=> "Rounding off introduces errors, which can mess up your calculations!  This is why it's better to use a computer or spreadsheet, because you can copy and paste numbers without rounding them off. This is always true of numerical calculations, especially when they involve many steps.") @]*
 
-ANS(num_cmp($ans));
-
-ENDDOCUMENT();    
+[@ DataTable([
+   [ ["Left", headerrow=>1],      "Mid",          "Right"],
+   [ [$L]            , ans_rule(10), [$R]            ],
+   [ ans_rule(10), ans_rule(10), ans_rule(10)],
+   [ ans_rule(10), ans_rule(10), ans_rule(10)],
+   [ ans_rule(10), ans_rule(10), ans_rule(10)],
+   [ ans_rule(10), ans_rule(10), ans_rule(10)],
+   [ ans_rule(10), ans_rule(10), ans_rule(10)]
+]) @]*
 
 
+
+END_PGML
+
+# Answers in the table
+
+                        ANS($tbl[0][1]->cmp());
+ANS($tbl[1][0]->cmp()); ANS($tbl[1][1]->cmp()); ANS($tbl[1][2]->cmp());
+ANS($tbl[2][0]->cmp()); ANS($tbl[2][1]->cmp()); ANS($tbl[2][2]->cmp());
+ANS($tbl[3][0]->cmp()); ANS($tbl[3][1]->cmp()); ANS($tbl[3][2]->cmp());
+ANS($tbl[4][0]->cmp()); ANS($tbl[4][1]->cmp()); ANS($tbl[4][2]->cmp());
+ANS($tbl[5][0]->cmp()); ANS($tbl[5][1]->cmp()); ANS($tbl[5][2]->cmp());
+
+# This PGML block needs to be below the "ANS" calls to get the CorrectAnswer 
+# for the Max error to appear last
+BEGIN_PGML
+Max error = [_______________]{$solerror} 
+END_PGML
+
+ENDDOCUMENT(); 

@@ -1,0 +1,210 @@
+##DESCRIPTION
+## Integration of 1/sqrt(x^2-a^2) using trig substitution. The first part of the scaffolding 
+## sets up the trig substitution using the secant function. If the student chooses to use the
+## cosecant function, a message is given to use tangent instead. A student's correct answer for the trig
+## integral after the substitution is checked to see if it continues to use the square root.
+## If so, the answer is marked as incorrect and a message is given to simplify to not use square root.
+
+## The second part presents the student with the correct antiderivative of sec(t) so that
+## the student is only tested on how to do the substitution back in terms of x.
+##ENDDESCRIPTION
+
+## DBsubject(Calculus - single variable)
+## DBchapter(Techniques of integration)
+## DBsection(Trigonometric substitution)
+## Institution(Agnes Scott College)
+## Author(Larry Riddle)
+## Level(2)
+## MO(1)
+## TitleText1('APEX Calculus')
+## AuthorText1('Hartman')
+## EditionText1('4.0')
+## Section1('6.4')
+## Problem1('16')
+
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "parserFormulaUpToConstant.pl",
+  "PGtikz.pl",
+  "PGcourse.pl"
+);
+
+$showHint = 0;
+
+TEXT(beginproblem());
+
+Context("Numeric");
+Context()->variables->add(t => "Real");
+Context()->flags->set(reduceConstantFunctions=>0);  #keep sqrt(b) as symbolic
+Context() -> variables -> set(t =>{limits => [0,1]}, x=>{limits=>[-8,-4]});
+# the limits of [-8,-4] for x means an answer without absolute values will be flagged as domain issue
+
+
+do {$b = random(2,15);} until ($b!=4 and $b!=9);
+$c = random(2,9);
+
+$f = Formula("$c/sqrt(x^2-$b)");
+
+# Trig substitution
+$ans1a = Formula("sqrt($b)*sec(t)");
+$ans1b = Formula("sqrt($b)*csc(t)");
+$ans2 = Formula("sqrt($b)*sec(t)*tan(t)");  # derivative
+$ans3 = Formula("$c*sec(t)");               # trig integrand
+
+# Substituting back in terms of x
+$ans5 = Formula("x/sqrt($b)");                # sec(t)
+$ans6 = Formula("sqrt(x^2-$b)/sqrt($b)");     # tan(t)
+$ans7 = Formula("$c*ln(abs(x + sqrt(x^2-$b)))");
+
+$Subchecker = sub {
+    my ($c, $s, $ansHash) = @_;
+    if ($s == $ans1b) {
+         Value->Error("The secant function is the usual function used here for the trig substitution. Use that instead of the cosecant function.");
+    } else {
+         return ($s == $c) ? 1 : 0
+    }
+};
+
+$IntChecker = sub {
+    my ($c, $s, $ansHash) = @_;
+    my $s_str = $s->string;
+    my $n1 = index($s_str,'sqrt');
+    my $n2 = index($s_str,'^(1/2)');
+    my $n3 = index($s_str,'^0.5');
+    if ( $n1 + $n2 + $n3 > -3 && $c == $s ) {
+        Value->Error("The substitution was done correctly, but now simplify your answer to avoid the square root")
+    } else {
+        return ($c == $s) ? 1 : 0
+    }
+};
+ 
+$image = createTikZImage();
+    $image->BEGIN_TIKZ
+    \draw[-] (0,0) -- (4,0) node[midway, below] {\( \sqrt{$b} \)};
+    \draw[-] (4,0) -- (4,2) node[midway, right] {\( ?? \)};
+    \draw[-] (4,2) -- (0,0) node[midway, above] {\( x \)};
+    \node at (0.7,.2) {\(\ t \)};
+    END_TIKZ
+
+BEGIN_PGML
+
+The goal of this problem is to evaluate [``\int [$f]\;dx``] using trig substitution.
+
+Click on Part 1 to open the section. Enter your answers for the three steps in Part 1 to set up the trig substitution, then click on Submit Answers. Once your answers are all correct, you will be able to open Part 2 to take the value of the trig integral and substitute back in terms of [`x`].
+
+END_PGML
+
+Scaffold::Begin(open_first_section => 0);
+
+Section::Begin("Part 1: The Trig Substitution Setup",
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+Give an appropriate trig substitution in the form [`x = f(t)`] (where [`t`] represents [`\theta`]).
+
+[`x = \;`][__]{$ans1a->cmp(checker=>$Subchecker)}{10}
+
+[`dx = \;`][__]{$ans2}{15}[`\;dt`]
+
+Now substitute and simplify to get a trig integral in terms of [`t`]. The trig integral should no longer involve a square root.
+
+[``\int\;[$f]\;dx = \int``][__]{$ans3->cmp(checker=>$IntChecker,bypass_equivalence_test => 1)}{50}[`\;dt`]
+
+END_PGML
+
+$sb = Formula("sqrt($b)");
+
+BEGIN_PGML_SOLUTION
+
+The choice of [``x = [$sb]\sec(t)``] is the usual trig substitution for integrands of the form [`\sqrt{x^2-[$b]}`]. Then [``dx = [$sb]\sec(t)\tan(t)\;dt``]. Since [`x\ge [$sb]`], we have [``t = \sec^{-1}\left(\frac{x}{[$sb]}\right)``] for [`0 \le t \le \pi/2`], and therefore [`\tan(t)\ge0`] on this interval. Substituting for [`x`] and [`dx`] in the original integral gives
+
+[``
+\begin{aligned}
+  \int\;[$f]\;dx &= \int [$c]\frac{[$sb]\sec(t)\tan(t)}{\sqrt{[$b]\sec^2(t)-[$b]}}\;dt
+     = \int [$c]\frac{[$sb]\sec(t)\tan(t)}{[$sb]\sqrt{\sec^2(t)-1}}\;dt \\ \\
+  &= \int [$c]\frac{\sec(t)\tan(t)}{\sqrt{\tan^2(t)}}\;dt = \int [$c]\frac{\sec(t)\tan(t)}{\tan(t)}\;dt \\ \\
+  &= \int [$c]\sec(t)\;dt
+\end{aligned}
+``]
+
+
+END_PGML_SOLUTION
+
+Section::End();
+
+Section::Begin("Part 2: Evaluating the Trig Integral",
+can_open => when_previous_correct,
+is_open => correct_or_first_incorrect);
+
+BEGIN_PGML
+
+From previous integration techniques we know that 
+
+[``\int \sec(t) \;dt = \ln|\sec(t) + \tan(t)|``].
+
+Use this to evaluate the trig integral from Part 1 and then substitute back to get the final result in terms of [`x`].
+
+To substitute back in terms of [`x`], you would use
+
+[`\sec(t) =\; `][_]{$ans5}{15}
+
+[`\tan(t) =\; `][_]{$ans6}{15}
+
+The final result would then be
+
+[``\int [$f]\;dx =\; ``][_]{$ans7->cmp(upToConstant=>1)}{50}[`\;+\;C`]
+
+END_PGML
+
+BEGIN_PGML_HINT
+Complete the following reference triangle where [`x = [$sb]\sec(t)`] to help find the value of [`\tan(t)`].
+
+[@ image($image, width => 200, tex_size => 300) @]*
+
+Your answer for the integral may require absolute values.
+END_PGML_HINT
+
+BEGIN_PGML_SOLUTION
+
+[``
+\int [$c]\sec(t) \;dt = [$c]\ln|\sec(t) + \tan(t)|
+``]
+
+Now [``x = {[$sb]}\sec(t)``] means that [``\sec(t) = \frac{x}{[$sb]}``]. 
+
+In addition, [``\tan(t)=\sqrt{\sec^2(t)-1} = \sqrt{\frac{x^2}{[$b]}-1}=\frac{\sqrt{x^2-[$b]}}{[$sb]}``].
+
+
+Therefore
+
+[``
+\begin{aligned}
+\int\;[$f]\;dx = \int [$c]\sec(t) \;dt = [$c]\ln|\sec(t) + \tan(t)| + C 
+= [$c]\ln\Bigg|\frac{\sqrt{x^2-[$b]}}{[$sb]}+\frac{x}{[$sb]}\Bigg| + C
+\end{aligned}
+``]
+
+Using properties of the log function, this can also be written as
+
+[``
+[$c]\left(\ln\Big|\sqrt{x^2-[$b]}+x\Big|-\ln([$sb])\right) + C = [$c]\ln\Big|\sqrt{x^2-[$b]}+x\Big| + C
+``]
+
+where the constant [`[$c]\ln[$sb]`] has been absorbed into the general constant [`C`].
+
+END_PGML_SOLUTION
+
+Section::End();
+Scaffold::End();
+
+
+COMMENT('Randomization provides 112 different possible versions of this question.');
+
+ENDDOCUMENT();
