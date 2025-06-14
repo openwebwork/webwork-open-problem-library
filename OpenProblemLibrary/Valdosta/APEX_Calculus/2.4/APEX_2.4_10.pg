@@ -1,15 +1,4 @@
 #Problem APEX 2.4.10
-
-DOCUMENT();
-
-# Load whatever macros you need for the problem
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "MathObjects.pl",
-  "PGcourse.pl"
-);
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Differentiation)
 ## DBsection(Product rule (without trigonometric functions))
@@ -22,86 +11,148 @@ loadMacros(
 ## Section1('2.4')
 ## Problem1('10')
 
-$showPartialCorrectAnswers = 1;
+DOCUMENT();
+
+# Load whatever macros you need for the problem
+loadMacros('PGstandard.pl', 'PGML.pl', 'PGchoicemacros.pl', 'parserMultiAnswer.pl', 'PGcourse.pl');
+Context("Numeric");
+Context()->variables->are(s=>"Real");
 
 $a = random(2,9,1)*random(-1,1,2);
 $b = random(1,10,1)*random(-1,1,2);
 $c = random(2,9,1)*random(-1,1,2);
 $d = random(1,10,1)*random(-1,1,2);
-
 $a2 = $a*$c;
 $a1 = $b*$c+$a*$d;
 $a0 = $b*$d;
 $a22 = 2*$a2;
 
-$f = "$a s + $b";
-$gp = "$c";
-$fp = "$a";
-$g = "$c s + $d";
-$ans = "$a22 s + $a1";
+$f = Formula("$a s + $b");
+$gp = Formula("$c");
+$fp = Formula("$a");
+$g = Formula("$c s + $d");
+$ans = Formula("$a22 s + $a1");
 
-TEXT(beginproblem());
+# when students respond with the results from the
+# product rule, the order shouldn't matter ...
+# so we aggregate all the answer blanks together
+# and analyze them all at once with MultiAnswer
+$productRule = MultiAnswer($fp, $g, $f, $gp, $ans)->with(
+    singleResult => 1,    # treat as one answer
+    # format and tex format control the display
+    # of the aggregated student responses
+    format       => "g'(x) = (%s)(%s)+(%s)(%s) = %s",
+    tex_format   =>
+        "\begin{aligned}g'(x)&=\left(%s\right)\left(%s\right)+\left(%s\right)\left(%s\right)\\&=%s\end{aligned}",
+    # answer checker ($self is the MultiAnswer)
+    checker => sub {
+        my ($correct, $student, $self) = @_;
+        # the student response is 5 answer blanks
+        my ($s1, $s2, $s3, $s4, $s) = @$student;
+        # copy the correct answers into a list
+        my @c = @$correct;
+        # start with zero credit
+        my $credit = 0;
 
-BEGIN_TEXT
+        # how many of the pieces did the
+        # student find accurately?
+        # for each student input... (not the final one)
+        for (my $i = 0; $i < 4; $i++) {
+            my $pieceFound = 0;
+            # check each correct piece... (not the last!)
+            for (my $j = 0; $j < 4; $j++) {
+                next unless $c[$j];
+                # $student is an array reference
+                # @c is a list (access elements carefully!)
+                if ($student->[$i] == $c[$j]) {
+                    $pieceFound = 1;
+                    # do not give credit for matching
+                    # the same correct factor repeatedly
+                    # (this is why we made a copy of $correct)
+                    $c[$j] = undef;
+                    last;    # break inner loop
+                }
+            }
+
+            if ($pieceFound) {
+                $credit++;
+            } else {
+                # set a feedback message on this part if
+                # it didn't match any of the correct parts
+                # NOTE: index for setMessage starts at 1 (not 0)
+                $self->setMessage(
+                    $i + 1,
+                    "Your answer is not part of the correct use of the product rule"
+                );
+            }
+        }
+
+        # now that we checked the parts, check the
+        # combined result for consistency
+        if ($s1 * $s2 + $s3 * $s4 == $s) {
+            $credit += 0.5;
+        } else {
+            $self->setMessage(5,
+                'You did not simplify your answer correctly');
+        }
+
+        # finally, check the combined result for accuracy
+        if ($s == $c[4]) {
+            $credit += 0.5;
+        } else {
+            $self->setMessage(5, 'Your final answer is incorrect');
+        }
+
+        # return the score (out of our 5 total)
+        return $credit/scalar(@$correct);
+    }
+);
+
+BEGIN_PGML
 Compute the derivative of the given function in two different ways.
-$PAR
-\[
-  h(s) = ($a s + $b)($c s + $d)
-\]
-$PAR
-a) Use the Product Rule, \( [fg]' = f\cdot g' + f' \cdot g\).
+
+[``
+  h(s) = ([$a] s + [$b])([$c] s + [$d])
+``]
+
+a) Use the Product Rule, [` [fg]' = f\cdot g' + f' \cdot g`].
 (Fill in each blank, then simplify.)
-$PAR
-\(h'(s) = \Big(\)\{ ans_rule(5) \} \( \Big) \cdot \Big( \)
-	\{ ans_rule(5) \} \( \Big) + \Big( \)
-	\{ ans_rule(5) \} \( \Big) \cdot \Big( \)
-	\{ ans_rule(5) \} \( \Big) \)
-$BR
-$SPACE$SPACE$SPACE = \{ ans_rule(25) \}.
-$PAR
-b) Use algebra first to simplify \(h\), then differentiate without
+    
+    [`h'(s) = \Big(`][_]{$productRule} [` \Big) \cdot \Big( `]
+[_]{$productRule} [` \Big) + \Big( `]
+[_]{$productRule} [` \Big) \cdot \Big( `]
+[_]{$productRule} [` \Big) `]
+    
+    = [_]{$productRule}.
+b) Use algebra first to simplify [`h`], then differentiate without
 the Product Rule.
-$PAR
-\(h'(s) = \) \{ ans_rule(25) \}.
-END_TEXT
 
-ANS( fun_cmp( $f, vars=>['s'] ));
-ANS( fun_cmp( $gp, vars=>['s'] ));
-ANS( fun_cmp( $fp, vars=>['s'] ));
-ANS( fun_cmp( $g, vars=>['s'] ));
-ANS( fun_cmp( $ans, vars=>['s'] ));
-ANS( fun_cmp( $ans, vars=>['s'] ));
+    [`h'(s) = `] [_]{$ans}.
+END_PGML
 
-SOLUTION(EV3(<<'END_SOLUTION'));
-$BR$BBOLD Solution:$EBOLD 
-$PAR
+BEGIN_PGML_SOLUTION
 First, using the Product Rule,
-$PAR
-\[
+
+[```
   \begin{array}{rcl}
-    h'(s) &=& ($f) \cdot \frac{d}{dx}[ $g ] + \frac{d}{dx}[ $f ] ($g)\\
+    h'(s) &=& ([$f]) \cdot \frac{d}{ds}[ [$g] ] + \frac{d}{ds}[ [$f] ] ([$g])\\
     &&\\
-    &=& ($f)($gp) + ($fp)($g) \\
+    &=& ([$f])([$gp]) + ([$fp])([$g]) \\
   \end{array}
-\]
-After simplifying the last line, we find \( h'(s) = $ans \).
-$PAR
-Next, simplify \(h\) first.  Then take the derivative.
-\[
+```]
+After simplifying the last line, we find [` h'(s) = [$ans] `].
+
+Next, simplify [`h`] first.  Then take the derivative.
+[```
   \begin{array}{rcl}
-    h(s) &=& ($f)($g) = $a2 s^2 + $a1 s + $a0 \\
+    h(s) &=& ([$f])([$g]) = [$a2] s^2 + [$a1] s + [$a0] \\
     &&\\
-    h'(s) &=& $ans
+    h'(s) &=& [$ans]
   \end{array}
-\]
+```]
+
 The two simplified answers should match.
-END_SOLUTION
-
-
-
-
+END_PGML_SOLUTION
 
 ENDDOCUMENT();    
-
-
 

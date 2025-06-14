@@ -1,0 +1,262 @@
+## BEGIN_DESCRIPTION
+## Using the Sage single cell server, determine the mass and center of mass of a region
+## where the student must only determine the correct order and limits of integration.
+## This version lists the volume boundaries as independent equations with no explicit inequalities
+## END_DESCRIPTION
+
+
+## DBsubject(Calculus - multivariable)
+## DBchapter(Integration of multivariable functions)
+## DBsection(Applications of triple integrals)
+## Date(March 2012)
+## Institution(Mississippi College)
+## Author(John Travis)
+## Level(4)
+## MO(1)
+## TitleText1('Calculus')
+## AuthorText1('')
+## EditionText1('')
+## Section1('.')
+## Problem1('')
+## KEYWORDS('sage', 'sagelet', 'integration', 'multiple','centroid','center')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGchoicemacros.pl",
+  "MathObjects.pl",
+  "problemRandomize.pl",
+  "sage.pl",
+  "PGcourse.pl"
+);
+
+Context()->strings->add(none=>{});
+Context()->variables->add(y=>"Real",z=>"Real");
+
+TEXT(beginproblem());
+
+ProblemRandomize(when=>"Correct",onlyAfterDue=>0);
+
+#  Requirements:  a>0, b<0, c>1
+$a = random(2,4,1);
+$b = random(-4,-1,1);
+$c = random(1,5,1);
+
+@VARS = ('x','y','z');
+@V = @VARS[ NchooseK(3, 3) ];
+
+# Using the following boundaries
+$invar = $V[0];
+$inleft = Compute("-$V[2]");
+$inright = Compute("$V[2]+$V[1]+$c");
+
+$midvar = $V[1];
+$midleft = Compute("$b");
+$midright = Compute("$V[2]**2");
+
+$outvar = $V[2];
+$outleft = Compute("0");
+$outright = Compute("$a");
+
+$dV = 'd'.$invar.'d'.$midvar.'d'.$outvar;
+
+# The density function
+$rho = Compute("$invar");
+
+#  Formulas for the answers.  Since the order of integration might be one of six different options,
+#  the three moment formulas need to be properly associated with the correct variables.  This is the 
+#  reason for the large conditional statement that follows these formulas.
+
+$mass =(1/420)*(10*$a**6 + 35*$a**5 + 42*$a**4*$c + 105*$a**3*$c + 70*$a**2*$c**2 -105*$a*$b**2 - 210*$a*$b*$c - 70*$b**3 - 210*$b**2*$c - 210*$b*$c**2)*$a;
+
+$M0 = (1/1680)*(35*$a**6 + 120*$a**5 + 140*$a**4*$c + 336*$a**3*$c + 210*$a**2*$c**2 -280*$a*$b**2 - 560*$a*$b*$c - 140*$b**3 - 420*$b**2*$c - 420*$b*$c**2)*$a**2;
+
+$M1 = (1/2520)*(35*$a**8 + 105*$a**7 + 120*$a**6*$c + 210*$a**5*$c + 126*$a**4*$c**2 -420*$a*$b**3 - 630*$a*$b**2*$c - 315*$b**4 - 840*$b**3*$c - 630*$b**2*$c**2)*$a;
+
+$M2 = (1/7560)*(70*$a**8 + 315*$a**7 + 360*$a**6*$c + 540*$a**6 + 1260*$a**5*$c +756*$a**4*$c**2 + 840*$a**5 + 1512*$a**4*$c + 1890*$a**3*$c**2 + 840*$a**2*$c**3 -1260*$a**3*$b - 1260*$a**2*$b**2 - 2520*$a**2*$b*$c - 1260*$a*$b**3 - 3780*$a*$b**2*$c -3780*$a*$b*$c**2 - 630*$b**4 - 2520*$b**3*$c - 3780*$b**2*$c**2 - 2520*$b*$c**3)*$a;
+
+if($dV eq 'dzdydx'){
+   $Myz = $M0;
+   $Mxz = $M1;
+   $Mxy = $M2;
+   $flag = 1;
+}
+elsif($dV eq 'dzdxdy'){
+   $Myz = $M1;
+   $Mxz = $M0;
+   $Mxy = $M2;
+}
+elsif($dV eq 'dxdzdy'){
+   $Myz = $M2;
+   $Mxz = $M0;
+   $Mxy = $M1;
+}
+elsif($dV eq 'dxdydz'){
+   $Myz = $M2;
+   $Mxz = $M1;
+   $Mxy = $M0;
+   $flag = 4;
+}
+elsif($dV eq 'dydzdx'){
+   $Myz = $M0;
+   $Mxz = $M2;
+   $Mxy = $M1;
+}
+else{
+#$dV eq 'dydxdz') 
+   $Myz = $M1;
+   $Mxz = $M2;
+   $Mxy = $M0;
+}
+
+$xbar = $Myz/$mass;
+$ybar = $Mxz/$mass;
+$zbar = $Mxy/$mass;
+
+$showHint = 3;
+
+
+
+$SageCode = <<SAGE_CODE;
+
+pretty_print(html('<h3 align="middle">Enter the endpoints of integration, density and select the appropriate order of integration for \(dV\) so that</h3>'))
+
+pretty_print(html('<h2 align="middle">mass = \( \int_{a_1}^{a_2} \int_{b_1}^{b_2} \int_{c_1}^{c_2} $rho dV \)</h2>'))
+
+var('x,y,z,t,u,integ')
+global integ 
+
+dV = 'dz dy dx'
+
+xbar = $xbar
+   
+~~@interact(layout={'top':[['a2','b2','c2'],['a1','b1','c1'],['dV','rho']]})
+def _(
+    dV = selector(['dz dy dx','dz dx dy','dx dy dz','dx dz dy','dy dx dz','dy dz dx'],buttons=False),
+    rho=input_box(x,label='\(\\rho(x,y,z)\)',width=8),
+    a1=input_box(0,label='\(_{1} \)',width=5),
+    a2=input_box(3,label='\(a_{2}\)',width=5),
+    b1=input_box((-1),label='\(b_{1}\)',width=10),
+    b2=input_box((2),label='\(b_{2}\)',width=10),
+    c1=input_box(-1,label='\(c_{1}\)',width=15),
+    c2=input_box(3,label='\(c_{2}\)',width=15)):
+    
+    b1 = b1 + 0*x + 0*y + 0*z
+    b2 = b2 + 0*x + 0*y + 0*z
+    c1 = c1 + 0*x + 0*y + 0*z
+    c2 = c2 + 0*x + 0*y + 0*z
+        
+#  Here are the exact integrals computed for the endpoints entered by the student.  These should dynamically evaluate
+#  as each new value is entered into the interactive cells.
+
+    m = integrate(integrate(integrate(rho,$invar,c1,c2),$midvar,b1,b2),$outvar,a1,a2)
+    Myz = integrate(integrate(integrate(rho*x,$invar,c1,c2),$midvar,b1,b2),$outvar,a1,a2)
+    Mxz = integrate(integrate(integrate(rho*y,$invar,c1,c2),$midvar,b1,b2),$outvar,a1,a2)
+    Mxy = integrate(integrate(integrate(rho*z,$invar,c1,c2),$midvar,b1,b2),$outvar,a1,a2)
+
+#  Here are the actual correct answers computed from the given conditions.  If these values could be sent back to the perl 
+#  side of this problem then there would be no need to enter the exact solutions at the top of this problem but the entered 
+#  answers could be checked against these values.
+
+    m_exact = integrate(integrate(integrate($rho,$invar,$inleft,$inright),$midvar,$midleft,$midright),$outvar,$outleft,$outright)
+    Myz_exact = integrate(integrate(integrate($rho*x,$invar,$inleft,$inright),$midvar,$midleft,$midright),$outvar,$outleft,$outright)
+    Mxz_exact = integrate(integrate(integrate($rho*y,$invar,$inleft,$inright),$midvar,$midleft,$midright),$outvar,$outleft,$outright)
+    Mxy_exact = integrate(integrate(integrate($rho*z,$invar,$inleft,$inright),$midvar,$midleft,$midright),$outvar,$outleft,$outright)
+
+# Print the final integral out nicely with its computed value.  
+    pretty_print(html('The following integrals over the indicated region are given by:'))
+    I1 = '\int_{%s'%str(a1)+'}^{%s}'%str(a2)
+    I2 = '\int_{%s'%str(b1)+'}^{%s}'%str(b2)
+    I3 = '\int_{%s'%str(c1)+'}^{%s}'%str(c2)
+    pretty_print(html('<h3 align="middle">\('+I1+I2+I3+' \;\;'+str(rho)+'Â Â '+str(dV)+' = %s\)</h3>'%str(m)))
+    pretty_print(html('<h3 align="middle">\('+I1+I2+I3+' \;\;'+str(y)+' \cdot ' + str(rho)+'Â Â '+str(dV)+' = %s\)</h3>'%str(Mxz)))
+    pretty_print(html('<h3 align="middle">\('+I1+I2+I3+' \;\;'+str(z)+' \cdot ' + str(rho)+'Â Â '+str(dV)+' = %s\)</h3>'%str(Mxy)))
+    pretty_print(html('<h3 align="middle">\('+I1+I2+I3+' \;\;'+str(x)+' \cdot ' + str(rho)+'Â Â '+str(dV)+' = %s\)</h3>'%str(Myz)))
+
+SAGE_CODE
+
+Sage(
+  SageCode=>$SageCode,
+  ButtonText=>'Evaluate/Reload',
+  AnswerReturn => 0,
+);
+
+
+TEXT(MODES(TeX =>"",HTML=>EV3(<<'EOT')));
+
+$PAR
+Using the interactive tool above, determine the order of integration and endpoints that give the mass and center of mass for the region with density function \(\rho(x,y,z) = $rho\) and bounded by:
+$BR
+$BCENTER
+
+\( $outvar = $outright \) ,
+\( $midvar = $midleft \) , 
+\( $outvar = $outleft \) ,
+\( $invar = $inright \) ,
+\( $midvar = $midright \) , and
+\( $invar = $inleft \) .
+
+
+$PAR
+\( mass = \) \{ ans_rule(15) \} ,
+$BR
+\( \bar{x} = \) \{ ans_rule(15) \} ,
+$BR
+\( \bar{y} = \) \{ ans_rule(15) \} ,
+$BR
+\( \bar{z} = \) \{ ans_rule(15) \} .
+$ECENTER
+
+$PAR
+EOT
+
+Context()->normalStrings;
+
+ANS( Compute($mass)->cmp() );
+ANS( Compute($xbar)->cmp() );
+ANS( Compute($ybar)->cmp() );
+ANS( Compute($zbar)->cmp() );
+
+BEGIN_HINT
+$BR
+From the given boundaries,
+\[$midleft \le $midvar \le $midright \]
+Determine similar inequalities for \( $invar \) and \($outvar \).
+
+$PAR
+
+END_HINT
+
+
+BEGIN_SOLUTION
+$PAR
+$BBOLD SOLUTION $EBOLD
+$BR
+For the given boundary equations, choose 
+\[dV = d$invar d$midvar d$outvar \]
+and limits of integration
+\[$inleft \le $invar \le $inright \]
+\[$midleft \le $midvar \le $midright \]
+\[$outleft \le $outvar \le $outright \]
+yields
+$BR
+mass = \($mass\)
+$BR
+\(M_{yz} = $Myz\)
+$BR
+\(M_{xz} = $Mxz\)
+$BR
+\(M_{xy} = $Mxy\)
+$PAR
+and therefore by dividing \(M_{yz}, M_{xz}, M_{xy}\) (respectively) by the mass yields
+$BR
+\(\bar{x} = $xbar\)
+$BR
+\(\bar{y} = $ybar\)
+$BR
+\(\bar{z} = $zbar\)
+
+END_SOLUTION
+
+ENDDOCUMENT();        # This should be the last executable line in the problem.

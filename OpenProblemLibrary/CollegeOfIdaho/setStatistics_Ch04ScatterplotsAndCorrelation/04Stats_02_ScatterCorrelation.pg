@@ -1,0 +1,153 @@
+##DESCRIPTION
+## Determine a correlation coefficent from a plot.
+## DBsubject(Statistics)
+## DBchapter(Simple linear regression)
+## DBsection(Correlation)
+## Institution(The College of Idaho)
+## Author(R Cruz)
+## MLT(EstimateRFromPlot)
+## MLTleader(1)
+## Level(1)
+## TitleText1('The Basic Practice of Statistics')
+## AuthorText1('David Moore')
+## EditionText1('5e')
+## Section1('4')
+## Problem1('')
+## KEYWORDS('statistic', 'correlation', 'scatterplots', 'DEI')
+# Adapted by Rachael Norton for DEI/Accessibility
+
+DOCUMENT();    # This should be the first executable line in the problem.
+
+loadMacros(
+    "PGstandard.pl",  'PGML.pl',
+    'PGtikz.pl',      'PGstatisticsmacros.pl',
+    "parserPopUp.pl", 'niceTables.pl',
+    "PGcourse.pl"
+);
+
+sub gen_rand_pts {
+    my ($n, $m, $a) = @_;
+    my @pts;
+    for (0 .. $n - 1) {
+        $x = random(0, 1, 0.01);
+        $y = $m * $x + $a * random(0, 1, 0.1);
+        push(@pts, [ $x, $y ]);
+    }
+    return @pts;
+}
+
+# These are the parameters for each of 6 possible plots.
+@coeffs = (
+    {
+        m   => -0.5,
+        a   => 1.5,
+        alt => 'The scatterplot shows a moderate linear trend starting in '
+            . 'the upper lefthand corner and moving downward to the right.'
+    },
+    {
+        m   => -1.5,
+        a   => 0.2,
+        alt => 'The scatterplot shows a very strong linear trend starting '
+            . 'in the upper lefthand corner and moving downward to the right.'
+    },
+    {
+        m   => -0.2,
+        a   => 0.3,
+        alt => 'The scatterplot shows a weak linear trend starting in '
+            . 'the upper lefthand corner and moving downward to the right.'
+    },
+    {
+        m   => 0.5,
+        a   => 0.5,
+        alt => 'The scatterplot shows a moderate linear trend starting '
+            . 'in the lower lefthand corner and moving upward to the right.'
+    },
+    {
+        m   => 1.5,
+        a   => 0.2,
+        alt => 'The scatterplot shows a strong linear trend starting '
+            . 'in the lower lefthand corner and moving upward to the right.'
+    },
+    {
+        m   => 0.2,
+        a   => 1.5,
+        alt => 'The scatterplot shows a weak linear trend starting '
+            . 'in the lower lefthand corner and moving upward to the right.'
+    },
+);
+
+@plots = ();
+for $coeff (random_subset(4, @coeffs)) {
+    @rand_pts = gen_rand_pts(30, $coeff->{m}, $coeff->{a});
+
+    $pt_str = join(' ', map {"($_->[0],$_->[1])"} @rand_pts);
+
+    $graph = createTikZImage();
+    $graph->texPackages(['pgfplots']);
+    $graph->BEGIN_TIKZ
+\begin{axis}
+\addplot [only marks, scale=0.5] coordinates { $pt_str };
+\end{axis}
+END_TIKZ
+
+    push(
+        @plots,
+        {
+            r => sample_correlation(
+                [ map { $_->[0] } @rand_pts ],
+                [ map { $_->[1] } @rand_pts ]
+            ),
+            im  => $graph,
+            alt => $coeff->{alt}
+        }
+    );
+}
+
+# sorted list of possible answers
+$list = [ lex_sort(map { 'r = ' . Round($_->{r}, 3) } @plots) ];
+
+@dropdowns =
+    map { DropDown($list, 'r = ' . Round($plots[$_]->{r}, 3)) } (0 .. $#plots);
+
+$tab = LayoutTable(
+    [
+        [
+            map {
+                image(
+                    $plots[$_]->{im},
+                    width           => 150,
+                    tex_size        => 400,
+                    extra_html_tags => "alt = '$plots[$_]->{alt}'"
+                )
+            } (0 .. 1)
+        ],
+        [ map { $dropdowns[$_]->menu } (0 .. 1) ],
+        [
+            map {
+                image(
+                    $plots[$_]->{im},
+                    width           => 150,
+                    tex_size        => 400,
+                    extra_html_tags => "alt = '$plots[$_]->{alt}'"
+                )
+            } (2 .. 3)
+        ],
+        [ map { $dropdowns[$_]->menu } (2 .. 3) ]
+    ],
+    align => 'cc'
+);
+
+$showPartialCorrectAnswers = 0;
+
+BEGIN_PGML
+
+Match the correlation coefficients with their scatterplots.
+Select the letter of the scatterplot below which corresponds to the correlation
+coefficient.  (Click on image for a larger view.)
+
+[$tab]*
+END_PGML
+
+ANS($dropdowns[$_]->cmp) for (0 .. 3);
+
+ENDDOCUMENT();
