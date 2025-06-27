@@ -12,69 +12,119 @@
 ## Problem1('')
 ## KEYWORDS('statistics', 'quantitative data', 'categorical data', 'histogram')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+## Updated 2025.02 by Peter Staab, switch to PGML and add a solution.
+
+DOCUMENT();    # This should be the first executable line in the problem.
 
 loadMacros(
-  "PGstandard.pl",
-  "PGgraphmacros.pl",
-  "PGchoicemacros.pl",
-  "PGcourse.pl"
+    'PGstandard.pl',         'PGML.pl',
+    'parserRadioButtons.pl', 'PGtikz.pl',
+    'PGcourse.pl'
 );
 
-TEXT(beginproblem());
+$i    = random(1, 4);
+@nums = grep { $_ != $i } (1 .. 4);
+# build a nice distribution that allows the answers to make sense below.
+$y[0]  = random(1, 6);
+$y[$i] = 11;
+$y[$_] = random(13, 18) for @nums;
+$y[5]  = random(3,  6);
+$y[6]  = random(1,  2);
 
-######################################
-#  Setup
+@cmprange = random_subset(2, 0 .. 5);
+@ranges   = map { (59 + 3 * $_) . '-' . (62 + 3 * $_) } @cmprange;
 
-@ThreeProblems = (0,1);  #Order the problems
-@scramble = NchooseK(2,2);
-@order = @ThreeProblems[@scramble];
+# create the tikz code to make the bars for this.
+$bars = '';
+for $i (0 .. $#y) {
+    $bars .=
+        "\filldraw[fill=LightBlue, draw = black] ({$i+1},0) rectangle ({$i+2}, {$y[$i]/2.5}); \n";
+}
 
-$mc[0] = new_multiple_choice();
-     $mc[0]->qa("The interval that contains closest to 10 students is ","68-71 inches. "); 
-     $mc[0]->extra("59-65 inches. ", 
-	"56-68 inches. ", 
-        "74-80 inches. ");
-     $mc[0]->makeLast("None of the above. ");
+$graph = createTikZImage();
+$graph->tikzLibraries('arrows.meta');
+$graph->tikzOptions('yscale = 0.6');
+$graph->BEGIN_TIKZ
+\tikzset{>={Stealth[scale=1.5]}}
+\filldraw[
+    draw=LightBlue,
+    fill=white,
+    rounded corners=10pt,
+    thick, use as bounding box
+] (-1,-1) rectangle (10,10);
+\draw (0,0) -- (9.5,0) -- (9.5,9.5)-- (0, 9.5) --cycle; 
+\foreach \x in {59,62,...,80}
+    \draw({(\x-56)/3},5pt) -- ({(\x-56)/3},-5pt) node [below] {\(\x\)};
 
-$mc[1] = new_multiple_choice();
-     $mc[1] ->qa("Which of the following is a correct statement? ",
-	"None of the above are correct."); 
-     $mc[1]->extra("The tallest person must have a height of at least 79 inches. ", 
-	"The histogram is symmetric. ", 
-        "Approximately half the students have heights between 65 and 71 inches. ");
-    $mc[1]->makeLast("None of the above are correct.");
+\foreach \y in {1,...,20} \draw[thin, lightgray] (0,{\y/2.5}) -- (9.5,{\y/2.5});
+\foreach \y in {5,10,...,20}
+    \draw (5pt,{\y/2.5}) -- (-5pt,{\y/2.5}) node[left] {\(\y\)};
+$bars
 
-######################################
-#  Main text
+END_TIKZ
 
-BEGIN_TEXT
+$rb1 = RadioButtons(
+    [
+        '59-62 inches',
+        '62-65 inches',
+        '65-68 inches',
+        '68-71 inches',
+        '71-74 inches',
+        '74-77 inches',
+        '77-80 inches'
+    ],
+    $i
+);
+
+$rb2 = RadioButtons(
+    [
+        'The tallest person must have a height of at least 77 inches.',
+        'The histogram is symmetric.',
+        'Approximately half the students have heights between 65 and 71 inches.',
+        'None of the Above'
+    ],
+    0
+);
+
+$rb3 = RadioButtons([ 'True', 'False' ],
+    $y[ $cmprange[0] ] > $y[ $cmprange[1] ] ? 0 : 1);
+
+BEGIN_PGML
 Consider the histogram given below: 
-($BBOLD Click on the image for a larger view. $EBOLD)
-$PAR
-\{ image("Ref_1_2.gif", height=>300, width=>400, tex_size => 200) \}
+(*Click on the image for a larger view.*)
 
-$PAR
-(a)   \{ $mc[$order[0]] -> print_q() \}
-$BR
-\{$mc[$order[0]] -> print_a() \}
+[! alt text !]{$graph}{500}
 
-$PAR
-(b)   \{ $mc[$order[1]] -> print_q() \}
-$BR
-\{$mc[$order[1]] -> print_a() \}
-END_TEXT
+a) The interval that contains closest to 10 students is
 
-######################################
-#  Answers
+    [_]{$rb1}
 
-$showPartialCorrectAnswers = 0;
+b) Which of the following is a correct statement?
 
-ANS(radio_cmp($mc[$order[0]]->correct_ans));
-ANS(radio_cmp($mc[$order[1]]->correct_ans));
+    [_]{$rb2}
 
-ENDDOCUMENT();       # This should be the last executable line in the problem.
+c) There are more students of height in the range [$ranges[0]] than in the range 
+[$ranges[1]]? 
 
+    [_]{$rb3}
 
+END_PGML
 
+BEGIN_PGML_SOLUTION
 
+[$cmprange[0]], [$cmprange[1]]
+
+[$y[$cmprange[0]]], [$y[$cmprange[1]]]
+
+[$ranges[0]], [$ranges[1]]
+
+For this, translate the bar heights into numbers.
+
+a) The interval that contains closest to 10 students in [$rb1]
+
+b) The only statement that is true is the _tallest person must have a height of at least 79 inches_.
+
+c) Again, looking at bar heights, this is [$rb3]
+END_PGML_SOLUTION
+
+ENDDOCUMENT();    # This should be the last executable line in the problem.
