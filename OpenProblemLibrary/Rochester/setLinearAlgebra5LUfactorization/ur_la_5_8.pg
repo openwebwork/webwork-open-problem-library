@@ -20,70 +20,123 @@
 
 DOCUMENT() ;        
 
-loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "parserVectorUtils.pl",
-  "PGcourse.pl"
-);
+loadMacros('PGstandard.pl', 'contextFraction.pl','PGML.pl', 'PGcourse.pl');
 
-$showPartialCorrectAnswers = 1 ;
+Context("Numeric");
 
-TEXT(beginproblem());
+sub myrand{return non_zero_random(-5,5,1);}
 
-Context('Matrix')->variables->are('x1'=>'Real','x2'=>'Real','x3'=>'Real');
+# The answer checkers require matrices of real numbers.
+# But I need fractions is for displaying L^{-1}
+# U^{-1} in the solution.  So these are computed separately.
 
-$L = Matrix([
-[1,0,0],
-[non_zero_random(-5,5,1),1,0],
-[non_zero_random(-5,5,1),non_zero_random(-5,5,1),1],
-]);
+# answer checkers
+@intL = ([1,0,0],[myrand,1,0],[myrand,myrand,1]);
+$ansL = Matrix(@intL);
 
-$U = Matrix([
-[non_zero_random(-5,5,1),non_zero_random(-5,5,1),non_zero_random(-5,5,1)],
-[0,non_zero_random(-5,5,1),non_zero_random(-5,5,1)],
-[0,0,non_zero_random(-5,5,1)],
-]);
+@intU = ([myrand,myrand,myrand],[0,myrand,myrand],[0,0,myrand]);
+$ansU = Matrix(@intU);
+
+#for display matrices convert entries to fractions
+
+Context("Fraction");
+
+@fracL = ();
+@fracU = ();
+for my $i (0..2){
+    for my $j (0..2){
+        $fracL[$i][$j]=Fraction($intL[$i][$j]);
+        $fracU[$i][$j]=Fraction($intU[$i][$j]);
+    }
+}
+
+Context(context::Fraction::extending("Matrix"));
+$L=Matrix(@fracL);
+$U=Matrix(@fracU);
 
 $A = $L * $U;
 
+#Context("Numeric");
 $x = Matrix([
-[non_zero_random(-5,5,1)],
-[non_zero_random(-5,5,1)],
-[non_zero_random(-5,5,1)],
+[myrand],
+[myrand],
+[myrand],
 ]);
 
 $b = $A * $x;
 
-$xdisp = Matrix([['x1'],['x2'],['x3']]);
+BEGIN_PGML
+Find the [`LU`] factorization of 
 
-Context()->texStrings;
-BEGIN_TEXT
-Find the \(LU\) factorization of \[ A= $A \] 
-such that the main diagonal of $L$ has all ones
-and use it to solve the system
-\[
-$A $xdisp = $b.
-\]  
-$BR
-$BR
-$BCENTER
-\(A = LU = \) 
-\{ $L->ans_array() \}
-\{ $U->ans_array() \}
-$ECENTER
-$BR
-$BCENTER
-\( \vec{x} = \)
-\{ $x->ans_array() \}
-$ECENTER
-END_TEXT
-Context()->normalStrings;
+    [`` A= [$A] ``]
+
+such that the main diagonal of [` L `] has all ones,
+and use your [`LU`] factorization to solve the system
+
+    [``[$A] \begin{bmatrix} x_1 \\ x_2 \\ x_3 \end{bmatrix} = [$b]``].  
+
+*Answers:*
+
+    [`A = LU `] = [__]*{$L} [_]*{$U}, 
+
+    [`` \begin{bmatrix} x_1 \\ x_2 \\ x_3 \end{bmatrix} = ``][___]*{$x}.
+END_PGML
+
+$u11 = $U->element(1,1);
+$u12 = $U->element(1,2);
+$u13 = $U->element(1,3);
+$u22 = $U->element(2,2);
+$u23 = $U->element(2,3);
+$u33 = $U->element(3,3);
+
+$Uinv = $U->inverse();
+$Linv = $L->inverse();
+$Linvb = $Linv*$b;
+
+$y1=$Linvb->element(1,1);
+$y2=$Linvb->element(2,1);
+$y3=$Linvb->element(3,1);
+
+BEGIN_PGML_SOLUTION
+If [`A=LU`] is a product of a lower triangular matrix [`L`] and an upper triangular matrix [`U`], where [`L`] has ones on its diagonal, then there's a neat trick for finding [`L`] and [`U`].  Row reduce [`A`], using only "add a multiple of a row to a different row" operations. This will produce an upper triangular matrix.  It turns out that this matrix is [`U`].
+
+    [``A \xrightarrow{\text{row reduce}} [$U]=U``]
+
+Next compute
+
+    [``U^{-1}=[$Uinv]``].
+
+Multiply [`A=LU`] on the right by [``U^{-1}``] to obtain [`L`]
+
+    [``[$L]=AU^{-1}=LUU^{-1}=L``].
+
+Let [``\mathbf{x}=\begin{bmatrix} x_1 \\ x_2 \\ x_3 \end{bmatrix}``] and 
+[``\mathbf{b}=[$b]``]. We are asked to use [`LU=A`] to solve the equation 
+
+    [`A\mathbf{x}=\mathbf{b}`].
+    
+Multiply both sides of this equation by [``L^{-1}``].  This has the effect of row reducing the equation.  Recall that [``L^{-1}A=U``] so  
+
+    [``\begin{aligned} A\mathbf{x} &= \mathbf{b} \\
+    L^{-1}A\mathbf{x} &= L^{-1}\mathbf{b} \\
+    U \mathbf{x} &= L^{-1}\mathbf{b}\end{aligned}``]
+
+That is,
+
+    [``[$U]\begin{bmatrix}x_1 \\ x_2 \\ x_3 \end{bmatrix} = [$Linvb]``],
+
+in other words
+
+    [``\begin{aligned} [$u11]x_1 + [$u12]x_2 + [$u13]x_3 &= [$y1] \\
+    [$u22]x_2 + [$u23]x_3  &= [$y2]\\
+    [$u33]x_3 &= [$y3]
+    \end{aligned}``]
+
+This system is in upper triangular form so it is easy to solve by back substitution:
+
+    [``\begin{bmatrix}x_1 \\ x_2 \\ x_3 \end{bmatrix}=[$x]``].
 
 
-ANS( $L->cmp() );
-ANS( $U->cmp() );
-ANS( $x->cmp() );
+END_PGML_SOLUTION
 
-;
 ENDDOCUMENT();
