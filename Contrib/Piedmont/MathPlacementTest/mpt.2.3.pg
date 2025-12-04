@@ -1,0 +1,92 @@
+##DESCRIPTION
+## Piedmont Math Placement Test Part 2
+## Problem 3 - Transformation of parabola
+##ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Quadratic equations and functions)
+## DBsection(Graphs)
+## Institution(Piedmont)
+## Author(Doug Torrance)
+
+########################################################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "parserGraphTool.pl"
+);
+
+$gt_checker = sub {
+    my ($correct, $student, $ans, $value) = @_;
+    return 0 if $ans->{isPreview};
+
+    my $score = 0;
+    my @errors;
+    my $count = 1;
+
+    my ($h, $k) = $correct->[0]->extract(4)->value;
+    my ($px, $py) = $correct->[0]->extract(5)->value;
+    my $a = ($py - $k) / ($px - $h)**2;
+
+    my $pointOnParabola= sub {
+        my $point = shift;
+        my ($x, $y) = $point->value;
+        return $y == $a * ($x - $h)**2 + $k;
+    };
+
+    for (@$student) {
+        my $nth = Value::List->NameForNumber($count++);
+        
+        $score += 1, next
+        if ($_->extract(1) eq $correct->[0]->extract(1) &&
+            $_->extract(3) == $correct->[0]->extract(3) &&
+            $_->extract(4) == $correct->[0]->extract(4) &&
+            $pointOnParabola->($_->extract(5)));
+            
+        push(@errors, "The $nth object graphed is not a parabola"),
+        next if ($_->extract(1) ne $correct->[0]->extract(1));
+
+        push(@errors, "The $nth parabola graphed should be " .
+                      $correct->[0]->extract(3)),
+        next if ($_->extract(3) ne $correct->[0]->extract(3));
+        
+        push(@errors, "The $nth parabola graphed should have vertex " .
+                      $correct->[0]->extract(4)),
+        next if ($_->extract(4) ne $correct->[0]->extract(4));
+        
+        push(@errors, "The $nth parabola graphed should not contain the point " .
+            $_->extract(5));
+    }
+
+    return ($score, @errors);
+};
+
+
+Context()->noreduce('(-x)-y');
+
+$sgn = non_zero_random(-1, 1);
+$h = non_zero_random(-5, 5);
+$k = non_zero_random(-5, 5);
+$f = Formula("$sgn*(x - $h)^2 + $k");
+
+$y1 = $f->eval(x => $h);
+$y2 = $f->eval(x => $h + 1);
+
+$gt = GraphTool("{parabola, solid, vertical, ($h, $y1), ($h + 1, $y2)}")->with(
+    cmpOptions => { list_checker => $gt_checker });
+
+BEGIN_TEXT
+
+Sketch the parabola \(y = \{$f->reduce->TeX\}\).
+$PAR
+
+\{$gt->ans_rule()\}
+
+END_TEXT
+
+ANS($gt->cmp);
+
+ENDDOCUMENT();
