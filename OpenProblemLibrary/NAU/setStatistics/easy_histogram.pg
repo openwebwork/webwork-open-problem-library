@@ -17,7 +17,13 @@
 # Graph updated to use PGML, tikz and add alt tag for accessibility.
 
 DOCUMENT();
-loadMacros("PGstandard.pl", "PGML.pl", "PGtikz.pl");
+loadMacros(
+    "PGstandard.pl", "PGML.pl",
+    "PGtikz.pl",     'contextPercent.pl',
+    'PGcourse.pl'
+);
+
+Context('Percent');
 
 $n   = 50;
 $max = random(29, 44, 5);
@@ -32,12 +38,14 @@ $ind      = random(0, 1);
 $num_bins = ($max + 1) / 5;
 $bins[$_] = 0 for (0 .. $num_bins - 1);
 
+$num_faculty = 0;
 for $val (@list) {
     if ($val < $num) {
         push @newlist1, $val;
     } else {
         push @newlist2, $val;
     }
+    $num_faculty++ if $val >= $num;
     $bins[ floor($val / 5) ]++;
 }
 
@@ -55,42 +63,34 @@ for $i (0 .. $num_bins - 1) {
         . " has height "
         . $bins[$i] . ". ";
 }
-
-# These are useful for setting the bounds of the plot
 $ymax1 = $ymax + 1;
-$ymax2 = $ymax + 2;
-$ymax3 = $ymax + 3;
-$xmax1 = $max + 1;
-$xmax2 = $max + 2;
-$mid   = 0.5 * $xmax1;
 
-$ans1 = $ind == 0 ? 100 * scalar(@newlist2) / $n : 100 * scalar(@newlist1) / $n;
+# create the tikz code to make the bars for this.
+$bars = '';
+for $i (0 .. $#bins) {
+    $bars .=
+        "\filldraw[fill=LightBlue, draw = black] ({$i},0) rectangle ({($i+1))}, {10*$bins[$i]/$ymax}); \n";
+}
 
-$graph_image = createTikZImage();
-$graph_image->texPackages(["ifthen"]);
-$graph_image->tikzLibraries("arrows.meta");
-$graph_image->tikzOptions("xscale=0.5, every node/.style={scale=1.5}");
-
-$graph_image->BEGIN_TIKZ
+$graph = createTikZImage();
+$graph->tikzLibraries('arrows.meta');
+$graph->tikzOptions('yscale = 0.6');
+$graph->BEGIN_TIKZ
+\tikzset{>={Stealth[scale=1.25]}}
 \filldraw[
     draw=LightBlue,
     fill=white,
     rounded corners=10pt,
-    thick,use as bounding box
-] (-2,-2) rectangle ($xmax2, $ymax3);
-\draw[<->,thick] (0,0) rectangle ($xmax1,$ymax1);
-\draw ($mid,$ymax2) node {\Huge $title};
-\foreach \x in {5,10,...,$xmax1} \draw[gray] (\x,0) -- (\x,-0.5) node[below] {\x};
-\foreach \y in {1,2,...,$ymax1} \draw[thin, gray] (0,\y) -- (-0.25,\y) node[left]{\y};
-\filldraw[thick, fill=blue!20] (0,0) rectangle(5,$bins[0]);
-\filldraw[thick, fill=red!20] (5,0) rectangle(10,$bins[1]);
-\filldraw[thick, fill=yellow!50] (10,0) rectangle(15,$bins[2]);
-\filldraw[thick, fill=magenta!20] (15,0) rectangle(20,$bins[3]);
-\filldraw[thick, fill=blue!20] (20,0) rectangle(25,$bins[4]);
-\filldraw[thick, fill=red!20] (25,0) rectangle(30,$bins[5]);
-\ifthenelse{$num_bins > 6}{\filldraw[thick, fill=yellow!50] (30,0) rectangle(35,$bins[6]);}{}
-\ifthenelse{$num_bins > 7}{\filldraw[thick, fill=magenta!20] (35,0) rectangle(40,$bins[7]);}{}
-\ifthenelse{$num_bins > 8}{\filldraw[thick, fill=blue!20] (40,0) rectangle(45,$bins[8]);}{}
+    thick, use as bounding box
+] (-1.25,-1) rectangle (10,13);
+\draw (-0.5,0) -- (9.5,0) -- (9.5,11.5)-- (-0.5, 11.5) --cycle; 
+\foreach \x in {0,5,...,45}
+    \draw({\x/5},5pt) -- ({\x/5},-5pt) node [below] {\(\x\)};
+
+\foreach \y in {1,...,$ymax1}
+    \draw (-0.4,{10*\y/$ymax}) -- (-0.6,{10*\y/$ymax}) node[left] {\(\y\)};
+$bars
+\draw (4.5,12) node {\Large $title};
 END_TIKZ
 
 BEGIN_PGML
@@ -101,11 +101,11 @@ university. The horizontal axis represents years of service in intervals
 0 to 4.9, 5 to 9.9, etc., and the vertical axis represents the number of
 faculty.
 
->> [! [$alttext] !]{$graph_image}{400} <<
+>> [! [$alttext] !]{$graph}{400} <<
 
 What percent of the department faculty have [$dir[$ind]] years of service?
-[_____]{$ans1}
+[_]{Percent($num_faculty/$n)}{5}
 
 END_PGML
 
-ENDDOCUMENT()
+ENDDOCUMENT();
