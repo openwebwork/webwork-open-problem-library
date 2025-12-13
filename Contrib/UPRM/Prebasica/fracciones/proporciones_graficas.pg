@@ -1,0 +1,157 @@
+#  DESCRIPTION
+#
+#  Tipo: respuesta corta
+#  Dada una gráfica con alguna parte de ella sombreada, 
+#  encontrar la fracción que la representa. 
+
+#  Problema WeBWork escrito por Edwin Florez, 
+#  <edwin.florez (at) upr (dot) edu>
+#
+#  Adaptado desde el sistema quiz.uprm.edu del archivo
+#  pedro_prebasica/fracciones/proporciones_graficas.db
+#
+#  ENDDESCRIPTION
+
+## DBsubject(Prebasica)
+## DBchapter(Fracciones)
+## DBsection(Representación gráfica)
+## Level(1)
+## KEYWORDS('fracciones','gráfica','sombreada','porcentaje')
+## Author(Edwin Florez)
+## Institution(UPRM)
+## Language(es)
+
+DOCUMENT();
+
+loadMacros(
+"PGstandard.pl",
+"MathObjects.pl",
+"PGgraphmacros.pl",
+"contextInequalities.pl",
+"AnswerFormatHelp.pl",
+"PGchoicemacros.pl",
+"contextFraction.pl",
+"problemRandomize.pl",
+"PGpolynomialmacros.pl"
+);
+
+TEXT(beginproblem());
+$refreshCachedImages = 1;
+
+#  Allow for the user to try another version of the problem once they get it correct.
+ProblemRandomize(when=>"Correct",onlyAfterDue=>0);
+
+# Show which answers are correct and which ones are incorrect
+#$showPartialCorrectAnswers = 0;
+
+##############################################################
+#  Setup
+
+#Numero de regiones
+$n = random(2,20);
+
+###########################################################
+#Subrutina que devuelve un arreglo bidimensional con los valores de x y y 
+#de los puntos a dividir la circunferencia.
+sub getPoints{
+  
+  my $x0 = shift;
+  my $y0 = shift;
+  my $r = shift;
+  my $noOfDividingPoints = shift;
+
+  my @points;
+
+  my $angle = 0;
+
+  for (my $i=0; $i < $noOfDividingPoints; $i++) {
+    $angle = $i*(6.283/$noOfDividingPoints);
+    $points[0][$i] = $x0 + $r*cos($angle);
+    $points[1][$i]  = $y0 + $r*sin($angle);
+  }
+  return @points;
+}
+################# termina subrutina ##########################
+
+Context("Numeric");
+Context()->flags->set(tolerance=>0.00001,tolType=>"absolute");
+$r=10;
+
+$graph = init_graph(-$r-1,-$r-1, $r+1,$r+1, size=>[400,400 ]);
+
+$func = Compute("sqrt{$r**2 - x**2}");
+$fund = Compute("-sqrt{$r**2 - x**2}");
+
+plot_functions( $graph, "$func for x in <-$r,$r> using color:black and weight:2");
+plot_functions( $graph, "$fund for x in <-$r,$r> using color:black and weight:2");
+
+#Usando la subrutina
+@puntos  = getPoints(0,0,$r,$n);
+
+#La siguiente línea sirve capturar el tamaño de una fila de un arreglo
+#aqui no es necesaria pues sabemos de antemano n
+#$numero_puntos = @{ $puntos[1] };
+
+#Dibujando  las secciones
+foreach my $i (0..$n -1){
+  $graph->moveTo(0,0);
+  $graph->lineTo($puntos[0][$i], $puntos[1][$i], 'black');
+}
+
+#variable donde estará el número de partes sombreadas
+$m = 0;
+
+#Sombreando regiones en forma aleatoria
+#y capturando la cantidad (m) para crear la respuesta
+foreach my $i (0..$n-2){
+  $prob = random(0,1);
+  if ($prob == 1){
+    $x = ( $puntos[0][$i] + $puntos[0][$i+1] )/4;
+    $y = ( $puntos[1][$i] + $puntos[1][$i+1] )/4;
+    $graph->fillRegion( [$x, $y,'blue'] );
+    $graph->lb( new Label($x,  $y, ".",'black','center','middle'));
+    $m = $m + 1;
+  }
+}
+
+#Comentario: los dos bucles anteriores se pueden unir, están así 
+#pues empecé haciendo lo de dividir, luego sombrear. 
+
+Context("Fraction");
+$answer = Fraction($m,$n);
+
+##############################################################
+#
+#  Text
+#
+
+Context()->texStrings;
+BEGIN_TEXT
+¿Qué fracción del círculo está coloreada de azul?
+$PAR
+$BCENTER
+\{ image( insertGraph($graph), tex_size=>100, height=>300, width=>300) \}
+$ECENTER
+$PAR
+Exprese la respuesta como una fracción en su mínima expresión. 
+$PAR
+Contestación: \{ans_rule(20)\} \{ AnswerFormatHelp("number") \}
+END_TEXT
+Context()->normalStrings;
+
+#Context("Numeric");
+##############################################################
+#  Answers
+#
+
+ANS( $answer->cmp(studentsMustReduceFractions=>1, requirePureFractions=>1) );
+
+Context()->texStrings;
+SOLUTION(EV3(<<'END_SOLUTION'));
+La figura se ha dividido en \($n\) partes iguales, luego el denominador es igual a \($n\). De estas partes, \($m\) está(n) coloreada(s) de azul, luego el numerador es igual a \($m\).
+$PAR
+Por lo tanto la solución es: \($answer\)
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
