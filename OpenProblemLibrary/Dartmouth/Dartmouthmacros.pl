@@ -3,7 +3,7 @@
 # this is equivalent to use strict, but can be used within the Safe compartment.
 BEGIN{
         be_strict;
-} 
+}
 
 ## Some local macros
 
@@ -30,14 +30,14 @@ sub trs_mod{
 sub scalar_mult_vector{
     ## Put the parameters passed into an array of values
     my @vector = @_;
-    
+
     ## Split off the first entry as the scalar, and the rest as the vector
     my $scalar = $vector[0];
     my @vectorb = @vector[(1 .. $#vector )];
 
     ## Initialize scalar multiple as empty vector
     my @scalar_multiple=();
-    
+
     my $i;
     for ($i=0; $i <= $#vectorb; $i++)
         {
@@ -61,7 +61,7 @@ sub vector_sum {
 
     ## Initialize vector sum to empty array
     my @vector_sum=();
-    
+
     my $i;
     for ($i=0; $i <= $#vectora; $i++)
         {
@@ -86,12 +86,12 @@ sub vector_diff{
 
 ## Compute the length of a vector
 sub vec_length {
-    ## Put the paramaters passed into an array of values
+    ## Put the parameters passed into an array of values
     my @vector = @_;
 
     ## Initialize maximum value to first element
     my $vector_length = 0;
-    
+
     my $i;
     for ($i=0; $i <= $#vector; $i++)
         {
@@ -118,7 +118,7 @@ sub dot_product {
 
     ## Initialize dot product to zero
     my $dot = 0;
-    
+
     my $i;
     for ($i=0; $i <= $#vectora; $i++)
         {
@@ -130,14 +130,14 @@ sub dot_product {
 sub cross_product {
     ## Put the parameters passed into an array of values
     my @vector = @_;
-    
+
     ## Slice the input into two equal length vectors
     my @vectora = @vector[(0 .. 2)];
     my @vectorb = @vector[(3 .. 5)];
 
     ## Initialize dot product to zero
     my @cross = ();
-    
+
     $cross[0] = $vectora[1]*$vectorb[2] - $vectora[2]*$vectorb[1];
     $cross[1] = $vectora[2]*$vectorb[0] - $vectora[0]*$vectorb[2];
     $cross[2] = $vectora[0]*$vectorb[1] - $vectora[1]*$vectorb[0];
@@ -151,13 +151,13 @@ sub cross_product {
 #
 #    ## Initialize maximum value to first element
 #    my $max = $values[0];
-#    
+#
 #    my $i;
 #    for ($i=1; $i <= $#values; $i++)
 #        {
 #        if ($values[$i] > $max) {
 #            $max = $values[$i];
-#            } 
+#            }
 #        }
 #    return $max;
 #}
@@ -169,16 +169,16 @@ sub cross_product {
 #
 #    ## Initialize minimum value to first element
 #    my $min = $values[0];
-#    
+#
 #    my $i;
 #    for ($i=1; $i <= $#values; $i++)
 #        {
 #        if ($values[$i] < $min) {
 #            $min = $values[$i];
-#            } 
+#            }
 #        }
 #    return $min
-#}    
+#}
 
 
 ## clean_scalar_string is invoked to make expressions like "$a x" look
@@ -265,7 +265,7 @@ sub coordinates_polar{
             else {if ($x > 0){$theta = 2*$pi + atan($y/$x);}
                         else {$theta = $pi + atan($y/$x);}}
         }
-    }              
+    }
     @polar=($radius, $theta);
     return @polar;
 }
@@ -297,7 +297,7 @@ sub coordinates_spherical{
                           @spherical=($rho,0,$phi);}
     else{
     $rho = sqrt($x*$x + $y*$y + $z*$z);
-        
+
     @spherical=($rho, $npolar[1], acos($z/$rho));
         }
     return @spherical;
@@ -308,6 +308,3 @@ sub coordinates_spherical{
 
 
 1;
-
-
-
