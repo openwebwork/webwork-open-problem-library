@@ -1,0 +1,482 @@
+##DESCRIPTION
+##  Training problem on the relationship between rates of change and slopes of lines
+##ENDDESCRIPTION
+
+##KEYWORDS('secant line', 'tangent line', 'slope', 'average rate of change', 'instantaneous rate of change')
+
+## DBsubject('Calculus')
+## DBchapter('Limits, Derivatives')
+## DBsection('Rates of change')
+## Date('Summer 2023')
+## Author('Warren Shull')
+## Institution('UWEC')
+
+########################################################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   #"source.pl",        # allows code to be displayed on certain sites.
+   "PGcourse.pl",      # Customization file for the course
+   "scaffold.pl",
+   "parserPopUp.pl",   # <--------------------------------------NEEDED FOR DROPDOWN MENUS
+);
+
+loadMacros("customCSS.pl");
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+$increase = PopUp(
+  ["Choose one", "increasing","decreasing"],
+  "increasing");
+
+$positive = PopUp(
+  ["Choose one", "positive","negative"],
+  "positive");
+
+$decrease = PopUp(
+  ["Choose one", "increasing","decreasing"],
+  "decreasing");
+
+$negative = PopUp(
+  ["Choose one", "positive","negative"],
+  "negative");
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+################################
+#  Desmos setup
+#
+#  In html mode, load the Desmos api script and create the <div> to attach the Desmos graph to.
+#  In tex mode, print a message to direct the student to the html version.
+#  Desmos API reference: https://www.desmos.com/api/v1.7/docs/index.html
+
+
+$unique_div_id = "increasing_concave_up";
+$width = 700;
+$height = 400;
+
+
+HEADER_TEXT(MODES(
+    HTML=>'<script src="https://www.desmos.com/api/v1.7/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>',
+    TeX=>''
+));
+
+$desmos_div = MODES(
+    HTML=>qq(<div id="$unique_div_id" style="width: ${width}px; height: ${height}px;"></div>), 
+    TeX=>'Interactive graph best viewed online'
+);
+
+$unique_div_id2 = "increasing_concave_down";
+$desmos_div2 = MODES(
+    HTML=>qq(<div id="$unique_div_id2" style="width: ${width}px; height: ${height}px;"></div>), 
+    TeX=>'Interactive graph best viewed online'
+);
+
+$unique_div_id3 = "decreasing_concave_up";
+$desmos_div3 = MODES(
+    HTML=>qq(<div id="$unique_div_id3" style="width: ${width}px; height: ${height}px;"></div>), 
+    TeX=>'Interactive graph best viewed online'
+);
+
+$unique_div_id4 = "decreasing_concave_down";
+$desmos_div4 = MODES(
+    HTML=>qq(<div id="$unique_div_id4" style="width: ${width}px; height: ${height}px;"></div>), 
+    TeX=>'Interactive graph best viewed online'
+);
+
+##############################################################
+#
+#  Setup
+#
+#
+
+Context("Numeric");
+Context()->variables->add(t=>'Real');
+
+
+$x1_mid = non_zero_random(-10,10); #middle, where $a begins
+$x2_mid = non_zero_random(-10,10); #middle, where $a begins
+$x3_mid = non_zero_random(-10,10); #middle, where $a begins
+$x4_mid = non_zero_random(-10,10); #middle, where $a begins
+$y1 = non_zero_random(-10,10); #up or down shift from default
+$y2 = non_zero_random(-10,10); #up or down shift from default
+$y3 = non_zero_random(-10,10); #up or down shift from default
+$y4 = non_zero_random(-10,10); #up or down shift from default
+
+$x1_max = $x1_mid+1.9;
+$x1_min = $x1_mid-2;
+$x2_max = $x2_mid+2;
+$x2_min = $x2_mid-1.9;
+$x3_max = $x3_mid+2;
+$x3_min = $x3_mid-1.9;
+$x4_max = $x4_mid+1.9;
+$x4_min = $x4_mid-2;
+
+$g1 = Formula("$y1-sqrt(16-(x-$x1_min)^2)");
+$g2 = Formula("$y2+sqrt(16-(x-$x2_max)^2)");
+$g3 = Formula("$y3-sqrt(16-(x-$x3_max)^2)");
+$g4 = Formula("$y4+sqrt(16-(x-$x4_min)^2)");
+
+$g1_max = $g1->eval(x=>$x1_max);
+$g1_min = $g1->eval(x=>$x1_min);
+$g2_max = $g2->eval(x=>$x2_max);
+$g2_min = $g2->eval(x=>$x2_min);
+$g3_max = $g3->eval(x=>$x3_max);
+$g3_min = $g3->eval(x=>$x3_min);
+$g4_max = $g4->eval(x=>$x4_max);
+$g4_min = $g4->eval(x=>$x4_min);
+
+if ($g1_max<$g1_min){ #swap if they're in the wrong order
+    $g1_temp=$g1_max;
+    $g1_max=$g1_min;
+    $g1_min=$g1_temp;
+}
+
+if ($g2_max<$g2_min){ #swap if they're in the wrong order
+    $g2_temp=$g2_max;
+    $g2_max=$g2_min;
+    $g2_min=$g2_temp;
+}
+
+if ($g3_max<$g3_min){ #swap if they're in the wrong order
+    $g3_temp=$g3_max;
+    $g3_max=$g3_min;
+    $g3_min=$g3_temp;
+}
+
+if ($g4_max<$g4_min){ #swap if they're in the wrong order
+    $g4_temp=$g4_max;
+    $g4_max=$g4_min;
+    $g4_min=$g4_temp;
+}
+
+## THIS IS PROBLEM 1 OF A 3 PROBLEM SERIES INTRODUCING CONCAVITY. IF YOU USE THEM TOGETHER, YOU CAN USE PASSCODES TO ALLOW YOU TO REQUIRE THE PROBLEMS BE DONE IN ORDER. BELOW IS SOME OF THE CODE YOU'LL NEED:
+
+#SRAND($psvn);
+#$passcode1 = random(1000,9999);
+
+## END PASSCODE CODE
+
+##############################################################
+#
+#  Text
+#
+#
+
+Scaffold::Begin(
+    can_open => "when_previous_correct",
+    is_open => "first_incorrect"
+);
+
+BEGIN_PGML
+
+[@ openDiv({ "class" => "problemPurpose" }) @]*
+Purpose:
+
+As we have seen, the derivative of a function is _another function_, which almost always has a derivative of its own. You have found second derivatives algebraically before, but can we tell anything about them visually?
+
+This problem examines the four basic shapes a curve can have, connecting them to the first and second derivatives.
+
+[@ closeDiv() @]*
+
+END_PGML
+
+Section::Begin("Curve 1");
+
+BEGIN_PGML
+
+
+
+[@ openDiv({ "class" => "promptOrInstruction" }) @]*
+Here is a curve and its tangent line. Move the slider to see how the tangent line changes! Then answer the questions below.  
+[@ closeDiv() @]*
+
+[@ $desmos_div @]*
+
+Using the slider for [`a`], estimate the slope of the tangent line when [`x=a`].
+
+* When [`x=[$x1_min+1.8]`], the slope is [`g'\big([$x1_min+1.8]\big)=`] [____]{$g1->D->eval(x=>$x1_min+1.8)->cmp(tolType   => 'absolute',tolerance => .01)}
+* When [`x=[$x1_min+2.8]`], the slope is [`g'\big([$x1_min+2.8]\big)=`] [____]{$g1->D->eval(x=>$x1_min+2.8)->cmp(tolType   => 'absolute',tolerance => .05)}
+* When [`x=[$x1_min+3.6]`], the slope is [`g'\big([$x1_min+3.6]\big)=`] [____]{$g1->D->eval(x=>$x1_min+3.6)->cmp(tolType   => 'absolute',tolerance => .1)}
+
+---
+
+[@ openDiv({ "class" => "importantFormula" }) @]*
+For any function [`f`], as long as these derivatives exist:
+* [`f'`] is positive where [`f`] is increasing.
+* [`f''`] is positive where [`f'`] is increasing
+* [`f'''`] is positive where [`f''`] is increasing
+
+[`\Box'`] is positive where [`\Box`] is increasing.
+
+⭐️ The second derivative is positive where the first derivative is increasing.
+
+[@ closeDiv() @]*
+
+In the graph above, as [`x`] increases (as we move from left to right):
+
+* [`g(x)`] is [_]{$increase}, so [`g'(x)`] is [_]{$positive}.
+* [`g'(x)`] is [_]{$increase}, so [`g''(x)`] is [_]{$positive}.
+
+END_PGML
+Section::End();
+
+
+
+
+
+
+
+
+
+Section::Begin("Curve 2");
+
+BEGIN_PGML
+
+
+
+[@ $desmos_div2 @]*
+
+Using the slider for [`a`], estimate the slope of the tangent line when [`x=a`].
+
+* When [`x=[$x2_max-3.6]`] the slope is [`g'\big([$x2_max-3.6]\big)=`] [____]{$g2->D->eval(x=>$x2_max-3.6)->cmp(tolType   => 'absolute',tolerance => .1)}
+* When [`x=[$x2_max-2.8]`] the slope is [`g'\big([$x2_max-2.8]\big)=`] [____]{$g2->D->eval(x=>$x2_max-2.8)->cmp(tolType   => 'absolute',tolerance => .05)}
+* When [`x=[$x2_max-1.8]`] the slope is [`g'\big([$x2_max-1.8]\big)=`] [____]{$g2->D->eval(x=>$x2_max-1.8)->cmp(tolType   => 'absolute',tolerance => .01)}
+
+As [`x`] increases (as we move from left to right):
+
+* [`g(x)`] is [_]{$increase}, so [`g'(x)`] is [_]{$positive}.
+* [`g'(x)`] is [_]{$decrease}, so [`g''(x)`] is [_]{$negative}.
+
+END_PGML
+Section::End();
+
+Section::Begin("Curve 3");
+
+BEGIN_PGML
+
+
+[@ $desmos_div3 @]*
+
+Using the slider for [`a`], estimate the slope of the tangent line when [`x=a`].
+
+* When [`x=[$x3_max-3.6]`] the slope is [`g'\big([$x3_max-3.6]\big)=`] [____]{$g3->D->eval(x=>$x3_max-3.6)->cmp(tolType   => 'absolute',tolerance => .1)}
+* When [`x=[$x3_max-2.8]`] the slope is [`g'\big([$x3_max-2.8]\big)=`] [____]{$g3->D->eval(x=>$x3_max-2.8)->cmp(tolType   => 'absolute',tolerance => .05)}
+* When [`x=[$x3_max-1.8]`] the slope is [`g'\big([$x3_max-1.8]\big)=`] [____]{$g3->D->eval(x=>$x3_max-1.8)->cmp(tolType   => 'absolute',tolerance => .01)}
+
+As [`x`] increases (as we move from left to right):
+
+* [`g(x)`] is [_]{$decrease}, so [`g'(x)`] is [_]{$negative}.
+* [`g'(x)`] is [_]{$increase}, so [`g''(x)`] is [_]{$positive}.
+
+END_PGML
+Section::End();
+
+Section::Begin("Curve 4");
+
+BEGIN_PGML
+
+
+[@ $desmos_div4 @]*
+
+Using the slider for [`a`], estimate the slope of the tangent line when [`x=a`].
+
+* When [`x=[$x4_min+1.8]`] the slope is [`g'\big([$x4_min+1.8]\big)=`] [____]{$g4->D->eval(x=>$x4_min+1.8)->cmp(tolType   => 'absolute',tolerance => .01)}
+* When [`x=[$x4_min+2.8]`] the slope is [`g'\big([$x4_min+2.8]\big)=`] [____]{$g4->D->eval(x=>$x4_min+2.8)->cmp(tolType   => 'absolute',tolerance => .05)}
+* When [`x=[$x4_min+3.6]`] the slope is [`g'\big([$x4_min+3.6]\big)=`] [____]{$g4->D->eval(x=>$x4_min+3.6)->cmp(tolType   => 'absolute',tolerance => .1)}
+
+As [`x`] increases (as we move from left to right):
+
+* [`g(x)`] is [_]{$decrease}, so [`g'(x)`] is [_]{$negative}.
+* [`g'(x)`] is [_]{$decrease}, so [`g''(x)`] is [_]{$negative}.
+
+END_PGML
+Section::End();
+
+Section::Begin("Food for thought");
+
+BEGIN_PGML
+
+We know that increasing functions have positive derivatives, and decreasing functions have negative derivatives.
+
+* But what about the second derivative?
+* Graphs 1 and 3 both had positive second derivatives. What do they have in common visually? And what do graphs 2 and 4 have in common visually?
+
+Keep those questions in mind as we go forward. 
+
+[% 🔑 The passcode for the next question is [`[$passcode1]`].  Enter it here: [_]{$passcode1} %]
+
+END_PGML
+Section::End();
+
+Scaffold::End();
+
+Context()->normalStrings;
+
+##################################
+#  Desmos graph (via the API)
+#  Execute this only after the $desmos_div object has been put on the html page.
+
+$right1 = $x1_max + 2;
+$top1 = $g1_max + 2;
+$left1 = $x1_min - 2;
+$bottom1 = $g1_min - 2;
+
+$right2 = $x2_max + 2;
+$top2 = $g2_max + 2;
+$left2 = $x2_min - 2;
+$bottom2 = $g2_min - 2;
+
+$right3 = $x3_max + 2;
+$top3 = $g3_max + 2;
+$left3 = $x3_min - 2;
+$bottom3 = $g3_min - 2;
+
+$right4 = $x4_max + 2;
+$top4 = $g4_max + 2;
+$left4 = $x4_min - 2;
+$bottom4 = $g4_min - 2;
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+<script>
+
+    var arstarst = document.getElementById("$unique_div_id");
+
+    var my_calculator = Desmos.Calculator(arstarst, {
+        keypad: false, 
+        //expressions: false, 
+        expressions: true,
+        settingsMenu: true, 
+        expressionsTopbar: true
+    });
+
+    my_calculator.setExpressions([
+        { id: 'slider', latex: 'a=$x1_mid', sliderBounds: {min: $x1_min, max: $x1_max, step: 0.1}},
+        { id: 'base_point', latex: '(a, g(a))', label: '(a,g(a))', showLabel: 'true'},
+        { id: 'tangent_line', latex: 'y = g\'(a)*(x-a) + g(a)', label: 'tangent line', secret:'true'},
+        { id: 'slope', latex: 'g\'(a)', secret: 'true'},
+        { id: 'g_curve', latex: 'g(x)=$y1-\\sqrt{16-(x-$x1_min)^2} \\left\\{$x1_min\\leq x\\leq$x1_max\\right\\}', secret:'true'},
+    ]);
+    
+    my_calculator.setMathBounds({
+      left: $left1,
+      right: $right1,
+      bottom: $bottom1,
+      top: $top1
+    });
+    
+    my_calculator.updateSettings({ fontSize: Desmos.FontSizes.SMALL });
+    
+    var state = my_calculator.getState();
+</script>
+END_SCRIPT
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+<script>
+
+    var arstarst2 = document.getElementById("$unique_div_id2");
+
+    var my_calculator2 = Desmos.Calculator(arstarst2, {
+        keypad: false, 
+        //expressions: false, 
+        expressions: true,
+        settingsMenu: true, 
+        expressionsTopbar: true
+    });
+
+    my_calculator2.setExpressions([
+        { id: 'slider', latex: 'a=$x2_mid', sliderBounds: {min: $x2_min, max: $x2_max, step: 0.1}},
+        { id: 'base_point', latex: '(a, g(a))', label: 'point of tangency', showLabel:'true'},
+        { id: 'tangent_line', latex: 'y = g\'(a)*(x-a) + g(a)', label: 'tangent line', secret:'true'},
+        { id: 'slope', latex: 'g\'(a)', secret: 'true'},
+        { id: 'g_curve', latex: 'g(x)=$y2+\\sqrt{16-(x-$x2_max)^2} \\left\\{$x2_min\\leq x\\leq$x2_max\\right\\}', secret: 'true'},
+    ]);
+
+    my_calculator2.setMathBounds({
+      left: $left2,
+      right: $right2,
+      bottom: $bottom2,
+      top: $top2
+    });
+
+    my_calculator2.updateSettings({ fontSize: Desmos.FontSizes.SMALL });
+
+    var state = my_calculator2.getState();
+</script>
+END_SCRIPT
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+<script>
+
+    var arstarst3 = document.getElementById("$unique_div_id3");
+
+    var my_calculator3 = Desmos.Calculator(arstarst3, {
+        keypad: false, 
+        //expressions: false, 
+        expressions: true,
+        settingsMenu: true, 
+        expressionsTopbar: true
+    });
+
+    my_calculator3.setExpressions([
+        { id: 'slider', latex: 'a=$x3_mid', sliderBounds: {min: $x3_min, max: $x3_max, step: 0.1}},
+        { id: 'base_point', latex: '(a, g(a))', label:'is the slope here increasing or decreasing?', showLabel:'true'},
+        { id: 'tangent_line', latex: 'y = g\'(a)*(x-a) + g(a)', label: 'tangent line', secret:'true'},
+        { id: 'slope', latex: 'g\'(a)', secret: 'true'},
+        { id: 'g_curve', latex: 'g(x)=$y3-\\sqrt{16-(x-$x3_max)^2} \\left\\{$x3_min\\leq x\\leq$x3_max\\right\\}', secret: 'true'},
+    ]);
+
+    my_calculator3.setMathBounds({
+      left: $left3,
+      right: $right3,
+      bottom: $bottom3,
+      top: $top3
+    });
+
+    my_calculator3.updateSettings({ fontSize: Desmos.FontSizes.SMALL });
+
+    var state = my_calculator3.getState();
+</script>
+END_SCRIPT
+
+TEXT( MODES(TeX=>'', HTML=><<END_SCRIPT ) );
+<script>
+
+    var arstarst4 = document.getElementById("$unique_div_id4");
+
+    var my_calculator4 = Desmos.Calculator(arstarst4, {
+        keypad: false, 
+        //expressions: false, 
+        expressions: true,
+        settingsMenu: true, 
+        expressionsTopbar: true
+    });
+
+    my_calculator4.setExpressions([
+        { id: 'slider', latex: 'a=$x4_mid', sliderBounds: {min: $x4_min, max: $x4_max, step: 0.1}},
+        { id: 'base_point', latex: '(a, g(a))', label: 'move left to right. slope increase or decrease?'},
+        { id: 'tangent_line', latex: 'y = g\'(a)*(x-a) + g(a)', label: 'tangent line', secret:'true'},
+        { id: 'slope', latex: 'g\'(a)', secret: 'true'},
+        { id: 'g_curve', latex: 'g(x)=$y4+\\sqrt{16-(x-$x4_min)^2} \\left\\{$x4_min\\leq x\\leq$x4_max\\right\\}', secret: 'true'},
+    ]);
+
+    my_calculator4.setMathBounds({
+      left: $left4,
+      right: $right4,
+      bottom: $bottom4,
+      top: $top4
+    });
+
+    my_calculator4.updateSettings({ fontSize: Desmos.FontSizes.SMALL });
+
+    var state = my_calculator4.getState();
+</script>
+END_SCRIPT
+
+ENDDOCUMENT();
