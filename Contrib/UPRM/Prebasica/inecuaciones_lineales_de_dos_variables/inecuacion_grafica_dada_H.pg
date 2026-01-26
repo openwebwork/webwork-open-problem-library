@@ -1,0 +1,250 @@
+#  DESCRIPTION
+#
+#  Tipo: Opción múltiple única respuesta
+#  Dada una inecuación tipo Ax+Dy<=C, elegir su representación gráfica.
+#  A, D, C son entero no cero positivos o negativos.
+#
+#  Problema WebWork escrito por Edwin Florez, 
+#  <edwin.florez (at) upr (dot) edu>
+#
+#  Adaptado desde el sistema quiz.uprm.edu del archivo
+#  pedro_prebasica/inecuacioness/inecuaciones.db
+#
+#  Programación y redacción por Carl Yao de Portland Community College del archivo
+#  PCCBasicAlgebra/EquationsAndInequalitiesInTwoVariables/GraphTwoVariableInequality80.pg
+#
+#  Última actualización: Edwin F. 07/29/2014
+#  ENDDESCRIPTION
+
+## DBsubject(Prebasica)
+## DBchapter(Inecuaciones)
+## DBsection(Inecuaciones lineales dos variables)
+## Level(1)
+## KEYWORDS('inecuaciones','lineales', 'dos variables', 'graficas')
+##
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+##
+## Author(Edwin Florez)
+## Institution(UPRM)
+## Language(es)
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGgraphmacros.pl",
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserRadioButtons.pl",
+  "pccTables.pl",
+  "UPRMgraphMacros.pl",
+  "PGcourse.pl",
+  "problemRandomize.pl"
+);
+
+##############################################
+TEXT(beginproblem());
+
+#  Allow for the user to try another version of the problem once they get it correct.
+ProblemRandomize(when=>"Correct",onlyAfterDue=>0);
+
+$symbol = '\leq';
+
+Context("Numeric");
+Context()->noreduce('(-x)-y','(-x)+y');
+$refreshCachedImages=1;
+
+#Create a hash and its inverse that randomizes the order of the four graphs.
+%scramble = ();
+%inverse = ();
+for my $i (0..3) {
+  do {$temp = list_random(0..3)} until !(grep(/^$temp$/,values %scramble) );
+  $scramble{$i} = $temp;
+  $inverse{$temp} = $i;
+};
+$scramble{4} = 4;
+$inverse{4} = 4;
+
+$a=non_zero_random(-4,4,1);
+do {$d=non_zero_random(-4,4,1);} until ((abs($d)!=abs($a))&&(abs($d)!=1));
+$c=lcm(abs($a),abs($d))*non_zero_random(-2,2,1);
+
+$m=-$a/$d;
+$b=$c/$d;
+@ar_mb = ([$m,$b,''],[$m,$b,'dashed'],[$m,-$b,'dashed'],[1/$m,$b,''],[$m,$b,'']);
+
+#This subroutine is used later to see which side to shade
+sub testPoint {
+   local ($x, $y, $grNum) = ($_[0], $_[1], $_[2]);
+   if (($grNum==0) || ($grNum==4)) {return ($a*$x + $d*$y <= $c);}
+   if ($grNum==1) {return ($a*$x + $d*$y > $c);}
+   if ($grNum==2) {return ($y > -$d/$a  * $x +$b);}
+   if ($grNum==3) {return ($y < -$d/$a  * $x +$b);}
+}
+
+if (0 <= $c) {
+   $trueOrFalse = "true";
+   $withOrWithout = "with";
+}
+else {
+   $trueOrFalse = "false";
+   $withOrWithout = "without";
+}
+
+$x1 = 0;
+$y1 = $c/$d;
+$x2 = $c/$a;
+$y2 = 0;
+
+$pt1=Compute("($x1,$y1)");
+$pt2=Compute("($x2,$y2)");
+
+($min[0], $max[0], $min[1], $max[1], $ticknum[0], $ticknum[1], $xticks_ref, $yticks_ref, $marksep[0], $marksep[1]) = NiceGraphParameters([0,$x2, 5],[$b,-$b,$y2,5],centerOrigin=>1);
+
+@xticks = @$xticks_ref;
+@yticks = @$yticks_ref;
+
+@gr=();
+
+for my $i (0..4) {
+
+   $f = Formula("$ar_mb[$i][0] *x + $ar_mb[$i][1]")->reduce;
+
+   $gr[$i] = init_graph($min[0],$min[1],$max[0],$max[1],
+   axes=>[0,0],
+   grid=>[$ticknum[0],$ticknum[1]],
+   size=>[xPixels(),yPixels()]
+   );
+   $gr[$i]->lb('reset');
+
+  for my $j (@xticks) {
+    if (abs($j)<10**(-10)) {next;}
+    $gr[$i]->lb( new Label($j, -$marksep[1]/8, $j,'black','center','top'));
+  }
+
+  for my $j (@yticks) {
+    if (Real($j) == 0) {next;}
+    $gr[$i]->lb( new Label($marksep[0]/8, $j, $j,'black','left','middle'));
+  }
+
+   $gr[$i]->lb( new Label($min[0]+$marksep[0]/8, $max[1]-$marksep[1]/8, $ALPHABET[$inverse{$i}], 'black', 'left', 'top')) unless ($i==4);
+
+   $gr[$i]->moveTo($min[0],$f->eval(x=>$min[0]));
+   $gr[$i]->lineTo($max[0],$f->eval(x=>$max[0]),'blue',2,$ar_mb[$i][2]);
+
+   $gr[$i]->moveTo($min[0],$f->eval(x=>$min[0]));
+   $gr[$i]->lineTo($max[0],$f->eval(x=>$max[0]),'white',1);
+
+   $gr[$i]->new_color("lightred",  245,234,229);
+
+   $xfillcoord = 0;
+   $yfillcoord = ($f->eval(x=>$xfillcoord))+$marksep[1];
+   $yfillcoord = ($f->eval(x=>$xfillcoord))-$marksep[1] if !(&testPoint($xfillcoord, $yfillcoord, $i));
+
+   $gr[$i]->fillRegion([$xfillcoord, $yfillcoord,"lightred"]);
+
+   $x3 = 1;
+   $y3 = $f->eval(x=>$x3);
+   $dashOrSolid = ($ar_mb[$i][2] eq 'dashed') ? 'punteada' : 'solida';
+   push(@ALTtags , "Gráfica $ALPHABET[$inverse{$i}]: Esta es la gráfica de la línea que pasa por (0,$ar_mb[$i][1]) y ($x3,$y3). La línea es $dashOrSolid. El lado que incluye el punto ($xfillcoord,$yfillcoord) está sombreado.");
+}
+
+pop(@ALTtags);
+push(@ALTtags,"Esta es la gráfica de la línea que pasa por (0,$ar_mb[4][1]) y ($x3,$y3). La línea es $dashOrSolid. El lado que incluye el punto ($xfillcoord,$yfillcoord) está sombreado.");
+
+$radio = RadioButtons(
+  ["A","B","C","D"],
+  $ALPHABET[$inverse{0}], # correct answer
+  order => ["A","B","C","D"],
+);
+
+Context()->variables->add(y=>"Real");
+$f = Formula("$a*x+$d*y")->reduce;
+
+##############################################
+
+BEGIN_PGML
+
+Elija la gráfica que muestra la solución de [`[$f] [$symbol] [$c]`]. En su propio papel de gráficar, primero dibuje la línea (sea punteada o sólida), y luego seleccione un punto de prueba para decidir cual lado de la línea sombrear. *Advertencia:* si salta los pasos que se deben hacer en papel, entonces no se está practicando lo que el ejercicio intenta que usted practique. 
+
+La gráfica correcta es    
+    [@$radio->buttons()@]*
+
+[@EnlargeImageStatementPGML@]**
+END_PGML
+
+Context()->texStrings;
+
+BEGIN_TEXT
+$BCENTER
+\{ 
+LayoutTable([[image( insertGraph($gr[$scramble{0}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{0}]" title = "$ALTtags[$scramble{0}]"'  ),
+image( insertGraph($gr[$scramble{1}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{1}]" title = "$ALTtags[$scramble{1}]"'  ),
+],
+[image( insertGraph($gr[$scramble{2}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{2}]" title = "$ALTtags[$scramble{2}]"'  ),
+image( insertGraph($gr[$scramble{3}]), width=>xScreen(), height=>yScreen(), tex_size=>TeXscalar(), extra_html_tags=>'alt = "$ALTtags[$scramble{3}]" title = "$ALTtags[$scramble{3}]"'  )
+]], allcellcss => "padding:20pt;")
+
+\}
+$ECENTER
+$PAR
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################
+
+ANS( $radio->cmp() );
+
+$gr[4]->lb( new Label($x1,$y1-$marksep[1]/4,' '."$pt1".' ','red','right','middle'));
+$gr[4]->lb( new Label($x2,$y2-$marksep[1]/4,' '."$pt2".' ','red','right','middle'));
+$gr[4]->lb( new Label(0,$marksep[1]/3,"punto de prueba (0,0)",'red','center','middle'));
+
+$gr[4]->stamps( closed_circle($x1,$y1,'red') );
+$gr[4]->stamps( closed_circle($x2,$y2,'red') );
+$gr[4]->stamps( closed_circle(0,0,'red') );
+
+$aOutput = $a==1 ? "" : "$a \cdot";
+$aOutput = $a==-1 ? "-" : "$a \cdot";
+$dOutput = $d==1 ? "" : "$d \cdot";
+$dOutput = $d==-1 ? "-" : "$d \cdot";
+
+Context()->texStrings;
+BEGIN_SOLUTION
+
+Para graficar la inecuación \( $f $symbol $c \), primero graficamos la línea \( $f=$c \). Lo puede hacer usando el método de tabulación o el de triángulo-pendiente para localizar los dos puntos de la línea.
+$PAR  
+Note que la línea es $dashOrSolid, porque la inecuación usa el símbolo  \( $symbol \).
+$PAR
+Luego, necesitamos decidir cual lado sombrear. Elegimos \( (0,0) \) como el punto de prueba. Al sustituir \(x=0\) y \(y=0\) en la inecuación \( $f $symbol $c \), tenemos:
+$PAR
+\[
+\begin{align*}
+   $f &$symbol $c \\
+   $aOutput 0 + $dOutput 0 &$symbol $c \\
+   0 &$symbol $c
+\end{align*}
+\]
+ $PAR
+Que es $trueOrFalse, luego sombreamos el lado $withOrWithout el punto \( (0, 0) \).
+$PAR
+Por consiguiente la respuesta correcta es \{ $radio->correct_ans() \}.
+$PAR
+$BCENTER
+\{ image( insertGraph($gr[4]), width=>400, height=>400, tex_size=>400, 
+   extra_html_tags=>'alt = "$ALTtags[$scramble{4}]" title = "$ALTtags[$scramble{4}]"'  ) \}
+
+$ECENTER
+
+END_SOLUTION
+Context()->normalStrings;
+
+ENDDOCUMENT();
