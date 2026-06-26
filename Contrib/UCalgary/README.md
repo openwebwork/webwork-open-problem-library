@@ -12,7 +12,7 @@ WeBWork users may use and copy material in this repository under the following l
 - NonCommercial: Users may not use the material for commercial purposes.
 - ShareAlike: If users remix, transform, or build upon the material, users must only distribute their contributions under the same license as the original.
  
-Material within this repository (UCalgary/Specifications-Calculus-WeBWork-2026) may only be modified by users: smith36j and dlglin.
+Material within this repository (UCalgary/) may only be modified by users: smith36j and dlglin.
 
 MATH_249_Revised_Learning_Outcomes_F25.xlsx contains detaile dlearning outcomes, classification based on Bloom's taxonomy and the WeBWork problem classification scheme. Course learning outcomes (CLOs) are used to organize and name WeBWork problems.
 
