@@ -32,7 +32,7 @@ Context('Numeric');
 
 do {
 
-$U = GL3Z();
+$U = GL3Z();  
 $V = GL3Z();
 
 $A = Matrix([
@@ -58,7 +58,7 @@ $p3 = Formula("$a[1][3] * x^2 + $a[2][3] * x + $a[3][3]")->reduce;
 );
 
 
-$Adim = Real(3);
+$Adim = Real(3);  #rank of $A
 $Abasis = PopUp(['choose',"basis for P_2","not a basis for P_2"],"basis for P_2");
 
 
@@ -100,68 +100,50 @@ sub mycheck {
 	my ($correct, $student, $ansHash, $value) = @_;
 	my @c = @{$correct};  
 	my @s = @{$student};
-	my $nc = scalar(@c);
+	my $nc = scalar(@c);  # is 3
 	my $ns = scalar(@s);
 	my $score = 0;
 	my @errors = ();
 
-	return ($score,@errors) if $nc != $ns;
+        if ($nc < $ns){
+		Value->Error("$ns vectors can't be independent in H");
+                return 0;
+        }
+        if ($nc > $ns){
+		Value->Error("Your vectors don't span the space H");
+                return 0;
+        }
 
-		# Most of the answer checking is done on integers 
-		# or on decimals like 0.24381729, so we will set the
-		# tolerance accordingly in a local context.
-		my $context = Context()->copy;
-		$context->flags->set(
-			tolerance => 0.001,
-			tolType => "absolute",
-		);
+		# check that the student's functions are polynomials of degree 2
+        if ( $s[0]->D('x','x','x')!=Formula(0) or 
+             $s[1]->D('x','x','x')!=Formula(0) or
+             $s[2]->D('x','x','x')!=Formula(0)
+          ) { 
+              Value->Error("Some of your vectors are not in H");
+              return(0);
+            }
 
-		# put the correct vectors into the columns of a matrix $C
-        my $C = Matrix([
-        [$c[0]->eval(x=>pi),$c[1]->eval(x=>pi),$c[2]->eval(x=>pi)],
-        [$c[0]->D('x')->eval(x=>pi),$c[1]->D('x')->eval(x=>pi),$c[2]->D('x')->eval(x=>pi)],
-        [$c[0]->D('x','x')->eval(x=>pi),$c[1]->D('x','x')->eval(x=>pi),$c[2]->D('x','x')->eval(x=>pi)],
-        ]);
-#warn $C;
-
-		# put the student vectors into the columns of a matrix $S
+		# put the coefficients of the student polynomials 
+		# into the columns of a matrix $S
         my $S = Matrix([
-        [$s[0]->eval(x=>pi),$s[1]->eval(x=>pi),$s[2]->eval(x=>pi)],
-        [$s[0]->D('x')->eval(x=>pi),$s[1]->D('x')->eval(x=>pi),$s[2]->D('x')->eval(x=>pi)],
-        [$s[0]->D('x','x')->eval(x=>pi),$s[1]->D('x','x')->eval(x=>pi),$s[2]->D('x','x')->eval(x=>pi)],
+        [$s[0]->eval(x=>0),$s[1]->eval(x=>0),$s[2]->eval(x=>0)],
+        [$s[0]->D('x')->eval(x=>0),$s[1]->D('x')->eval(x=>0),$s[2]->D('x')->eval(x=>0)],
+        [$s[0]->D('x','x')->eval(x=>0),$s[1]->D('x','x')->eval(x=>0),$s[2]->D('x','x')->eval(x=>0)],
         ]);
-#warn $S;
 
 
-		# Put $C and $S into the local context so that
-		# all of the computations that follow will also be in
-		# the local context.
-		$C = Matrix($context,$C);
-		$S = Matrix($context,$S);
+	  #  Check that the student's polynomials are linearly independent
 
-		#  Theorem: A^T A is invertible if and only if A has linearly independent columns.
+	if ( ($S->det()) == 0) {
+	      Value->Error("Your vectors are linearly dependent");
+	      return 0;
+	} 
+        
+          # if we get this far everything is OK so
 
-		#  Check that the professor's vectors are, in fact, linearly independent.
-		$CTC = ($C->transpose) * $C;
-		warn "Correct answer is a linearly dependent set." if ($CTC->det == 0);
-
-		#  Check that the student's vectors are linearly independent
-		if ( (($S->transpose) * $S)->det == 0) {
-			Value->Error("Your vectors are linearly dependent");
-			return 0;
-		}
-
-		# S = student, C = correct, X = change of basis matrix
-		# Solve S = CX for X using (C^T C)^{-1} C^T S = X.
-		$X = ($CTC->inverse) * (($C->transpose) * $S);
-		if ( $S == $C * $X ) { $score = $nc; };
-    
-		return ($score,@errors);
-
-
-
+	$score = 3;
+	return ($score,@errors);
 }
-
 
 
 ANS($Abasisvects->cmp(list_checker=>~~&mycheck) );

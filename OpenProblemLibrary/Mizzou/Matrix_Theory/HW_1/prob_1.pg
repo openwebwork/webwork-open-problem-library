@@ -12,7 +12,6 @@
 ## Level(2)
 ## Tagged by cmd6a 5/3/06
 
-
 ###########################################################################
 # initialization 
 ###########################################################################
@@ -20,169 +19,145 @@ DOCUMENT();
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "PGML.pl", 
   "parserMultiAnswer.pl",
   "PGcourse.pl"
 );
 
-TEXT(beginproblem());
-$showPartialCorrectAnswers = 1;
-
-
 ###########################################################################
 # setup contexts and variables 
 ###########################################################################
-Context("Matrix");
+
+Context("Vector"); 
 
 $sign1 = random(-1,1,2);
-$a = random(2,5,1) * $sign1;
-$b = random(3,9,1) * $sign1;
-
 $sign2 = random(-1,1,2);
-$c = random(1,6,1) * $sign2;
+$sign3 = random(-1,1,2);
+$sign4 = random(-1,1,2);
 $d = random(3,6,1);
-$epd = random(-1,1,2);
-$e = $epd - $d;
-$f = random(3,9,1) * $sign2;
-$m = random(2,3,1) * random(-1,1,2);
-$g = $m * ($e + $d);
-$h = $m * ($e * $a + $b);
-$i = $m * ($e * $c + $f);
+$m = random(2,3,1)*$sign4;
 
-# matrix representing left hand side of equation
+# R1,R2,R3 are the rows of a 3x4 matrix with rank 2
 
-$A = Matrix([
-  [1 ,-1,$a],
-  [$d,$e,$b],
-  [$g, 0,$h]
-]);
+$R1 = Vector(1,-1,random(2,5,1)*$sign1, random(1,6,1)*$sign2);
+$R2 = Vector($d, $sign3 - $d, random(3,9,1)*$sign1, random(3,9,1)*$sign2);
+$R3 = $m*($sign3-$d)*$R1 + $m*$R2;
 
-# for answer
+# the 3x4 matrix
 
-$k = $a + $epd * ($b - $a*$d);
-$l = $epd * ($b - $a*$d);
-$mm = $c + $epd * ($f - $c*$d);
-$n = $epd * ($f - $c*$d);
+$M = Matrix([[$R1->value],[$R2->value],[$R3->value]]);
 
-#expected answers 
-$V1=ColumnVector($mm,$n,0);
-$V2=ColumnVector(-$k,-$l,1);
+# for latex display
 
-#for tex display
+($a11,$a12,$a13,$a14) = ($R1->value);
+($a21,$a22,$a23,$a24) = ($R2->value);
+($a31,$a32,$a33,$a34) = ($R3->value);
 
-$pm1 = ($a < 0) ? "-" : "+";
-$pm2 = ($e < 0) ? "-" : "+";
-$pm3 = ($b < 0) ? "-" : "+";
-$pm4 = ($h < 0) ? "-" : "+";
+$pm13 = ($a13 < 0) ? "-" : "+";
+$pm22 = ($a22 < 0) ? "-" : "+";
+$pm23 = ($a23 < 0) ? "-" : "+";
+$pm33 = ($a33 < 0) ? "-" : "+";
 
-$c1 = abs($a);
-$c2 = abs($e);
-$c3 = abs($b);
-$c4 = abs($h);
+# particular solution xp with xp3=0
 
+$xp2 = $sign3*($a24-$d*$a14);
+$xp1 = $xp2 + $a14;
 
-$multians = MultiAnswer($V1,$V2)->with(
+$xp = ColumnVector($xp1,$xp2,0);
+
+# homogeneous solution xh with xh3 = 1
+
+$xh2 = -$sign3*($a23-$d*$a13); 
+$xh1 = $xh2 - $a13;
+
+$xh = ColumnVector($xh1, $xh2, 1);
+
+$ans = MultiAnswer($xp, $xh)->with(
   singleResult => 0,
   checker => sub {
     my ($correct, $student, $self)=@_;
-    my ($stu1,$stu2)= @{$student};
-    $check1 = ( $A*$stu1 == Matrix([[$c],[$f],[$i]]) );
-    $check2a = ( $A*$stu2 == Matrix([[ 0],[ 0],[ 0]]) );
-    $check2b = ($stu2->isZero);
-    if ( ! $check1 ){
-      $self->setMessage(1,"Doesn't satisfy the given equation.");
-    }
-    if ( ! $check2a){
-      $self->setMessage(2,"This vector points in the wrong direction.");
-    }
-    elsif ( $check2b ){
-	$self->setMessage(2,"Can't be zero; equation has infinitely many solutions.");
-    }
-    return [ $check1, $check2a && ! $check2b ];
-  }
-);
+    my ($stu_p,$stu_h)= @{$student};
+    if ($stu_h->isZero){ $self->setMessage(2,"Can't be zero; equation has infinitely many solutions.");}
+    # augment student vectors with a fourth component
+    my @stu_p = ($stu_p->extract(1),$stu_p->extract(2),$stu_p->extract(3));
+    my @stu_h = ($stu_h->extract(1),$stu_h->extract(2),$stu_h->extract(3));
+    push @stu_p, -1;
+    push @stu_h, 0;
+    $stu_p = Vector(@stu_p);
+    $stu_h = Vector(@stu_h);
+    my @check = (0,0);
+    if ( ($M*$stu_p)->isZero ){$check[0]=1;}
+    else {$self->setMessage(1,"Doesn't satisfy the given equation.");}
+    if ( ($M*$stu_h)->isZero ){$check[1]=1;}
+    else {$self->setMessage(2,"Must satisfy the corresponding homogeneous equation.");}
+    return @check;
+  });
 
+BEGIN_PGML
+Use Gauss-Jordan reduction to solve the following linear system:
 
-###########################################################################
-# state the problem 
-###########################################################################
-Context()->texStrings;
-BEGIN_TEXT
-Use the Gauss-Jordan reduction to solve the following linear system:
-$PAR
-\[ \left\{'\{'\} \begin{array}{rcrcrcr}
-  x_1 & - &  x_2 & $pm1 & $c1 x_3 & = & $c \cr
-  $d x_1 & $pm2 & $c2 x_2 & $pm3 & $c3 x_3 & = & $f \cr 
-  $g x_1 & &     & $pm4 & $c4 x_3 & = & $i  
-\end{array} \right. \]
-$PAR
-$BCENTER
-\(\left[\begin{array}{c} x_1 \\ x_2 \\ x_3 \end{array} \right]\)  
- \(=\) \{$multians->ans_array\} \(\ +\ s\ \)\{$multians->ans_array\}  
-$ECENTER
-END_TEXT
-Context()->normalStrings;
+    [`` \left\{\ \  \begin{array}{rcrcrcr} x_1 & - & x_2 & [$pm13] & [@ abs($a13) @] x_3 & = & [$a14] \\ [$a21] x_1 & [$pm22] & [@ abs($a22) @] x_2 & [$pm23] & [@ abs($a23) @] x_3 &=& [$a24] \\ [$a31] x_1 &         &                & [$pm33] & [@ abs($a33) @] x_3 &=& [$a34] \end{array} \right.``]    
 
-#\{ mbox('\(\left[\begin{array}{c} x_1 \\ x_2 \\ x_3 \end{array} \right]\)',  
-#'\(\quad =\)', ans_array(3,1,5), '\(+\)', ans_array_extension(3,1,5), '\(s\).' ) \}
+    [`` \begin{bmatrix} x_1 \\ x_2 \\ x_3 \end{bmatrix} ``] = [_]*{$ans} + s [_]*{$ans} 
+END_PGML
 
+# used in solution
 
-###########################################################################
-# check the answer  
-###########################################################################
-#ANS(vec_solution_cmp([[$m, $n, 0], [- $k , -$l, 1]]));
+$M1 = Matrix([[$R1->value],[($R2 - $d*$R1)->value], [($R3-$m*$sign3*$R1)->value]]);
 
-ANS($multians->cmp());
+$M2 = Matrix([[$R1->value],[($R2 - $d*$R1)->value], [0,0,0,0] ]);
 
-###########################################################################
-# solution
-###########################################################################
-$e1 = -$k;
-$e2 = -$l;
+BEGIN_PGML_SOLUTION
+The augmented matrix for this system is
 
-Context()->texStrings;
-BEGIN_SOLUTION
-$PAR $BBOLD SOLUTION: $EBOLD
-By using the Gauss-Jordan reduction, we can find the reduced row echelon form of the augmented matrix of our system which turns out to be:
-$PAR
-\[ \left[
-\begin{array}{rrr|r}
-1   & 0   & $k & $mm \cr
-0 & 1 & $l & $n \cr
-0 &  0  & 0 &  0
-\end{array} 
-\right] \]
-$PAR
-Hence, \(x_1,x_2\) are lead variables and \(x_3\) is the only free variable. By writing down the system corresponding to the RRE form, we get that 
-$PAR
-\[
-x_1 = $mm + $e1 x_3 \qquad \mbox{and} \qquad  x_2 = $n + $e2 x_3,
-\]
-$PAR 
-where \(x_3\) is free (can take any value). Therefore every vector of the form 
-$PAR
-\[
-\left[
-\begin{array}{r}
-x_1 \\ x_2 \\ x_3
-\end{array}
-\right]
- = 
-\left[
-\begin{array}{r}
-$mm \\ $n \\ 0
-\end{array}
-\right] 
-+ 
-\left[
-\begin{array}{r}
-$e1 \\ $e2 \\ 1
-\end{array}
-\right] s
-\] 
-$PAR
-is a solution, and every solution has that form for some value of \(s\). 
-END_SOLUTION
-Context()->normalStrings;
+    [`` [$M] ``].     
+
+Add [@ -$d @] times row 1 to row 2, and [@ -$m*$sign3 @] times row 1 to row 3, to obtain    
+
+    [`` [$M1] ``].     
+
+Add [@ -$m @] times row 2 to row 3    
+
+    [`` [$M2] ``].    
+
+Thus the original system is equivalent to 
+
+    [`` \begin{gather} 
+x_1-x_2+[$a13]x_3 = [$a14] \\ 
+([$sign3])x_2 + ([@ $a23-$d*$a13 @])x_3= [@ $a24-$d*$a14 @] 
+\end{gather} ``]    
+
+or equivalently, solving for [`x_2`] first then [`x_1`],
+
+    [`` \begin{align}
+x_2 &= [@ $sign3*($a24-$d*$a14) @] + ([@ ($a23-$d*$a13) @])x_3 \\
+x_1 &= [$a14] +x_2 + ([@ -$a13 @])x_3 = [@ $a14 + $sign3*($a24-$d*$a14) @] + ([@ -$a13 + ($a23-$d*$a13) @])x_3
+\end{align} ``]    
+
+Therefore [`x_3`] is a free variable so there are infinitely many solutions.  One may parametrize them with the parameter [`s`] that is given in the problem by setting [`x_3 = s`], so the parametrized solution becomes    
+
+    [``\begin{align} x_1 & = [@ $a14 + $sign3*($a24-$d*$a14) @] + ([@ -$a13 + ($a23-$d*$a13) @])s \\
+ x_2 &= [@ $sign3*($a24-$d*$a14) @] + ([@ ($a23-$d*$a13) @])s \\
+ x_3 &= s
+\end{align} ``],    
+
+or, equivalently,     
+
+    [``\begin{bmatrix} x_1 \\ x_2 \\ x_3 \end{bmatrix} 
+= [$xp]  + s [$xh] . ``]    
+
+In fact there are infinitely many different solutions.  For given any two real numbers [`a`] and [`b`] with [`a\neq 0`] one could create another parameter [`t = as + b`] and parametrize the solutions by [`t`]:  
+
+    [``\begin{align} 
+\begin{bmatrix} x_1 \\ x_2 \\ x_3 \end{bmatrix} 
+&= [$xp]  + t [$xh] \\
+&= [$xp] + (as + b) [$xh] \\
+&= \left([$xp]+b[$xh]\right) + s \left(a[$xh]\right). \end{align} ``]    
+
+This means that, in the "official" solution given above, one could replace [`[$xp]`] with [`\left([$xp]+b[$xh]\right)`] and replace [`[$xh]`] with [`\left(a[$xh]\right)`], and get another solution that would work equally well.  (The condition [`a\neq 0`] ensures that as [`s`] ranges over all the real numbers [`t`] does also.)   
+   
+END_PGML_SOLUTION
+
 
 COMMENT('Edited and updated in 2012/2013 by Rick Lynch @ Mizzou. Originally taken from NPL.
 $BR

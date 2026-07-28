@@ -23,8 +23,9 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "PGML.pl",
+  "parserImplicitPlane.pl",
   "contextCurrency.pl",
-  "CofIdaho_macros.pl",
   "PGcourse.pl"
 );
 
@@ -35,46 +36,81 @@ TEXT(beginproblem());
 
 Context("Currency");
 
-$answer = random(90,130,1);
+$ans_b = random(90,130,1);
 $b = random(10,25,5);
-$a = $answer*(1+ $b/100);
+$a = $ans_b*(1+ $b/100);
 $price = Currency($a);
 $string = "ddd.cc";
+$ans_b = Currency($ans_b); # answer for part b)
+
+Context("ImplicitPlane");
+Context()->variables->are(x=>"Real");
+
+$p = $b/100;
+$ans_str = "x + $p * x = $a";
+
+# Context("ImplicitPlane") enables Formula objects to hold equations.
+# The Formula object performs all the type checks on the 
+# student's answer before it reaches the custom pickyChecker. 
+# See example below.
+
+# create a pickyChecker that we can use on a Formula object
+
+sub pickyChecker {
+  my $cor_str = shift ;  # the correct answer string
+  return sub {
+    my ($correct, $student, $ansHash) = @_;
+    my ($cor_left, $cor_right) = split "=", $cor_str;
+    my $stu_str = $ansHash->{original_student_ans};
+    ${$ansHash}{student_ans}=$stu_str;
+    ${$ansHash}{preview_latex_string}=$stu_str;
+    ${$ansHash}{correct_ans_latex_string}=$cor_str;
+    my ($stu_left, $stu_right) = split "=", $stu_str;
+    $cor_left = Formula($cor_left);
+    $cor_right = Formula($cor_right);
+    $stu_left = Formula($stu_left);
+    $stu_right = Formula($stu_right);
+    if ( ($cor_left == $stu_left && $cor_right == $stu_right) ||
+         ($cor_right == $stu_left && $cor_left == $stu_right)
+       ){ return 1; }
+    else { return 0; }
+  }
+}
+
+# answer for part a)
+
+$ans_a = Formula($ans_str)->cmp(checker=>pickyChecker($ans_str));
 
 ######################################
 #  Main text
 
-BEGIN_TEXT
-The selling price of a textbook is $price.  If the markup is $b$PERCENT
-of the bookstore's cost, what is the bookstore's cost of the textbook?
-$PAR
-a) Write an equation to model the problem.  Use $BITALIC x $EITALIC to
-represent the number.
-$BR
-Answer: \{ans_rule(20) \}
-$PAR
-b) Solve the equation to find the bookstore's cost. (Note: Your answer should
-be in the form $BITALIC $DOLLAR$string.$EITALIC)
-$BR
-Answer: \{ans_rule(20) \}
-END_TEXT
+BEGIN_PGML
+The selling price of a textbook is [$price].  If the bookstore's markup is [$b]% of the bookstore's cost, what was the bookstore's cost for the textbook?
 
-######################################
-#  Answers
-#  Note:  This should been to be changed whenever an Equation
-#         MathObject is written or a better equation checker is written.
+a) Write an equation to model the problem.  Use _x_ to
+represent the bookstore's cost (in dollars).  Your answer must strictly model the wording of this problem.
 
-$p = $b/100;
-$ans_a = "x + $p * x = $a";
-ANS(Picky_equation_cmp($ans_a));
+    Answer: [_______________]{$ans_a}
 
-$ans_b = Currency($answer);
-ANS($ans_b->cmp);
+b) Solve the equation to find the bookstore's cost. (Your answer should be in the form _$[$string]_. In other words it should include dollars and cents).
 
-$showPartialCorrectAnswers = 1;
+    Answer: [____________]{$ans_b}
+END_PGML
 
-######################################
+BEGIN_PGML_SOLUTION
+Part a)
+    (selling price) = (store's cost) + (markup)    
+If the store's cost is x and its markup is ([$b]% of x)=([$p]x) then    
+    (selling price) = x + ([$p]x)    
+so    
+    [``[$a] = x + [$p]x ``]
 
+Part b)
+    [``\begin{gathered} [$a] = x + [$p]x \\ 
+    [$a] = (1+[$p])x = [@ 1+$p @]x \\ 
+    [$a]/[@ 1+$p @]= x \\ 
+    [@ $a/(1+$p) @] = x \end{gathered} ``].    
+Thus the bookstore's cost is [$ans_b] for a textbook.
+END_PGML_SOLUTION
 
-;
 ENDDOCUMENT();

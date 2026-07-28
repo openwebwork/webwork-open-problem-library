@@ -1,5 +1,5 @@
 ##DESCRIPTION
-##  Test rserve client
+## Make five point summary of data, select correct box plot. 
 ##ENDDESCRIPTION
 
 
@@ -12,196 +12,152 @@
 ## Level(2)
 ## MO(1)
 ## KEYWORDS('Summary statistics, graphical displays; mean, variance, median, interquartile range, boxplots; computation, identification.')
-## RESOURCES('box-x2.png','box-x3.png','box-x4.png','box-x5.png')
+## Language(en)
 
 ########################################################################
 
-DOCUMENT();      
+DOCUMENT();
 
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "PGML.pl",
+  "PGgraphmacros.pl",
+  "PGstatisticsmacros.pl",
+  "PGnauStats.pl", # for BoxPlot
+  "niceTables.pl",
   "parserPopUp.pl",
-  "PGchoicemacros.pl",
-  "unionTables.pl",
   "PGcourse.pl"
 );
 
-# Print problem number and point value (weight) for the problem
-TEXT(beginproblem());
-
-# Show which answers are correct and which ones are incorrect
-$showPartialCorrectAnswers = 1;
-
-##############################################################
-#
-#  Setup
-#
-#
 Context("Numeric");
 
-$choice = random(0, 3, 1);
+# Create a randomized dataset and get its five-point-summary 
+# (min, Q1=first quartile, Q2=median, Q3=third quartile, max)
+# using the 'proper' method to compute quartiles to obtain the 
+# same result as the default R method
 
-@dataset = ();
-push(@dataset, [854, 884, 904, 921, 869, 888, 847, 911, 856, 934, 861, 897, 929, 911, 830]);
-push(@dataset, [884, 918, 946, 858, 874, 879, 917, 888, 878, 865, 944, 862, 945, 913, 904]);
-push(@dataset, [878, 871, 906, 933, 930, 852, 890, 861, 882, 888, 897, 899, 879, 888, 848]);
-push(@dataset, [914, 900, 883, 919, 940, 949, 933, 880, 918, 928, 855, 899, 926, 883, 907]);
+do {
+  @data = urand(890,25,15,0);  # normally distributed, mean=490,sd=25,n=15
+  ($min,$Q1,$Q2,$Q3,$max) = five_point_summary(@data, {'method'=>'proper'});
+} until( $min>835 && $Q1>$min+15 && $Q2 > $Q1+15 && $Q3 > $Q2+15 && $max > $Q3+15 && $max < 945);
 
-@data = @{$dataset[$choice]};
+$datatable = DataTable([~~@data]);  # for display
 
-@mean = (886.4, 898.3333, 886.8, 908.9333);
-@var = (1040.971, 947.6667, 602.0286, 663.3524);
-@median = (888, 888, 888, 914);
-@IQR = (52.5, 41.5, 23.5, 36);
-
-$mean   = Real( $mean[$choice] );
-$var    = Real( $var[$choice] );
-$median = Real( $median[$choice] );
-$IQR    = Real( $IQR[$choice] );
-
-$fig[0]  = image("box-x2.png", width=>250, height=>250, tex_size=>500);
-$fig[1]  = image("box-x3.png", width=>250, height=>250, tex_size=>500);
-$fig[2]  = image("box-x4.png", width=>250, height=>250, tex_size=>500);
-$fig[3]  = image("box-x5.png", width=>250, height=>250, tex_size=>500);
-
-@perm = shuffle(4);
-@fig = @fig[@perm];
-@inv = invert(@perm);
-
-@letter = ("A", "B", "C", "D");
-
-$popup = PopUp(["?","A","B","C","D"], $letter[$inv[$choice]]);
+$mean = Real(stats_mean(@data));
+$variance = Real( stats_sd(@data)**2 );
+$median = Real($Q2);
+$IQR = Real($Q3-$Q1);
 
 
+# save five point summary for data
 
+$fivept[0] = [$min, $Q1, $Q2, $Q3, $max];
 
-##############################################################
-#
-#  Text
-#
-#
+# create three fake five point summaries for alternate choices
+# ensure all four five point summaries are distinct
 
-Context()->texStrings;
-BEGIN_TEXT
+do {
+  for ($i=1;$i<4;$i++){
+    $fakemin = random(820,840,2);
+    $fakemax = random(920,940,2);
+    $fakeQ2 = random($fakemin+25,$fakemax-25,2);
+    $fakeQ1 = random($fakemin+5,$fakeQ2-5,2);
+    $fakeQ3 = random($fakeQ2+5,$fakemax-5,2);
+    $fivept[$i]=[$fakemin,$fakeQ1,$fakeQ2,$fakeQ3,$fakemax];
+  }
+  # ensure that $fivept[$i], $i=0,..3 are distinct
+  $distinctQ=1;
+  for ($i=0; $i<4; $i++){
+    $test[$i] = join(",",@{$fivept[$i]});
+    for ($j=0; $j<$i; $j++){
+      $distinctQ = 0 if ($test[$j] eq $test[$i]);
+    }
+  }
+} until ( $distinctQ );
 
-The times (in seconds) between fifteen consecutive eruptions of a
-geyser were as follows:
-$BR
+# make alt strings for images
 
-\{ join (", ", @data)\}
+sub textform {
+  my ($min,$Q1,$Q2,$Q3,$max) = @_;
+  my $str = 'alt="Box plot of data with ' .
+    "min = $min, first quartile = $Q1, " .
+    "median = $Q2, second quartile = $Q3, ".
+    "max = $max.".'"' ;
+  return $str;
+}
 
-$PAR
-By entering the data into R, find the following (giving answers to two decimal places):
+for ($i=0; $i<4; $i++){
+  $altstr[$i] = textform(@{$fivept[$i]});
+}
 
-$PAR
-$BBOLD Part a) $EBOLD
-The sample mean is \{ ans_rule(6) \}  (\( {\rm sec} \)).
+# make boxplot images
 
-$PAR
-$BBOLD Part b) $EBOLD
-The sample variance is \{ ans_rule(6) \}  (\( {\rm sec}^{2} \)).
+for ($i=0; $i<4; $i++){
+  $fig[$i] = image(BoxPlot( @{$fivept[$i]} ), extra_html_tags => $altstr[$i] );
+}
 
-$PAR
-$BBOLD Part c) $EBOLD
-The sample median is \{ ans_rule(6) \}   (\( {\rm sec} \)). 
+# permute the selections
 
-$PAR
-$BBOLD Part d) $EBOLD
-The sample IQR is \{ ans_rule(6) \}  (\( {\rm sec} \)).
+@perm = random_subset(4,(0..3));
 
+# put the plots in a table
 
-$BEGIN_ONE_COLUMN
-$PAR
-$BBOLD Part e) $EBOLD
-Which of the following is a boxplot of the data?
+$plotTable = LayoutTable([
+   [ ["A"], [ $fig[$perm[0]] ], ["B"], [ $fig[$perm[1]]  ] ],
+   [ ["C"], [ $fig[$perm[2]] ], ["D"], [ $fig[$perm[3]]  ] ] 
+ ]
+);
 
-\{ $popup->menu() \}
-$BR
-$BR
-$BCENTER
-\{
-BeginTable().
-  AlignedRow([$fig[0],$fig[1]]).
-  TableSpace(5,0).
-  AlignedRow(["A","B"]).
-  TableSpace(25,6).
-  AlignedRow([$fig[2],$fig[3]]).
-  TableSpace(5,0).
-  AlignedRow(["C","D"]).
-EndTable();
-\}
-$BR
-(Click on a graph to enlarge it.)
-$ECENTER
+# which position holds the correct graph $fig[0]?
 
-$END_ONE_COLUMN
+for ($i=0; $i<4; $i++){
+  if ($perm[$i]==0){ 
+    $choice = ("A","B","C","D")[$i];
+  }
+} 
 
+$pop = PopUp(["??","A","B","C","D"],$choice);
 
-END_TEXT
-Context()->normalStrings;
+BEGIN_PGML
+The times (in seconds) between fifteen consecutive eruptions of a geyser were as follows: 
 
-##############################################################
-#
-#  Answers
-#
-#
+[$datatable]*
 
-ANS( $mean->cmp(tolerance=>0.005, toltype=>absolute) );
-ANS( $var ->cmp(tolerance=>0.01, toltype=>absolute) );
-ANS( $median ->cmp(tolerance=>0.01, toltype=>absolute) );
-ANS( $IQR ->cmp(tolerance=>0.01, toltype=>absolute) );
-ANS( $popup->cmp() );
+By entering the data into *R*, find the following (giving answers to two decimal places): 
 
-##############################################################
-#
-#  Solutions
-#
-#
+*Part a)* The sample mean is [_]{$mean}{10}
 
+*Part b)* The sample variance is [_]{$variance}{10}
 
-BEGIN_SOLUTION
+*Part c)* The sample median is [_]{$median}{10}
 
-$BEGIN_ONE_COLUMN
+*Part d)* The sample IQR is [_]{$IQR}{10}
 
-Suppose you have entered the data in R as follows:
+*Part e)* Which of the following is a boxplot of the data? [_]{$pop}
 
+[$plotTable]*
 
-$PAR
+END_PGML
 
-\( \verb| x <-  c( \{ join ", ", @data \} ) | \)
+BEGIN_PGML_SOLUTION
+There are 15 data values [`x_1,\ldots,x_{15}`]. 
 
+*a)* The mean is [``\bar{x} = \frac{1}{15}\sum_{i=1}^{15}x_i``].  Or use the *R* function *mean* (see the *R* documentation).
 
-$PAR
-Then the sample mean, sample variance, sample median, and sample IQR are obtained as follows:
+*b)* This is a _sample_ variance [`s^2`] so the denominator is 15-1, not 15: 
+[``` s^2 = \frac{1}{14} \sum_{i=1}^{15} (x_i-\bar{x})^2. ```]  
+Or use *R*'s function *var* . 
 
-$BR
-$BR
-\( \verb|mean(x) | \) $BR
-\( \verb|var(x) | \) $BR
-\( \verb|median(x) | \) $BR
-\( \verb|IQR(x) | \) $BR
+*c)* If the data are ordered from smallest to largest, so [`x_1 \leq x_2 \leq \cdots \leq x_{15}`], then 
+[``` \text{median} = x_8 .```] 
 
+*d)* [`IQR = Q_3-Q_1`] where [`Q_1`] and [`Q_3`] are the first and third quartiles, respectively.  If the data are ordered from smallest to largest then the *R* documentation says
+[``` Q_1 = \frac{1}{2}(x_3+x_4) \quad \text{and}\quad Q_3 = \frac{1}{2}(x_{11}+x_{12}). ```] 
+*R* also offers eight alternate methods for computing quartiles, which can produce somewhat different results.  Why?  Computing quartiles of finite data sets usually requires interpolating between data points in some way, and there is no universally accepted "best" method for that.  Usually this does not matter in practice, but for the purposes of this problem use *R*'s default method, for example, by using its *IQR* function.
 
-$BR
+*e)* The position of the horizontal line in the middle of the box indicates the median.  This may be enough to determine which graph is right.  If not, look at the maximum and minimum values of the data, and if that's still not enough look at the quartiles. 
 
-
-You can obtain a boxplot by typing $BR
-$BR
-
-\( \verb|boxplot( x, ylab = "Times between eruptions (in sec)", id.method="y")  | \) $BR
-$BR
-
-$PAR
-
-For the data as given, the sample mean is $mean sec, the
-variance is $var min\( {}^{2} \), the median is $median min and the IQR is
-$IQR min (from R's default type; it may be quite different if you
-used a different type.)
-
-$END_ONE_COLUMN
-
-
-END_SOLUTION
+END_PGML_SOLUTION
 
 ENDDOCUMENT();

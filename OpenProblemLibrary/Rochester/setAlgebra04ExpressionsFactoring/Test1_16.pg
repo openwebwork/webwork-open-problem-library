@@ -10,6 +10,7 @@
 ## Date(6/3/2002)
 ## MLT(binomialForm)
 ## Level(3)
+## MO(1)
 ## TitleText1('College Algebra')
 ## AuthorText1('Stewart, Redlin, Watson')
 ## EditionText1('3')
@@ -19,15 +20,10 @@
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGcourse.pl"
-);
+loadMacros('PGstandard.pl', 'PGML.pl', 'parserMultiAnswer.pl', 'PGcourse.pl');
 
-$showPartialCorrectAnswers = 1;
-
-TEXT(beginproblem());
+Context("Numeric");
+Context()->variables->add(y=>"Real");
 
 $A = random(1,9,1);
 $B = random(1,9,1);
@@ -36,31 +32,59 @@ while (gcd($A,$B) > 1) {$B = random(1,9,1);}
 $K = random(1,9,1);
 $L = random(1,9,1);
 while (gcd($K,$L)>1) {$L = random(1,9,1);}
-
+;
 $c1 = $A**2;
 $c2 = $B**2;
 $e1 = $K*2;
 $e2 = $L*2;
 
-BEGIN_TEXT
+$poly=Formula("$c1*x^$e1 - $c2*y^$e2 ")->reduce;
 
-The polynomial \($c1 x^{$e1} - $c2 y^{$e2} \) can be factored into
-the product of two polynomials, \(A \cdot B\) where the 
-coefficient of y in \(A\) is
-greater than the coefficient of y in \(B\).  Find \(A\) and \(B\).
-$BR
-$BR
-\(A = \) \{ans_rule(10)\}
-$BR
-\(B = \) \{ans_rule(10)\}
+$P = Formula("$A*x**$K")->reduce;
+$Q = Formula("$B*y**$L")->reduce;
 
-END_TEXT
+$ans=MultiAnswer($P-$Q,$P+$Q)->with(
+  singleResult => 0,
+  checker => sub {
+     my ($correct, $student, $self) = @_;
+     my ($f1stu, $f2stu) = @{$student};
+     my ($f1,    $f2)    = @{$correct};
+     if ($f1stu->D('x')->isZero && $f1stu->D('y')->isZero){
+       $self->setMessage(1,"Constant polynomials aren't allowed here");
+       return (0,0);
+     }
+     if ($f2stu->D('x')->isZero && $f2stu->D('y')->isZero){
+       $self->setMessage(2,"Constant polynomials aren't allowed here");
+       return (0,0);
+     }
+     if ($poly == $f1stu*$f2stu){
+       return (1,1);
+     }
+     elsif ($f1==$f1stu or $f2==$f1stu){
+       return (1,0);
+     }
+     elsif ($f1=$f2stu or $f2==$f2stu){
+       return (0,1);
+     }
+     else { return (0,0); }
+   }
+);
 
-$ans1 = "$A*x**$K + $B*y**$L";
-$ans2 = "$A*x**$K - $B*y**$L";
+BEGIN_PGML
+The polynomial [`[$poly]`] can be factored into
+the product of two polynomials,     
+    [`[$poly]=A \cdot B`]     
+where neither [`A`] nor [`B`] is a constant. Find [`A`] and [`B`].
+  
+    [`A = `] [_]{$ans}{15}
+  
+    [`B = `] [_]{$ans}{15}
 
-ANS(fun_cmp ($ans1,var=>['x','y']));
-ANS(fun_cmp ($ans2,var=>['x','y']));
+END_PGML
+
+BEGIN_PGML_SOLUTION
+[`[$poly]`] is the difference of two squares    
+    [`[$poly] = ([$P])^2-([$Q])^2 = ([$P]-[$Q])([$P]+[$Q])`]
+END_PGML_SOLUTION
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.;
-

@@ -1,5 +1,5 @@
 ##DESCRIPTION
-##
+
 ## tcao tagged and PAID on 3-22-2004
 
 ## DBsubject(Differential equations)
@@ -15,66 +15,149 @@
 ## EditionText1('6')
 ## Section1('2.2')
 ## Problem1('1')
-## KEYWORDS('differential', 'equation', 'separable', 'solution', 'initial', 'value')
+## KEYWORDS('differential equation separable', 'differential equation separable initial', 'separable differential equation', 'separation of variables')
 ##ENDDESCRIPTION
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
-loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "parserFormulaUpToConstant.pl",
-  "answerHints.pl",
-  "PGcourse.pl"
-);
+loadMacros('PGstandard.pl', 'PGML.pl', 'parserMultiAnswer.pl','parserFormulaUpToConstant.pl', 'PGcourse.pl');
 
-TEXT(beginproblem());
+Context("Numeric");
+
 Context()->variables->add(y=>"Real",k=>"Real");
 $showPartialCorrectAnswers = 1;
 
 $a = random(2,9,1); 
-$x0 = 0;
+#$x0 = 0;
 $y0 = non_zero_random(-9,-1,1); 
 
-$c = Compute("$y0 / e^($a*$x0)");
+#$c = Compute("$y0 / e^($a*$x0)");
 
-$g = Formula("$a*y");
-$inty = Formula("1/($a*y)");
-$intx = Formula("1");
-$solny = FormulaUpToConstant("ln(abs(y))/$a");
-$solnx = FormulaUpToConstant("x");
+$dydx = Formula("$a*y");
+$f = Formula("1/($a*y)");
+$g = Formula("1");
+$intf = Formula("ln(abs(y))/$a");
+$intg = Formula("x");
 $gensoln = Formula("k*e^($a*x)");
-$soln =Formula("$c*e^($a*x)");
-Context()->texStrings;
-BEGIN_TEXT
+$soln =Formula("$y0*e^($a*x)");
+
+$multAns = MultiAnswer($f,$g,$intf,$intg)->with(
+    singleResult=>0,
+    checker=>sub{
+        my ($correct,$student,$self) = @_;
+        my ($f_stu,$g_stu,$intf_stu,$intg_stu) = @{$student};
+        my $df_stu_x = $f_stu->D('x');
+        my $dg_stu_y = $g_stu->D('y');
+        my $dintf_stu_y = $intf_stu->D('y');
+        my $dintg_stu_x = $intg_stu->D('x');
+        my @score=(1,1,1,1);
+        if ($df_stu_x != Formula(0)){
+            $self->setMessage(1,"f cannot depend on x");
+            $score[0]=0;
+        }
+        if ($dg_stu_y != Formula(0)){
+            $self->setMessage(2,"g cannot depend on y");
+            $score[1]=0;
+        }
+        my $prod = $f_stu * $dydx;
+        if ((($prod-$g_stu)!=Formula(0))){
+            $self->setMessage(1,"Algebra error?");
+            $self->setMessage(2,"Algebra error?");
+            $score[0]=$score[1]=0;
+        }
+        if ($dintf_stu_y != $f_stu){
+            $self->setMessage(3,"Check your integration");
+            $score[2]=0;
+        }
+        if ($dintg_stu_x != $g_stu){
+            $self->setMessage(4,"Check your integration");
+            $score[3]=0;
+        }
+        return [@score];
+    });
+
+BEGIN_PGML
 To solve the separable differential equation 
-\[ \frac{dy}{dx} = $g ,\]
-we must find two separate integrals:
-$BR
-\(\int\) \{$inty->ans_rule\} \(dy = \) \{$solny->ans_rule\}
-$BR
+
+    [`` \frac{dy}{dx} = [$dydx] ,``]
+
+one may begin by separating the variables so all the [`y`]'s appear on the left side and all the [`x`]'s appear on the right, thus
+
+[`(\ast)\qquad f(y) \; dy = g(x)\; dx`]
+
+where 
+
+    [`f(y)`] = [_]{$multAns} [`\ `] and [`\  g(x)`] = [_]{$multAns}.
+
+Integrate each side of equation [`(\ast)`] separately:
+  
+    [`\int f(y)\; dy`] = [_]{$multAns}[`+C_1`]   
 and
-$BR
-\(\int\) \{$intx->ans_rule()\} \(dx = \)\{$solnx->ans_rule\}
-$BR
-Solving for y we get that \(y = \) \{$gensoln->ans_rule\} (you must use k as your constant)
-$BR
-and find the particular solution satisfying the initial condition 
-\[ y($x0) = $y0. \]
-$BR
-\( y(x) = \) \{ $soln->ans_rule(40) \}. 
+  
+    [`\int g(x) \; dx`] = [_]{$multAns} [`+C_2`]
 
-END_TEXT
-Context()->normalStrings;
+where [`C_1`] and [`C_2`] are constants of integration.  Equation [`(\ast)`] says the two integrals must be equal up to a constant, so set the integrals equal to each other and combine [`C_1`] and [`C_2`] into a single constant.  Solve the resulting equation for [`y`] and simplify as necessary to obtain the general solution which, in this case, will depend on a single nonzero multiplicative constant [`k`]. 
 
-ANS($inty->cmp());
-ANS($solny->cmp());
-ANS($intx->cmp());
-ANS($solnx->cmp());
-ANS($gensoln->cmp()->withPostFilter(AnswerHints(
-                Formula("e^k*e^($a*x)") => "This formula is always positive, no matter what k and x are. When you drop the absolute value from the y you need to change e^k to a constant that can be both positive and negative -> i.e. just k.",
-                )));
-ANS($soln->cmp());
+    [`y = `] [_]{$gensoln} (you must use k as your constant)
+  
+Now find the particular solution satisfying the initial condition 
+
+    [`` y(0) = [$y0]. ``]
+  
+    [` y(x) = `] [_]{$soln}{40}. 
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+For example, one can separate the variables in the expression
+
+    [`` \frac{dy}{dx} = [$dydx] ``]
+
+by multiplying both sides by the expression [``\frac{dx}{y}``].  Thus  
+
+    [``\begin{aligned}
+    \frac{dy}{dx} &= [$dydx]\\
+    \frac{dy}{dx} \frac{dx}{y} &= [$dydx] \frac{dx}{y}\\
+    \frac{dy}{y} &= [$a]\;dx \end{aligned}``]
+
+Therefore
+     
+    [``f(y) = \frac{1}{y}\ ``]  and  [``\ g(x) = [$a]``],    
+so
+    [``\int f\;dy = \ln(|y|)+C_1``] and [``\int g\;dx = [$a]x + C_2``], and    
+    
+    [``\begin{aligned}
+    \ln(|y|)+C_1 &= [$a]x + C_2\\
+    \ln(|y|) &= [$a]x + C_2-C_1 \\
+    &=[$a]x + C \end{aligned} ``]
+
+where [`C=C_2-C_1`].  Exponentiating both sides, one obtains    
+
+    [``|y| = e^{[$a]x+C} = e^C e^{[$a] x}``]    
+
+In other words
+
+        [``y = \pm e^C e^{[$a]x}=ke^{[$a]x}``]
+
+is the general solution, where [``k = \pm e^C``] is a multiplicative constant.
+
+To obtain the particular solution plug in the initial condition [`y(0)=[$y0]`] to obtain
+
+    [``[$y0]=ke^{([$a])(0)}=ke^{0}=k``]
+
+so
+
+    [``y(x)=[$soln]``].
+    
+END_PGML_SOLUTION
+
+# ANS($inty->cmp());
+# ANS($solny->cmp());
+# ANS($intx->cmp());
+# ANS($solnx->cmp());
+# ANS($gensoln->cmp()->withPostFilter(AnswerHints(
+#                Formula("e^k*e^($a*x)") => "This formula is always #positive, no matter what k and x are. When you drop the absolute #value from the y you need to change e^k to a constant that can be #both positive and negative -> i.e. just k.",
+#                )));
+# ANS($soln->cmp());
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.
-

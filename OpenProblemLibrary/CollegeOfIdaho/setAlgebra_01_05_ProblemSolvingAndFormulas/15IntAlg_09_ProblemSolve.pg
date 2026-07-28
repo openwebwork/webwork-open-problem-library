@@ -23,59 +23,94 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "PGML.pl",
+  "parserImplicitPlane.pl",
   "contextCurrency.pl",
-  "CofIdaho_macros.pl",
   "PGcourse.pl"
 );
-
-TEXT(beginproblem());
 
 ######################################
 #  Setup
 
+Context(Currency);
+
 $a = list_random(5,8);
 $answer = random(120,250,10);
 $b = $answer*(1+$a/100);
-
-Context(Currency);
-
+$ans_b = Currency($answer);  # answer for part b)
 $price = Currency($b);
 $string = "ddd.cc";
+
+Context("ImplicitPlane");
+Context()->variables->are(x=>"Real");
+
+$p = $a / 100;
+$ans_str = "x + $p * x = $b ";
+
+# Context("ImplicitPlane") enables Formula objects to hold equations.
+# The Formula object performs all the type checks on the 
+# student's answer before it reaches the custom pickyChecker. 
+# See example below.
+
+# create a pickyChecker that we can use on a Formula object
+
+sub pickyChecker {
+  my $cor_str = shift ;  # the correct answer string
+  return sub {
+    my ($correct, $student, $ansHash) = @_;
+    my ($cor_left, $cor_right) = split "=", $cor_str;
+    my $stu_str = $ansHash->{original_student_ans};
+    ${$ansHash}{student_ans}=$stu_str;
+    ${$ansHash}{preview_latex_string}=$stu_str;
+    ${$ansHash}{correct_ans_latex_string}=$cor_str;
+    my ($stu_left, $stu_right) = split "=", $stu_str;
+    $cor_left = Formula($cor_left);
+    $cor_right = Formula($cor_right);
+    $stu_left = Formula($stu_left);
+    $stu_right = Formula($stu_right);
+    if ( ($cor_left == $stu_left && $cor_right == $stu_right) ||
+         ($cor_right == $stu_left && $cor_left == $stu_right)
+       ){ return 1; }
+    else { return 0; }
+  }
+}
+
+$ans_a = Formula($ans_str)->cmp(checker=>pickyChecker($ans_str));
 
 ######################################
 #  Main text
 
-BEGIN_TEXT
-Including $a$PERCENT sales tax, an inn charges $price per night.
+BEGIN_PGML
+Including [$a]% sales tax, an inn charges [$price] per night.
 Find the nightly cost at the inn before tax is added.
-$PAR
-a) Write an equation to model the problem.  Let $BITALIC x $EITALIC 
-represent the nightly cost before tax.
-$BR
-Answer: \{ans_rule(20) \}
-$PAR
-b) Solve the equation to find nightly cost before tax. (Note: Your answer should
-be in the form $BITALIC $DOLLAR$string.$EITALIC)
-$BR
-Answer: \{ans_rule(20) \}
-END_TEXT
 
-######################################
-#  Answers
-#  Note:  This should been to be changed whenever an Equation
-#         MathObject is written or a better equation checker is written.
+a) Write an equation to model the problem.  Let _x_ 
+represent the nightly cost before tax.  Your equation must strictly model the wording of the problem.
 
-$p = $a / 100;
-$ans_a = "x + $p * x = $b ";
-ANS(Picky_equation_cmp($ans_a));
+    Answer: [_______________]{$ans_a}
 
-$ans_b = Currency($answer);
-ANS($ans_b->cmp);
+b) Solve the equation to find nightly cost before tax. Your answer should be in the form _$[$string]_.  (In other words it should include dollars and cents.)
 
-$showPartialCorrectAnswers = 1;
+    Answer: [___________]{$ans_b}
+END_PGML
 
-######################################
+BEGIN_PGML_SOLUTION
+Let 
+    [`x`] = price of a room before tax.    
+Then
+    (tax) = ([$a]% of }[`x`] = [$p][`x`]    
+and
+    (total cost) = (price before tax) + (tax)    
+        = [`x`] + [$p][`x`]   
+so
+    [``[$b] = x + [$p]x ``]
 
-
-;
+Part b)
+    [``\begin{gathered} 
+    [$b]=x + [$p]x = (1+[$p])x = [@ 1+$p @]x \\ 
+    [$b]/[@ 1+$p @]= x \\ 
+    [@ ($b)/(1+$p) @] = x \end{gathered} ``]    
+So the price of a room before tax is [$ans_b] per night.
+END_PGML_SOLUTION 
+  
 ENDDOCUMENT();

@@ -12,8 +12,8 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "PGchoicemacros.pl",
   "parserMultiAnswer.pl",
+  "parserPopUp.pl",
   "unionTables.pl",
   "algebraMacros.pl",
   "PGcourse.pl"
@@ -42,7 +42,8 @@ splice( @domain, random( 0, @domain - 1, 1 ), 1 ) while @domain > 4;
 $domainList = List( @domain );
 
 # ring is commutative
-$ans[ 0 ] = Compute( "Y" );
+$isCommutative = PopUp(['?','Yes','No'],'Yes');
+#$ans[ 0 ] = Compute( "Y" );
 
 # number of units in R is ( #units in Z/n )^( #domain )
 $unitsZn = 2 + grep { my $n = $_; !scalar grep { !( $n % $_ ) } @primes } ( 2 .. $modulus - 2 );
@@ -50,39 +51,40 @@ $ans[ 1 ] = Compute( $unitsZn ** @domain );
 
 
 # this multiAnswer evaluates the student's function
-# for it to be a zero-divisor, we need at least one (but not all) elements of the image to have
-# nontrivial gcd with the modulus
-# the "correct" answer passed here is just one example, there are many more correct answers
-$ansZeroDivisor = MultiAnswer( Compute( $primes[ 0 ] ), Compute( 0 ), Compute( 0 ), Compute( 0 ) )->with(
+# for it to be a zero-divisor, we need at least one component of the image to be nonzero modulo 
+# the $modulus, and at least one component to be zero modulo one or more of the primes (so it's not a unit 
+# modulo the $modulus).
+# The "correct" answer passed here is just one example, there are many more correct answers
+$ansZeroDivisor = MultiAnswer( Compute( 1 ), Compute( 0 ), Compute( 0 ), Compute( 0 ) )->with(
 	singleResult => 1,
 	checker => sub{
 		my ( $correct, $student, $self, $ansHash ) = @_;
 		
-		# fail if all values are congruent to 0 (function is trivial)
+		# fail if all components are congruent to 0 (function is zero)
 		@nonZero = grep{ $_ % $modulus } @$student;
 		return 0 if !@nonZero;
 		
-		# determine number of elements with nontrivial gcd
-		@zD = grep{ my $n = $_; scalar grep{ !( $n % $_ ) } @primes } @nonZero;
+		# which f(a) are units?
+		@U = grep{ my $n = $_; scalar(grep{ $n % $_}  @primes) == 3 } @{$student};  
 		
-		# function is a zero-divisor if at least one f(a) is a zero-divisor
-		return @zD ? 1 : 0;
+		# nonzero function is a zero-divisor if at least one f(a) is not a unit
+		return scalar(@U) < 4 ? 1 : 0;
     }
 );
 
 
-TEXT(EV3(<<'EOT'));
+BEGIN_TEXT
 
-Denote by \( R \) the set of all functions from the set \( $LB $domainList $RB \)  to the ring \( \{ cyclic( $modulus ) \} \).  FACT: \( R \) becomes a ring under the following operations: $BR $BR
+Denote by \( R \) the set of all functions from the set \( $LB $domainList $RB \)  to the ring \( \{ cyclic( $modulus ) \} \).  FACT: \( R \) becomes a ring under the following operations: $PAR
 
 \[ f + g: a \mapsto f(a) + g(a) \] $BR
 \[ f * g: a \mapsto f(a)g(a) \] $BR
 
-(a) Is \( R \) a commutative ring? (Y/N) \{ ans_rule( 10 ) \} $BR $BR
+(a) Is \( R \) a commutative ring? $SPACE \{ $isCommutative->menu() \} $PAR
 
-(b) How many units are there in \( R \)? \{ ans_rule( 10 ) \} $BR $BR
+(b) How many units are there in \( R \)? \{ ans_rule( 10 ) \} $PAR
 
-(c) Give an example of a non-zero \( f \in R \) that is a zero-divisor by filling in the following table: $BR $BR
+(c) Give an example of a non-zero \( f \in R \) that is a zero-divisor by filling in the following table: $PAR
 
 \{ 
 BeginTable( border=>1, tex_border=>"1pt", spacing=>0, padding=>4 ) .
@@ -94,18 +96,18 @@ AlignedRow( [ "\( $domain[ 3 ] \)", $ansZeroDivisor->ans_rule( 5 ) ], align=>CEN
 EndTable( )
 \}
 
-EOT
+END_TEXT
 
-ANS( $ans[0]->cmp );
+ANS( $isCommutative->cmp );
 ANS( $ans[1]->cmp );
 ANS( $ansZeroDivisor->cmp ); 
 
-SOLUTION(EV3(<<'END_SOLUTION'));
+BEGIN_SOLUTION
 $SOLUTION $BR
 
 (b) A unit in \( R \) must be a function mapping each element of the domain to a unit in the range. \( \{ cyclic( $modulus ) \} \) has \( $unitsZn \) units. So we have \( \{ scalar @domain \} \) elements of the domain and \( $unitsZn \) choices for each one. Therefore the number of units in \( R \) is \( $unitsZn^{\{scalar @domain\}} = \{ $unitsZn ** @domain \}\). $PAR
 
-(c) A zero divisor in \( R \) is a function that maps at least one element of the domain (but not all elements of the domain) to a zero-divisor in \( \{ cyclic( $modulus ) \} \). The "correct answer" shown is just an example, there are many other possible zero-divisors.
+(c) A zero divisor in \( R \) is a nonzero function that maps at least one element of the domain to zero or a zero-divisor in \( \{ cyclic( $modulus ) \} \). The "correct answer" shown is just one example, there are many other possible zero-divisors.
 
 END_SOLUTION
 

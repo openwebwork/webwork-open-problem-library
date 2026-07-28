@@ -32,110 +32,65 @@ loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
   "PGML.pl",
-  "PCCmacros.pl",
+#  "PCCmacros.pl",
   "contextLimitedPolynomial.pl",
-  "PGpolynomialmacros.pl",
+#  "PGpolynomialmacros.pl",
   "PGcourse.pl"
 );
 
 ##############################################
 
 Context("Numeric");
-Context()->reduction->set('(-x)-y'=>0);
-Context()->reduction->set('(-x)+y'=>0);
-$var = 'x';
+Context()->noreduce("(-x)+y","(-x)-y");
 
-# setup the first binomial: ($a x + $b)
+# setup the first binomial: ($a x^2 + $b x)
+
 $a = non_zero_random(-10,10,1);
-$b = $a;
-$b = non_zero_random(-10,10,1) while($b==$a);
-@poly1array = ($a,$b,0);
+do { $b = non_zero_random(-10,10,1); } until ($b != $a);
 
-# setup the second binomial: ($c x + $d)
+$p1 = Compute("$a*x^2 + $b*x")->reduce;
+
+# setup the second binomial: ($c x^2 + $d x)
+
 $c = non_zero_random(-10,10,1);
-$d = $c;
-$d = non_zero_random(-10,10,1) while($d==$c);
-@poly2array = ($c,$d,0);
+do{ $d = non_zero_random(-10,10,1); } until ($d != $c);
 
-# reduction check
-$poly1 = Formula(PolyString(~~@poly1array))->reduce;
-$poly2 = Formula(PolyString(~~@poly2array))->reduce;
+$p2 = Compute("$c*x^2 + $d*x")->reduce;
 
-# for the solution
-@sumarray = PolyAdd(~~@poly1array,~~@poly2array);
+$ans = Formula(" ($a+$c)*x^2 + ($b+$d)*x ")->reduce;
 
-$ans = Formula(PolyString(~~@sumarray))->reduce;
+$ans->context(Context("LimitedPolynomial-Strict"));
 
-# make $poly1 and $poly2 into strings
-$poly1 = $poly1->substitute(x=>$var);
-$poly2 = $poly2->substitute(x=>$var);
-
-# and make the answer into a string
-$ans = $ans->substitute(x=>$var);
-
-# for the solution
-$soln1=Formula(PolyString(~~@poly1array))->reduce;
-$soln2=Formula(PolyString(~~@poly2array))->reduce;
-$soln1 = $soln1->substitute(x=>$var);
-$soln2 = $soln2->substitute(x=>$var);
-
-
-Context("LimitedPolynomial-Strict");
-#Context()->variables->add($var=>'Real');
-$ans = Formula($ans);
-
-
-##############################################
-TEXT(beginproblem());
+###############################################
 
 BEGIN_PGML
 
 Add the two binomials, making sure to simplify your answer
 as much as possible.
 
-    [`\left([$poly1]\right)+\left([$poly2]\right)`]
+    [` ([$p1]) + ([$p2]) `]
 
     [________________]{$ans}
 
 END_PGML
 
-# This function eliminates issues like (3x), -1x and 1x.
-# This function takes 4 parameters: 
-# coefficient, the variable, the power, 
-# leading term or not (1 means leading, 0 means not)
-# If it's a leading term, no () will be returned.
-# Its output is the Latex string.
-sub output {
-   my ($coe,$v,$e,$lead) = @_;
-
-   if ($lead==1) {
-      if ($e==0) {return "$coe";}
-      if ($coe==1) {return $e==1 ? "$v" : "$v^$e";}
-      if ($coe==-1) {return $e==1 ? "-$v" : "-$v^$e";}
-      if ($e==1) {return "$coe $v";}
-      return "$coe $v^$e";
-   }
-
-   if ($e==0) {return $coe>0 ? "$coe" : "($coe)";}
-   if ($coe==1) {return $e==1 ? "$v" : "$v^$e";}
-   if ($coe==-1) {return $e==1 ? "(-$v)" : "(-$v^$e)";}
-   if ($e==1) {return $coe>0 ? "$coe $v" : "($coe $v)";}
-   return $coe>0 ? "$coe $v^$e" : "($coe $v^$e)";
-}
-
-$cOut = output($c,$var,2,0);
-$dOut = output($d,$var,1,0);
+$p11 = Formula("$a*x^2")->reduce;
+$p12 = Formula("$b x")->reduce;
+$p21 = $c>0 ? "$c x^2" : "($c x^2)" ;
+$p22 = $d>0 ? "$d x" : "($d x)" ;
+$absc = abs($c); $absd = abs($d); 
+$sum1 = $c>0 ? "$a+$c" : "$a-$absc";
+$sum2 = $d>0 ? "$b+$d" : "$b-$absd";
 
 BEGIN_PGML_SOLUTION
 
 We combine like terms as follows
 
-     [`
-         \begin{aligned}
-               \left([$poly1]\right)+\left([$poly2]\right)& = \left([$a]x^2+[$cOut] \right)+\left([$b]x+[$dOut] \right)\\
-                                                          & = [$ans]
-         \end{aligned}
-     `]
+ [` \begin{aligned}
+       ([$p1])+([$p2])& = \left( [$p11]+[$p21] \right)+\left([$p12]+[$p22] \right)\\
+         &= ([$sum1])x^2 + ([$sum2])x \\  
+         & = [$ans]
+         \end{aligned} `]
 END_PGML_SOLUTION
 ##############################################
 

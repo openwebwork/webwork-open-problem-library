@@ -9,6 +9,7 @@
 ## Author(RA Cruz)
 ## MLT(Same_denominator)
 ## Level(2)
+## MO(1)
 ## TitleText1('Essentials of Intermediate Algebra')
 ## AuthorText1('Blitzer')
 ## EditionText1('1')
@@ -22,11 +23,12 @@ DOCUMENT(); # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
+  "PGML.pl",
   "bizarroArithmetic.pl",
   "PGcourse.pl"
 );
 
-TEXT(beginproblem());
+#TEXT(beginproblem());
 
 ######################################
 #  Setup
@@ -34,6 +36,7 @@ TEXT(beginproblem());
 Context('Numeric');
 
 Context()->operators->set(
+   '+' => {class => 'bizarro::BOP::add', isCommand => 1},
    '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
    '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
    ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
@@ -52,45 +55,31 @@ $c = random(2,5,1);
 do {$d = non_zero_random(-10,10,1);} 
    until ($d/$c!=$a && $d/($b+$c)!=$a);
  
-$f1 = Formula("($b x) / (x + $a)")->reduce->TeX;
-$f2 = Formula("($c x + $d) / (x + $a)")->reduce->TeX;
+$f1 = Formula("($b x) / (x + $a)")->reduce;
+$f2 = Formula("($c x + $d) / (x + $a)")->reduce;
 
-######################################
-#  Main text
+## knowlLink
 
-BEGIN_TEXT
-Perform the indicated operation.  Note that the denominators
-are the same.  Simplify the result, if possible.
-\[ $f1 + $f2 \]
-$PAR
-Answer:  \{ ans_rule(25) \} 
-$BR $BR
-\{ 
-knowlLink("help(entering your answer)", 
-value=>'Enter your answer  '.
-'in the form: ${BITALIC}numerator/denominator$EITALIC. '.
-'Use parentheses as needed.'.
-'$BR Your answer should be in reduced form with integer ' .
-'coefficients. For example:'.
-'$BR $SPACE $SPACE If the correct, reduced answer is: 3/(2x+4)'.
-'$BR $SPACE $SPACE The following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))'
-) \}
-END_TEXT
+$knowlText = <<'EOT';
+Enter your answer in the form: ${BITALIC}numerator/denominator${EITALIC}.  
+Use parentheses as needed. $PAR
+Your answer should be in reduced form with integer 
+coefficients. For example, $BR
+$SPACE $SPACE if the correct, reduced answer is: 3/(2x+4) $BR
+$SPACE $SPACE the following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))
+EOT
 
-######################################
-#  Answer
-
-$showPartialCorrectAnswers = 1;
+$help=knowlLink("help(entering your answer)", 
+value => escapeSolutionHTML(EV3P($knowlText)), base64=>1);
 
 $errText = "Your answer is equivalent to the correct answer, but ".
-                 "needs to be simplified further or is not in the expected format. $BR".
-                 "See ${BBOLD}help(entering your answer)$EBOLD ".
-                 "given below for the expected format.";
+  "needs to be simplified further or is not in the expected format. $BR".
+  "See ${BBOLD}help(entering your answer)$EBOLD ".
+  "given below for the expected format.";
 
 $bc = $b+$c;
-$answer = Formula("($bc x+$d)/(x+$a)");
 
-ANS($answer -> cmp(
+$answer = Formula("($bc x+$d)/(x+$a)")->cmp(
    checker=>sub{
       my ( $correct, $student, $ansHash ) = @_;
       return 0 if $ansHash->{isPreview} || $correct != $student;
@@ -98,31 +87,42 @@ ANS($answer -> cmp(
       $correct = $correct->{original_formula} if defined $correct->{original_formula};
       $student = Formula("$student"); $correct = Formula("$correct");
       return 0 unless ($correct == $student);
-      Context()->flags->set(bizarroDiv=>1);
+      Context()->flags->set(bizarroDiv=>1, bizarroAdd=>1);
       delete $correct->{test_values};
       delete $student->{test_values};
       $student = Formula("$student"); $correct = Formula("$correct");
       my $OK = ($correct == $student);
-      Context()->flags->set(bizarroDiv=>0);
+      Context()->flags->set(bizarroDiv=>0, bizarroAdd=>0);
       Value::Error($errText) unless $OK;
       return $OK;
-})); 
+}); 
+
+
+######################################
+#  Main text
+
+BEGIN_PGML
+Perform the indicated operation.  Note that the denominators
+are the same.  Simplify the result, if possible.
+
+    [`` [$f1] + [$f2] ``] = [_]{$answer}{25} 
+
+    [@ $help @]*
+END_PGML
 
 ######################################
 #  Solution
 
-Context()->texStrings;
-BEGIN_SOLUTION
-$BR
-The denominators are equal.  Add the numerators.
-\[
-\begin{array}{rcl}
-   \displaystyle $f1 + $f2 & = & \dfrac{$b x + $c x + $d}{x + $a} \\
-                  & = &  \dfrac{$bc x + $d}{x + $a}
-\end{array}
-\]
+BEGIN_PGML_SOLUTION
+The denominators are equal.  Add the numerators.    
+
+    [`` \begin{aligned}
+   [$f1] + [$f2] & = \frac{[$b] x + [$c] x + [$d]}{x + [$a]} \\
+                 & = \frac{[@ $b+$c @]x+[$d]}{x + [$a]} 
+\end{aligned}
+``]
+
 In this case, the expression does not simplify further.
-END_SOLUTION
-Context()->normalStrings;
+END_PGML_SOLUTION
 
 ENDDOCUMENT();

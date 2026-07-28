@@ -11,6 +11,7 @@
 ## MLT(RatExp8)
 ## MLTleader(1)
 ## Level(3)
+## MO(1)
 ## TitleText1('College Algebra')
 ## AuthorText1('Stewart, Redlin, Watson')
 ## EditionText1('3')
@@ -20,42 +21,58 @@
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGcourse.pl"
-);
+loadMacros('PGstandard.pl', 'PGML.pl', 'parserMultiAnswer.pl', 'PGcourse.pl');
 
-TEXT(beginproblem());
 $showPartialCorrectAnswers = 1;
 
-$A = non_zero_random(-9,9,1);
-$B = non_zero_random(-9,9,1);
-$C = non_zero_random(-9,9,1);
-$D = non_zero_random(-9,9,1);
-$E = non_zero_random(-9,9,1);
-$F = non_zero_random(-9,9,1);
-while ($A+$E-$C ==0 || $F-$A*$D-$C*$B ==0) {$A=non_zero_random(-9,9,1);}
-while (gcd($A+$E-$C,$F-$A*$D-$C*$B)>1) {$F= non_zero_random(-9,9,1);$E =non_zero_random(-9,9,1);}
+Context("Numeric");
 
-$lin = $B+$D;
-$con = $D*$B;
+do {$A = non_zero_random(-9,9,1);
+    $B = non_zero_random(-9,9,1);
+    $C = non_zero_random(-9,9,1);
+    $D = non_zero_random(-9,9,1);
+    $E = non_zero_random(-9,9,1);
+    $F = non_zero_random(-9,9,1);
+    $G = $A+$E-$C;
+    $H = $F+$A*$D-$C*$B;
+} until ( -$G*$B + $H != 0 && -$G*$D + $H != 0);
 
-TEXT(EV2(<<EOT));
-\[ \frac{$A}{x+$B} - \frac{$C}{x+$D} + \frac{$E x+$F}{x^2+$lin x +$con} = \frac{A}{B}\]
-where A = \{ans_rule(10)\}
-$BR
-and B = \{ans_rule(10)\}
+$ans1 = Formula("$G * x + $H")->reduce;
+$ans2 = Formula("x**2 + ($B+$D) * x + $B*$D")->reduce;
 
+$mans = MultiAnswer($ans1,$ans2)->with(
+    singleResult => 0,
+    checker      => sub {
+        my ($correct, $student, $self) = @_;
+        my ($stu1, $stu2) = @{$student};
+        my ($cor1, $cor2) = @{$correct};
+        @score = (0,0);
+        return (0,0) if ( Formula(0) == $stu2 );
+        return (1,1) if ( Formula(0) == ($cor2*$stu1-$cor1*$stu2) );
+        $score[0]=1 if ($cor1==$stu1);
+        $score[1]=1 if ($cor2==$stu2); 
+        return @score;
+    }
+);
 
-$BR
-EOT
+BEGIN_PGML;
+    [`` \frac{[$A]}{x+[$B]} - \frac{[$C]}{x+[$D]} + \frac{[$E] x + [$F]}{[$ans2]} = \frac{A}{B}``]
+    
+where
+    
+    A = [_]{$mans}{10}
+  
+    B = [_]{$mans}{10}
 
-$ans1 = "($A+$E-$C) * x + ($F+$A*$D-$C*$B)";
-$ans2 = "x**2 +$lin * x + $con";
+END_PGML
 
-ANS(fun_cmp($ans1));
-ANS(fun_cmp($ans2));
+BEGIN_PGML_SOLUTION
+    [``\begin{gathered}
+    \frac{[$A]}{x+[$B]} - \frac{[$C]}{x+[$D]} + \frac{[$E] x + [$F]}{[$ans2]}\\
+    =\frac{[$A]}{x+[$B]} - \frac{[$C]}{x+[$D]} + \frac{[$E] x + [$F]}{(x+[$B])(x+[$D])} \\
+    = \frac{[$A](x+[$D])}{(x+[$B])(x+[$D])} - \frac{[$C](x+[$B])}{(x+[$B])(x+[$D])} + \frac{[$E] x + [$F]}{(x+[$B])(x+[$D])}\\
+    = \frac{[$A](x+[$D])-[$C](x+[$B])+([$E] x + [$F])}{(x+[$B])(x+[$D])} \\
+    = \frac{[$ans1]}{[$ans2]} \end{gathered} ``]
+END_PGML_SOLUTION
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.
-

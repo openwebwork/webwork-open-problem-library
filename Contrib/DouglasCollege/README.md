@@ -3,7 +3,6 @@ This subdirectory contains the problems contributed by Douglas College, British 
 Contributors (github):
 * kirkeyj
 * adentremont
-* GraemeDockrill
-* IvyaThalenmourn
 * msekatchev
-* capacapac
+* ishookie
+

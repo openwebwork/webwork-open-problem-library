@@ -15,27 +15,46 @@ DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "PGnumericalmacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "niceTables.pl", 
+  "parserRadioButtons.pl",
   "PGstatisticsmacros.pl",
   "PGcourse.pl"
 );
 
 TEXT(beginproblem());
+
 $showPartialCorrectAnswers = 1;
 
+Context("Numeric");
+Context()->{format}{number} = "%.2f";  # Use 2-place decimals for money
+
+@slice = random_subset(6,(0..8));
+
+# bill
+
 @b = (32.98,  49.72,    88.01,   97.34,   64.30,   106.27,   52.44,   70.29,   43.58);
-@ab=('32.98', '49.72', '88.01', '97.34', '64.30', '106.27', '52.44', '70.29', '43.58');
+
+@sb = map{ Real($_) } @b[@slice];
+
+# tip
+
 @t = ( 4.50,   5.28,    10.00,   16.00,    7.70,    16.00,    7.00,   10.00,    5.50); 
-@at =('4.50', '5.28',  '10.00', '16.00',  '7.70',  '16.00',  '7.00', '10.00',  '5.50');
 
-@slice = NchooseK(9,6);
+@st = map{ Real($_) } @t[@slice];
 
-@sb = @b[@slice];
-@sab = @ab[@slice];
-@st = @t[@slice];
-@sat = @at[@slice];
+$data = DataTable(
+  [
+    ['Bill',@{~~@sb}],
+    ['Tip', @{~~@st}]
+  ],
+  texalignment => 'c|cccccc',
+  horizontalrules => 1,
+  rowheaders => 1
+);
+
+Context()->{format}{number} = "%g";
 
 $sx = 0;
 $sy = 0;
@@ -51,72 +70,54 @@ for($i=0;$i<6;$i++){
         $sy2 = $sy2 + ($st[$i])**2;
 }
 
-$r = (15*$sxy - $sx * $sy)/sqrt(15*$sx2 - ($sx)**2)/sqrt(15*$sy2 - ($sy)**2);
+$r = Real((6*$sxy - $sx * $sy)/sqrt(6*$sx2 - ($sx)**2)/sqrt(6*$sy2 - ($sy)**2));
 
-$t = $r/sqrt((1-$r**2)/5);
+$t = Real($r/sqrt((1-$r**2)/4));
 
-$crit = tdistr(4,0.025);
+$crit = Real(tdistr(4,0.025));
 
-$mc = new_multiple_choice();
-$mc -> qa('Is there a significant correlation?', 'Yes');
-$mc -> extra('No');
+$yesno = RadioButtons(["Yes","No"],"Yes", separator => '\(\ \)' );
 
-$b0 = ($sy * $sx2 - $sx * $sxy)/(6 * $sx2 - ($sx)**2);
+$b0 = Real(($sy * $sx2 - $sx * $sxy)/(6 * $sx2 - ($sx)**2));
 
-$b1 = (6 * $sxy - $sx * $sy)/(6 * $sx2 - ($sx)**2);
+$b1 = Real((6 * $sxy - $sx * $sy)/(6 * $sx2 - ($sx)**2));
 
 $bill = random(40,100,5);
 
-$tip =  $b0 + $b1*$bill;
+$tip =  Real(round(100*($b0 + $b1*$bill))*0.01);  # round to nearest cent
 
 $se = sqrt(($sy2 - $b0 * $sy - $b1 * $sxy)/4);
 
 $e = $crit * $se * sqrt(1+1/6+(6*($bill-$sx/6)**2)/(6*$sx2-($sx)**2));
 
-$min = $tip - $e;
+$min = Compute($tip - $e)->cmp(tolType => 'absolute',tolerance =>0.01 );
 
-$max = $tip + $e;
+$max = Compute($tip + $e)->cmp(tolType => 'absolute',tolerance =>0.01 );
 
-BEGIN_TEXT
+BEGIN_PGML
 
-The amounts of 6 restaurant bills and the corresponding amounts of the tips are given in 
-the below. 
+Six restaurant bills and corresponding tips are given in the table below.
 
-\[ \begin{array}{c|cccccc}
-\mbox{Bill} & $sab[0] & $sab[1] & $sab[2] & $sab[3] & $sab[4] & $sab[5] \cr
-\hline
-\mbox{Tip}  & $sat[0] & $sat[1] & $sat[2] & $sat[3] & $sat[4] & $sat[5] \cr
-\end{array} \]
+[@ $data @]*
 
-Use a 0.05 confidence level to find the following: $BR
+We'll use linear regression to estimate how the tip depends on the bill.     
 
-The test statistic \( r =\) \{ans_rule(20)\} $BR
+The correlation coefficient is [`\ r = \ `][______]{$r}
 
-The test statistic \( t =\) \{ans_rule(20)\} $BR
+The test statistic is [`\ t = \ `][______]{$t}
 
-The critical value \( t =\) \{ans_rule(20)\} $BR
+Use a 0.05 confidence level to find the critical value for the t-statistic: 
+[`\ t_{\text{crit}} = \ `][______]{$crit}
 
-\{$mc->print_q()\} $BR
-\{$mc->print_a()\} $BR
+Is there a significant correlation?  [_]{$yesno}
 
-The regression equation is \(\hat{y}=\) \{ans_rule(10)\} \(+\) \{ans_rule(10)\} \(x.\) $BR
+The regression equation is [`\ `] y = [_____]{$b0} + [______]{$b1} x 
 
-If the amount of the bill is $DOLLAR\($bill,\) the best prediction for the amount of the tip is 
-\{ans_rule(20)\}, $BR 
-and a prediction interval estimate of the amount amount of the tip is 
-\{ans_rule(20)\} \(< \mbox{tip} < \) \{ans_rule(20)\}
+If the amount of the bill is [`$[$bill]`] the best prediction for the amount of the tip is $[______]{$tip}  
+and a prediction interval estimate of the amount of the tip is     
+    $[______]{$min} < (tip) < $[______]{$max}
 
-END_TEXT
-
-ANS(num_cmp($r));
-ANS(num_cmp($t));
-ANS(num_cmp($crit));
-ANS(radio_cmp($mc->correct_ans));
-ANS(num_cmp($b0));
-ANS(num_cmp($b1));
-ANS(num_cmp($tip));
-ANS(num_cmp($min));
-ANS(num_cmp($max));
+END_PGML
 
 ENDDOCUMENT();       # This should be the last executable line in the problem.
 

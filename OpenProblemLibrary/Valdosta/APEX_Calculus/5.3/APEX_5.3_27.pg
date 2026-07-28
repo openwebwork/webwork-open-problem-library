@@ -1,18 +1,6 @@
 #Problem APEX 5.3.27
 ## Adapted from: Rochester/setIntegrals0Theory/S05.01.AreaDistance.PTP01.pg
 
-DOCUMENT();
-
-# Load whatever macros you need for the problem
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "MathObjects.pl",
-  "weightedGrader.pl",
-  "PGcourse.pl"
-);
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Integrals)
 ## DBsection(Riemann sums)
@@ -26,195 +14,148 @@ loadMacros(
 ## Section1('5.3')
 ## Problem1('27')
 
-TEXT(beginproblem());
-
+DOCUMENT();
+loadMacros(
+    'PGstandard.pl',     'PGML.pl',
+    'weightedGrader.pl', 'parserPopUp.pl',
+    'PGtikz.pl',         'PGcourse.pl'
+);
 install_weighted_grader();
 
-$refreshCachedImages = 1;
-$showPartialCorrectAnswers = 1;
-
-# Construct a graph for the left endpoint Riemann sum,
-# define the function to be graphed, and add it to the graph
-$graphL = init_graph(-1,-1,9,9,ticks=>[10,10],axes=>[0,0],pixels=>[400,400]);
-$graphL->lb('reset');
-foreach my $i (1..8) {
-  $graphL->lb( new Label($i,-0.5,$i, 'black','center','middle'));
-  $graphL->lb( new Label(-0.5,$i,$i, 'black','center','middle'));
-}
-$graphL->lb(new Label ( 8.5,0.25,'x','black','center','middle'));
-$graphL->lb(new Label ( 0.25,8.5,'y','black','center','middle'));
-
-
-$c = random(8,12,1); # a constant for scaling the function
-$f = FEQ("x**2/$c for x in <-1,9> using color:blue and weight:2");
-$ftex = "\frac{x^2}{$c}";
-# the parentheses around $fRefL are necessary
-($fRefL) = plot_functions( $graphL, $f );
+$c = random(9, 13);       # a constant for scaling the function
+$f = Compute("x^2/$c");
+$a = random(2, 5);        # left endpoint of interval
+$b = $a + 2;              # right endpoint of interval
 
 # Generate arrays of x and y values for the Riemann sum.
-# There are n+1 entries in each array so that we can use
-# only one pair of arrays for both the left and the right 
+# There are n + 1 entries in each array so that we can use
+# only one pair of arrays for both the left and the right
 # endpoint Riemann sums.
-$a = random(2,4,1); # left endpoint of interval
-$b = $a+4; # right endpoint of interval
-$n = 8; # number of rectangles
-$deltax = ($b - $a)/$n;
-foreach $k (0..$n) { $x[$k] = $a + $k * $deltax; }
-foreach $k (0..$n) { $y[$k] = &{$fRefL->rule}($x[$k]); }
-
-
-# Graph the left endpoint Riemann sum
-$lightblue = $graphL->im->colorAllocate(148,201,255);
-$darkblue = $graphL->im->colorAllocate(100,100,255);
-# Create arrays of pixel references for x and y values
-foreach $k (0..8) {
-   $xpixL[$k] = $graphL->ii($x[$k]);
-   $ypixL[$k] = $graphL->jj($y[$k]);
+$n  = 4;                # number of rectangles
+$dx = ($b - $a) / $n;
+for $k (0 .. $n) {
+    $x[$k] = $a + $k * $dx;
+    $y[$k] = $f->eval(x => $x[$k]);
 }
-$xaxisL = $graphL->jj(0);
-# Plot the rectangles in the Riemann sum
-foreach $k (0..$n-1) {
-   $graphL->im->filledRectangle($xpixL[$k],$ypixL[$k],$xpixL[$k+1],
-   $xaxisL,$lightblue);
-   $graphL->im->rectangle($xpixL[$k],$ypixL[$k],$xpixL[$k+1],
-   $xaxisL,$darkblue);
+$sumLeft  = 0;
+$sumRight = 0;
+for $k (0 .. $n - 1) {
+    $sumLeft  += $y[$k] * $dx;
+    $sumRight += $y[ $k + 1 ] * $dx;
 }
 
-# Construct a graph for the right endpoint Riemann sum
-$graphR = init_graph(-1,-1,9,9,ticks=>[10,10],axes=>[0,0],pixels=>[400,400]);
-$graphR->lb('reset');
-foreach my $i (1..8) {
-  $graphR->lb( new Label($i,-0.5,$i, 'black','center','middle'));
-  $graphR->lb( new Label(-0.5,$i,$i, 'black','center','middle'));
-}
-$graphR->lb(new Label ( 8.5,0.25,'x','black','center','middle'));
-$graphR->lb(new Label ( 0.25,8.5,'y','black','center','middle'));
+# Graph of the Left Riemann sum rectangles
+$graph1 = createTikZImage();
+$graph1->tikzLibraries('arrows.meta');
+$graph1->BEGIN_TIKZ
+\tikzset{>={Stealth[scale=2]}}
+\Large % Make the fonts a little bigger.
+\filldraw[
+    draw=LightBlue,
+    fill=white,
+    rounded corners=10pt,
+    thick,use as bounding box
+] (-1,-1) rectangle (9,9);
+\draw[->] (-1,0) -- (9,0) node[above left,outer sep=3pt] {\(x\)};
+\foreach \x in {1,...,8} \draw(\x,5pt) -- (\x,-5pt) node [below] {\(\x\)};
+\draw[->] (0,-1) -- (0,9) node[below right,outer sep=3pt] {\(y\)};
+\foreach \y in {1,...,8} \draw (5pt,\y) -- (-5pt,\y) node[left] {\(\y\)};
+\draw[<->] plot[domain=-1:9] (\x,{\x*\x/$c});
+\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
+    ($x[0],0) rectangle ($x[1],$y[0]);
+\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
+    ($x[1],0) rectangle ($x[2],$y[1]);
+\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
+    ($x[2],0) rectangle ($x[3],$y[2]);
+\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
+    ($x[3],0) rectangle ($x[4],$y[3]);
+END_TIKZ
 
-# the parentheses around $fRefR are necessary
-($fRefR) = plot_functions( $graphR, $f );
+# Graph of the right Riemann sum rectangles
+$graph2 = createTikZImage();
+$graph2->tikzLibraries('arrows.meta');
+$graph2->BEGIN_TIKZ
+\tikzset{>={Stealth[scale=2]}}
+\Large % Make the fonts a little bigger.
+\filldraw[
+    draw=LightBlue,
+    fill=white,
+    rounded corners=10pt,
+    thick,use as bounding box
+] (-1,-1) rectangle (9,9);
+\draw[->] (-1,0) -- (9,0) node[above left,outer sep=3pt] {\(x\)};
+\foreach \x in {1,...,8} \draw(\x,5pt) -- (\x,-5pt) node [below] {\(\x\)};
+\draw[->] (0,-1) -- (0,9) node[below right,outer sep=3pt] {\(y\)};
+\foreach \y in {1,...,8} \draw (5pt,\y) -- (-5pt,\y) node[left] {\(\y\)};
+\draw[<->] plot[domain=-1:9] (\x,{\x*\x/$c});
+\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
+    ($x[0],0) rectangle ($x[1],$y[1]);
+\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
+    ($x[1],0) rectangle ($x[2],$y[2]);
+\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
+    ($x[2],0) rectangle ($x[3],$y[3]);
+\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
+    ($x[3],0) rectangle ($x[4],$y[4]);
+END_TIKZ
 
+$leftEstimateDropDown = DropDown(
+    [
+        'an overestimate of',
+        'equal to',
+        'an underestimate of',
+        'there is ambiguity'
+    ],
+    2
+);
 
-# Graph the right endpoint Riemann sum
-$lightblue = $graphR->im->colorAllocate(148,201,255);
-$darkblue = $graphR->im->colorAllocate(100,100,255);
-# Create arrays of pixel references for x and y values
-foreach $k (0..8) {
-   $xpixR[$k] = $graphR->ii($x[$k]);
-   $ypixR[$k] = $graphR->jj($y[$k]);
-}
-$xaxisR = $graphR->jj(0);
-# Plot the rectangles in the Riemann sum
-foreach $k (1..$n) {
-   $graphR->im->filledRectangle($xpixR[$k-1],$ypixR[$k],$xpixR[$k],
-   $xaxisR,$lightblue);
-   $graphR->im->rectangle($xpixR[$k-1],$ypixR[$k],$xpixR[$k],
-   $xaxisR,$darkblue);
-}
+$rightEstimateDropDown = DropDown(
+    [
+        'an overestimate of',
+        'equal to',
+        'an underestimate of',
+        'there is ambiguity'
+    ],
+    0
+);
 
+BEGIN_PGML
+Suppose [``f(x) = \frac{x^2}{[$c]}``].
 
-#################################################
-#  Main text
+a. The rectangles in the graph below illustrate a left endpoint Riemann sum for
+[`f(x)`] on the interval [`[$a] \leq x \leq [$b]`].  The value of this left
+endpoint Riemann sum is [_]{Real($sumLeft)->cmp(weight => 45)}{5} and it is
+[_]{ $leftEstimateDropDown->cmp(weight => 5) } the area of the region enclosed
+by [`y = f(x)`], the [`x`]-axis, and the vertical lines [`x = [$a]`] and
+[`x = [$b]`].
 
-BEGIN_TEXT
-a) The rectangles in the graph below illustrate a 
-\{ NAMED_POP_UP_LIST('leftright1',['?','left endpoint',
-'right endpoint','midpoint']) \} 
-Riemann sum for 
-\( \displaystyle f(x) = $ftex \) on the interval \( \lbrack $a, $b \rbrack \).  
-$BR
-The value of this Riemann sum 
-is \{NAMED_ANS_RULE('optional1',30)\}, 
-and this Riemann sum is an 
-\{ NAMED_POP_UP_LIST('optional2',['?','overestimate
-of','equal to','underestimate of','there is ambiguity']) \}
-the area of the region enclosed by \(\displaystyle y = f(x) \), the x-axis, 
-and the vertical lines x = $a and x = $b.
-$BR
-$BR
-$BCENTER
-\{ begintable(1) \}
-\{ row( image( insertGraph($graphL), height=>400, width=>400, 
-tex_size=>800 ) ) \}
-\{ row("Left endpoint Riemann sum for \( y = $ftex \) on 
-\( \lbrack $a, $b \rbrack \)") \}
-\{ endtable() \}
-$ECENTER
-$BR
-$HR
-$BR
-b) The rectangles in the graph below illustrate a 
-\{ NAMED_POP_UP_LIST('leftright2',['?','left endpoint',
-'right endpoint','midpoint']) \} 
-Riemann sum 
-for \( \displaystyle f(x) = $ftex \) on the interval 
-\( \lbrack $a, $b \rbrack \).
-$BR
-The value of this Riemann sum is 
-\{NAMED_ANS_RULE('optional3',30)\}, 
-and this Riemann sum is an \{ NAMED_POP_UP_LIST('optional4',
-['?','overestimate of','equal to','underestimate of','there is ambiguity']) \} 
-the area of the region enclosed by \(\displaystyle y = f(x) \), 
-the x-axis, and the vertical lines x = $a and x = $b.
-$BR
-$BR
-$BCENTER
-\{ begintable(1) \}
-\{ row( image( insertGraph($graphR), height=>400, width=>400, 
-tex_size=>800 ) ) \}
-\{ row("Right endpoint Riemann sum for \( y = $ftex \) on 
-\( \lbrack $a, $b \rbrack \)") \}
-\{ endtable() \}
-$ECENTER
-END_TEXT
+>>[@ image($graph1, height => 250, width => 250, tex_size => 450) @]*<<
 
-## a)
-NAMED_WEIGHTED_ANS('leftright1',str_cmp("left endpoint"),5);
+>>Left endpoint Riemann sum<<
 
-$LeftRiemannSum = 0;
-foreach $k (0..$n-1) { $LeftRiemannSum = $LeftRiemannSum + $y[$k]; }
-$LeftRiemannSum = Real("$deltax * $LeftRiemannSum");
-NAMED_WEIGHTED_ANS('optional1',$LeftRiemannSum->cmp(),45);
+b. The rectangles in the graph below illustrate a right endpoint Riemann sum for
+[`f(x)`] on the interval [`[$a] \leq x \leq [$b]`].  The value of this right
+endpoint Riemann sum is [_]{ Real($sumRight)->cmp(weight => 45) }{5} and it is
+[_]{ $rightEstimateDropDown->cmp(weight => 5) } the area of the region enclosed
+by [`y = f(x)`], the [`x`]-axis, and the vertical lines [`x = [$a]`] and
+[`x = [$b]`].
 
-NAMED_WEIGHTED_ANS('optional2',str_cmp("underestimate of"),5);
+>>[@ image($graph2, height => 250, width => 250, tex_size => 450) @]*<<
 
-## b)
-NAMED_WEIGHTED_ANS('leftright2',str_cmp("right endpoint"),5);
+>>Right endpoint Riemann sum<<
+END_PGML
 
-$RightRiemannSum = 0;
-foreach $k (1..$n) { $RightRiemannSum = $RightRiemannSum + $y[$k]; }
-$RightRiemannSum = Real("$deltax * $RightRiemannSum");
-NAMED_WEIGHTED_ANS('optional3',$RightRiemannSum->cmp(),45);
+BEGIN_PGML_SOLUTION
+a. The left endpoint Riemann sum is
+[```
+    f([$x[0]]) \cdot 0.5 + f([$x[1]]) \cdot 0.5 + \cdots + f([$x[ $n - 1]]) \cdot 0.5
+    = ([$y[0]] + [$y[1]] + \cdots + [$y[ $n-1 ]]) \cdot 0.5 = [$sumLeft].
+```]
 
-NAMED_WEIGHTED_ANS('optional4',str_cmp("overestimate of"),5);
+b. The right endpoint Riemann sum is
+[```
+    f([$x[1]]) \cdot 0.5 + f([$x[2]]) \cdot 0.5 + \cdots + f([$x[ $n ]]) \cdot 0.5
+    = ([$y[1]] + [$y[2]] + \cdots + [$y[ $n ]]) \cdot 0.5  = [$sumRight].
+```]
+END_PGML_SOLUTION
 
-SOLUTION(EV3(<<'END_SOLUTION'));
-$BR$BBOLD Solution:$EBOLD 
-$PAR
-a) This is a left endpoint Riemann sum.  Its value is:
-\[ 
-  f($x[0]) \cdot 0.5 + f($x[1]) \cdot 0.5 + \cdots + f($x[$n-1]) \cdot 0.5
-\]
-\[
-  = ( $y[0] + $y[1] + \cdots + $y[7] ) \cdot 0.5 = $LeftRiemannSum.
-\]
-$BR
-It is an underestimate because every rectangle is drawn below
-the curve.
-$BR
-$HR
-$PAR
-b) This is a right endpoint Riemann sum.  Its value is:
-\[
-  f($x[1]) \cdot 0.5 + f($x[2]) \cdot 0.5 + \cdots + f($x[$n]) \cdot 0.5
-\]
-\[
-  = ( $y[1] + $y[2] + \cdots + $y[$n] ) \cdot 0.5  = $RightRiemannSum.
-\]
-$BR
-It is an overestimate because every rectangle is drawn above
-the curve.
-END_SOLUTION
 ENDDOCUMENT();
-
-
-

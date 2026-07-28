@@ -10,6 +10,7 @@
 ## Date(6/3/2002)
 ## MLT(groupingSpecialF)
 ## Level(3)
+## MO(1)
 ## TitleText1('College Algebra')
 ## AuthorText1('Stewart, Redlin, Watson')
 ## EditionText1('3')
@@ -19,15 +20,16 @@
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGcourse.pl"
+loadMacros('PGstandard.pl', 'PGML.pl', 'parserMultiAnswer.pl','PGcourse.pl');
+
+Context("Numeric");
+Context()->variables->are(
+  a=>["Real", limits=>[-1.5,1.5]],
+  b=>["Real",limits=>[-2,2]],
+  c=>["Real", limits=>[.5,2]],
+  k=>["Real", limits=>[1,2], resolution=>1]
 );
-
-$showPartialCorrectAnswers = 1;
-
-TEXT(beginproblem());
+Context()->noreduce('x^(-a)');
 
 $A = random(1,9,1);
 $B = random(2,8,1) * random(-1,1,2);
@@ -45,24 +47,55 @@ $e2 = 2*$e;
 
 $E = non_zero_random(-8,8,2);
 
-BEGIN_TEXT
+$expr = Formula("$c1*a^($e2*k) + $c2*a^($e*k)b + $c3*b^2 + $c4*c^$E")->reduce;
 
-The polynomial \($c1 a^{$e2 k} + $c2 a^{$e k}b + $c3 b^2 + $c4 c^{$E}\) 
-can be factored into
-the product of two polynomials, \(A \cdot B \) 
-where the coefficient of \(c\) in \(A\) is
-less than the coefficient of \(c\) in \(B\).  Find \(A\) and \(B\).
-$BR
-$BR
-\(A = \) \{ans_rule(10)\}
-$BR
-\(B = \) \{ans_rule(10)\}
-END_TEXT
+$P = Formula("$A*a**(k*$e)+$B*b")->reduce;
+$Q = Formula("$C*c**($E/2)")->reduce;
 
-$ans1 = "$A*a**(k*$e)+$B*b-$C*c**($E/2)";
-$ans2 = "$A*a**(k*$e)+$B*b+$C*c**($E/2)";
+$ans=MultiAnswer($P-$Q,$P+$Q)->with(
+  singleResult => 0,
+  checker => sub {
+     my ($correct, $student, $self) = @_;
+     my ($f1stu, $f2stu) = @{$student};
+     my ($f1,    $f2)    = @{$correct};
+     if ($f1stu->D('a')->isZero && $f1stu->D('b')->isZero
+          && $f1stu->D('c')->isZero){
+       $self->setMessage(1,"Constant polynomials aren't allowed here");
+       return (0,0);
+     }
+     if ($f2stu->D('a')->isZero && $f2stu->D('b')->isZero 
+          && $f2stu->D('c')->isZero){
+       $self->setMessage(2,"Constant polynomials aren't allowed here");
+       return (0,0);
+     }
+     if ($expr == $f1stu*$f2stu){
+       return (1,1);
+     }
+     elsif ($f1==$f1stu or $f2==$f1stu){
+       return (1,0);
+     }
+     elsif ($f1=$f2stu or $f2==$f2stu){
+       return (0,1);
+     }
+     else { return (0,0); }
+   }
+);
 
-ANS(fun_cmp ($ans1, var=>['a','b','c','k']));
-ANS(fun_cmp ($ans2, var=>['a','b','c','k']));
+BEGIN_PGML
+
+The expression [``[$expr]``]  can be factored into the product of two nonconstant expressions    
+    [``[$expr]=A \cdot B ``].    
+Find [`A`] and [`B`].
+  
+    [`A = `] [_]{$ans}{15}
+  
+    [`B = `] [_]{$ans}{15}
+END_PGML
+
+BEGIN_PGML_SOLUTION
+    [``[$expr]=([$P])^2-([$Q])^2``]    
+is the difference of two squares so it factors
+    [``[$expr]=([$P]-[$Q])([$P]+[$Q])``].
+END_PGML_SOLUTION
+
 ENDDOCUMENT();        # This should be the last executable line in the problem.;
-

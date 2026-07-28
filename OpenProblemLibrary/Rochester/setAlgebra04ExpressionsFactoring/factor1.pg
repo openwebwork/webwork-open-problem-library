@@ -10,6 +10,7 @@
 ## Date(6/3/2002)
 ## MLT(diffCubes)
 ## Level(2)
+## MO(1)
 ## TitleText1('College Algebra')
 ## AuthorText1('Stewart, Redlin, Watson')
 ## EditionText1('3')
@@ -19,15 +20,10 @@
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
-loadMacros(
-  "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGcourse.pl"
-);
+loadMacros('PGstandard.pl', "MathObjects.pl",'parserMultiAnswer.pl','PGML.pl', 'PGcourse.pl');
 
-$showPartialCorrectAnswers = 1;
-
-TEXT(beginproblem());
+Context("Numeric");
+Context()->variables->add(y=>"Real");
 
 $A = random(1,9,1);
 $B = random(1,9,1);
@@ -41,33 +37,80 @@ $c2 = $B**3;
 $e1 = $K*3;
 $e2 = $L*3;
 
-BEGIN_TEXT
+$poly = Formula("$c1*x^$e1 - $c2*y^$e2")->reduce;
 
-The polynomial \($c1 x^{$e1} - $c2 y^{$e2} \) can be factored into
-the product of two polynomials, \(A \cdot B\) where the degree of \(A\) is
-greater than the degree of \(B\).  Find \(A\) and \(B\).
-$BR
-$BR
-\(A = \) \{ans_rule(30)\}
-$BR
-\(B = \) \{ans_rule(30)\}
+$ans1 = Compute("$A**2 * x**(2*$K) + $A*$B*x**$K*y**$L +($B**2)*y**(2*$L)");
 
-END_TEXT
+$ans2 = Compute("$A*x**$K  - $B*y**$L");
 
-$ans1 = "$A**2 * x**(2*$K) + $A*$B*x**$K*y**$L +($B**2)*y**(2*$L)";
-$ans2 = "$A*x**$K  - $B*y**$L";
+$ans = MultiAnswer($ans1,$ans2)->with(
+  singleResult => 0,
+  checker => sub {
+      my ( $correct, $student, $self ) = @_;
+      my ( $f1stu, $f2stu ) = @{$student};
+      my ( $f1, $f2 ) = @{$correct};
+      if ( $poly == $f1stu*$f2stu ){
+        # check degrees
+        if ($f1stu->D('x','x','x')==Formula(0) && $f2stu->D('x','x')==Formula(0)){
+          return (1,1);
+        }
+        elsif ($f1stu->D('x','x')==Formula(0) && $f2stu->D('x','x','x')==Formula(0)){
+           $self->setMessage(1,"Does this factor have the greatest degree?");              $self->setMessage(2,"Does this factor have the least degree?");
+           return (0,0);
+        }
+        elsif ($f1stu->D('x')==Formula(0) || $f2stu->D('x')==Formula(0)){
+          $self->setMessage(1,"Neither factor should be constant");
+          $self->setMessage(2,"Neither factor should be constant");
+          return (0,0)
+        }
+      }
+      else { return (0,0); }
+  }
+);
 
-ANS(fun_cmp ($ans1,var=>['x','y']));
-ANS(fun_cmp ($ans2,var=>['x','y']));
+BEGIN_PGML
 
-HINT(EV3(<<'END_HINT'));
-$BR
-$HINT $BR
-This problem asks you to factor the difference of two terms.  Check to see if the terms are both perfect squares or both perfect cubes.  You know formulae to 
+The polynomial [`\ [$poly]\ `] can be factored into
+the product of two polynomials,    
+    [``[$poly]=A \cdot B``]    
+where the degree of [`A`] is
+greater than the degree of [`B`], and neither [`A`] nor [`B`] is a constant.  
+
+Find [`A`] and [`B`].
+  
+    [`A = `] [_]{$ans}{20}
+  
+    [`B = `] [_]{$ans}{20}
+
+END_PGML
+
+
+BEGIN_PGML_HINT
+This problem asks you to factor the difference of two terms.  Check to see if the terms are both perfect squares or both perfect cubes.  You know, or can look up, formulae to 
 factor each of those cases.
+END_PGML_HINT
 
-END_HINT
+$P = Formula("$A*x^$K")->reduce;
+$Q = Formula("$B*y^$L")->reduce;
+$c1xe1 = Formula("$c1*x^$e1")->reduce;
+$c2ye2 = Formula("$c2*y^$e2")->reduce;
+$AxK=Formula("$A*x^$K")->reduce;
+$ByL=Formula("$B*y^$L")->reduce;
+BEGIN_PGML_SOLUTION
+*Solution using a standard formula*
 
+    [``[$poly]=P^3-Q^3``]    
+where    
+    [``P=[$P]\quad``] and [``\quad Q=[$Q]``].    
+The standard formula for factoring a difference of two cubes is  
+    [``P^3-Q^3=(P-Q)(P^2+PQ+Q^2)``]    
+(you can check that this works by multiplying out the right hand side).  Therefore     
+    [``[$poly] = ([$P]-[$Q])\Big(([$P])^2+([$P])([$Q])+([$Q])^2\Big)``].    
+(Note that the second polynomial on the right has the greater degree.)
+
+*Alternate solution*
+
+If the standard formula isn't available then one can still guess the solution by attempting to solve the equation [``[$poly]=0``].  Clearly [``[$poly]=0``] if and only if [``[$c1xe1] = [$c2ye2]``].  Take cube roots of both sides to obtain [``[$AxK] = [$ByL]``], that is, [``[$AxK] - [$ByL]=0``].  Also, if [``A\cdot B=[$poly]=0``] then one of the factors [`A`] or [`B`] must be zero.  This suggests that [``[$AxK] - [$ByL]``] may be one of the factors.  In fact it is, and one can find the other factor by using long division to divide [``[$AxK] - [$ByL]``] into [``[$poly]``] . 
+END_PGML_SOLUTION
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.;
-

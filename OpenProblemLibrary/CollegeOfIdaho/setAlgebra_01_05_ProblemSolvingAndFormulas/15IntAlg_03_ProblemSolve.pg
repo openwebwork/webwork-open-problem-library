@@ -23,51 +23,82 @@ DOCUMENT();        # This should be the first executable line in the problem.
 loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
-  "CofIdaho_macros.pl",
+  "PGML.pl",
+  "parserImplicitPlane.pl",
   "PGcourse.pl"
 );
-
-TEXT(beginproblem());
 
 ######################################
 #  Setup
 
-$answer = random(10,150,10);
+Context("ImplicitPlane");
+Context()->variables->are(x => "Real");
+
+$ans_b = Real(random(10,150,10)); # answer for part b
 $percent = random(10,90,10);
-$a = $answer*($percent/100);
+$p = $percent/100;
+$a = $ans_b*$p;
+
+# Correct answer string for part a
+
+$ans_str = "$p * x=$a";
+
+# Context("ImplicitPlane") enables Formula objects to hold equations.
+# The Formula object performs all the type checks on the 
+# student's answer before it reaches the custom pickyChecker. 
+# See example below.
+
+# create a pickyChecker that we can use on a Formula object
+
+sub pickyChecker {
+  my $cor_str = shift ;  # the correct answer string
+  return sub {
+    my ($correct, $student, $ansHash) = @_;
+    my ($cor_left, $cor_right) = split "=", $cor_str;
+    my $stu_str = $ansHash->{original_student_ans};
+    ${$ansHash}{student_ans}=$stu_str;
+    ${$ansHash}{preview_latex_string}=$stu_str;
+    ${$ansHash}{correct_ans_latex_string}=$cor_str;
+    my ($stu_left, $stu_right) = split "=", $stu_str;
+    $cor_left = Formula($cor_left);
+    $cor_right = Formula($cor_right);
+    $stu_left = Formula($stu_left);
+    $stu_right = Formula($stu_right);
+    if ( ($cor_left == $stu_left && $cor_right == $stu_right) ||
+         ($cor_right == $stu_left && $cor_left == $stu_right)
+       ){ return 1; }
+    else { return 0; }
+  }
+}
+
+$ans_a = Formula($ans_str)->cmp(checker=>pickyChecker($ans_str));
 
 ######################################
 #  Main text
 
-BEGIN_TEXT
-$percent$PERCENT of what number is $a?
-$PAR
-a) Write an equation to model the problem.  Use $BITALIC x $EITALIC to
-represent the number.
-$BR
-Answer: \{ans_rule(20) \}
-$PAR
+BEGIN_PGML
+[$percent]% of what number is [$a]?
+
+a) Write an equation to model the problem.  Use _x_ to represent the number.  
+Your equation must strictly model the wording of the problem.
+
+    Answer: [__________]{$ans_a}
+
 b) Solve the equation to find the number:
-$BR
-Answer: \{ans_rule(20) \}
-END_TEXT
 
-######################################
-#  Answers
-#  Note:  This should been to be changed whenever an Equation
-#         MathObject is written or a better equation checker is written.
+    Answer: [_____]{$ans_b}
+END_PGML
 
-$p = $percent/100;
-$ans_a = "$p * x=$a";
-ANS(Picky_equation_cmp($ans_a));
+BEGIN_PGML_SOLUTION
+Part a)  
+    * "[$percent]% of a number" becomes "[`[$p]x`]"
+    * "is [$a]" becomes "[`=[$a]`], so the equation is 
+    * [`[$p]x = [$a]`]
 
-$ans_b = Real($answer);
-ANS($ans_b->cmp);
-
-$showPartialCorrectAnswers = 1;
-
-######################################
+Part b)
+    [``\begin{gathered} [$p]x = [$a] \\ 
+    x = [$a]/[$p] = [@ $a/$p @] \end{gathered} ``]
+END_PGML_SOLUTION
 
 
-;
 ENDDOCUMENT();

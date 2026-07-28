@@ -11,53 +11,98 @@
 # File Created: 07/15/05; Modified 08/02/10 by John Hagood
 # Location: Northern Arizona University
 
-DOCUMENT(); 
-    
+# Edited on 2022.07.05 by Peter Staab, Fitchburg State University
+# Added PGML, tikz graphs and alternate text on the plot.
+
+DOCUMENT();
+
 loadMacros(
-  "PGstandard.pl",
-  "PGnauStats.pl",
-  "PGcourse.pl"
+    "PGstandard.pl", "PGnauStats.pl", "PGcourse.pl", "PGML.pl",
+    "PGtikz.pl"
 );
 
-TEXT(&beginproblem);
+# $n = 4;
+# for( $i = 0; $i < $n; $i++ ){ $val = random( 1, 4, 1 );
+# push @list, $val;
+# }
+push(@list, random(1, 4)) for (0 .. 3);
 
-$n = 4;
-for( $i = 0; $i < $n; $i++ ){ $val = random( 1, 4, 1 );
-push @list, $val;
-}
+$sum = 0;
+foreach $val (@list) { $sum += $val; }
 
-$total = 0;
-foreach $val(@list){$sum = $total + $val;
-  $total = $sum;
-}  
+# $pic = PieChart( @list );
 
-$pic = PieChart( @list );
+$cost   = random(2, 4, 1);
+@words  = ('a nickel', 'a penny', 'a dime', 'a quarter');
+@val    = (.05,        .01,       .10,      .25);
+$ind    = random(0, 3);
+$a      = random(7, 10);
+@win    = ('$' . $a, $words[$ind]);
+@win2   = ($a, $val[$ind]);
+@slice1 = NchooseK(2, 2);
+@letter = ('A', 'B', 'C', 'D');
+@slice2 = NchooseK(4, 4);
+$ans    = Compute(
+    (
+        ($list[ $slice2[0] ] * $win2[ $slice1[0] ]) +
+            ($list[ $slice2[1] ] * $win2[ $slice1[1] ])
+    ) / $sum - $cost
+);
 
-$cost = random( 2, 4, 1 );
-@words = ( 'a nickel', 'a penny', 'a dime', 'a quarter' );
-@val =( .05, .01, .10, .25 );
-$ind = random( 0, 3, 1 );
-$a = random(7, 10, 1);
-@win = ( $DOLLAR.$a, $words[$ind] );   
-@win2 =( $a, $val[$ind] );
-@slice1 = NchooseK( 2, 2 ); 
-@letter = ( 'A', 'B', 'C', 'D' );
-@slice2 = NchooseK( 4, 4 );
-$ans = ( ( $list[$slice2[0]] * $win2[$slice1[0]] ) + ( $list[$slice2[1]] * $win2[$slice1[1]] ) )/ $sum - $cost;
+# Build the pie chart
 
-BEGIN_TEXT
+$angle1 = 360 * $list[0] / $sum;
+$label1 = 0.5 * $angle1;
+$angle2 = $angle1 + 360 * $list[1] / $sum;
+$label2 = $angle1 + 180 * $list[1] / $sum;
+$angle3 = $angle2 + 360 * $list[2] / $sum;
+$label3 = $angle2 + 180 * $list[2] / $sum;
+$angle4 = $angle3 + 360 * $list[3] / $sum;
+$label4 = $angle3 + 180 * $list[3] / $sum;
 
-Consider the following game of chance based on the spinner below:$BR
-Each spin costs $DOLLAR$cost. If the spinner lands on $letter[$slice2[0]] the player wins $win[$slice1[0]], 
-if the spinner stops on $letter[$slice2[1]] the player wins $win[$slice1[1]]
-otherwise the player wins nothing. Calculate the players expected winnings. ${BBOLD} Express your answer to at least three decimal places in dollar form.  $EBOLD. $PAR
-Answer: $DOLLAR\{ans_rule( 15 )\} 
-$PAR
-\{ Plot($pic) \}
+$graph_image = createTikZImage();
+$graph_image->tikzLibraries("arrows.meta");
 
-END_TEXT
+$graph_image->BEGIN_TIKZ
+ \draw[thick,fill=green!50] (0,0) -- (45:5) arc (45:135:5) -- cycle;
 
-ANS( num_cmp( $ans ) );
+ \foreach \angle/\col [remember=\angle as \last (initially 0)] in
+         {$angle1/blue!50, $angle2/red!50, $angle3/green!50, $angle4/purple!50}{
+ \draw[thick,fill=\col] (0,0) -- (\last:5) arc (\last:\angle:5) -- cycle;
+      }
+\node[text width=1cm, align=center] at ($label1:4) {\large A};
+\node[text width=1cm, align=center] at ($label1:2.5) {$list[0]/$sum};
+\node[text width=1cm, align=center] at ($label2:4) {\large B};
+\node[text width=1cm, align=center] at ($label2:2.5) {$list[1]/$sum};
+\node[text width=1cm, align=center] at ($label3:4) {\large C};
+\node[text width=1cm, align=center] at ($label3:2.5) {$list[2]/$sum};
+\node[text width=1cm, align=center] at ($label4:4) {\large D};
+\node[text width=1cm, align=center] at ($label4:2.5) {$list[3]/$sum};
+END_TIKZ
+
+$alt_text =
+    "Pie chart for the spinner game. The wedge of A is $list[0]/$sum "
+    . "of the chart.  The wedge of B is $list[1]/$sum of the chart.  The "
+    . "wedge of C is $list[2]/$sum of the chart.  The wedge of D is "
+    . "$list[3]/$sum of the chart.'";
+
+BEGIN_PGML
+
+Consider the following game of chance based on the spinner below:
+
+Each spin costs $[$cost]. If the spinner lands on [$letter[$slice2[0]]]
+the player wins [$win[$slice1[0]]]. If the spinner stops on
+[$letter[$slice2[1]]] the player wins [$win[$slice1[1]]]*.
+Otherwise, the player wins nothing.
+
+>> [![$alt_text]!]{$graph_image}{400} <<
+
+Calculate the player's expected profit. [______]{$ans}
+
+*Note: Express your answer to at least three decimal places in dollar form.*
+
+
+
+END_PGML
 
 ENDDOCUMENT();
- 

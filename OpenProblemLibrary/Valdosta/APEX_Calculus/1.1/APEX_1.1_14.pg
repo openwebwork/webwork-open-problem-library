@@ -1,78 +1,109 @@
-#Problem APEX 1.1.14
-
-DOCUMENT();
-
-# Load whatever macros you need for the problem
-loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "niceTables.pl",
-  "PGcourse.pl"
-);
-
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Limits and continuity)
 ## DBsection(Estimating limits numerically)
 ## Institution(Valdosta State University)
 ## Author(S. V. Ault)
 ## MO(1)
+## Level(2)
 ## TitleText1('APEX Calculus')
 ## AuthorText1('Hartman')
 ## EditionText1('3.0')
 ## Section1('1.1')
 ## Problem1('14')
 
-Context("Numeric");
-Context()->{format}{number} = "%.8f";
-$showPartialCorrectAnswers = 0;
-$solutionexits=1;
-$a=random(2,10);
-$b=random(2,10);
-$c = random(1,5);
+#Problem APEX 1.1.14
 
-$f=Compute("$c*cos(x)");
-$g=Compute("$a*x^2+$b*x+$c");
-$f->perlFunction("F");  #for fast evaluation
-$g->perlFunction("G");  #for fast evaluation
+DOCUMENT();
+
+# Load whatever macros you need for the problem
+loadMacros('PGstandard.pl', 'PGML.pl', 'niceTables.pl', 'PGcourse.pl');
+
+Context("Numeric");
+Context()->{format}{number} = "%.8g";
+
+$showPartialCorrectAnswers = 0;
+
+$a = random(2, 10);
+$b = random(2, 10);
+$c = random(1, 5);
+
+$f = Compute("$c*cos(x)")->reduce;
+$g = Compute("$a*x^2+$b*x+$c")->reduce;
+$f->perlFunction("F");    #for fast evaluation
+$g->perlFunction("G");    #for fast evaluation
 
 $limi = Real($c);
 
-TEXT(beginproblem());
-BEGIN_TEXT
-$BR
+## Used in solution: the (x,y)-values closest to (0,f(0))
+
+$xleft  = Real(-0.0001);
+$xright = Real(0.0001);
+$yleft  = F($xleft);
+$yright = G($xright);
+
+## error tolerance used for grading,
+## and avoid frustrating students
+
+$tol = 1.1 * max(abs($limi - $yleft), abs($limi - $yright), $limi * 0.0001);
+
+$limi->with(tolType => 'absolute', tolerance => $tol);
+
+BEGIN_PGML
+
+Let 
+
+[`` f(x) = \begin{cases}
+     [$f] & \text{if } \quad x < 0, \\
+     [$g] & \text{if }\quad x \geq 0
+   \end{cases}. ``]
+   
 Approximate the given limit both numerically and graphically.
-$BR
-\( f(x) = \begin{cases}
-     $c \cos x & \quad x < 0, \\
-     $a x^2 + $b x + $c & \quad x \geq 0
-   \end{cases}. \)
-$BR
-\( \displaystyle \lim_{x \to 0}\; f(x)  =\)  \{ ans_rule(5) \}
-$BR
+
+[`` \lim_{x \to 0}\; f(x)  =``]  [_]{$limi}{5}
+
 (Enter DNE if the limit doesn't exist)
-END_TEXT
+END_PGML
 
-SOLUTION(EV3(<<'END_SOLUTION'));
-$BR$BBOLD Solution:$EBOLD 
-$PAR
-
-\{ DataTable(
+BEGIN_PGML_SOLUTION
+A table of values of [`f(x)`] at points close to 0
+[@ DataTable(
    [ [ ['\(x\)', headerrow => 1], '\(f(x)\)', '\(x\)', '\(f(x)\)'],
-     ['-0.002', F(-0.002), '0.002',G(0.002) ],
-     ['-0.001', F(-0.001), '0.001',G(0.001) ],
+     ['-0.002', F(-0.002), '0.002', G(0.002) ],
+     ['-0.001', F(-0.001), '0.001', G(0.001) ],
      ['-0.0005',F(-0.0005),'0.0005',G(0.0005)],
      ['-0.0001',F(-0.0001),'0.0001',G(0.0001)]
    ],
    caption => 'Values of x and corresponding f(x)',
-   midrules => 1,
-   align => 'l|l|l|l'
+   horizontalrules => 1,
+   align => '|l|l||l|l|'
 );
-\}
-$BR
-The limit as \(x \to 0 \) is $c.
-END_SOLUTION
+@]***
+enables one to estimate whether or not [`f(x)`] tends to a limit, and 
+if it does, what the limit is.  As [`x`] approaches 0 from the left 
+and right the values of [`f(x)`] seem to get very close together, which suggests that they are approaching a limit. The closest points [`x=[$xleft]`]
+and [`x=[$xright]`] on the left and right sides of 0 produce values 
+[`[$yleft]=f([$xleft])`] and [`[$yright]=f([$xright])`] that should be fairly good approximations of the limit.
 
-ANS($limi->cmp);
+Usually one can get a somewhat better approximation by visualizing the graph of 
+[`f`] based on the points in the table.
+
+If the values of [`f(x)`] decrease as [`x\to 0`] on both the left and right sides of 0 then probably the limit is a little less than either [`[$yleft]`] or [`[$yright]`].  In that case the smaller of these two values should be closest to the limit.  
+
+Similarly, if [`f(x)`] increases as [`x\to 0`] on both sides of 0 then probably the limit is a little larger than either [`[$yleft]`] or [`[$yright]`], so the larger of these values should be closest to the limit.
+
+Thirdly, if [`f(x)`] increases as [`x\to 0`] in one direction, and decreases as [`x\to 0`] in the other direction, then one of the values [`[$yleft]`] or [`[$yright]`] should be larger than the limit and the other should be smaller, so the limit ought to lie somewhere in the middle between them.  In that case the average [``\frac{[$yleft]+[$yright]}{2}``] of the two values ought to be closer to the limit than either of the two values alone.
+
+Of course if one happens to know about continuous functions then one can avoid all this calculation and estimation by noticing that [`f(x)=[$c]\cos(x)`] is 
+continuous on the interval [`(-\infty,0)`], so the limit of [`f(x)`] as [`x`] approaches 0 from the left is 
+[```\lim_{x\to 0-} [$c]\cos(x)=[$c]. ```]
+And [`f(x)=[$a] x^2 + [$b] x + [$c]`] on [`(0,\infty)`] so [`f`] is 
+continuous on [`(0,\infty)`], so the limit of [`f(x)`] as [`x`] approaches 0
+from the right is
+[``` \lim_{x\to 0+} [$a] x^2 + [$b] x + [$c] = [$c].```]
+Because the limits from the left and right are equal, [`f`] has a limit as [`x\to 0`]
+and the value of this limit is [$c].
+
+END_PGML_SOLUTION
 
 ENDDOCUMENT();
 

@@ -1,4 +1,6 @@
 ##DESCRIPTION
+## Interpret a bar graph
+##ENDDESCRIPTION
 ## DBsubject(Statistics)
 ## DBchapter(Exploratory data analysis/descriptive statistics)
 ## DBsection(Graphical representations)
@@ -6,53 +8,104 @@
 ## Author(N.Spencer Sitton)
 ## Level(3)
 ## KEYWORDS('histogram')
-##ENDDESCRIPTION
 
 # File Created: 07/11/05
-# Problem Author: 
+# Problem Author:
 # Location: Northern Arizona University
 
-DOCUMENT();     
+# UPDATED on 2022.06.30 by Peter Staab, Fitchburg State University
+# Graph updated to use PGML, tikz and add alt tag for accessibility.
+
+DOCUMENT();
 loadMacros(
-  "PGstandard.pl",
-  "PGnauStats.pl",
-  "PGstatisticsmacros.pl",
-  "PGnumericalmacros.pl",
-  "PGcourse.pl"
+    "PGstandard.pl", "PGML.pl",
+    "PGtikz.pl",     'contextPercent.pl',
+    'PGcourse.pl'
 );
-TEXT(&beginproblem);
 
-$n = 50;
-$max = random( 29, 44, 5 );
-for( $i = 0; $i < $n; $i++ ){ $val = random( 0, $max, 1 );
-  push @list, $val;
-}  
-$name = list_random( 'Mathematics and Statistics', 'Chemistry', 'Biology', 'English' );
-$num = random( 5, $max - 10, 5 );
-@dir = ( $num.' or more ', ' less than '.$num );
-$ind = random( 0, 1 );
-foreach $val(@list){
-  if( $val < $num ){ push @newlist1, $val 
-  }else{ push @newlist2, $val } 
+Context('Percent');
+
+$n   = 50;
+$max = random(29, 44, 5);
+push(@list, random(0, $max)) for (0 .. $n - 1);
+
+$name = list_random('Mathematics and Statistics', 'Chemistry', 'Biology',
+    'English');
+$title    = "$name Faculty";
+$num      = random(5, $max - 10, 5);
+@dir      = ("$num or more ", " less than $num");
+$ind      = random(0, 1);
+$num_bins = ($max + 1) / 5;
+$bins[$_] = 0 for (0 .. $num_bins - 1);
+
+$num_faculty = 0;
+for $val (@list) {
+    if ($val < $num) {
+        push @newlist1, $val;
+    } else {
+        push @newlist2, $val;
+    }
+    $num_faculty++ if $val >= $num;
+    $bins[ floor($val / 5) ]++;
 }
-if( $ind == 0 ){ $ans1 = ( 100 * scalar( @newlist2 ) ) / $n;
-}else{ $ans1 = ( 100 * scalar( @newlist1 ) ) / $n;} 
 
-BEGIN_TEXT
+# Determine the largest bar as well as create the alternate text
 
-The histogram below gives the length of service of members of the Department of $name at a particular
-university. The classes, in years of service, are 0\(-\)4.9, 5\(-\)9.9, etc., and the vertical axis represents the 
-number of faculty.
-$PAR
+$alttext =
+    "A bar graph with number of years on the vertical axis and years of service on the horizontal axis. ";
+$ymax = 0;
+for $i (0 .. $num_bins - 1) {
+    $ymax = $bins[$i] if ($bins[$i] > $ymax);
+    $alttext .=
+        "The bar between "
+        . 5 * $i . " and "
+        . 5 * ($i + 1)
+        . " has height "
+        . $bins[$i] . ". ";
+}
+$ymax1 = $ymax + 1;
 
-What percent of the department faculty have $dir[$ind] years of service?$BR
-Answer: \{ans_rule( 15 )\}$PERCENT $PAR
+# create the tikz code to make the bars for this.
+$bars = '';
+for $i (0 .. $#bins) {
+    $bars .=
+        "\filldraw[fill=LightBlue, draw = black] ({$i},0) rectangle ({($i+1))}, {10*$bins[$i]/$ymax}); \n";
+}
 
-\{ Plot( Histogram( @list, bins => ( $max + 1 ) / 5, axislabel => 'Years of Service', 
-                                     labelcount => $n, title => $name.' Faculty'  ) )  \} $BR
+$graph = createTikZImage();
+$graph->tikzLibraries('arrows.meta');
+$graph->tikzOptions('yscale = 0.6');
+$graph->BEGIN_TIKZ
+\tikzset{>={Stealth[scale=1.25]}}
+\filldraw[
+    draw=LightBlue,
+    fill=white,
+    rounded corners=10pt,
+    thick, use as bounding box
+] (-1.25,-1) rectangle (10,13);
+\draw (-0.5,0) -- (9.5,0) -- (9.5,11.5)-- (-0.5, 11.5) --cycle; 
+\foreach \x in {0,5,...,45}
+    \draw({\x/5},5pt) -- ({\x/5},-5pt) node [below] {\(\x\)};
 
-END_TEXT
+\foreach \y in {1,...,$ymax1}
+    \draw (-0.4,{10*\y/$ymax}) -- (-0.6,{10*\y/$ymax}) node[left] {\(\y\)};
+$bars
+\draw (4.5,12) node {\Large $title};
+END_TIKZ
 
-ANS( num_cmp( $ans1 ) );
+BEGIN_PGML
 
-ENDDOCUMENT();      
+The histogram below gives the length of service of members of the
+Department of [$name] at a particular
+university. The horizontal axis represents years of service in intervals
+0 to 4.9, 5 to 9.9, etc., and the vertical axis represents the number of
+faculty.
+
+>> [! [$alttext] !]{$graph}{400} <<
+
+What percent of the department faculty have [$dir[$ind]] years of service?
+[_]{Percent($num_faculty/$n)}{5}
+
+END_PGML
+
+ENDDOCUMENT();

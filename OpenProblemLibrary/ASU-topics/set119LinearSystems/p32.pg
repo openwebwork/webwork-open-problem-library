@@ -10,147 +10,242 @@
 ## Institution(ASU)
 ## MLT(3aug)
 ## Level(3)
+## MO(1)
 ## KEYWORDS('Algebra' 'Linear Equations' 'Matrix' 'Matrices')
 
 DOCUMENT();        # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "PGchoicemacros.pl",
-  "PGasu.pl",
-  "PGmatrixmacros.pl",
-  "extraAnswerEvaluators.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "parserRadioButtons.pl",
+  "parserMultiAnswer.pl",
+  "scaffold.pl",
   "PGcourse.pl"
 );
 
-TEXT(beginproblem());
-$showPartialCorrectAnswers = 1;
-$ENV{'partial_weights'} = [1,1,1,1,1,1,1,1,1,9,0,0,0];
-install_problem_grader(~~&weighted_partial_grader);
 
-###
+### almost
 #  reduced row echelon form         [ 1  0  a| b]
 #                                   [ 0  1  c| d]
 #                                   [0   0  0| e]
 
-# row1 = e*row1 + f*row2,  row2 = g * row1 + h * row2, row3 = e row1 + m row2 + row3
+Context("Matrix");
+Context()->strings->add(NP=>{});
 
-$a = non_zero_random(-4,4,1);
-$b = non_zero_random(-5,5,1);
-$c = non_zero_random(-4,4,1);
-$d = non_zero_random(-4,4,1);
+$a = non_zero_random(-3,3,1);
+$b = non_zero_random(-3,3,1);
+$c = non_zero_random(-3,3,1);
+$d = non_zero_random(-3,3,1);
+$e = non_zero_random(-3,3,1);
 
-$e = non_zero_random(-5,5,1);
-$f = non_zero_random(-3,3,1);
-$g = non_zero_random(-3,3,1);
+# reduced matrix (except the last column)
 
-do {$h = non_zero_random(-3,3,1);} until ($e*$h != $f*$g);
-$l = non_zero_random(-3,3,1);
-$m = non_zero_random(-3,3,1);
+$X = Matrix([
+  [1,0,$a,$b],
+  [0,1,$c,$d],
+  [0,0, 0,$e]
+]);
+
+# $Y and $Z will be the answers for the augmented matrix 
+# in row-reduced eschelon form
+
+$Y=Matrix([
+  [1, 0, $a],
+  [0, 1, $c],
+  [0, 0,  0]
+]);
+
+$Z=Matrix([
+  [0],
+  [0],
+  [1]
+]);
+
+# adapted from David Cervonne
+# https://webwork.maa.org/moodle/mod/forum/discuss.php?d=4557#p13361
+
+sub AugmentedMatrix {
+  my ($A, $B) = @_;
+  $A = Matrix($A)->with(close => '|');
+  $B = Matrix($B)->with(open => '.');
+  MultiAnswer($A, $B)->with(
+    singleResult => 1,
+    separator => "",
+    tex_separator => "",
+    checker => sub {
+      my ($c, $s, $self, $ans) = @_;
+      my ($cA, $cB) = @$c;
+      my ($sA, $sB) = @$s;
+      $self->{ans}[0]{preview_latex_string} =~ s/~~]$/|/;
+      $self->{ans}[1]{preview_latex_string} =~ s/~~[/./;
+      return $cA == $sA && $cB == $sB;
+    }
+  );
+}
+
+$Xaug = AugmentedMatrix($Y,$Z);
+
+# Scramble the matrix so it needs to be reduced
+
+$p = non_zero_random(-3,3,1);
+$q = non_zero_random(-3,3,1);
+$r = non_zero_random(-3,3,1);
+
+$P = Matrix([
+  [1,$p,$q],
+  [0, 1,$r],
+  [0, 0, 1]
+]);
 
 
-$a11 = $e;
-$a12 = $f;
-$a13 = $a*$e + $c*$f;
-$a14 = $b*$e+$f*$d;
-$a21 = $g;
-$a22 = $h;
-$a23 = $a*$g + $c*$h;
-$a24 = $b*$g+$h*$d;
-$a31 = $l;
-$a32 = $m;
-$a33 = $a*$l+$c*$m;
-$a34 = $b*$l+$d*$m+$e;
+do{$s = non_zero_random(-3,3,1);
+   $t = non_zero_random(-3,3,1);
+   $u = non_zero_random(-3,3,1);
+} until ($t != $u*$s);
+
+$R = Matrix([
+  [ 1, 0, 0],
+  [$s, 1, 0],
+  [$t,$u, 1]
+]);
+
+$A = $R*$P*$X;
+
+($a11,$a12,$a13,$a14)=$A->row(1)->value;
+($a21,$a22,$a23,$a24)=$A->row(2)->value;
+($a31,$a32,$a33,$a34)=$A->row(3)->value;
 
 
-$ls1 = nicestring([$a11,$a12,$a13],['x','y','z']);
-$ls2 = nicestring([$a21,$a22,$a23],['x','y','z']);
-$ls3 = nicestring([$a31,$a32,$a33],['x','y','z']);
+Context()->noreduce('(-x)-y','(-x)+y','0*x');
 
-$mc = new_multiple_choice();
-$mc->qa("How many solutions are there to this system?",
-"None");
-$mc->makeLast("None",
-"Exactly 1",
-"Exactly 2",
-"Exactly 3",
-"Infinitely many",
-"None of the above");
+$f1 = Formula("$a11*x+$a12*y+$a13*z")->reduce;
+$f2 = Formula("$a21*x+$a22*y+$a23*z")->reduce;
+$f3 = Formula("$a31*x+$a32*y+$a33*z")->reduce;
 
-BEGIN_TEXT
+$choices = RadioButtons(
+ ["Exactly 1 solution", "Exactly 2 solutions", "Exactly 3 solutions", 
+  "Infinitely many solutions","No solutions","None of the above"],
+ "No solutions",
+ labels => "ABC",
+ values => [("A".."F")]
+)->cmp(
+  checker=>sub{
+  my ($correct,$student,$ansHash) = @_; 
+  if ($student eq "B"){
+    Value::Error("Linear systems can't have exactly two solutions");
+  }if ($student eq "B"){
+    Value::Error("Linear systems can't have exactly two solutions");
+  }
+  if ($student eq "C"){
+    Value::Error("Each solution has three coordinates, but it counts as one solution.  Linear systems can't have exactly three solutions.");
+  }
+  if ($student eq "D"){
+    Value::Error("What does the last row say about x,y, and z?");
+  }
+  $student eq "E" ? return 1 : return 0; 
+});
+
+$x = String("NP")->with(typeMatch => Formula("x"));
+$y = String("NP")->with(typeMatch => Formula("x"));
+$z = String("NP")->with(typeMatch => Formula("x"));
+
+Scaffold::Begin();
+
+Section::Begin("Part 1.");
+
+BEGIN_PGML
 Solve the system by finding the reduced row-echelon form of the augmented
-matrix. 
+matrix.
 
-\[\left\{ "\{"; \}
-\begin{array}{ll}
-        $ls1 &= $a14 \\
-        $ls2 &= $a24  \\
-        $ls3 &= $a34
-\end{array}\right.
-\]
-$BR
-Fill in the blanks for the first 3 columns of the reduced row-echelon form
-of the augmented matrix:
-$BCENTER
-\{display_matrix([[ans_rule(5),ans_rule(5),ans_rule(5),"***"],
-[ans_rule(5),ans_rule(5),ans_rule(5),"***"],
-[ans_rule(5),ans_rule(5),ans_rule(5),"***"]],
-'align'=>"ccc|c")
-\}
-$ECENTER
+        [``\begin{cases} 
+             \begin{aligned}
+               [$f1] &= [$a14]\\ 
+               [$f2] &= [$a24]\\ 
+               [$f3] &= [$a34] 
+             \end{aligned}
+           \end{cases} ``]
 
-\{ $mc->print_q() \}
-        $PAR
-\{ $mc->print_a() \}
+    \1. The reduced row-echelon form of the augmented
+    matrix is  
+    
+        [_]*{$Xaug}[_]*{$Xaug}
+    
+    \2. How many solutions does this system have?
+    
+        [_]{$choices}
 
-$BR
-END_TEXT
+END_PGML
 
-ANS(num_cmp(1)); ANS(num_cmp(0)); ANS(num_cmp($a));
-ANS(num_cmp(0)); ANS(num_cmp(1)); ANS(num_cmp($c));
-ANS(num_cmp(0)); ANS(num_cmp(0)); ANS(num_cmp(0));
+Section::End();
 
-ANS(radio_cmp($mc->correct_ans));
+Section::Begin("Part 2.");
 
-$ans1 = $inputs_ref->{AnSwEr0001};
-if(defined($ans1)) {
-  if($ans1 eq "D") {
-TEXT("${BBOLD}Hint:$EBOLD 
-each solution to this system is an ordered triplet with three coordinates.  Together,
-the three coordinates make one solution.  Having exactly three solutions is
-not possible.");
- } elsif($ans1 eq "C") {
-TEXT("${BBOLD}Hint:$EBOLD 
-it is not possible for a linear system of equations to ever have exactly 2 solutions.");
- }}
-BEGIN_TEXT
+BEGIN_PGML
+    \3. Describe the solutiions:
 
-$HR
+    If there is exactly one solution, give its coordinates in the answer spaces below.  
 
-$BR
-If there is one solution, give its coordinates in the answer spaces below.  
-$PAR
-If there
-are infinitely many solutions, enter ${BITALIC}z$EITALIC in the answer blank for \(z\),
-enter a formula for \(y\) in terms of \(z\) in the answer blank for \(y\) and
-enter a formula for \(x\) in terms of \(z\) in the answer blank for \(x\).  
-$PAR
-If there are no solutions, leave the answer blanks for \(x\), \(y\) and \(z\) empty.
-$BR$BR
-\(x = \) \{ans_rule(40) \}
-$BR$BR
-\(y = \) \{ans_rule(40) \}
-$BR$BR
-\(z = \) \{ans_rule(40) \}
+    If there are infinitely many solutions some of the variables [`x,y,z`] are 
+"free variables".  In this case the solutions may be parametrized as functions of the free variables.  For example, if [`z`] is the only free variable then one can solve
+for [`x`] and [`y`] as functions [`x=f(z)`], [`y=g(z)`]  of [`z`], and parameterize the solutions with the formula [`(x,y,z)=(f(z),g(z),z)`].  
 
-END_TEXT
+    Enter parametric formulas for the solutions in the boxes below if there are infinitely many solutions.  
 
-# since there is no  solutions, we use
-ANS(pc_evaluator([[auto_right("This answer can be left blank"),1,"Finish the earlier parts of the problem before doing this one"]])); 
+    Otherwise, if the system doesn't have exactly one solution and it doesn't have infinitely many solutions, enter NP (it stands for "Not Possible")  into all three answer blanks below.
 
-ANS(pc_evaluator([[auto_right("This answer can be left blank"),1,"Finish the earlier parts of the problem before doing this one"]])); 
+         [`x`]=[_]{$x}  
+         [`y`]=[_]{$y}  
+         [`z`]=[_]{$z}  
 
-ANS(pc_evaluator([[auto_right("This answer can be left blank"),1,"Finish the earlier parts of the problem before doing this one"]])); 
+END_PGML
+
+Section::End();
+
+Scaffold::End();
+
+$A1 = Matrix([[1,0,0],[-$s,1,0],[-$t,0,1]])*$A;
+$A2 = Matrix([[1,0,0],[0,1,0],[0,-$u,1]])*$A1;
+$A3 = Matrix([[1,-$p,0],[0,1,0],[0,0,1]])*$A2;
+($b14,$b24,$b34) = Vector($A3->column(4))->value;
+$A4 = Matrix([[1,0,0],[0,1,0],[0,0,1/$b34]])*$A3;
+$A5 = Matrix([[1,0,-$b14],[0,1,-$b24],[0,0,1]])*$A4;
+
+BEGIN_PGML_SOLUTION
+I'll use abbreviations like [`` R_i\leftarrow a R_j+R_i``] to stand for "add [`a`] times row [`j`] to row [`i`]".  
+
+Start with the original matrix [``\quad [$A]``]
+
+[``\begin{aligned} 
+    & R_2\leftarrow ([@-$s@])R_1+R_2\\
+    & R_3\leftarrow ([@-$t@])R_1+R_3
+   \end{aligned} \quad ``]
+yield
+[``\quad[$A1]``].
+
+Then [``R_3\leftarrow ([@-$u@])R_2+R_3\quad``] yields [``\quad[$A2]``].
+
+At this point it's obvious that the system has no solution because the 
+last row corresponds to the impossible equation  
+
+        [``0x+0y+0z=[$b34]``].    
+
+This answers the last two questions, but the matrix is not yet in eschelon form so, to answer the first question, continue the reduction.
+
+[``R_1\leftarrow ([@-$p@])R_2+R_1\quad``] yields [``\quad[$A3]``].
+
+
+[`` R_3\leftarrow (1/[$b34])R_3 \quad``] yields [``\quad[$A4]``]
+
+Finally,  
+[``\begin{aligned} 
+  & R_1 \leftarrow ([@ -$b14 @])R_3+R_1\\
+  & R_2 \leftarrow ([@ -$b24 @])R_3+R_2 \end{aligned}\quad``] yield [``\quad [$A5]``]
+
+is in row-reduced eschelon form. 
+
+END_PGML_SOLUTION
 
 
 ENDDOCUMENT();        # This should be the last executable line in the problem.

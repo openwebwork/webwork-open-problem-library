@@ -1,0 +1,215 @@
+# DESCRIPTION
+# Gives the graph of a polynomial function
+# Asks to find the zeros and their multiplicities, degree (even/odd), and
+# leading coeff (pos/neg)
+# ENDDESCRIPTION
+
+## DBsubject(Algebra)
+## DBchapter(Polynomial equations and functions)
+## DBsection(Graphs of polynomials)
+## Institution(University of Missouri-Columbia)
+## Author(Rick Lynch)
+## Level(3)
+## KEYWORDS('functions', 'polynomials', 'graphs')
+
+DOCUMENT();
+loadMacros(
+    'PGstandard.pl',        'PGML.pl',
+    'PGtikz.pl',            'parserRadioButtons.pl',
+    'parserMultiAnswer.pl', 'PGcourse.pl'
+);
+
+Context("Numeric");
+
+do {
+    $numzeros = random(2, 5);
+    @zeros    = num_sort(random_subset($numzeros, -10 .. 10));
+
+    @gaps = map { $zeros[ $_ + 1 ] - $zeros[$_] } (0 .. $#zeros - 1);
+} until (min(@gaps) > 1 && max(@gaps) < 5);
+
+for $i (0 .. $#zeros) {
+    if ($numzeros == 2 || $numzeros == 3) {
+        $powers[$i] = random(2, 3);
+    } else {
+        $powers[$i] = random(1, 2);
+    }
+}
+$a = 1;
+
+# This is the polynomial as a function.
+sub polyeval {
+    my $x    = shift;
+    my $prod = $a;
+    for (my $i = 0; $i < $numzeros; $i++) {
+        $prod *= (($x - $zeros[$i])**$powers[$i]);
+    }
+    return $prod;
+}
+
+# Find the local max and min of polynomial between the zeros.
+$dx = 0.25;
+$n  = 4 * ($zeros[$#zeros] - $zeros[0]);
+
+$localmin = 100;
+$localmax = -100;
+
+for $i (0 .. $n) {
+    $yval     = polyeval($zeros[0] + $i * $dx);
+    $localmax = $yval if $yval > $localmax;
+    $localmin = $yval if $yval < $localmin;
+}
+
+$a = 7 / max(abs($localmin), $localmax);
+
+$minx  = min($zeros[0], 0);
+$miny  = -10;
+$maxx  = max($zeros[$#zeros], 0);
+$maxy  = 10;
+$gsize = 400;
+
+for $i (0 .. $n) {
+    $x[$i] = $zeros[0] + $i * $dx;
+    $y[$i] = polyeval($x[$i]);
+}
+
+# Add points before the first zero and after the last one.
+for $i (1 .. 25) {
+    $x1 = $zeros[0] - $i * 0.5 * $dx;
+    $y1 = polyeval($x1);
+    if ($maxy > $y1 && $y1 > $miny) {
+        unshift(@x, $x1);
+        unshift(@y, $y1);
+    }
+    $x2 = $zeros[$#zeros] + $i * 0.5 * $dx;
+    $y2 = polyeval($x2);
+    if ($maxy > $y2 && $y2 > $miny) {
+        push(@x, $x2);
+        push(@y, $y2);
+    }
+}
+
+$pt_str = qq/x, y
+/;
+for $i (0 .. $#x) {
+    $pt_str .= $x[$i] . ', ' . $y[$i] . qq/
+    /;
+}
+
+$maxx = $maxx % 2 == 0 ? $maxx : $maxx - 1;
+$minx = $minx % 2 == 0 ? $minx : $minx + 1;
+for (my $x = $minx; $x <= $maxx; $x += 2) { push(@xticks, $x); }
+$xticks = join(',', @xticks);
+
+$gr = createTikZImage();
+$gr->tikzLibraries('datavisualization');
+$gr->BEGIN_TIKZ
+\datavisualization [ school book axes,
+y axis={ticks and grid = {about = 5}, scaling = $miny at 0cm and $maxy at 5cm},
+x axis={length=5cm, ticks and grid = {major={at={$xticks}}}}, visualize as smooth line
+] data {
+      $pt_str
+    };
+END_TIKZ
+
+$zerosans = List(@zeros);
+
+for $i (0 .. $#zeros) {
+    push(@answers, $zeros[$i], $powers[$i]);
+}
+
+$ma = MultiAnswer(@answers)->with(
+    singleResult      => 0,
+    allowBlankAnswers => 1,
+    checker           => sub {
+        my $num = scalar(@answers);
+        my ($correct, $student, $self) = @_;
+        my @ac  = @{$correct};
+        my @st  = @{$student};
+        my @ans = (0 .. scalar(@ac) / 2);
+        for my $i (0 .. $num - 1) {
+            $returnans[$i] = 0;
+        }
+        for my $i (0 .. $num / 2 - 1) {
+            $hasbeenused[$i] = 0;
+        }
+        for my $i (0 .. scalar(@ac) / 2 - 1) {
+            $ans[$i] = [ $ac[ 2 * $i ], $ac[ 2 * $i + 1 ] ];
+        }
+        for ($i = 0; $i < scalar(@ac) / 2; $i++) {
+            for ($j = 0; $j < scalar(@ac) / 2; $j++) {
+                if ($ans[$i][0] == $st[ 2 * $j ]
+                    && $ans[$i][1] == $st[ 2 * $j + 1 ]
+                    && $hasbeenused[$i] != 1)
+                {
+                    $returnans[0][ 2 * $j ]     = 1;
+                    $returnans[0][ 2 * $j + 1 ] = 1;
+                    $hasbeenused[$i]            = 1;
+                }
+            }
+        }
+        for ($i = 0; $i < $num; $i++) {
+            $reans[0][$i] = $returnans[0][$i];
+        }
+        return @reans;
+    }
+);
+
+$degree = 0;
+for $i (0 .. $#zeros) { $degree += $powers[$i]; }
+$deg = RadioButtons([ 'even', 'odd' ], $degree % 2, separator => '&nbsp;');
+
+$lead_ans = RadioButtons(
+    [ 'negative', 'positive' ],
+    $a < 0 ? 0 : 1,
+    separator => '&nbsp;'
+);
+
+BEGIN_PGML
+Find the following information pertaining to the polynomial, [`f(x)`], graphed below. 
+
+>> [!alt text!]{$gr}{400} <<
+
+a) The degree of [`f(x)`] is [_]{$deg}.
+
+b) The leading coefficient of [`f(x)`] is [_]{$lead_ans}.
+
+a) Find the zeros of [`f(x)`]
+END_PGML
+
+for ($i = 0; $i < $numzeros; $i++) {
+BEGIN_PGML
+    the zero [`x = `] [_]{$ma} has multiplicity [_]{$ma}
+    [@ $i < $numzeros-1 ? ',' : '.' @]
+END_PGML
+}
+
+$root_soln = '';
+for $i (0 .. $#zeros) {
+    $root_soln .= "at \( x= $zeros[$i]\) with multiplicity $powers[$i], ";
+}
+
+BEGIN_PGML_SOLUTION
+a) To determine this look at the graph in the extremes. In this case the graph goes in 
+[@ $degree % 2 == 0 ? 'the same direction' : 'different directions' @]. Because of
+this, the degree is [@ $degree %2 == 0 ? 'even.' : 'odd.' @]
+
+b) For this part, again look at the extreme.  From part a) the degree is 
+[@ $degree %2 == 0 ? 'even' : 'odd' @].  Now we ask,  does it look like a 
+[@ $degree %2 == 0 ? 'quadratic' : 'cubic' @] or a vertical flip of it?  In the 
+extreme, it looks like a [@ $a > 0 ? 'regular' : 'flipped' @] 
+[@ $degree %2 == 0 ? 'quadratic' : 'cubic' @], therefore the leading coefficient 
+is [@ $a > 0 ? 'positive' : 'negative' @].
+
+c) The zeros of the function are located at the [`x`]-intercepts.  In this case, 
+there are [@ scalar(@zeros) @] zeroes.  The multiplicity is determined by looking
+at the form of the function near each zero.  
+    - If it looks linear (just passes through relatively straight), the multiplicity
+    is 1. 
+    - If it looks like a quadratic, the multiplicity is 2
+    - If it looks like a cubic, the multiplicity is 3.
+
+In this case, the zeros are [$root_soln]
+
+END_PGML_SOLUTION
+ENDDOCUMENT();
