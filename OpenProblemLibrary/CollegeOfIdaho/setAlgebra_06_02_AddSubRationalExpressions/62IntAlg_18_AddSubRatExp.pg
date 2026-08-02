@@ -21,47 +21,55 @@ DOCUMENT(); # This should be the first executable line in the problem.
 
 loadMacros(
   "PGstandard.pl",
-  "MathObjects.pl",
-  "bizarroArithmetic.pl",
+  "PGML.pl",
+  "niceTables.pl",
   "PGcourse.pl"
 );
 
-TEXT(beginproblem());
+#TEXT(beginproblem());
 
 ######################################
 #  Setup
 
 Context("Numeric");
 
-Context()->operators->set(
-   '/' => {class => 'bizarro::BOP::divide', isCommand => 1},
-   '/ ' => {class => 'bizarro::BOP::divide', isCommand => 1},
-   ' /' => {class => 'bizarro::BOP::divide', isCommand => 1},
-   '//' => {class => 'bizarro::BOP::divide', isCommand => 1},
-   '*' => {class => 'bizarro::BOP::multiply', isCommand => 1},
-   '* ' => {class => 'bizarro::BOP::multiply', isCommand => 1},
-   ' *' => {class => 'bizarro::BOP::multiply', isCommand => 1},
-   '+' => {class => 'bizarro::BOP::add', isCommand => 1},
-   '+ ' => {class => 'bizarro::BOP::add', isCommand => 1},
-   ' +' => {class => 'bizarro::BOP::add', isCommand => 1},);
-
 # --- Form: a/(x+b) + c/(x+d) --------------------------------
 #  Note: b neq d, and numerator's leading coef does not factor
 #  Answer: ((a+c)x+(ad+cb))/(x+b)(x+d)
 
-$a = random(1,3,1);
-$b = random(2,5,1);
-$d = random(1,4,1);
-if ($b==$d) {$d = $b + random(1,2,1);}
-do {$c = random(2,7,1);}
-  until ( gcd(($a*$d+$c*$b),($a+$c))==1);
+# ensure answer is reduced
 
+do{ $a = random(1,3,1);
+    $b = random(2,5,1);
+    $c = random(2,7,1);
+    $d = random(1,4,1);
+    $P = $a+$c;
+    $Q =  $a*$d+$c*$b;
+} until ( $b!=$d && gcd($P,$Q)==1 && $P*$b != $Q && $P*$d != $Q);
+
+# format the question and answer blanks
+
+$frac = LayoutTable(
+    [ [
+        "\(\displaystyle\frac{$a}{x+$b} + \frac{$c}{x+$d}=\)",
+        LayoutTable(
+            [ [ [ ans_rule(4), bottom => 1 ] ], [ ans_rule(4) ], ],
+            padding => [ 0.5, 0 ],
+        )
+    ] ],
+    padding => [ 0, 0.5 ],
+    valign  => 'middle',
+
+$ans_num = Formula("($P*x+$Q)");
+$ans_den = Formula("(x+$b)*(x+$d)");
+
+# --- For the Solution----------------------------------
 $den1 = Formula("x + $b")->reduce;
 $f1 = Formula("($a) / $den1")->reduce->TeX;
 $den2 = Formula("x + $d")->reduce;
 $f2 = Formula("($c) / $den2")->reduce->TeX;
 
-# --- For the Solution----------------------------------
+
 $lcd = Formula("(x+$b)(x+$d)")->reduce;
 $mult1 = $den2;
 $mult2 = $den1;
@@ -69,83 +77,33 @@ $num1 = Formula("$a x + ($a*$d)")->reduce;
 $num2 = Formula("$c x + ($b*$c)")->reduce;
 
 ######################################
-#  Main text
-
-BEGIN_TEXT
+BEGIN_PGML
 Perform the indicated operation.  Note that the denominators
 are different.  Simplify the result, if possible.
-\[ $f1 + $f2 \]
-$PAR
-Answer:  \{ ans_rule(25) \} 
-$BR $BR
-\{ 
-knowlLink("help(entering your answer)", 
-value=>'Enter your answer  '.
-'in the form: ${BITALIC}numerator/denominator$EITALIC. '.
-'Use parentheses as needed.'.
-'$BR Your answer should be in reduced form with integer ' .
-'coefficients. For example:'.
-'$BR $SPACE $SPACE If the correct, reduced answer is: 3/(2x+4)'.
-'$BR $SPACE $SPACE The following will be scored as incorrect: 9/(6x+12) or 1.5/(x+2) or 1/(2/3x+4/3) or (3/2)(1/(x+2))'
-) \}
-END_TEXT
 
-######################################
-#  Answer
+[$frac]*
+END_PGML
 
-$showPartialCorrectAnswers = 1;
+ANS($ans_num->cmp());
+ANS($ans_den->cmp());
 
-$errText = "Your answer is equivalent to the correct answer, but ".
-                 "needs to be simplified further or is not in the expected format. $BR".
-                 "See ${BBOLD}help(entering your answer)$EBOLD ".
-                 "given below for the expected format.";
 
-$answer = Formula("(($a+$c)*x+($a*$d+$c*$b))/((x+$b)*(x+$d))")->reduce;
+#######################################
+##  Solution
+#
+BEGIN_PGML_SOLUTION
+The LCD is [$lcd].    
 
-#--The alternative answer has the factors multiplied out----------
-$answerAlt = Formula("(($a+$c)*x+($a*$d+$c*$b))/(x^2+($b+$d) x+($b*$d))")->reduce;
-
-ANS($answer -> cmp(
-   checker=>sub{
-      my ( $correct, $student, $ansHash ) = @_;
-      return 0 if $ansHash->{isPreview} || $correct != $student;
-      $student = $ansHash->{student_formula};
-      $correct = $correct->{original_formula} if defined $correct->{original_formula};
-      $student = Formula("$student"); $correct = Formula("$correct");
-      return 0 unless ($correct == $student);
-      Context()->flags->set(bizarroDiv=>1,bizarroMul=>1,bizarroAdd=>1);
-      delete $correct->{test_values};
-      delete $student->{test_values};
-      $student = Formula("$student"); $correct = Formula("$correct"); 
-      $correctAlt = Formula("$answerAlt");
-      my $OK = ($correct == $student || $correctAlt == $student);
-      Context()->flags->set(bizarroDiv=>0,bizarroMul=>0,bizarroAdd=>0);
-      Value::Error($errText) unless $OK;
-      return $OK;
-})); 
-
-######################################
-#  Solution
-
-Context()->texStrings;
-BEGIN_SOLUTION
-$BR
-The LCD is \($lcd\).
-\[
+[``
 \begin{aligned} 
-$f1 + $f2 & = $f1\cdot \frac{$mult1}{$mult1} + $f2 \cdot \frac{$mult2}{$mult2} \\
-          & = \frac{$num1}{$lcd} + \frac{$num2}{$lcd} \\
-          & = $answer               
+[$f1] + [$f2] & = [$f1]\cdot \frac{[$mult1]}{[$mult1]} + [$f2] \cdot \frac{[$mult2]}{[$mult2]} \\
+     & = \frac{[$num1]}{[$lcd]} + \frac{[$num2]}{[$lcd]} \\
+     & = \frac{[$ans_num]}{[$ans_den]}               
 \end{aligned}
-\]
-END_SOLUTION
-Context()->normalStrings;
+``]
+END_PGML_SOLUTION
 
 ENDDOCUMENT();
-
-
-
-
 
 
 
