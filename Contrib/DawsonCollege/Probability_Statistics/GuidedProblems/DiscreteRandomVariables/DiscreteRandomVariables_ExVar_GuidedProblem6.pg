@@ -1,0 +1,416 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Binomial RV: Number of Sixes in 4 Die Rolls (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Random Variables)
+## Level(2)
+## KEYWORDS('probability distribution','discrete random variable','binomial','expected value','variance','standard deviation','die rolls')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser flag (hide rating in LB)
+# ----------------------------------------------------------------
+$inLibraryBrowser = $main::inLibraryBrowser || 0;
+
+# =======================================================
+# Context
+# =======================================================
+Context("Numeric");
+
+# =======================================================
+# Data
+# Experiment: roll a fair die 4 times, X = number of sixes.
+# X in {0,1,2,3,4}
+# p = 1/6, q = 5/6
+# P(X=k) = C(4,k) p^k q^(4-k)
+# =======================================================
+
+$p = Compute("1/6");
+$q = Compute("5/6");
+
+$P0 = Compute("(5/6)^4");                      # 625/1296
+$P1 = Compute("4*(1/6)*(5/6)^3");              # 500/1296
+$P2 = Compute("6*(1/6)^2*(5/6)^2");            # 150/1296
+$P3 = Compute("4*(1/6)^3*(5/6)");              # 20/1296
+$P4 = Compute("(1/6)^4");                      # 1/1296
+
+$sumP = Compute("1");
+
+# Work-table xP and x^2P
+$xp0  = Compute("0*(".$P0->string.")");
+$xp1  = Compute("1*(".$P1->string.")");
+$xp2  = Compute("2*(".$P2->string.")");
+$xp3  = Compute("3*(".$P3->string.")");
+$xp4  = Compute("4*(".$P4->string.")");
+
+$x2p0 = Compute("(0^2)*(".$P0->string.")");
+$x2p1 = Compute("(1^2)*(".$P1->string.")");
+$x2p2 = Compute("(2^2)*(".$P2->string.")");
+$x2p3 = Compute("(3^2)*(".$P3->string.")");
+$x2p4 = Compute("(4^2)*(".$P4->string.")");
+
+# Totals
+$EX  = Compute("2/3");        # np = 4*(1/6)
+$EX2 = Compute("1");      # computed from distribution
+$Var = Compute("5/9");        # npq = 4*(1/6)*(5/6)
+$Sig = Compute("sqrt(5)/3");
+
+# Example probability question: P(X>=2)
+$Pge2 = Compute($P2->string . " + " . $P3->string . " + " . $P4->string);  # 171/1296 = 19/144
+$Pge2_simplified = Compute("19/144");
+
+# =======================================================
+# Evaluators
+# =======================================================
+
+# Outcomes / values
+$cmp_n_outcomes = Real(1296)->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 6) < 1e-6 } =>
+    "One roll has 6 outcomes. For 4 rolls, use the multiplication rule (ordered outcomes).",
+));
+$cmp_minX  = Real(0)->cmp;
+$cmp_maxX  = Real(4)->cmp;
+$cmp_kvals = Real(5)->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 4) < 1e-6 } =>
+    "X counts sixes in 4 rolls. It can be 0,1,2,3,4 (that is 5 values).",
+));
+
+# Distribution entries
+$cmp_p0 = $P0->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/1296)) < 1e-6 } =>
+    "1/1296 is P(X=4) (four sixes). For X=0 you want no sixes: (5/6)^4.",
+));
+$cmp_p1 = $P1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (625/1296)) < 1e-6 } =>
+    "That is P(X=0). For X=1 you need exactly one six: 4(1/6)(5/6)^3.",
+));
+$cmp_p2 = $P2->cmp;
+$cmp_p3 = $P3->cmp;
+$cmp_p4 = $P4->cmp;
+
+# Check sum
+$cmp_sumP = $sumP->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (19/144)) < 1e-6 } =>
+    "19/144 is P(X>=2). Here you are checking that ALL probabilities add to 1.",
+));
+
+# Work-table copied probabilities (avoid AnSwEr warnings)
+$cmp_pw0 = $P0->cmp;
+$cmp_pw1 = $P1->cmp;
+$cmp_pw2 = $P2->cmp;
+$cmp_pw3 = $P3->cmp;
+$cmp_pw4 = $P4->cmp;
+
+# Work-table computed columns
+$cmp_xp0  = $xp0->cmp;   $cmp_x2p0 = $x2p0->cmp;
+$cmp_xp1  = $xp1->cmp;   $cmp_x2p1 = $x2p1->cmp;
+$cmp_xp2  = $xp2->cmp;   $cmp_x2p2 = $x2p2->cmp;
+$cmp_xp3  = $xp3->cmp;   $cmp_x2p3 = $x2p3->cmp;
+$cmp_xp4  = $xp4->cmp;   $cmp_x2p4 = $x2p4->cmp;
+
+$cmp_EX  = $EX->cmp;
+$cmp_EX2 = $EX2->cmp;
+
+$cmp_var = $Var->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $_[1]) < 1e-6 } =>
+    "Use Var(X) = E(X^2) - [E(X)]^2, using the two totals from your work table.",
+));
+$cmp_sig = $Sig->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $_[1]) < 1e-6 } =>
+    "Standard deviation is sigma_X = sqrt(Var(X)).",
+));
+
+# Probability question
+$cmp_Pge2 = $Pge2_simplified->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1 - (625/1296) - (500/1296))) < 1e-6 } =>
+    "Good strategy: P(X>=2) = 1 - P(0) - P(1).",
+));
+
+# Final answers
+$cmp_final_EX  = $EX->cmp;
+$cmp_final_sig = $Sig->cmp;
+$cmp_final_Pge2 = $Pge2_simplified->cmp;
+
+# =======================================================
+# Rating (1–5)
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+An ordinary fair die is rolled 4 times. Let [`` X ``] be the number of times the result is 6.
+
+a) Construct the probability distribution of [`` X ``].  
+b) Find [`` E(X) ``].  
+c) Find [`` \sigma_X ``].  
+d) Find [`` P(X \ge 2) ``].
+END_PGML
+Section::End();
+
+Section::Begin("Outcomes and possible values of X");
+BEGIN_PGML
+Think of an outcome as an ordered list of 4 results (like 6,2,1,6).
+
+1) How many equally likely outcomes are there?
+
+[____]{$cmp_n_outcomes}
+
+The random variable counts how many sixes occur in 4 rolls.
+
+2) Smallest possible value of [`` X ``]:
+
+[____]{$cmp_minX}
+
+3) Largest possible value of [`` X ``]:
+
+[____]{$cmp_maxX}
+
+4) How many possible values can [`` X ``] take?
+
+[____]{$cmp_kvals}
+END_PGML
+Section::End();
+
+Section::Begin("Construct the probability distribution (Part a)");
+BEGIN_PGML
+For each [`` k=0,1,2,3,4 ``], you can compute:
+
+[`` P(X=k)=\binom{4}{k}\left(\frac{1}{6}\right)^k\left(\frac{5}{6}\right)^{4-k} ``]
+
+Fill in the probability distribution table. (Fractions are fine.)
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+  </tr>
+  <tr><td style="text-align:center;">0</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p0",12) \}</td></tr>
+  <tr><td style="text-align:center;">1</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p1",12) \}</td></tr>
+  <tr><td style="text-align:center;">2</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p2",12) \}</td></tr>
+  <tr><td style="text-align:center;">3</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p3",12) \}</td></tr>
+  <tr><td style="text-align:center;">4</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p4",12) \}</td></tr>
+</table>
+$ECENTER
+END_TEXT
+
+Section::End();
+
+NAMED_ANS("p0", $cmp_p0);
+NAMED_ANS("p1", $cmp_p1);
+NAMED_ANS("p2", $cmp_p2);
+NAMED_ANS("p3", $cmp_p3);
+NAMED_ANS("p4", $cmp_p4);
+
+Section::Begin("Check the probability distribution");
+BEGIN_PGML
+Check that the probabilities add to 1:
+
+[`` P(0)+P(1)+P(2)+P(3)+P(4)= ``] [____]{$cmp_sumP}
+END_PGML
+Section::End();
+
+Section::Begin("Quick reminders");
+BEGIN_PGML
+Use these steps and formulas:
+
+**Mean (expected value):**  
+Multiply each value by its probability, then add.
+[`` E(X)=\sum x\,P(X=x) ``]
+
+**Variance:**  
+First compute [`` E(X^2) ``] by squaring each [`` x ``], multiplying by its probability, then adding.  
+Then:
+[`` \mathrm{Var}(X)=E(X^2)-[E(X)]^2 ``]
+
+**Standard deviation:**  
+Take the square root of the variance.
+[`` \sigma_X=\sqrt{\mathrm{Var}(X)} ``]
+END_PGML
+Section::End();
+
+Section::Begin("Work table (compute E(X) and E(X^2))");
+BEGIN_PGML
+Copy your probabilities from Part (a) into the second column. Then compute the two calculated columns.
+
+- Column 3: compute [`` xP(X=x) ``]
+- Column 4: compute [`` x^2P(X=x) ``]
+
+Finally, add each calculated column.  
+The total of column 3 is [`` E(X) ``], and the total of column 4 is [`` E(X^2) ``].
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+    <th style="text-align:center;">\(xP(X=x)\)</th>
+    <th style="text-align:center;">\(x^2P(X=x)\)</th>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">0</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw0",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp0",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("x2p0",12) \}</td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">1</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw1",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp1",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("x2p1",12) \}</td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">2</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw2",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp2",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("x2p2",12) \}</td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">3</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw3",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp3",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("x2p3",12) \}</td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">4</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw4",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp4",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("x2p4",12) \}</td>
+  </tr>
+
+  <tr>
+    <td style="text-align:center; font-weight:bold;" colspan="2">Totals</td>
+    <td style="text-align:center;">
+      \{ NAMED_ANS_RULE("EX",12) \}<br/>
+      <span style="font-size:90%;">(this total is \(E(X)\))</span>
+    </td>
+    <td style="text-align:center;">
+      \{ NAMED_ANS_RULE("EX2",12) \}<br/>
+      <span style="font-size:90%;">(this total is \(E(X^2)\))</span>
+    </td>
+  </tr>
+</table>
+$ECENTER
+END_TEXT
+
+Section::End();
+
+# Grade copied probabilities (prevents AnSwEr warnings)
+NAMED_ANS("pw0", $cmp_pw0);
+NAMED_ANS("pw1", $cmp_pw1);
+NAMED_ANS("pw2", $cmp_pw2);
+NAMED_ANS("pw3", $cmp_pw3);
+NAMED_ANS("pw4", $cmp_pw4);
+
+# Grade computed columns + totals
+NAMED_ANS("xp0",  $cmp_xp0);   NAMED_ANS("x2p0", $cmp_x2p0);
+NAMED_ANS("xp1",  $cmp_xp1);   NAMED_ANS("x2p1", $cmp_x2p1);
+NAMED_ANS("xp2",  $cmp_xp2);   NAMED_ANS("x2p2", $cmp_x2p2);
+NAMED_ANS("xp3",  $cmp_xp3);   NAMED_ANS("x2p3", $cmp_x2p3);
+NAMED_ANS("xp4",  $cmp_xp4);   NAMED_ANS("x2p4", $cmp_x2p4);
+
+NAMED_ANS("EX",   $cmp_EX);
+NAMED_ANS("EX2",  $cmp_EX2);
+
+Section::Begin("Compute Var(X) and sigma_X");
+BEGIN_PGML
+Now compute:
+
+1) Variance:
+[`` \mathrm{Var}(X)=E(X^2)-[E(X)]^2 = ``] [____]{$cmp_var}
+
+2) Standard deviation:
+[`` \sigma_X=\sqrt{\mathrm{Var}(X)} = ``] [____]{$cmp_sig}
+END_PGML
+Section::End();
+
+Section::Begin("Compute P(X >= 2) (Part d)");
+BEGIN_PGML
+Use your probability distribution:
+
+[`` P(X \ge 2)=P(X=2)+P(X=3)+P(X=4)= ``] [____]{$cmp_Pge2}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Enter your final results.
+END_PGML
+
+BEGIN_TEXT
+$PAR
+$BR \(E(X)=\) \{ NAMED_ANS_RULE("finalEX",12) \}
+$BR \(\sigma_X=\) \{ NAMED_ANS_RULE("finalSig",12) \}
+$BR \(P(X\ge 2)=\) \{ NAMED_ANS_RULE("finalP",12) \}
+END_TEXT
+
+Section::End();
+
+NAMED_ANS("finalEX",  $cmp_final_EX);
+NAMED_ANS("finalSig", $cmp_final_sig);
+NAMED_ANS("finalP",   $cmp_final_Pge2);
+
+# -------------------------------------------------------
+# Feedback (rating 1–5) (hidden in LB)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning probability distributions and expected value?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

@@ -1,0 +1,508 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Confidence Intervals for a Population Proportion (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Confidence Intervals)
+## DBsection(Confidence Interval for a Population Proportion)
+## Level(2)
+## KEYWORDS('confidence interval','population proportion','sample proportion','normal approximation','success-failure condition','z critical value','confidence level')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data
+# =======================================================
+$n_sample   = 80;
+$x_success  = 52;
+$p_hat_val  = 0.65;
+$q_hat_val  = 0.35;
+
+$np_hat_val = 52;
+$nq_hat_val = 28;
+
+$alpha_98 = Real(0.02);
+
+$z_010 = Real(1.645);
+$z_005 = Real(1.960);
+$z_002 = Real(2.325);
+$z_001 = Real(2.575);
+
+# Approximate 95% CI for the example
+$se_95  = 0.053326;   # sqrt(0.65*0.35/80)
+$me_95  = 0.104519;   # 1.96 * se
+$lcl_95 = 0.545;
+$ucl_95 = 0.755;
+
+# =======================================================
+# Tolerances
+# =======================================================
+$tol_alpha = 0.0005;
+$tol_phat  = 0.0005;
+$tol_count = 0.0005;
+$tol_z     = 0.01;
+
+# =======================================================
+# Comparators
+# =======================================================
+
+# Section B MC: correct choice = 2 (phat)
+$cmp_point_est = Real(2)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+    return ($v == 2) ? 1 : 0;
+  }
+)->withPostFilter(
+  HintIfWrong("The appropriate point estimate for p is the sample proportion phat.")
+);
+
+$cmp_alpha_98 = $alpha_98->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_alpha
+)->withPostFilter(
+  HintIfWrong("For a 98% confidence level, 1 - alpha = 0.98, so alpha = 0.02.")
+);
+
+$cmp_phat = Real($p_hat_val)->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_phat
+)->withPostFilter(
+  HintIfWrong("Use phat = x/n = number of successes divided by the sample size.")
+);
+
+$cmp_np_hat = Real($np_hat_val)->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_count
+)->withPostFilter(
+  HintIfWrong("Compute n(phat) using your value of phat.")
+);
+
+$cmp_nq_hat = Real($nq_hat_val)->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_count
+)->withPostFilter(
+  HintIfWrong("Compute n(1-phat). Since phat = 0.65, 1-phat = 0.35.")
+);
+
+$cmp_z_010 = $z_010->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong("For alpha = 0.10, alpha/2 = 0.05, so the cutoff is z_(0.05) = 1.645.")
+);
+
+$cmp_z_005 = $z_005->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong("For alpha = 0.05, alpha/2 = 0.025, so the cutoff is z_(0.025) = 1.960.")
+);
+
+$cmp_z_002 = $z_002->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong("For alpha = 0.02, alpha/2 = 0.01, so the cutoff is z_(0.01) = 2.326.")
+);
+
+$cmp_z_001 = $z_001->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong("For alpha = 0.01, alpha/2 = 0.005, so the cutoff is z_(0.005) = 2.576.")
+);
+
+# Section G MC: correct choice = 3
+$cmp_interp = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+    return ($v == 3) ? 1 : 0;
+  }
+)->withPostFilter(
+  HintIfWrong("A confidence interval for p is interpreted as a plausible range for the true population proportion.")
+);
+
+# Rating checker
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "always",
+    is_open  => "always"
+  );
+} else {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "when_previous_correct",
+    is_open  => "correct_or_first_incorrect"
+  );
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_PGML
+In this Guided Problem, we introduce the idea of a confidence interval for the population proportion [``p``].
+
+Suppose a random sample of size [``n``] is taken from a population, and each individual answers a yes/no question. For example, do you prefer this new product to the old one?
+
+The goal is to estimate the true population proportion [``p``] of the individuals who prefer the new product, using the sample proportion [``\hat p``].
+
+In this GP, you will learn:
+
+- what a [``100(1-\alpha)\%``] confidence interval means,
+- what the appropriate point estimate for [``p``] is,
+- the formula for a confidence interval for [``p``],
+- the expected success-failure conditions needed for the normal approximation,
+- the common cutoff values [``z_{\alpha/2}``],
+- and how to interpret a confidence interval in context.
+
+For confidence intervals for [``p``], the cutoff comes from the **normal table**.
+
+Rounding: Round cutoff values to 3 decimals.
+END_PGML
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Section B
+# -------------------------------------------------------
+Section::Begin("Section B — Appropriate point estimate for p");
+
+BEGIN_PGML
+A confidence interval for [``p``] has the form
+
+[``\text{estimate} \pm \text{margin of error}``]
+
+What is the appropriate point estimate for the population proportion [``p``]?
+
+1) [``p``]  
+2) [``\hat p``]  
+3) [``\sigma``]  
+4) [``s``]  
+5) [``\alpha``]
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_point_est);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Section C
+# -------------------------------------------------------
+Section::Begin("Section C — Level of confidence");
+
+BEGIN_PGML
+When we build a confidence interval, we must consider the required level of confidence.
+
+Common values are usually [``90\%``] ([``\alpha = 0.10``]), [``95\%``] ([``\alpha = 0.05``]), and [``99\%``] ([``\alpha = 0.01``]).
+
+The confidence level describes how the method behaves over many random samples. For example, a [``95\%``] level of confidence means [``95\%``] of intervals built using this method, by repeatedly sampling the population, will capture the actual [``p``].
+
+If the confidence level is [``98\%``], enter the value of [``\alpha``]:
+
+[____]
+END_PGML
+
+ANS($cmp_alpha_98);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Section D
+# -------------------------------------------------------
+Section::Begin("Section D — Formula and sample proportion");
+
+BEGIN_PGML
+The confidence interval formula for a population proportion is
+
+[``\hat p \pm z_{\alpha/2}\sqrt{\dfrac{\hat p(1-\hat p)}{n}}``]
+
+Here:
+
+- [``\hat p``], called the sample proportion, is the center of the interval,
+- [``z_{\alpha/2}``] is the cutoff from the **normal table**,
+- and [``\sqrt{\dfrac{\hat p(1-\hat p)}{n}}``] is the standard error.
+
+A survey of [``80``] customers found that [``52``] prefer a new product.
+
+Enter the sample proportion [``\hat p``]:
+
+[____]
+END_PGML
+
+ANS($cmp_phat);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 — Section E
+# -------------------------------------------------------
+Section::Begin("Section E — Expected success-failure conditions");
+
+BEGIN_PGML
+For the normal approximation to be reasonable when building a confidence interval for [``p``], we check the expected success-failure conditions:
+
+[``n\hat p \ge 5 \qquad \text{and} \qquad n(1-\hat p)\ge 5``]
+
+Using the same sample with [``n=80``] and your value of [``\hat p``], compute:
+
+1) [``n\hat p``] = [____]
+
+2) [``n(1-\hat p)``] = [____]
+
+If both values are at least [``5``], then the normal approximation is reasonable.
+END_PGML
+
+ANS($cmp_np_hat, $cmp_nq_hat);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 6 — Section F
+# -------------------------------------------------------
+Section::Begin("Section F — Cutoff values from the normal table");
+
+BEGIN_PGML
+For a [``100(1-\alpha)\%``] confidence interval:
+
+- the middle area is [``1-\alpha``]
+- the total area in the two tails is [``\alpha``]
+- each tail has area [``\alpha/2``]
+- the positive cutoff is [``z_{\alpha/2}``]
+
+[@ image("cutoff.jpg", width=>520) @]*
+
+Now use the normal table to find the positive cutoff [``z_{\alpha/2}``] for each value of [``\alpha``].
+
+For [``\alpha = 0.10``], enter [``z_{\alpha/2}``]: [____]
+
+For [``\alpha = 0.05``], enter [``z_{\alpha/2}``]: [____]
+
+For [``\alpha = 0.02``], enter [``z_{\alpha/2}``]: [____]
+
+For [``\alpha = 0.01``], enter [``z_{\alpha/2}``]: [____]  
+
+Note that smaller [``\alpha``] means higher confidence level, which is desirable. However, smaller [``\alpha``] also means a bigger cutoff value that will result in a bigger margin of error for the confidence interval. This is a trade-off. Higher confidence level comes at the expense of a wider, and thus less precise, confidence interval.
+END_PGML
+
+ANS($cmp_z_010, $cmp_z_005, $cmp_z_002, $cmp_z_001);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 7 — Section G
+# -------------------------------------------------------
+Section::Begin("Section G — Interpretation in context");
+
+BEGIN_PGML
+Using the sample of [``80``] customers with [``52``] successes, a [``95\%``] confidence interval for the true population proportion [``p``] is approximately
+
+[``(0.545,\ 0.755)``]
+
+Choose the best interpretation.
+
+1) [``95\%``] of the customers in this sample prefer the new product.  
+2) There is a [``95\%``] chance that [``p``] is exactly [``0.65``].  
+3) We are [``95\%``] confident that the true proportion of all customers who prefer the new product is between [``0.545``] and [``0.755``].  
+4) [``95\%``] of all possible sample proportions must lie between [``0.545``] and [``0.755``].  
+5) The interval proves that exactly [``65\%``] of all customers prefer the new product.
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_interp);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+**1. Appropriate point estimate**
+
+A confidence interval for [``p``] is centered at the sample proportion.
+
+So the appropriate point estimate for the population proportion [``p``] is
+
+[``\hat p``]
+
+**2. Confidence level and alpha**
+
+If the confidence level is [``98\%``], then
+
+[``1-\alpha = 0.98``]
+
+so
+
+[``\alpha = 0.02``]
+
+The confidence level describes the long-run success rate of the method. For example, a [``95\%``] confidence level means that if we repeatedly sample the population and build intervals the same way each time, about [``95\%``] of those intervals will capture the true [``p``].
+
+**3. Formula for a confidence interval for p**
+
+The formula is
+
+[``\hat p \pm z_{\alpha/2}\sqrt{\dfrac{\hat p(1-\hat p)}{n}}``]
+
+Here:
+
+- [``\hat p``] is the center,
+- [``z_{\alpha/2}``] is the cutoff from the normal table,
+- and [``\sqrt{\dfrac{\hat p(1-\hat p)}{n}}``] is the standard error.
+
+**4. Compute the sample proportion**
+
+In the sample, [``52``] out of [``80``] customers are successes.
+
+So
+
+[``\hat p = \dfrac{52}{80} = 0.65``]
+
+**5. Expected success-failure conditions**
+
+We check:
+
+[``n\hat p \ge 5 \qquad \text{and} \qquad n(1-\hat p)\ge 5``]
+
+Since [``\hat p=0.65``], we have
+
+[``n\hat p = 80(0.65)=52``]
+
+and
+
+[``n(1-\hat p)=80(0.35)=28``]
+
+Both values are at least [``5``], so the normal approximation is reasonable.
+
+**6. Cutoff values**
+
+For a [``100(1-\alpha)\%``] confidence interval, each tail has area [``\alpha/2``], and the positive cutoff is [``z_{\alpha/2}``].
+
+The common cutoff values are:
+
+- for [``\alpha = 0.10``]: [``z_{0.05} = 1.645``]
+- for [``\alpha = 0.05``]: [``z_{0.025} = 1.960``]
+- for [``\alpha = 0.02``]: [``z_{0.01} = 2.325``]
+- for [``\alpha = 0.01``]: [``z_{0.005} = 2.575``]
+
+**7. Approximate 95% confidence interval**
+
+Using [``\hat p=0.65``], [``n=80``], and [``z_{0.025}=1.96``]:
+
+First compute the standard error:
+
+[``\sqrt{\dfrac{(0.65)(0.35)}{80}} \approx 0.0533``]
+
+Then the margin of error is
+
+[``1.96(0.0533)\approx 0.1045``]
+
+So the confidence interval is
+
+[``0.65 \pm 0.1045``]
+
+which gives
+
+[``(0.545,\ 0.755)``]
+
+**8. Interpretation in context**
+
+The correct interpretation is:
+
+We are [``95\%``] confident that the true proportion of all customers who prefer the new product is between [``0.545``] and [``0.755``].
+
+That means this interval gives a plausible range for the population proportion [``p``]. It does **not** mean that [``95\%``] of the sample had to be successes, and it does **not** mean that [``p``] has a [``95\%``] chance of being a single exact value.
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

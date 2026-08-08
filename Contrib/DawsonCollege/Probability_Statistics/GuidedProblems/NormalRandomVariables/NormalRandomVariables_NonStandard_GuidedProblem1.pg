@@ -1,0 +1,333 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Standardizing: Using the z-table for Non-Standard Normal Variables (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Normal Distribution)
+## Level(2)
+## KEYWORDS('normal distribution','standardization','z score','z table','non-standard normal','cutoff')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+# Images (put in same folder as this .pg file)
+$IMG_STD   = "non_st_to_st.jpg";
+$IMG_THEORY = "nonstandard_theory.jpg";  # <-- rename this to match your actual filename if different
+
+# Main variable for Practices 1-6
+$mu    = Real(70);
+$sigma = Real(8);
+
+# Warm-up z-scores
+$z_78 = Real("1.00");     # (78-70)/8
+$z_62 = Real("-1.00");    # (62-70)/8
+
+# Probabilities (computed internally; not shown to students)
+$p_X_lt_78   = Real("0.8413");  # P(X<78)
+$p_X_gt_62   = Real("0.8413");  # P(X>62)
+$p_66_82      = Real("0.6247");  # P(66<X<82)
+$p_within_12  = Real("0.8664");  # P(58<X<82)
+
+# Reverse cutoff: P(X < x*) = 0.95  => x* = 70 + (1.6448536269)(8)
+$x_star_95 = Real("83.16");
+
+# NEW last reverse problem (same non-standard normal):
+# Find x* such that P(|X-70| < x*) = 0.90 with X~N(70,8).
+# Standardize: |X-70|<x*  <=>  |Z| < x*/8
+# Need z* where P(|Z|<z*)=0.90  => z* ≈ 1.6448536269
+# Thus x* = 8 z* ≈ 13.1588290156
+$x_star_abs90 = Real("13.16");
+
+# Tolerances
+$tol_z   = 0.005;      # z-scores to 2 decimals
+$tol_p   = 0.00005;    # probabilities to 4 decimals
+$tol_x3  = 0.0005;     # cutoffs to 3 decimals
+
+# Answer evaluators (with gentle AnswerHints)
+$cmp_z1 = $z_78->cmp(tolType=>"absolute", tolerance=>$tol_z)->withPostFilter(AnswerHints(
+  0.00 => "Make sure you subtract the mean first, then divide by the standard deviation."
+));
+$cmp_z2 = $z_62->cmp(tolType=>"absolute", tolerance=>$tol_z)->withPostFilter(AnswerHints(
+  1.00 => "Check the sign: 62 is below the mean, so the z-score should be negative."
+));
+
+$cmp_p1 = $p_X_lt_78->cmp(tolType=>"absolute", tolerance=>$tol_p)->withPostFilter(AnswerHints(
+  0.5000 => "If you got 0.5, you may have used z=0. Recheck your z-score."
+));
+$cmp_p2 = $p_X_gt_62->cmp(tolType=>"absolute", tolerance=>$tol_p)->withPostFilter(AnswerHints(
+  0.1587 => "That is a common left-tail value for z=-1. This question is a right tail."
+));
+$cmp_p3 = $p_66_82->cmp(tolType=>"absolute", tolerance=>$tol_p)->withPostFilter(AnswerHints(
+  0.9332 => "That looks like a single left-tail. This one is between two cutoffs."
+));
+$cmp_p4 = $p_within_12->cmp(tolType=>"absolute", tolerance=>$tol_p)->withPostFilter(AnswerHints(
+  0.5000 => "This is not centered at 0 in X-units; first convert both endpoints to z-scores."
+));
+
+$cmp_x1 = $x_star_95->cmp(tolType=>"absolute", tolerance=>$tol_x3)->withPostFilter(AnswerHints(
+  70 => "If you answered the mean, you probably stopped after finding z*."
+));
+$cmp_x2 = $x_star_abs90->cmp(tolType=>"absolute", tolerance=>$tol_x3)->withPostFilter(AnswerHints(
+  1.645 => "That is the z* value. Convert it back to X-units by multiplying by sigma."
+));
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "always",
+    is_open  => "always",
+  );
+} else {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "when_previous_correct",
+    is_open  => "correct_or_first_incorrect",
+  );
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement and Goal
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Let [``X``] be a normally distributed random variable.
+
+**Goal:** Use your standard normal table by first converting a probability about [``X``] into a probability about a standard normal variable [``Z``].
+
+In Practices 1 to 6, assume:
+
+[``X \sim N(70,8)``]
+
+Here [``70``] is the mean and [``8``] is the standard deviation.
+
+Rounding:
+- Round **z-scores** to **2 decimals**.
+- Round **probabilities** to **4 decimals**.
+- Round **cutoffs** like [``x^*``] to **3 decimals**.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Standardizing theory + picture
+# -------------------------------------------------------
+Section::Begin("Standardizing (same shaded area)");
+BEGIN_PGML
+**Theory (standardizing an interval):**
+
+If [``X \sim N(\mu,\sigma)``], then
+
+[``P(a<X<b)=P\!\left(\dfrac{a-\mu}{\sigma}<Z<\dfrac{b-\mu}{\sigma}\right)``]
+
+where [``Z``] is a standard normal random variable.
+
+Here is the same idea as a picture: the shaded area (probability) stays the same after standardizing.
+
+[@ image("$IMG_STD", width=>760) @]*
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Warm-up: compute z-scores
+# -------------------------------------------------------
+Section::Begin("Warm-up: compute z-scores");
+BEGIN_PGML
+Compute each z-score (round to 2 decimals).
+
+1) For [``x=78``], compute [``z=\dfrac{x-\mu}{\sigma}=\dfrac{x-70}{8}``].  
+[____]
+
+2) For [``x=62``], compute [``z=\dfrac{x-\mu}{\sigma}=\dfrac{x-70}{8}``].  
+[____]
+END_PGML
+
+ANS($cmp_z1, $cmp_z2);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Practice 1: left tail probability
+# -------------------------------------------------------
+Section::Begin("Practice 1");
+BEGIN_PGML
+Find [``P(X<78)``] (round to 4 decimals).
+
+Hint: From the previous step, the z-score for 78 is [``1``]. So [``P(X<78)=P(Z<1)``], Use your table to find the answer.
+
+Answer: [____]
+END_PGML
+
+ANS($cmp_p1);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 — Practice 2: right tail probability
+# -------------------------------------------------------
+Section::Begin("Practice 2");
+BEGIN_PGML
+Find [``P(X>62)``] (round to 4 decimals).
+
+Hint: From step (c), the z-score for 62 is [``-1``]. So [``P(X>62)=P(Z>-1)``], Use your table to find the answer.
+
+Answer: [____]
+END_PGML
+
+ANS($cmp_p2);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 6 — Practice 3: between two numbers
+# -------------------------------------------------------
+Section::Begin("Practice 3");
+BEGIN_PGML
+Find [``P(66<X<82)``] (round to 4 decimals).
+
+Hint: Convert both endpoints to z-scores:
+[``z_1=\dfrac{66-70}{8}``] and [``z_2=\dfrac{82-70}{8}``].
+Then find [``P(z_1<Z<z_2)``].
+
+Answer: [____]
+END_PGML
+
+ANS($cmp_p3);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 7 — Practice 4: within 12 of the mean
+# -------------------------------------------------------
+Section::Begin("Practice 4");
+BEGIN_PGML
+Find the probability that [``X``] is within 12 of its mean (round to 4 decimals):
+
+[``P(70-12 < X < 70+12)``]
+
+Hint: First rewrite the interval as [``P(58<X<82)``].
+Convert both endpoints to z-scores, then use your table.
+
+Answer: [____]
+END_PGML
+
+ANS($cmp_p4);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 8 — Practice 5: reverse problem (left tail cutoff)
+# -------------------------------------------------------
+Section::Begin("Practice 5 (reverse problem)");
+BEGIN_PGML
+Find the cutoff [``x^*``] such that:
+
+[``P(X<x^*)=0.95``]
+
+Hint: First find [``z^*``] such that [``P(Z<z^*)=0.95``] using your table. You will realize that the exact same area is not in the table. However, the closest cutoffs are [``1.64``] for [``0.9495``] and [``1.65``] for [``0.9505``]. Take the average for these two cutoff values.
+Then convert back using:
+
+[``x^* = \mu +(z^*)(\sigma) = 70 + (z^*)(8)``]
+
+Enter [``x^*``] (round to 3 decimals): [____]
+END_PGML
+
+ANS($cmp_x1);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 9 — Practice 6: reverse problem with |X-70|
+# -------------------------------------------------------
+Section::Begin("Practice 6 (reverse problem, centered at the mean)");
+BEGIN_PGML
+Find [``d``] such that:
+
+[``P(|X-70|<d)=0.90``]
+
+Hint: Rewrite the event as [``P(70-d < X < 70+d)=0.90``].
+
+Standardize both endpoints. This becomes:
+
+[``P\!\left(-\dfrac{d}{8} < Z < \dfrac{d}{8}\right)=0.90``]
+
+So you first find [``z^*``] such that [``P(-z^*<Z<z^*)=0.90``], and then convert back:
+
+[``d = (z^*)(8)``]
+
+Enter [``d``] (round to 3 decimals): [____]
+END_PGML
+
+ANS($cmp_x2);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  # Any integer 1–5 should be marked correct.
+  $cmp_rating = Real(3)->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+      return 0 unless defined $student;
+      my $s = $student->value;
+      return 0 unless defined $s;
+      return 0 unless $s == int($s);
+      return 0 unless ($s >= 1 && $s <= 5);
+      return 1;
+    }
+  );
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

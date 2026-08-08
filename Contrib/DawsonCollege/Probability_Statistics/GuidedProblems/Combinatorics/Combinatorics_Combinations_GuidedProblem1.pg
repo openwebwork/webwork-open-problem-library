@@ -1,0 +1,182 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Combinations: Group of 3 from 10 (nCr) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Combinatorics)
+## DBsection(Combinations)
+## Level(1)
+## KEYWORDS('combination','nCr','order does not matter','group','binomial coefficient','factorial','overcounting')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+$n = 10;
+$r = 3;
+
+$stage1 = $n;         # first pick (if order mattered)
+$stage2 = $n - 1;     # second pick
+$stage3 = $n - 2;     # third pick
+
+$P_n_r   = $stage1 * $stage2 * $stage3;   # 10*9*8 = 720
+$r_fact  = 6;                               # 3! = 6
+$C_n_r   = $P_n_r / $r_fact;                # 120
+
+$val_stage1 = Real($stage1);
+$val_stage2 = Real($stage2);
+$val_stage3 = Real($stage3);
+$val_perm   = Real($P_n_r);
+$val_rfact  = Real($r_fact);
+$val_final  = Real($C_n_r);
+
+# =======================================================
+# Precompute evaluators (LB-friendly)
+# =======================================================
+$cmp_stage1 = $val_stage1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-9) < 0.5 }  => "The first pick is made before anyone is chosen, so you start with all 10 students.",
+));
+
+$cmp_stage2 = $val_stage2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-10) < 0.5 } => "After the first student is chosen, there is one fewer student available.",
+  sub { abs($_[0]-8) < 0.5 }  => "This is the second stage: only one student has been used so far.",
+));
+
+$cmp_stage3 = $val_stage3->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-9) < 0.5 }  => "This is the third stage: two students have already been used.",
+));
+
+$cmp_perm = $val_perm->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-($stage1+$stage2+$stage3)) < 0.5 } => "It looks like you added instead of multiplying.",
+  sub { abs($_[0]-1000) < 0.5 } => "1000 is \(10^3\). That would allow repeats. Here, you cannot pick the same student twice.",
+));
+
+$cmp_rfact = $val_rfact->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-3) < 0.5 } => "That is not \(3!\). Factorial means multiply: \(3!=3\cdot2\cdot1\).",
+  sub { abs($_[0]-2) < 0.5 } => "You may have used only \(2!\). For 3 chosen students, the number of orders is \(3!\).",
+));
+
+$cmp_final = $val_final->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-$P_n_r) < 0.5 } => "That counts ordered selections (permutations). A group ignores order, so you must divide by \(3!\).",
+  sub { abs($_[0]-60) < 0.5 } => "60 suggests dividing by 12. For a group of 3, the overcount factor is \(3!\), not 12.",
+  sub { abs($_[0]-1000) < 0.5 } => "1000 is \(10^3\). That allows repeats and order. For a group: no repeats, and order does not matter.",
+));
+
+$cmp_rating = Real(3)->cmp(checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return ($v == int($v) && $v >= 1 && $v <= 5);
+  })->withPostFilter(AnswerHints(
+    sub { $_[0] < 1 || $_[0] > 5 } => "Please enter an integer from 1 to 5.",
+    sub { $_[0] != int($_[0]) } => "Please enter a whole number (integer) from 1 to 5.",
+  ));
+
+# =======================================================
+# Guided flow (Scaffold)
+# =======================================================
+Scaffold::Begin();
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A class has **10 students**.
+
+In how many different ways can we form a **group of 3 students**?
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Count as if order matters (temporary step)");
+BEGIN_PGML
+First, count as if the group was chosen in **stages** (like an ordered list):
+
+- pick a **first** student,
+- then pick a **second** student from the remaining,
+- then pick a **third** student from the remaining.
+
+Fill in the number of choices at each stage:
+
+Stage 1: [____]{$cmp_stage1}
+
+Stage 2: [____]{$cmp_stage2}
+
+Stage 3: [____]{$cmp_stage3}
+
+Now multiply (Multiplication Principle):
+
+Ordered count = (stage 1)(stage 2)(stage 3) = [__________]{$cmp_perm}
+
+Note: This is an over-count of the number of groups of 3 one can make out of 10 students. Because order does not matter in a group.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Combination (definition and formula)");
+BEGIN_PGML
+A **combination** is a selection where **order does not matter**.
+
+But the previous step counted *orders*.
+For example, choosing (Alex, Ben, Chloe) and (Ben, Chloe, Alex) is the **same group** of 3 students.
+
+How many different orders (permutations) can the same 3-student group have?
+
+That number is [`3!`].
+
+Compute [`3!`]: [____]{$cmp_rfact}
+
+So the combination count is:
+
+[`` C(10,3)=\dfrac{P(10,3)}{3!}=\dfrac{10!}{(3!)(7!)}. ``]
+
+Compute [`C(10,3)`]: [__________]{$cmp_final}
+
+In general, the number of combinations of **n** distinct objects taken **r** at a time is:
+[`` C(n,r)=\binom{n}{r}=\dfrac{n!}{r!(n-r)!}. ``]
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

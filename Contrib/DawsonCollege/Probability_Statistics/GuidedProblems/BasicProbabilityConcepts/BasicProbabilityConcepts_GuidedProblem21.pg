@@ -1,0 +1,265 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Specificity and False Positives (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability and Independence)
+## Level(2)
+## KEYWORDS('probability','independence','specificity','false positive','complement rule','diagnostic test')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Parameters
+# specificity = P(negative | no disease)
+# For a person with no disease:
+#   P(positive) = 1 - specificity  (false positive rate)
+# =======================================================
+our $spec = 0.89;
+our $pA   = 1 - $spec;          # P(A) = Lab 1 positive (false positive)
+our $pB   = 1 - $spec;          # P(B) = Lab 2 positive (false positive), same procedure
+
+our $pAiB = $pA * $pB;          # P(A ∩ B) for independent labs
+
+# =======================================================
+# Numeric comparators
+# =======================================================
+Context("Numeric");
+
+our $cmp_pA   = Real($pA)->cmp(   tolType => "absolute", tolerance => 0.001 );
+our $cmp_pAiB = Real($pAiB)->cmp( tolType => "absolute", tolerance => 0.001 );
+
+# =======================================================
+# Moral MC (5 options; correct is D to vary)
+# =======================================================
+our $rb_moral = RadioButtons(
+  [
+    "Getting tested twice guarantees you will never get a false positive.",
+    "Testing at two labs increases the chance of a false positive.",
+    "Specificity is the probability the test is positive for a healthy person.",
+    "Getting tested at two independent labs decreases the chance of false positives significantly.",
+    "Independence means the two labs always give the same result.",
+  ],
+  3,                    # 0-based index => D
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Rating checker (integer 1..5)
+# =======================================================
+our ($rating, $rating_cmp);
+
+if ($ENABLE_GP_RATING) {
+
+  $rating = Real(3);   # placeholder only
+
+  $rating_cmp = $rating->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+
+      if (!defined($student)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $val;
+      eval { $val = $student->value; };
+      if (!defined($val)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $ival = int($val);
+      if (abs($val - $ival) > 1e-12) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      if ($ival < 1 || $ival > 5) {
+        $ansHash->{ans_message} = "Your rating must be 1, 2, 3, 4, or 5.";
+        return 0;
+      }
+
+      return 1;
+    }
+  );
+}
+
+# =======================================================
+# Scaffold (sequential gating)
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_TEXT
+The <b>specificity</b> of a diagnostic test for a disease is the probability that the test will be <b>negative</b> when administered to a person who <b>does not</b> have the disease.
+The higher the specificity, the lower the false positive rate.
+$PAR
+Suppose the specificity of a diagnostic procedure is \(89\%\).
+$PAR
+A person who does <b>not</b> have the disease is tested for it using this procedure.
+$PAR
+Define events:
+$BR
+\(A\): Lab 1 result is <b>positive</b> (for a person who does not have the disease)
+$BR
+\(B\): Lab 2 result is <b>positive</b> (for a person who does not have the disease)
+$PAR
+(a) What is the probability that the test result will be positive?
+$BR
+(b) If two independent laboratories test the person, what is the probability that <b>both</b> test results will be positive?
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Translate specificity into P(A)");
+
+BEGIN_TEXT
+Since the person does not have the disease, the specificity \(0.89\) means:
+$BR
+The probability the test is <b>negative</b> is \(0.89\).
+$PAR
+A positive result is the opposite of a negative result in this situation.
+So the probability of a positive result is the <b>complement</b>.
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Part (a): one lab false positive");
+
+BEGIN_TEXT
+Compute the probability that the test result is <b>positive</b>.
+$PAR
+In our notation, this is \(P(A)\).
+$PAR
+<b>Hint:</b> Use the complement of the specificity.
+$PAR
+\(P(A)\) = \{ NAMED_ANS_RULE("pA",12) \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pA", $cmp_pA);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Part (b): two independent labs both positive");
+
+BEGIN_TEXT
+Now suppose two <b>independent</b> laboratories test the person using this procedure.
+$PAR
+We want the probability that <b>both</b> results are positive.
+That event is \(A \cap B\).
+$PAR
+<b>Hint:</b> Independence means Lab 1 being positive does not affect the probability Lab 2 is positive.
+So you can multiply the probabilities.
+Also, both labs use the same procedure, so \(P(A)=P(B)\).
+$PAR
+\(P(A \cap B)\) = \{ NAMED_ANS_RULE("pAiB",12) \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pAiB", $cmp_pAiB);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Moral of the story");
+
+BEGIN_TEXT
+<b>Checkpoint:</b> What is the moral of the story?
+$PAR
+\{ $rb_moral->buttons \}
+END_TEXT
+
+ANS($rb_moral->cmp());
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING (fixed: keep Numeric inside the block)
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+
+  Context("Numeric");
+
+  our $rating = Real(3);   # placeholder only
+
+  our $rating_cmp = $rating->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+
+      if (!defined($student)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $val;
+      eval { $val = $student->value; };
+      if (!defined($val)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $ival = int($val);
+      if (abs($val - $ival) > 1e-12) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      if ($ival < 1 || $ival > 5) {
+        $ansHash->{ans_message} = "Your rating must be 1, 2, 3, 4, or 5.";
+        return 0;
+      }
+
+      return 1;
+    }
+  );
+
+  BEGIN_PGML
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating: [__]{$rating_cmp}
+END_PGML
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

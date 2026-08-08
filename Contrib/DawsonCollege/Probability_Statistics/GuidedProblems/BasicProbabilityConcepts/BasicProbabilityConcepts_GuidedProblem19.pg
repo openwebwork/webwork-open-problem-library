@@ -1,0 +1,286 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Conditional Probability from a 2x2 Table (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability)
+## Level(2)
+## KEYWORDS('probability','conditional probability','contingency table','independence','blood pressure','exercise')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Given joint proportions
+# E = exercises regularly
+# B = high blood pressure
+# =======================================================
+our $pEB   = 0.06;  # P(E and B)
+our $pEcB  = 0.18;  # P(not E and B)
+our $pEBc  = 0.26;  # P(E and not B)
+
+# Missing cell computed from total probability = 1
+our $pEcBc = 1 - ($pEB + $pEcB + $pEBc);  # P(not E and not B)
+
+# Row/column totals
+our $pE   = $pEB + $pEBc;
+our $pEc  = $pEcB + $pEcBc;
+our $pB   = $pEB + $pEcB;
+our $pBc  = $pEBc + $pEcBc;
+
+# Conditional probabilities
+our $pBgE  = $pEB  / $pE;    # P(B|E)
+our $pBgEc = $pEcB / $pEc;   # P(B|not E)
+
+# =======================================================
+# Numeric comparators
+# =======================================================
+Context("Numeric");
+
+our $cmp_pEB   = Real($pEB)->cmp(   tolType => "absolute", tolerance => 0.001 );
+our $cmp_pEBc  = Real($pEBc)->cmp(  tolType => "absolute", tolerance => 0.001 );
+our $cmp_pEcB  = Real($pEcB)->cmp(  tolType => "absolute", tolerance => 0.001 );
+our $cmp_pEcBc = Real($pEcBc)->cmp( tolType => "absolute", tolerance => 0.001 );
+
+our $cmp_pE    = Real($pE)->cmp(   tolType => "absolute", tolerance => 0.001 );
+our $cmp_pEc   = Real($pEc)->cmp(  tolType => "absolute", tolerance => 0.001 );
+our $cmp_pB    = Real($pB)->cmp(   tolType => "absolute", tolerance => 0.001 );
+our $cmp_pBc   = Real($pBc)->cmp(  tolType => "absolute", tolerance => 0.001 );
+our $cmp_one   = Real(1)->cmp(     tolType => "absolute", tolerance => 0.001 );
+
+our $cmp_pBgE  = Real($pBgE)->cmp(  tolType => "absolute", tolerance => 0.001 );
+our $cmp_pBgEc = Real($pBgEc)->cmp( tolType => "absolute", tolerance => 0.001 );
+
+# Conclusion MC (correct: non-exercisers more likely to have high BP)
+our $rb_conclusion = RadioButtons(
+  [
+    "People who exercise regularly tend to have high blood pressure more often.",
+    "People who do not exercise regularly tend to have high blood pressure more often.",
+    "There is no difference (the probabilities are the same).",
+  ],
+  1,                      # 0-based index => option B
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Rating checker (integer 1..5)
+# =======================================================
+our ($rating, $rating_cmp);
+
+if ($ENABLE_GP_RATING) {
+
+  $rating = Real(3);   # placeholder only
+
+  $rating_cmp = $rating->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+
+      if (!defined($student)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $val;
+      eval { $val = $student->value; };
+      if (!defined($val)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $ival = int($val);
+      if (abs($val - $ival) > 1e-12) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      if ($ival < 1 || $ival > 5) {
+        $ansHash->{ans_message} = "Your rating must be 1, 2, 3, 4, or 5.";
+        return 0;
+      }
+
+      return 1;
+    }
+  );
+}
+
+# =======================================================
+# Scaffold (sequential gating)
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_TEXT
+Suppose that in an adult population the proportion of people who <b>exercise regularly</b> and have <b>high blood pressure</b> is \(0.06\).
+The proportion of people who <b>do not exercise regularly</b> but have <b>high blood pressure</b> is \(0.18\).
+The proportion of people who <b>exercise regularly</b> but <b>do not</b> have high blood pressure is \(0.26\).
+$PAR
+An adult is randomly selected from this population.
+$PAR
+Let:
+$BR
+\(E\): the person exercises regularly
+$BR
+\(B\): the person has high blood pressure
+$PAR
+We will compute:
+$BR
+(a) \(P(B \mid E)\)
+$BR
+(b) \(P(B \mid E^c)\)
+$BR
+(c) Compare the two results.
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Complete the 2x2 table");
+
+BEGIN_TEXT
+Complete the contingency table below. Enter probabilities as decimals (or fractions).
+$PAR
+<b>Hint:</b> The missing cell can be found because the four joint probabilities must add up to 1.
+$PAR
+
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr>
+    <th></th>
+    <th>High blood pressure \(B\)</th>
+    <th>No high blood pressure \(B^c\)</th>
+    <th>Row total</th>
+  </tr>
+
+  <tr>
+    <th>Exercises \(E\)</th>
+    <td>\{ NAMED_ANS_RULE("pEB",8) \}</td>
+    <td>\{ NAMED_ANS_RULE("pEBc",8) \}</td>
+    <td>\{ NAMED_ANS_RULE("pE",8) \}</td>
+  </tr>
+
+  <tr>
+    <th>Does not exercise \(E^c\)</th>
+    <td>\{ NAMED_ANS_RULE("pEcB",8) \}</td>
+    <td>\{ NAMED_ANS_RULE("pEcBc",8) \}</td>
+    <td>\{ NAMED_ANS_RULE("pEc",8) \}</td>
+  </tr>
+
+  <tr>
+    <th>Column total</th>
+    <td>\{ NAMED_ANS_RULE("pB",8) \}</td>
+    <td>\{ NAMED_ANS_RULE("pBc",8) \}</td>
+    <td>\{ NAMED_ANS_RULE("pTot",8) \}</td>
+  </tr>
+</table>
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pEB",   $cmp_pEB);
+NAMED_ANS("pEBc",  $cmp_pEBc);
+NAMED_ANS("pEcB",  $cmp_pEcB);
+NAMED_ANS("pEcBc", $cmp_pEcBc);
+
+NAMED_ANS("pE",    $cmp_pE);
+NAMED_ANS("pEc",   $cmp_pEc);
+NAMED_ANS("pB",    $cmp_pB);
+NAMED_ANS("pBc",   $cmp_pBc);
+NAMED_ANS("pTot",  $cmp_one);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Part (a): P(B given E)");
+
+BEGIN_TEXT
+Find \(P(B \mid E)\): the probability the person has high blood pressure <b>given</b> that they exercise regularly.
+$PAR
+<b>Hint:</b> "Given \(E\)" means restrict the sample space to the <b>\(E\) row</b> only.
+Inside that row, compare the high-blood-pressure cell to the row total.
+$PAR
+\(P(B \mid E)\) = \(\dfrac{P(B \cap E)}{P(E)}\) = \{ NAMED_ANS_RULE("pBgE",12) \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pBgE", $cmp_pBgE);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Part (b): P(B given not E)");
+
+BEGIN_TEXT
+Find \(P(B \mid E^c)\): the probability the person has high blood pressure <b>given</b> that they do not exercise regularly.
+$PAR
+<b>Hint:</b> "Given \(E^c\)" means restrict the sample space to the <b>\(E^c\) row</b> only.
+Inside that row, compare the high-blood-pressure cell to the row total.
+$PAR
+\(P(B \mid E^c)\) = \(\dfrac{P(B \cap E^c)}{P(E^c)}\) = \{ NAMED_ANS_RULE("pBgEc",12) \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pBgEc", $cmp_pBgEc);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Part (c): Compare and conclude");
+
+BEGIN_TEXT
+Compare your answers from parts (a) and (b).
+$PAR
+Which conclusion is supported by the probabilities you found?
+$PAR
+\{ $rb_conclusion->buttons \}
+END_TEXT
+
+ANS($rb_conclusion->cmp());
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+  BEGIN_PGML
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating: [__]{$rating_cmp}
+END_PGML
+  Section::End();
+
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

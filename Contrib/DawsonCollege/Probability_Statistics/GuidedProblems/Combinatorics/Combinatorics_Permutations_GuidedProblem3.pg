@@ -1,0 +1,163 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Permutations: 3 People in 7 Chairs (nPr) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Combinatorics)
+## DBsection(Permutations)
+## Level(1)
+## KEYWORDS('permutation','nPr','order matters','multiplication principle','chairs','factorial')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+$n = 7;   # chairs
+$r = 3;   # people (distinct)
+
+$stage1 = $n;         # Person 1
+$stage2 = $n - 1;     # Person 2
+$stage3 = $n - 2;     # Person 3
+
+$P_n_r = $stage1 * $stage2 * $stage3;   # 7*6*5 = 210
+
+$val_stage1 = Real($stage1);
+$val_stage2 = Real($stage2);
+$val_stage3 = Real($stage3);
+$val_prod   = Real($P_n_r);
+$val_final  = Real($P_n_r);
+
+# =======================================================
+# AnswerHints predicates (robust: use answerHash)
+# =======================================================
+$cmp_stage1 = $val_stage1->cmp->withPostFilter(AnswerHints(
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return ($s ne "" && $s < 0); } => "Counts cannot be negative.",
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return abs($s - 6) < 0.5; }  => "Person 1 is seated first, before any chair is taken.",
+));
+
+$cmp_stage2 = $val_stage2->cmp->withPostFilter(AnswerHints(
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return ($s ne "" && $s < 0); } => "Counts cannot be negative.",
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return abs($s - 7) < 0.5; }  => "After Person 1 sits, there is one fewer chair available.",
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return abs($s - 5) < 0.5; }  => "Person 2 is the second stage: only one chair has been used so far.",
+));
+
+$cmp_stage3 = $val_stage3->cmp->withPostFilter(AnswerHints(
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return ($s ne "" && $s < 0); } => "Counts cannot be negative.",
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return abs($s - 6) < 0.5; }  => "Person 3 is the third stage: two chairs have already been taken.",
+));
+
+$cmp_prod = $val_prod->cmp->withPostFilter(AnswerHints(
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return ($s ne "" && $s < 0); } => "Counts cannot be negative.",
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return abs($s - ($stage1 + $stage2 + $stage3)) < 0.5; } => "It looks like you added instead of multiplying.",
+));
+
+$cmp_final = $val_final->cmp->withPostFilter(AnswerHints(
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return ($s ne "" && $s < 0); } => "Counts cannot be negative.",
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return abs($s - 35) < 0.5; }  => "35 is a combinations-style count (order ignored). Here, order matters.",
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return abs($s - 343) < 0.5; } => "343 is 7^3, but you cannot reuse a chair. One person per chair.",
+  sub { my $ans = shift; my $s = $ans->{student_ans}; return abs($s - 42) < 0.5; }  => "42 is (7)(6): that is only two people seated. We need three.",
+));
+
+$cmp_rating = Real(3)->cmp(checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return ($v == int($v) && $v >= 1 && $v <= 5);   # accept any 1-5 as "correct"
+  })->withPostFilter(AnswerHints(
+    sub { my $ans = shift; my $s = $ans->{student_ans}; return ($s ne "" && ($s < 1 || $s > 5)); } => "Please enter an integer from 1 to 5.",
+    sub { my $ans = shift; my $s = $ans->{student_ans}; return ($s ne "" && $s != int($s)); }     => "Please enter a whole number (integer) from 1 to 5.",
+  ));
+
+# =======================================================
+# Guided flow (Scaffold)
+# =======================================================
+Scaffold::Begin();
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+There are **7 chairs** in a row and **3 distinct people**.
+
+In how many different ways can the 3 people sit down (one person per chair)?
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Count by stages (order matters)");
+BEGIN_PGML
+Think of seating people in **stages**:
+
+- Seat **Person 1** first,
+- then seat **Person 2** in one of the remaining chairs,
+- then seat **Person 3** in one of the remaining chairs.
+
+Fill in the number of choices at each stage:
+
+Person 1: [____]{$cmp_stage1}
+
+Person 2: [____]{$cmp_stage2}
+
+Person 3: [____]{$cmp_stage3}
+
+Now multiply (Multiplication Principle):
+
+Total ways = (P1)(P2)(P3) = [__________]{$cmp_prod}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Permutation (definition and formula)");
+BEGIN_PGML
+A **permutation** is an arrangement where **order matters**.
+
+Different people in different chairs gives different outcomes, so this is a permutation.
+
+Permutations of [`n`] objects taken [`r`] at a time are written as [`P(n,r)`] (or [`{}_nP_r`]) and:
+
+[`` P(n,r)=n(n-1)\cdots(n-r+1)=\dfrac{n!}{(n-r)!}. ``]
+
+For this problem:
+[`` P(7,3)=\dfrac{7!}{4!}. ``]
+
+Compute [`P(7,3)`]: [__________]{$cmp_final}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning permutations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

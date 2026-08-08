@@ -1,0 +1,190 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Normal Cutoff (Fastest 5% 5K Times) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Normal Distribution)
+## Level(2)
+## KEYWORDS('normal distribution','standardization','z score','z table','percentile','cutoff','lowest 5 percent','fastest')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+$mu    = Real("28.5");   # minutes
+$sigma = Real("3.2");    # minutes
+
+# Lowest 5% means left tail 0.05.
+# Typical table: Phi(-1.64)=0.0505 and Phi(-1.65)=0.0495, so average cutoff is -1.645.
+$z_star = Real("-1.645");
+
+# Convert back: t* = 28.5 + (-1.645)(3.2) = 23.236
+$t_star = Real("23.236");
+
+# Tolerances
+$tol_z = 0.0005;   # z to 3 decimals
+$tol_t = 0.0005;   # t* to 3 decimals
+
+$cmp_z = $z_star->cmp(tolType=>"absolute", tolerance=>$tol_z)->withPostFilter(AnswerHints(
+  0.05  => "0.05 is a probability, not a z-score. Use the table to find z such that P(Z<z)=0.05.",
+  1.645 => "Check the sign. The lowest 5% is in the left tail, so z* must be negative."
+));
+
+$cmp_t = $t_star->cmp(tolType=>"absolute", tolerance=>$tol_t)->withPostFilter(AnswerHints(
+  -1.645 => "That is z*. Convert back using t* = mean + (z*)(sd).",
+  28.5   => "28.5 is the mean, not the cutoff for the fastest 5%."
+));
+
+# Rating checker (any integer 1–5 is marked correct)
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "always",
+    is_open  => "always",
+  );
+} else {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "when_previous_correct",
+    is_open  => "correct_or_first_incorrect",
+  );
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+The completion times for a certain 5K race are normally distributed with mean [``28.5``] minutes and standard deviation [``3.2``] minutes.
+
+In symbols:
+
+[``T \sim N(28.5,3.2)``]
+
+A running club gives a special award to runners whose times are in the **lowest 5%** (the fastest 5%).
+
+Find the cutoff time [``t^*``] such that a runner qualifies if their time is **less than** [``t^*``].
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Translate the requirement
+# -------------------------------------------------------
+Section::Begin("Translate the requirement");
+BEGIN_PGML
+"Lowest 5%" means that 5% of times are **below** the cutoff [``t^*``].
+
+So the requirement is:
+
+[``P(T<t^*)=0.05``]
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Standardize and find z*
+# -------------------------------------------------------
+Section::Begin("Standardize");
+BEGIN_PGML
+Convert the cutoff [``t^*``] to a z-score:
+
+[``z^*=\dfrac{t^*-28.5}{3.2}``]
+
+Then the requirement becomes:
+
+[``P(Z<z^*)=0.05``]
+
+Use your standard normal table to find [``z^*``].  
+If the exact cutoff is not available in the table, use the **average of the two closest cutoffs**.
+
+Enter [``z^*``] (round to 3 decimals): [____]
+END_PGML
+
+ANS($cmp_z);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Convert back to the time t*
+# -------------------------------------------------------
+Section::Begin("Convert back to the time t*");
+BEGIN_PGML
+Now convert [``z^*``] back to [``t^*``] using:
+
+[``t^*=28.5+(z^*)(3.2)``]
+
+Enter [``t^*``] (round to 3 decimals): [____]
+END_PGML
+
+ANS($cmp_t);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();
