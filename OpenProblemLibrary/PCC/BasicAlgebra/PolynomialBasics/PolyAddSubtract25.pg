@@ -34,36 +34,59 @@ loadMacros(
   "PGstandard.pl",
   "MathObjects.pl",
   "PGML.pl",
+  "PCCmacros.pl",
   "contextLimitedPolynomial.pl",
-  "PGcourse.pl"
+  "PGcourse.pl",
 );
 
 ##############################################
 
 Context("Numeric");
-Context()->noreduce("(-x)+y","(-x)-y");
+Context()->reduction->set('(-x)-y'=>0);
+Context()->reduction->set('(-x)+y'=>0);
+$var = 'x';
 
-# setup the first binomial: ($a x^2 + $b x)
-
+# setup the first binomial: ($a x + $b)
 $a = non_zero_random(-10,10,1);
-do { $b = non_zero_random(-10,10,1); } until ($b != $a);
+$b = $a;
+$b = non_zero_random(-10,10,1) while($b==$a);
+@poly1array = ($a,$b,0);
 
-$p1 = Compute("$a*x^2 + $b*x")->reduce;
-
-# setup the second binomial: ($c x^2 + $d x)
-
+# setup the second binomial: ($c x + $d)
 $c = non_zero_random(-10,10,1);
-do{ $d = non_zero_random(-10,10,1); } until ($d != $c);
+$d = $c;
+$d = non_zero_random(-10,10,1) while($d==$c);
+@poly2array = ($c,$d,0);
 
-$p2 = Compute("$c*x^2 + $d*x")->reduce;
+# reduction check
+$poly1 = Formula(PolyString(~~@poly1array))->reduce;
+$poly2 = Formula(PolyString(~~@poly2array))->reduce;
 
-$ans = Formula(" ($a+$c)*x^2 + ($b+$d)*x ")->reduce;
+# for the solution
+@sumarray = PolyAdd(~~@poly1array,~~@poly2array);
 
-$ans->context(Context("LimitedPolynomial-Strict"));
+$ans = Formula(PolyString(~~@sumarray))->reduce;
 
 # make $poly1 and $poly2 into strings
 $poly1 = $poly1->substitute(x=>$var)->reduce;
 $poly2 = $poly2->substitute(x=>$var)->reduce;
+
+# and make the answer into a string
+$ans = $ans->substitute(x=>$var);
+
+# for the solution
+$soln1=Formula(PolyString(~~@poly1array))->reduce;
+$soln2=Formula(PolyString(~~@poly2array))->reduce;
+$soln1 = $soln1->substitute(x=>$var);
+$soln2 = $soln2->substitute(x=>$var);
+
+
+Context("LimitedPolynomial-Strict");
+#Context()->variables->add($var=>'Real');
+$ans = Formula($ans)->reduce;
+
+
+##############################################
 
 # and make the answer into a string
 $ans = $ans->substitute(x=>$var);
@@ -91,13 +114,32 @@ Add the polynomials.
 
 END_PGML
 
-$p11 = Formula("$a*x^2")->reduce;
-$p12 = Formula("$b x")->reduce;
-$p21 = $c>0 ? "$c x^2" : "($c x^2)" ;
-$p22 = $d>0 ? "$d x" : "($d x)" ;
-$absc = abs($c); $absd = abs($d); 
-$sum1 = $c>0 ? "$a+$c" : "$a-$absc";
-$sum2 = $d>0 ? "$b+$d" : "$b-$absd";
+# This function eliminates issues like (3x), -1x and 1x.
+# This function takes 4 parameters: 
+# coefficient, the variable, the power, 
+# leading term or not (1 means leading, 0 means not)
+# If it's a leading term, no () will be returned.
+# Its output is the Latex string.
+sub output {
+   my ($coe,$v,$e,$lead) = @_;
+
+   if ($lead==1) {
+      if ($e==0) {return "$coe";}
+      if ($coe==1) {return $e==1 ? "$v" : "$v^$e";}
+      if ($coe==-1) {return $e==1 ? "-$v" : "-$v^$e";}
+      if ($e==1) {return "$coe $v";}
+      return "$coe $v^$e";
+   }
+
+   if ($e==0) {return $coe>0 ? "$coe" : "($coe)";}
+   if ($coe==1) {return $e==1 ? "$v" : "$v^$e";}
+   if ($coe==-1) {return $e==1 ? "(-$v)" : "(-$v^$e)";}
+   if ($e==1) {return $coe>0 ? "$coe $v" : "($coe $v)";}
+   return $coe>0 ? "$coe $v^$e" : "($coe $v^$e)";
+}
+
+$cOut = output($c,$var,2,0);
+$dOut = output($d,$var,1,0);
 
 Context("Numeric");
 $s1 = Compute("$a*x**2+$cOut")->reduce;
