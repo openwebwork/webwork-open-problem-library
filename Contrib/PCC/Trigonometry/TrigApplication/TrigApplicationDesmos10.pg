@@ -1,0 +1,215 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Fraction");
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+Context()->noreduce('(-x)-y');
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->variables->add(t => "Real");
+Context()->flags->set(
+  tolerance => 0.005,
+  tolType => "absolute",
+);
+
+sub addPIFraction {
+  my ($n,$d) = @_;
+  ($n,$d) = Fraction($n,$d)->reduce->value;
+  if ($n==0) {return 0;}
+  if ($d==1) {
+    if ($n==1) {return Formula("pi");}
+      elsif ($n==-1) {return Formula("-pi");}
+      else {return Formula("$n*pi");}
+  } else {
+    if ($n==1) {return Formula("pi/$d");}
+      elsif ($n==-1) {return -Formula("pi/$d");}
+      elsif ($n>0) {return Formula("($n*pi)/$d");}
+      else {
+        $Nn = -$n;
+        return -Formula("($Nn*pi)/$d");
+      }
+  }
+}
+
+@t = (); @h = (); @tShow = ();
+
+do {
+  do {
+    $a = random(15,35,1);
+    $p = random(5,15,1);
+    $b = addPIFraction(2,$p);
+    $base = random(5,15,1);
+    $d = $base+$a;
+
+    $func = Formula("-$a*cos($b*t)+$d");
+
+    do {
+      $t[0] = random(2,$p,0.1);
+      $h[0] = $func->eval(t=>$t[0]);
+      $h0Show = Round($h[0],3);
+      $h[1] = random($base+5,$base+2*$a-5,1);
+    } until abs($h[0]-$h[1])>10 && $t[0]!=$p && $t[0]!=$p/2;
+    $h[2] = $h[1];
+  } until abs(($d-$h[1])/$a)<1;
+  $rad = arccos(($d-$h[1])/$a);
+} until $rad*180/pi>20 && $rad*180/pi<160 && abs($rad*180/pi-90)>20;
+
+$radShow = Round($rad,3);
+$t[1] = $rad/Compute($b);
+$t[2] = $p-$t[1];
+for my $i (0..2) {
+  $tShow[$i] = Round($t[$i],3);
+}
+$ans = List($t[1],$t[2]);
+
+@graph = ();
+($xmin, $xmax) = (-$p/2,1.5*$p);
+($ymin, $ymax) = (-$a/2,3*$a);
+$graph[0] = init_graph($xmin,$ymin,$xmax,$ymax,axes=>[0,0]);
+$graph[0]->lb('reset');
+
+for (my $i=-5; $i<$xmax; $i=$i+5) {
+  $graph[0]->moveTo($i,$ymin);
+  $graph[0]->lineTo($i,$ymax,gray,1,dashed);
+  $graph[0]->lb(new Label($i,0,$i,'black','right','top',large));
+}
+for (my $i=-10; $i<$ymax; $i=$i+10) {
+  $graph[0]->moveTo($xmin,$i);
+  $graph[0]->lineTo($xmax,$i,gray,1,dashed);
+  $graph[0]->lb(new Label(0,$i,$i,'black','right','middle',large)) unless $i==0;
+}
+
+$graph[0]->lb(new Label(0,0.97*$ymax,"height (m)",'blue','left','middle',large));
+$graph[0]->lb(new Label(0.98*$xmax,0,"time (s)",'blue','right','bottom',large));
+
+add_functions($graph[0], "$func for t in <$xmin,$xmax> using color:blue and weight:2");
+add_functions($graph[0], "$h[1] for t in <$xmin,$xmax> using color:black and weight:2");
+($graph[0]->fn)[0]->steps(300);
+
+$graph[0]->stamps(closed_circle($t[1],$h[1],red));
+$graph[0]->lb(new Label($t[1],$h[1],"($tShow[1],$h[1])",'red','right','bottom',large));
+$graph[0]->stamps(closed_circle($t[2],$h[2],red));
+$graph[0]->lb(new Label($t[2],$h[2],"($tShow[2],$h[2])",'red','left','bottom',large));
+
+$alt[0] = "This is the graph of h(t)=[$func] and y=[$h[1]]. Their intersections ($tShow[1],$h[1]) and ($tShow[2],$h[2]) are highlighted.";
+
+$fig0 = image(insertGraph($graph[0]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[0]' title = '$alt[0]' ");
+
+##############################################################
+
+BEGIN_PGML
+
+A Ferris wheel is [`[$a]`] meters in radius and boarded from a platform that is [`[$base]`] meter above the ground. The six o’clock position on the Ferris wheel is level with the loading platform. The wheel completes 1 full revolution in [`[$p]`] minutes. The function [`h(t)`] gives a person’s height in meters above the ground [`t`] minutes after the wheel begins to turn.
+
+*Use graphing technology* to answer the following questions about the function [`h(t)`].
+
+Part a: The function, as a transformation of [`y=-\cos(x)`], is [`h(t)=`][________________________]{$func}.
+
+Part b: Assume a person entered a cabin on the Ferris wheel at [`t=0`]. After [`[$t[0]]`] minutes, the person was [_______________]{$h[0]} meters high in the air.
+
+[@KeyboardInstructions(
+"\n"
+."* In the next part, use a comma to separate your answers."
+)@]**
+
+Part c: The person exited the cabin after one round. During this time, the person was [`[$h[1]]`] meters in the air twice: [________________]{$ans} minutes.
+
+END_PGML
+
+##############################################################
+
+$maxHeight = $base+2*$a;
+
+BEGIN_PGML_SOLUTION
+
+###Part a
+
+We could use [`y=\sin(x), y=\cos(x)`] and [`y=-\cos(x)`] to model periodic data. In this situation, when [`t=0`], the person's height, [`(0,[$base])`] is at the minimum of the function. This matches the graph of [`y=-\cos(x)`], which is at its minimum value when [`x=0`], so we should choose to use the following function to model the person's height:
+
+    [``h(t)=-a\cos\left(bt\right)+d``]
+    
+Note that there is no horizontal translation, because the function is at its minimum value when [`t=0`], just like [`y=-\cos(x)`].
+
+The person's minimum height is simply the height of the platform, [`[$base]`] meters. The person's maximum height is the height of the platform plus twice the wheel's radius: [`[$base]+2([$a])=[$maxHeight]`] meters. The function's midline is the average values of the person's maximum and minimum height:
+
+    [``d=\frac{[$base]+[$maxHeight]}{2}=[$d]``]
+
+Next, the function's amplitude is simply the Ferris Wheel's radius: [`a=[$a]`].
+
+For the function [`h(t)=-a\cos\left(bt\right)+d`], by the period formula [`\text{new period}=\frac{\text{old period}}{b}`], we have:
+
+    [`` b = \frac{\text{old period}}{\text{new period}} = \frac{2\pi}{[$p]} = [$b]``]
+
+The function's formula is
+
+    [``h(t) = [$func] ``]
+
+We will use desmos.com to answer the question.
+
+Step 1: Go to desmos.com, click on Start Graphing.
+
+Step 2: In the first textbox, enter [` h(t) = [$func] `].
+
+###Part b
+
+To find the person's height after [`[$t[0]]`] minutes, we need to substitute the function's [`t`] value with [`[$t[0]]`] to get the corresponding [`y`] value.
+
+Step 3: In the second textbox, enter [` h([$t[0]]) `]. Desmos shows [`[$h0Show]`].
+
+After [`[$t[0]]`] minutes, the person was [`[$h0Show]`] meters high in the air.
+
+###Part c
+
+To find when the person's height was [`[$h[1]]`] meters, we need to create a second function [`y=[$h[1]]`], and then let desmos find the intersection between [`h(t)`] and [`y=[$h[1]]`].
+
+Step 3: In the second textbox, enter [`y=[$h[1]]`].
+
+Step 4: Zoom out on the window, if needed, until you can see the intersection of [`h(t)`] and [`y=[$h[1]]`]. Alternatively, click on the Graph Settings icon (looking like a tool) and define the ranges of [`x`]-axis and [`y`]-axis.
+
+Step 5: Click on the intersection of [`h(t)`] and [`y=[$h[1]]`] in the first period. Desmos shows [`([$tShow[1]],[$h[1]])`] and [`([$tShow[2]],[$h[1]])`].
+
+The person exited the cabin after one round. During this time, the person was [`[$h[1]]`] meters in the air twice: [`[$tShow[1]], [$tShow[2]]`] minutes.
+
+Below is the function's graph with solutions of this problem:
+
+>>[@ $fig0 @]*<<
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

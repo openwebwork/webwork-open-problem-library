@@ -1,0 +1,265 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "PGchoicemacros.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+Context()->noreduce('(-x)-y');
+Context()->noreduce('(-x)-y','(-x)+y');
+
+sub output {
+  my ($n,$d) = shift->value;
+  if ($n==0) {return 0;}
+  if ($d==1) {
+    if ($n==1) {return "\pi";}
+      elsif ($n==-1) {return "-\pi";}
+      else {return "$n\pi";}
+  } else {
+    if ($n==1) {return "\frac{\pi}{$d}";}
+      elsif ($n==-1) {return "-\frac{\pi}{$d}";}
+      elsif ($n>0) {return "\frac{$n\pi}{$d}";}
+      else {
+        $Nn = -$n;
+        return "-\frac{$Nn\pi}{$d}";
+      }
+  }
+}
+
+sub input {
+  my ($n,$d) = shift->value;
+  if ($n==0) {return 0;}
+  if ($d==1) {
+    if ($n==1) {return "pi";}
+      elsif ($n==-1) {return "-pi";}
+      else {return "$n*pi";}
+  } else {
+    if ($n==1) {return "pi/$d";}
+      elsif ($n==-1) {return "-pi/$d";}
+      elsif ($n>0) {return "$n*pi/$d";}
+      else {
+        $Nn = -$n;
+        return "-$Nn*pi/$d";
+      }
+  }
+}
+
+$a = random(1,5,1);
+$b = list_random(
+  Fraction(1,2),Fraction(1,3),Fraction(2,3),
+  Fraction(1,4),Fraction(1,5),Fraction(2,5),
+  Fraction(1,1),Fraction(2,1),Fraction(3,1),Fraction(4,1)
+);
+$bShow = &output($b);
+
+$pf = (2/$b)->reduce;
+$pf2 = ($pf/2)->reduce;
+$pf4 = ($pf/4)->reduce;
+$cf = list_random($pf2,$pf4)*random(-1,1,2);
+$d = random(-5,5,1);
+
+$bIn = &input($b);
+$Ax = $cf;
+Context()->functions->disable("cos");
+$func1 = Compute("$a*sin($bIn*(x-$Ax))+$d")->reduce;
+$Ay = $func1->eval(x=>$Ax);
+
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+Context()->noreduce('(-x)-y');
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->functions->disable("sin");
+
+$Bx = ($cf+$pf4)->reduce;
+$func2 = Compute("$a*cos($bIn*(x-$Bx))+$d")->reduce;
+$By = $func1->eval(x=>$Bx);
+
+$Dx = ($Bx+$pf2)->reduce;
+$Dy = $func1->eval(x=>$Dx);
+$func3 = Compute("-$a*cos($bIn*(x-$Dx))+$d")->reduce;
+
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+Context()->noreduce('(-x)-y');
+Context()->noreduce('(-x)-y','(-x)+y');
+
+@graph = ();
+($xmin, $xmax) = (-1,3*pi+1);
+($ymin, $ymax) = (-1.5,1.5);
+$graph[0] = init_graph($xmin,$ymin,$xmax,$ymax);
+$graph[0]->lb('reset');
+
+$graph[0]->stamps(closed_circle(0,0,red));
+$graph[0]->stamps(closed_circle(pi/2,1,red));
+$graph[0]->stamps(closed_circle(pi,0,red));
+$graph[0]->stamps(closed_circle(3*pi/2,-1,red));
+$graph[0]->stamps(closed_circle(2*pi,0,red));
+$graph[0]->stamps(closed_circle(5*pi/2,1,red));
+$graph[0]->stamps(closed_circle(3*pi,0,red));
+
+$graph[0]->lb(new Label(0,0,"A",'red','right','bottom',large));
+$graph[0]->lb(new Label(pi/2,1,"B",'red','right','bottom',large));
+$graph[0]->lb(new Label(pi,0,"C",'red','right','top',large));
+$graph[0]->lb(new Label(3*pi/2,-1,"D",'red','right','top',large));
+$graph[0]->lb(new Label(2*pi,0,"E",'red','right','bottom',large));
+$graph[0]->lb(new Label(5*pi/2,1,"F",'red','right','bottom',large));
+$graph[0]->lb(new Label(3*pi,0,"G",'red','right','top',large));
+
+add_functions($graph[0], "sin(x) for x in <$xmin,$xmax> using color:blue and weight:2");
+
+$alt[0] = "This is the graph of a periodic function in the shape of sin(x) or cos(x). Point A is in the middle of maximum and minimum of y-values. To the right of Point A, Point B has the maximum y-value of the periodic function. Point C is back to the middle (same height of A). Point D has the minimum y-value of the function. Point E is in the middle (same height of A and C). Point F has maximum y-value (same height of B). Point G is the middle (same height of A, C and E).";
+
+$fig0 = image(insertGraph($graph[0]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[0]' title = '$alt[0]' ");
+
+$lorSine = ($cf>0) ? "right" : "left";
+
+$AxAbs = abs($Ax);
+$BxAbs = abs($Bx);
+$DxAbs = abs($Dx);
+
+if ($Bx==0) {
+  $lorCosine = "\text{The function does not shift horizontally}";
+} elsif ($Bx>0) {
+  $lorCosine = "\text{The function shifts to the right by }$BxAbs\text{ units}";
+} else {
+  $lorCosine = "\text{The function shifts to the left by }$BxAbs\text{ units}";
+}
+
+if ($Dx==0) {
+  $lorCosineN = "\text{The function does not shift horizontally}";
+} elsif ($Dx>0) {
+  $lorCosineN = "\text{The function shifts to the right by }$DxAbs\text{ units}";
+} else {
+  $lorCosineN = "\text{The function shifts to the left by }$DxAbs\text{ units}";
+}
+
+##############################################################
+
+BEGIN_PGML
+
+>>[@ $fig0 @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+In this figure, if the coordinates of Point [`A`] and [`B`] are
+
+    [`` A([$Ax],[$Ay]) \text{ and } B([$Bx],[$By])``]
+    
+Fill in the following blanks. 
+
+[@KeyboardInstructions(
+"\n"
+.'* Use fractions instead of decimals.'
+."\n"
+.'* Use [|pi|]* to represent [`\pi`].'
+)@]**
+
+
+a) The function's midline is at [`y=`][______]{$d}.
+    
+b) The function's amplitude is [______]{$a}.
+    
+c) The function's period is [______]{$pf}.
+
+d) The function, as a transformation of [`y=\sin(x)`], is [`f(x)=`][________________________]{$func1}.
+
+e) The function, as a transformation of [`y=\cos(x)`], is [`g(x)=`][________________________]{$func2}.
+
+f) The function, as a transformation of [`y=-\cos(x)`], is [`h(x)=`][________________________]{$func3}.
+
+END_PGML
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+###Part a
+
+Point [`A([$Ax],[$Ay])`] is on the function's midline, so the [`y`]-value of [`A`] determines the function's midline [`y=[$d]`].
+
+If the function's formula is [`f(x)=a\sin(b(x-c))+d`], we have [`d=[$d]`].
+
+###Part b
+
+The vertical difference between points [`A([$Ax],[$Ay]) \text{ and } B([$Bx],[$By])`] is the function's amplitude [`[$By]-([$Ay])=[$a]`].
+
+If the function's formula is [`f(x)=a\sin(b(x-c))+d`], we have [`a=[$a]`].
+
+###Part c
+
+In the graph, Point [`A([$Ax],[$Ay]) \text{ and } B([$Bx],[$By])`] cover [`\frac{1}{4}`] of the function's period: 
+
+    [`` [$Bx]-([$Ax]) = [$pf4] ``]
+    
+The function's period is 4 times as large: [` 4\cdot[$pf4] = [$pf] `].
+
+If the function's formula is [`f(x)=a\sin(b(x-c))+d`], by the formula [`\text{new period}=\frac{\text{old period}}{b}`], we have:
+
+    [`` b = \frac{\text{old period}}{\text{new period}} = \frac{2\pi}{[$pf]} = [$bShow]``]
+
+###Part d
+
+If the function's "parent function" is [`y=\sin(x)`], its period starts at [`(0,0)`]. Point [`A([$Ax],[$Ay])`] is the image of [`(0,0)`] after transformations, so its [`x`]-value tells us the horizontal shift.
+
+The function shifts to the [$lorSine] by [`[$AxAbs]`] units.
+
+If the function's formula is [`f(x)=a\sin(b(x-c))+d`], we have [`c=[$Ax]`].
+
+Putting together all parts, the function's function is [`f(x)=[$func1]`].
+
+###Part e
+
+If the function's "parent function" is [`y=\cos(x)`], its period starts at [`(0,1)`]. Point [`B([$Bx],[$By])`] is the image of [`(0,1)`] after transformations, so its [`x`]-value tells us the horizontal shift.
+
+[`[$lorCosine]`].
+
+If the function's formula is [`g(x)=a\cos(b(x-c))+d`], we have [`c=[$Bx]`].
+
+Putting together all parts, the function's function is [`g(x)=[$func2]`].
+
+###Part f
+
+If the function's "parent function" is [`y=-\cos(x)`], its period starts at [`(0,-1)`]. Point [`D([$Dx],[$Dy])`] is the image of [`(0,-1)`] after transformations, so its [`x`]-value tells us the horizontal shift.
+
+[`[$lorCosineN]`].
+
+If the function's formula is [`h(x)=-a\cos(b(x-c))+d`], we have [`c=[$Dx]`].
+
+Putting together all parts, the function's function is [`h(x)=[$func3]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

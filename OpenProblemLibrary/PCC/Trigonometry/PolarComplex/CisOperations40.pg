@@ -1,0 +1,163 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+##############################################
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "contextFraction.pl",
+  "PGML.pl",
+  "PCCmacros.pl",
+  "specialTrigValues.pl",
+  "PGcourse.pl",,
+);
+
+##############################################
+
+Context("Fraction");
+Context()->noreduce('(-x)-y','(-x)+y');
+Context()->flags->set(
+  requirePureFractions => 1,
+  showMixedNumbers => 0,
+  reduceConstants => 0,
+  reduceConstantFunctions => 0,
+);
+
+do {
+  $denO = list_random(3,4,6);
+  $numO = random(1,2*$denO-1,1);
+} until gcd($numO,$denO)==1;
+$angleO = specialAngle($numO*pi/$denO);
+
+@num = ();
+@den = ();
+@angle = ();
+@com = ();
+$n = random(2,4,1);
+$rn = random(2,5,1);
+$r = $rn**$n;
+
+Context()->variables->add(i=>"Real");
+for my $k (0..$n-1) {
+  $angle[$k] = specialAngle(Compute($angleO/$n+2*$k*pi/$n),(1..24));
+  $com[$k] = Formula("$rn*(cos($angle[$k])+i*sin($angle[$k]))");
+}
+
+package my::Complex;
+our @ISA = ('Value::Complex');
+
+sub cis {
+  my $z = shift;
+  return cos($z) + main::i * sin($z);
+}
+
+package main;
+
+Context("Complex");
+
+Context()->{value}{Complex} = 'my::Complex';
+Context()->constants->set(i => {value => my::Complex->new(0,1)});
+Context()->functions->add(cis => {
+  class => 'Parser::Function::complex', TeX => '\operatorname{cis}',
+  complex => 1, isCommand => 1
+});
+
+sub cis {Parser::Function->call("cis", my::Complex->new(@_))}
+
+Context()->flags->set(reduceConstantFunctions => 0);
+
+$comO = Formula("$r*cis($angleO)");
+
+@ans = ();
+for my $k (0..$n-1) {
+  $ans[$k] = Formula("$rn*cis($angle[$k])");
+}
+$ansL = List(@ans);
+
+if ($n==2) {
+  $th = "square roots";
+} elsif ($n==3) {
+  $th = "cube roots";
+} else {
+  $th = "4th roots";
+}
+
+##############################################
+
+TEXT(beginproblem());
+BEGIN_PGML
+
+Do the following calculation. Use [`r\operatorname{cis}(\theta)`] to represent [`r(\cos(\theta)+i\sin(\theta))`].
+
+Find all [$th] of [` z=[$comO]`].
+
+[@KeyboardInstructions(
+"\n"
+.'* Use fractions in your answer.'
+."\n"
+.'* Use commas to separate your answers.'
+)@]**
+
+     roots: [___________________________________]{$ansL}
+
+END_PGML
+
+##############################################
+
+Context("Fraction");
+$s1 = specialAngle(Compute($angleO/$n),(1..24));
+($n0,$d0) = Fraction(2,$n)->reduce->value;
+if ($d0==1) {
+  $s2 = ($n0==1) ? "k\pi" : "$n0 k\pi";
+} else {
+  $s2 = ($n0==1) ? "\frac{k\pi}{$d0}" : "\frac{$n0 k\pi}{$d0}";
+}
+$s3 = "0, ";
+for my $i (1..$n-1) {
+  $s3 .= "$i, ";
+}
+$s3 = substr($s3,0,length($s3)-2);
+
+BEGIN_PGML_SOLUTION
+
+For [`z=r\left(\cos(\theta)+i\sin(\theta)\right)`], its [$th] are
+
+    [`` z^{\frac{1}{n}}=r^{\frac{1}{n}}\left( \cos\left(\frac{\theta}{n}+\frac{2k\pi}{n}\right)+i\sin\left(\frac{\theta}{n}+\frac{2k\pi}{n}\right) \right) ``],
+
+where [`k=0,1,...,n-1`].
+
+We have:
+
+    [``\begin{aligned}
+  z^{\frac{1}{[$n]}} &=[$r]^{\frac{1}{[$n]}}\left( \cos\left(\frac{[$angleO]}{[$n]}+\frac{2k\pi}{[$n]}\right)+i\sin\left(\frac{[$angleO]}{[$n]}+\frac{2k\pi}{[$n]}\right) \right) \\
+  &= [$rn]\left( \cos\left([$s1]+[$s2]\right) + i\sin\left([$s1]+[$s2]\right) \right) \\
+    \end{aligned}``]
+
+Substitute in [`k=[$s3]`], the roots of [`z`] are
+
+    [``[$ansL]``]
+
+END_PGML_SOLUTION
+
+##############################################
+
+ENDDOCUMENT();

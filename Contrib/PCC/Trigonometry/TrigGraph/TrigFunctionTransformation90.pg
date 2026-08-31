@@ -1,0 +1,214 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao','Alex Jordan')
+## Institution('PCC')
+
+##############################################
+
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "PGgraphmacros.pl",
+  "PCCgraphMacros.pl",
+  "parserPopUp.pl",
+  "contextFraction.pl",
+  "niceTables.pl",
+  "PGcourse.pl",
+);
+
+$refreshCachedImages = 1;
+
+##############################################
+
+TEXT(beginproblem());
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+Context()->reduction->set('(-x)-y'=>0);
+Context()->reduction->set('(-x)+y'=>0);
+
+sub output {
+  my ($n,$d) = shift->value;
+  if ($n==0) {return 0;}
+  if ($d==1) {
+    if ($n==1) {return "\pi";}
+      elsif ($n==-1) {return "-\pi";}
+      else {return "$n\pi";}
+  } else {
+    if ($n==1) {return "\frac{\pi}{$d}";}
+      elsif ($n==-1) {return "-\frac{\pi}{$d}";}
+      elsif ($n>0) {return "\frac{$n\pi}{$d}";}
+      else {
+        $Nn = -$n;
+        return "-\frac{$Nn\pi}{$d}";
+      }
+  }
+}
+
+sub input {
+  my ($n,$d) = shift->value;
+  if ($n==0) {return 0;}
+  if ($d==1) {
+    if ($n==1) {return "pi";}
+      elsif ($n==-1) {return "-pi";}
+      else {return "$n*pi";}
+  } else {
+    if ($n==1) {return "pi/$d";}
+      elsif ($n==-1) {return "-pi/$d";}
+      elsif ($n>0) {return "$n*pi/$d";}
+      else {
+        $Nn = -$n;
+        return "-$Nn*pi/$d";
+      }
+  }
+}
+
+$a = random(1,3,1);
+@s = ();
+@sIn = ();
+for my $i (0..3) {
+  $s[$i] = Fraction(($a+$i)%4,2)->reduce;
+  $sIn[$i] = &input($s[$i]);
+}
+$s0Show = &output($s[0]);
+
+$func = Formula("sin(x)")->reduce;
+$f[0] = Formula("sin(x-$sIn[0])")->reduce;
+$f[1] = Formula("sin(x-$sIn[1])")->reduce;
+$f[2] = Formula("sin(x-$sIn[2])")->reduce;
+$f[3] = Formula("sin(x-$sIn[3])")->reduce;
+
+@alt = ();
+$alt[0] = "graph with the shape of y=sin(x), where (0,0) is shifted to the right to ($sIn[0],0)";
+$alt[1] = "graph with the shape of y=sin(x), where (0,0) is shifted to the right to ($sIn[1],0)";
+$alt[2] = "graph with the shape of y=sin(x), where (0,0) is shifted to the right to ($sIn[2],0)";
+$alt[3] = "graph with the shape of y=sin(x), where (0,0) is shifted to the right to ($sIn[3],0)";
+
+$bound = 2;
+
+$xmin = int(-pi);         #The viewing window
+$xmax = int(3*pi);
+$ymin = -$bound;
+$ymax = $bound;
+
+@graphs = ();             
+
+for ( my $i=0; $i<5; $i++ ) {
+   $graphs[$i] = init_graph($xmin,$ymin,$xmax,$ymax,
+          grid=>[$xmax-$xmin,$ymax-$ymin],axes=>[0,0],pixels=>[300,300]);
+
+   $graphs[$i]->lb('reset');
+   foreach my $j (int($xmin)..int($xmax)) {
+      $graphs[$i]->lb( new Label($xmin+0.3,  $j, $j,'black','center','middle'));
+      $graphs[$i]->lb( new Label($xmin+0.3, -$j,-$j,'black','center','middle'));
+      $graphs[$i]->lb( new Label($j,$ymin+0.3, $j,'black','center','middle'));
+      $graphs[$i]->lb( new Label( -$j,$ymin+0.3,-$j,'black','center','middle'));
+   }
+   $graphs[$i]->lb( new Label($xmax-0.3,0.2,'x','black','center','middle'));
+   $graphs[$i]->lb( new Label(0.2,$ymax-0.3,'y','black','center','middle'));
+
+  add_functions($graphs[$i], "$f[$i] for x in <$xmin,$xmax> " .
+    "using color:blue and weight:2");
+}
+
+sub shufflemap {
+    my $n = shift();
+    my $m = $n - 1;
+    my $zeroind;
+
+    my %map = ();
+ 
+    my @vals = (0..$m);
+    for ( my $i=0; $i<$m; $i++ ) {
+  my $j = random(0,$m-$i,1);
+  $map{$i} = $vals[$j];
+  $zeroind = $i if ( $map{$i} == 0 );
+  splice(@vals, $j, 1);
+    }
+    $map{$m} = $vals[0];
+    $zeroind = $m if ( $map{$m} == 0 );
+ 
+    return( { %map }, $zeroind );
+}
+
+($shuffle, $zero) = shufflemap(4);   #A random permutation function.  
+                                      #$zero is $shuffle(0), the index
+                                      #of the correct graph
+
+$pop = PopUp( [qw(? 1 2 3 4)], $zero+1 );
+
+
+
+$size = 180;
+$texsize = 100;
+
+##############################################
+
+BEGIN_PGML
+Choose the graph of the function [`f(x)=\sin\left(x-[$s0Show]\right)`].
+
+    The correct graph is graph number [@ $pop->menu() @]*.
+
+[@EnlargeImageStatementPGML()@]**
+
+END_PGML
+
+BEGIN_TEXT
+$PAR
+
+\{LayoutTable(
+[
+['1.'.image(insertGraph( $graphs[ $shuffle->{0} ] ), tex_size=>$texsize,
+	      height=>$size, width=>$size, extra_html_tags=>'alt="$alt[$shuffle->{0}]" title = "$alt[$shuffle->{0}]"'),
+'2.'.image(insertGraph( $graphs[ $shuffle->{1} ] ), tex_size=>$texsize,
+	      height=>$size, width=>$size, extra_html_tags=>'alt="$alt[$shuffle->{1}]" title = "$alt[$shuffle->{1}]"'),
+'3.'.image(insertGraph( $graphs[ $shuffle->{2} ] ), tex_size=>$texsize,
+	      height=>$size, width=>$size, extra_html_tags=>'alt="$alt[$shuffle->{2}]" title = "$alt[$shuffle->{2}]"'),
+'4.'.image(insertGraph( $graphs[ $shuffle->{3} ] ), tex_size=>$texsize,
+	      height=>$size, width=>$size, extra_html_tags=>'alt="$alt[$shuffle->{3}]" title = "$alt[$shuffle->{3}]"'),]
+],
+align=>'>{\bfseries}l>{\bfseries}l>{\bfseries}l>{\bfseries}l',
+allcellcss=>'padding: 10px;',
+);
+\}
+
+END_TEXT
+
+
+##############################################
+
+ANS( $pop->cmp() );
+
+##############################################
+
+$answer = $zero+1;
+
+BEGIN_PGML_SOLUTION
+
+The graph of [`f(x)=\sin\left(x-[$s0Show]\right)`] can be obtained by shifting the graph of [`y=[$func]`] to the right by [`[$s0Show]`] units.
+
+For example, [`(0,0)`] on [`y=[$func]`] is transformed to [`([$s0Show],0)`] on [`f(x)=\sin\left(x-[$s0Show]\right)`].
+
+The correct answer is Graph [`[$answer]`].
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

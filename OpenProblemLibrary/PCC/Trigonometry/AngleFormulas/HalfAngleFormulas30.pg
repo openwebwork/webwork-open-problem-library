@@ -1,0 +1,345 @@
+# DESCRIPTION
+# WeBWorK problem written by Carl Yao
+# Portland Community College
+#
+# ENDDESCRIPTION
+
+## DBsubject('')
+## DBchapter('')
+## DBsection('')
+## KEYWORDS('')
+## DBCCSS('')
+## TitleText1('')
+## EditionText1('')
+## AuthorText1('')
+## Section1('')
+## Problem1('')
+## Author('Carl Yao')
+## Institution('PCC')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGgraphmacros.pl",
+  "MathObjects.pl",
+  "contextLimitedRadical.pl",
+  "PCCmacros.pl",
+  "PGML.pl",
+  "contextFraction.pl",
+  "PGcourse.pl"
+);
+
+TEXT(beginproblem());
+$refreshCachedImages=1;
+
+#Input is a prime. Output is the next prime number.
+sub nextPrime {
+   my $p = shift;
+   while (1) {
+      $p++;
+      if ($p%2==0) {next;}
+      $isPrime = 1;
+      for (my $i=3; $i<=sqrt($p); $i=$i+2) {
+         if ($p%$i==0) {
+            $isPrime=0;
+            last;
+         }
+      }
+      if ($isPrime==1) {return $p;}
+   }
+}
+   
+# Input is a number n. Output is ($out, $in) 
+# in the simplified form of $out*sqrt($in).
+sub radSimplify {
+   my $n = shift;
+   my $out = 1;
+   my $in = $n;
+   my $prime = 2;
+   my $lastPrime = -1;
+   while (1) {
+      while ($n%$prime==0) {
+         if ($prime == $lastPrime) {
+            $out *= $prime;
+            $lastPrime = -1;
+            $in = $in/$prime**2;
+         } else {
+            $lastPrime = $prime;
+         }
+         $n=$n/$prime;
+      }
+      if ($n==1) {return ($out, $in);}
+      $prime = &nextPrime($prime);
+   }
+}
+
+#Input is sqrt($num,$den)
+#output is rationalized $num*sqrt($in1)/$den
+sub rationalize {
+  my ($inT,$inB) = shift->value;
+  my ($out1, $in1) = &radSimplify($inT*$inB);
+  Context("Fraction");
+  my ($num,$den) = Fraction($out1,$inB)->reduce->value;
+  Context("LimitedRadical");
+  if ($den==1) {
+    if ($num==1) {
+      return ($in1==1) ? 1 : Formula("sqrt($in1)");
+    } elsif ($num==-1) {
+      return ($in1==1) ? -1 : Formula("-sqrt($in1)");
+    } else {
+      return ($in1==1) ? Formula("$num") : Formula("$num*sqrt($in1)");
+    }
+  } else {
+    if ($num==1) {
+      return ($in1==1) ? Formula("1/$den") : Formula("sqrt($in1)/$den");
+    } elsif ($num==-1) {
+      return ($in1==1) ? Formula("-1/$den") : Formula("-sqrt($in1)/$den");
+    } else {
+      return ($in1==1) ? Formula("$num/$den") : Formula("$num*sqrt($in1)/$den");
+    }
+  }
+}
+
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+
+@triples = (
+  [3,4,5],
+  [5,12,13],
+  [7,24,25],
+  [8,15,17]
+);
+@in = ();
+$in[0] = random(0,3,1);
+
+@quadrant = ();
+$quadrant[0] = random(2,4,1);
+
+@base = ();
+@absBase = ();
+@height = ();
+@absHeight = ();
+@hypotenuse = ();
+@int = ();
+@int2 = ();
+@Q = ();
+@pn = ();
+@pns = ();
+
+for my $k (0..0) {
+  if ($quadrant[$k]==2) {
+    my $i = random(0,1,1);
+    my $j = ($i+1)%2;
+    $base[$k] = -$triples[$in[$k]][$i];
+    $height[$k] = $triples[$in[$k]][$j];
+    $int[$k] = "\left(\frac{\pi}{2},\pi\right)";
+    $int2[$k] = "\left(\frac{\pi}{4},\frac{\pi}{2}\right)";
+    $Q[$k] = "II";
+    $pn[0] = "positive"; $pn[1] = "positive"; $pn[2] = "positive";
+    $pns[0] = ''; $pns[1] = ''; $pns[2] = '';
+  } elsif ($quadrant[$k]==3) {
+    my $i = random(0,1,1);
+    my $j = ($i+1)%2;
+    $base[$k] = -$triples[$in[$k]][$i];
+    $height[$k] = -$triples[$in[$k]][$j];
+    $Q[$k] = "III";
+    $int[$k] = "\left(\pi,\frac{3\pi}{2}\right)";
+    $int2[$k] = "\left(\frac{\pi}{2},\frac{3\pi}{4}\right)";
+    $pn[0] = "positive"; $pn[1] = "negative"; $pn[2] = "negative";
+    $pns[0] = ''; $pns[1] = '-'; $pns[2] = '-';
+  } else {
+    my $i = random(0,1,1);
+    my $j = ($i+1)%2;
+    $base[$k] = $triples[$in[$k]][$i];
+    $height[$k] = -$triples[$in[$k]][$j];
+    $Q[$k] = "IV";
+    $int[$k] = "\left(\frac{3\pi}{2},2\pi\right)";
+    $int2[$k] = "\left(\frac{3\pi}{4},\pi\right)";
+    $pn[0] = "positive"; $pn[1] = "negative"; $pn[2] = "negative";
+    $pns[0] = ''; $pns[1] = '-'; $pns[2] = '-';
+  }
+  $hypotenuse[$k] = $triples[$in[$k]][2];
+  $absBase[$k] = abs($base[$k]);
+  $absHeight[$k] = abs($height[$k]);
+}
+
+#sine, cosine, tangent, cosecant, secant cotangent
+@trigs = (
+  [Fraction($height[0],$hypotenuse[0]),
+   Fraction($base[0],$hypotenuse[0]),
+   Fraction($height[0],$base[0])
+  ],
+); 
+
+$r = 5;
+@Px = ();
+@Py = ();
+@graph = ();
+@fig = ();
+
+for my $i (0..0) {
+  $Px[$i] = Fraction($r*$base[$i],$hypotenuse[$i])->reduce;
+  $Py[$i] = Fraction($r*$height[$i],$hypotenuse[$i])->reduce;
+
+  $graph[$i] = init_graph(-8,-8,8,8,'axes'=>[0,0],'grid'=>[1,1]);
+  $graph[$i]->lb('reset');
+
+  $xfuncAlpha = sub { my $t = shift();
+    return $r*cos($t); };
+  $yfuncAlpha = sub { my $t = shift();
+    return $r*sin($t); };
+  $fnAlpha = new Fun( $xfuncAlpha, $yfuncAlpha, $graph[$i] );
+  $fnAlpha->domain(0,2*pi);
+
+  $graph[$i]->stamps(closed_circle( Real($Px[$i]), Real($Py[$i]), red ));
+  $graph[$i]->moveTo(0,0);
+  $graph[$i]->lineTo(Real($Px[$i]),Real($Py[$i]),red,2);
+  $graph[$i]->lineTo(Real($Px[$i]),0,red,2);
+  $graph[$i]->lineTo(0,0,red,2);
+
+  $xShift = ($Px[$i]>0) ? -0.4 : 0.4;
+  $yShift = ($Py[$i]>0) ? 0.4 : -0.4;
+  $graph[$i]->moveTo(Real($Px[$i]),$yShift);
+  $graph[$i]->lineTo(Real($Px[$i])+$xShift,$yShift,red,2);
+  $graph[$i]->lineTo(Real($Px[$i])+$xShift,0,red,2);
+
+  $LORHeight = ($Px[$i]>0) ? "left" : "right";
+  $TOBBase = ($Py[$i]>0) ? "top" : "bottom";
+  $LORHyp = ($Px[$i]>0) ? "right" : "left";
+  $TOBHyp = ($Py[$i]>0) ? "bottom" : "top";
+  $graph[$i]->lb(new Label(Real($Px[$i]),Real($Py[$i])/2,"$height[$i]",'red',$LORHeight,'middle',large));
+  $graph[$i]->lb(new Label(Real($Px[$i])/2,0,"$base[$i]",'red','center',$TOBBase,large));
+  $graph[$i]->lb(new Label(Real($Px[$i])/2,Real($Py[$i])/2,"$hypotenuse[$i]",'red',$LORHyp,$TOBHyp,large));
+  $graph[$i]->lb(new Label(Real($Px[$i]),Real($Py[$i]),"P($base[$i],$height[$i])",'red',$LORHeight,$TOBHyp,large));
+
+  $alt[$i] = "This is the graph of a circle with point P($base[$i],$height[$i]) on the circle. A right triangle is formed at vertices (0,0), ($base[$i],$height[$i]) and ($base[$i],0). The base is marked as $base[$i], height marked as $height[$i] and hypotenuse marked as $hypotenuse[$i].";
+
+  $fig[$i] = image(insertGraph($graph[$i]),'width'=>400,'height'=>400,'tex_size'=>700, extra_html_tags => "alt = '$alt[$i]' title = '$alt[$i]' ");
+
+}
+
+@s1 = ();
+@s2 = ();
+@ans = ();
+
+for my $i (0..1) {
+  Context("Fraction");
+  Context()->flags->set(requirePureFractions=>1);
+  Context()->flags->set(showMixedNumbers=>0);
+  $s1[$i] = (1-$trigs[0][1]*(-1)**$i)->reduce;
+  $s2[$i] = ($s1[$i]/2)->reduce;
+  $ans[$i] = rationalize($s2[$i]);
+  if ($pns[$i] eq '-') {
+    my $a = $ans[$i]->string;
+    Context("LimitedRadical");
+    $ans[$i] = Formula("-$a");
+  }
+}
+
+Context("Fraction");
+Context()->flags->set(requirePureFractions=>1);
+Context()->flags->set(showMixedNumbers=>0);
+$s3 = ($s1[0]/$s1[1])->reduce;
+$ans[2] = rationalize($s3);
+if ($pns[2] eq '-') {
+  my $a = $ans[2]->string;
+  Context("LimitedRadical");
+  $ans[2] = Formula("-$a");
+}
+
+
+##############################################################
+
+BEGIN_PGML
+
+If it's given that
+
+    [`\tan(\theta)=[$trigs[0][2]]`] and [`\theta\in[$int[0]]`],
+
+evaluate the following.
+
+* [@KeyboardInstructions("Use [|sqrt()|]* for the square root symbol. For example: [`\\sqrt{2}=`][|sqrt(2)|]*.")@]**
+* [@KeyboardInstructions("Rationalize the denominator if needed.")@]**
+
+a) [`\sin\left(\frac{\theta}{2}\right)=`][_____________]{$ans[0]}
+
+a) [`\cos\left(\frac{\theta}{2}\right)=`][_____________]{$ans[1]}
+
+a) [`\tan\left(\frac{\theta}{2}\right)=`][_____________]{$ans[2]}
+
+END_PGML
+
+##############################################################
+
+$showPartialCorrectAnswers = 1;
+
+
+
+##############################################################
+
+BEGIN_PGML_SOLUTION
+
+To calculate [`\sin\left(\frac{\theta}{2}\right)`], we will use the formula
+
+    [`` \sin\left(\frac{\theta}{2}\right) = \pm\sqrt{\frac{1-\cos(\theta)}{2}} ``]
+
+We need to find the values of [`\cos(\theta)`].
+
+###Calculating [`\cos(\theta)`]
+
+It's given that [`\tan(\theta)=[$trigs[0][2]]`] and [`\theta\in[$int[0]]`]. We can sketch [`\theta`] in a non-Unit Circle:
+
+>>[@ $fig[0] @]*<<
+
+>> (To enlarge, click on graph, then press Ctrl+ or Command+) <<
+
+The triangle's hypotenuse is calculated by [`\sqrt{([$absBase[0]])^2+\left([$absHeight[0]]\right)^2}=[$hypotenuse[0]]`]. 
+
+We can see [`\cos(\theta)=[$trigs[0][1]]`].
+
+###Calculating [` \sin\left(\frac{\theta}{2}\right) `]
+
+Since [`\theta\in[$int[0]]`], we have [`\frac{\theta}{2}\in[$int2[0]]`], so the value of [` \sin\left(\frac{\theta}{2}\right) `] is [$pn[0]].
+
+    [``\begin{aligned}
+  \sin\left(\frac{\theta}{2}\right) 
+  &= [$pns[0]]\sqrt{\frac{1-\cos(\theta)}{2}} \\
+  &= [$pns[0]]\sqrt{\frac{1-\left([$trigs[0][1]]\right)}{2}} \\
+  &= [$pns[0]]\sqrt{\frac{[$s1[0]]}{2}} \\
+  &= [$pns[0]]\sqrt{[$s2[0]]} \\
+  &= [$ans[0]]
+    \end{aligned}``]
+
+###Calculating [` \cos\left(\frac{\theta}{2}\right) `]
+
+Since [`\frac{\theta}{2}\in[$int2[0]]`], the value of [` \cos\left(\frac{\theta}{2}\right) `] is [$pn[1]].
+
+    [``\begin{aligned}
+  \cos\left(\frac{\theta}{2}\right) 
+  &= [$pns[1]]\sqrt{\frac{1+\cos(\theta)}{2}} \\
+  &= [$pns[1]]\sqrt{\frac{1+\left([$trigs[0][1]]\right)}{2}} \\
+  &= [$pns[1]]\sqrt{\frac{[$s1[1]]}{2}} \\
+  &= [$pns[1]]\sqrt{[$s2[1]]} \\
+  &= [$ans[1]]
+    \end{aligned}``]
+
+###Calculating [` \tan\left(\frac{\theta}{2}\right) `]
+
+Although there are other methods to calculate [` \tan\left(\frac{\theta}{2}\right) `], we will use the half-angle formula to practice it.
+
+Since [`\frac{\theta}{2}\in[$int2[0]]`], the value of [` \tan\left(\frac{\theta}{2}\right) `] is [$pn[2]].
+
+    [``\begin{aligned}
+  \tan\left(\frac{\theta}{2}\right) 
+  &= [$pns[2]]\sqrt{\frac{1-\cos(\theta)}{1+\cos(\theta)}} \\
+  &= [$pns[2]]\sqrt{\frac{1-\left([$trigs[0][1]]\right)}{1+\left([$trigs[0][1]]\right)}} \\
+  &= [$pns[2]]\sqrt{\frac{[$s1[0]]}{[$s1[1]]}} \\
+  &= [$pns[2]]\sqrt{[$s3]} \\
+  &= [$ans[2]]
+    \end{aligned}``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

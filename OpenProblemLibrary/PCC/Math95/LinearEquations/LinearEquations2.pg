@@ -1,0 +1,249 @@
+# WeBWorK problem written by Alex Jordan 
+# Portland Community College
+# ENDDESCRIPTION
+
+
+
+##############################################
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGgraphmacros.pl",
+  "parserPopUp.pl",
+  "contextFraction.pl",
+
+);
+
+
+$refreshCachedImages = 1;
+TEXT(beginproblem());
+
+##############################################
+
+Context("Fraction");
+
+$a = random(1,5,1);                                    #The coefficients
+$b = random(max(1,$a-2),$a+2)*random(-1,1,2);
+$c = random(0,7,1)*abs($b);
+
+$slope = Fraction("-$a","$b");
+$intercept = Fraction("$c","$b");
+
+Context()->variables->add(y=>'Real');
+Context()->reduction->set('(-x)-y'=>0);    #So that the displayed equations
+Context()->reduction->set('(-x)+y'=>0);    #will look as intended
+
+$left=Compute("y")->reduce;                #The displayed equation
+$right=Compute("$slope x + $intercept")->reduce;             
+
+
+Context("Numeric");
+
+
+
+
+
+
+
+@a = ($a);                                 #There will be an array of images
+@b = ($b);                                 #with the first image the correct
+@c = ($c);                                 #one, and all of the others not.
+                                           #These arrays will hold the 
+                                           #parameters for the graphs
+
+#Second graph is vertically flipped about x-axis
+$a[1] = $a[0];
+$b[1] = -$b[0];
+$c[1] = $c[0];
+
+#Third and fourth are first and second, flipped about y-axis
+for ( my $k=2; $k<4; $k++ ) {
+   $a[$k] = -$a[$k-2];
+   $b[$k] = $b[$k-2];
+   $c[$k] = $c[$k-2];
+ }
+
+#Next four are first four reflected across y=x.  If the slope is 1 or -1, the value of c is changed to produce distinct new graphs.
+
+$shift = 0;
+if (($a/$b)**2 == 1) {$shift = 2;}
+
+for ( my $k=4; $k<8; $k++ ) {
+   $a[$k] = $b[$k-4];
+   $b[$k] = $a[$k-4];
+   $c[$k] = $c[$k-4]+$shift;
+ }
+
+#Remaining eight are first eight, scaled by 1/2 about the y-axis
+for ( my $k=8; $k<16; $k++ ) {
+   $a[$k] = $a[$k-8];
+   $b[$k] = $b[$k-8]*2;
+   $c[$k] = $c[$k-8];
+ }
+
+
+
+
+
+
+$xmin = -10;         #The viewing window
+$xmax = 10;
+$ymin = -10;
+$ymax = 10;
+
+
+@graphs = ();              #The array of graphs we will create
+
+
+#  Start making the graphs
+
+for ( my $i=0; $i<16; $i++ ) {
+
+
+#  Background
+
+   $graphs[$i] = init_graph($xmin,$ymin,$xmax,$ymax,
+          grid=>[$xmax-$xmin,$ymax-$ymin],axes=>[0,0],pixels=>[300,300]);
+
+
+#  Labels
+
+   $graphs[$i]->lb( new Label(4.7,0.2,'x','black','center','middle'));
+   $graphs[$i]->lb( new Label(0.2,4.7,'y','black','center','middle'));
+
+
+
+   
+
+
+
+#  Graph the lines.
+
+add_functions($graphs[$i], "-$a[$i]/$b[$i]*x+$c[$i]/$b[$i] for x in <$xmin,$xmax> using color:blue and weight:2");
+
+}
+
+
+
+sub shufflemap {
+    my $n = shift();
+    my $m = $n - 1;
+    my $zeroind;
+
+    my %map = ();
+ 
+    my @vals = (0..$m);
+    for ( my $i=0; $i<$m; $i++ ) {
+  my $j = random(0,$m-$i,1);
+  $map{$i} = $vals[$j];
+  $zeroind = $i if ( $map{$i} == 0 );
+  splice(@vals, $j, 1);
+    }
+    $map{$m} = $vals[0];
+    $zeroind = $m if ( $map{$m} == 0 );
+ 
+    return( { %map }, $zeroind );
+}
+
+($shuffle, $zero) = shufflemap(16);   #A random permutation function.  
+                                      #$zero is $shuffle(0), the index
+                                      #of the correct graph
+
+$pop = PopUp( [qw(? 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)], $zero+1 );
+
+
+##############################################
+
+Context()->texStrings;
+
+BEGIN_TEXT
+
+Select which graph is the graph of the equation using the dropdown menu below.
+$PAR
+
+$SPACE $SPACE $SPACE \($left=$right\)
+
+
+
+$PAR
+${BITALIC}(Click on a graph to enlarge it.)$EITALIC
+$PAR
+
+
+
+\{ begintable(4) \}
+\{ row( "${BBOLD}1.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{0} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}2.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{1} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}3.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{2} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}4.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{3} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"') ) \}
+\{ row( "${BBOLD}5.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{4} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}6.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{5} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}7.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{6} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}8.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{7} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"') ) \}
+\{ row( "${BBOLD}9.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{8} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}10.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{9} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}11.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{10} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}12.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{11} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"') ) \}
+\{ row( "${BBOLD}13.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{12} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}14.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{13} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}15.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{14} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"'),
+	"${BBOLD}16.$EBOLD" .
+	image(insertGraph( $graphs[ $shuffle->{15} ] ), tex_size=>150,
+	      height=>150, width=>150, extra_html_tags=>'alt="graph"') ) \}
+\{ endtable() \}
+ 
+$PAR
+
+The correct graph is \{ $pop->menu() \}.
+
+
+
+END_TEXT
+
+Context()->normalStrings;
+
+##############################################
+
+
+$showPartialCorrectAnswers = 1;
+
+ANS( $pop->cmp() );
+
+
+
+
+
+ENDDOCUMENT();
