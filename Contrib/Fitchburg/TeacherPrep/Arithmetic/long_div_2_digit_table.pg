@@ -1,0 +1,103 @@
+###DESCRIPTION
+##  Find the quotient and remainder of a problem using long division.
+##ENDDESCRIPTION
+
+##KEYWORDS('long division')
+
+## DBsubject('Elementary Education')
+## DBchapter('Arithmetic')
+## DBsection('Division')
+## Author('Peter Staab')
+## Institution('Fitchburg State University')
+## Date('5/3/2020')
+
+DOCUMENT();
+
+loadMacros('PGstandard.pl', 'PGML.pl', 'PGcourse.pl');
+
+Context('Numeric');
+
+do {
+    $a   = random(400, 700);
+    $b   = random(12,  19);
+    $rem = random(1,   $b - 1);
+    $c   = $a * $b + $rem;
+} until $rem != 0;
+
+BEGIN_PGML
+Create a table of multiples of [$b] and use it and long division to solve
+[`[$c] \div [$b]`]:
+
+The whole part is [__]{$a}
+
+The remainder is [__]{$rem}
+
+END_PGML
+
+sub long_division {
+    my ($dividend, $divisor) = @_;
+
+    my @digits     = split(//, $dividend);
+    my $num_digits = scalar @digits;
+    my $quotient   = int($dividend / $divisor);
+    my @qdigits    = split(//, $quotient);
+
+    # start with the quotient in the top row and the second row is the
+    # dividend and divisor.
+    my @rows = (
+        [
+            '',
+            ({ data => '', bottom => 1 }) x
+                (scalar(@digits) - scalar(@qdigits)),
+            map { ({ data => $_, bottom => 1 }) } split(//, $quotient)
+        ],
+        [ "$divisor)", @digits ]
+    );
+
+    $step = 0;
+    my $div = 0;
+    do { $div .= $digits[$step]; ++$step; } until $div > $divisor;
+    do {
+        # step n dividend.
+        my $q = int($div / $divisor);
+        push(
+            @rows,
+            [
+                ('') x ($step + 1 - ceil(log10($divisor * $q == 0 ? 1 : $divisor * $q))),
+                map { ({ data => $_, bottom => 1 }) }
+                    split(//, $divisor * $q)
+            ]
+        );
+        my $diff = $div - $q * $divisor;
+        push(
+            @rows,
+            [
+                ('') x ($diff < 10 ? $step : $step - 1),
+                split(//, $diff),
+                $digits[$step] // ''
+            ]
+        );
+        $div = $diff * 10 + $digits[$step];
+        ++$step;
+    } until ($step > scalar(@digits));
+
+    return DataTable(~~@rows);
+}
+
+$tab_mult =
+    DataTable([ map { [ PGML("[`$_ \times $b = `]"), $_ * $b ] } (1 .. 9) ]);
+
+BEGIN_PGML_SOLUTION
+
+First, generate the table of multiples of [$b]:
+
+[$tab_mult]*
+
+Then use this table to perform long division:
+
+[@ long_division($c, $b) @]*
+
+So the quotient is [$a] with remainder [$rem].
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
