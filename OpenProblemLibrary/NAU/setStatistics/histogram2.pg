@@ -12,76 +12,128 @@
 # Location: Northern Arizona University
 # Course: Qauntitative Reasoning
 
-DOCUMENT();     
+DOCUMENT();
 loadMacros(
-  "PGstandard.pl",
-  "PGnauStats.pl",
-  "PGstatisticsmacros.pl",
-  "PGnumericalmacros.pl",
-  "PGcourse.pl"
+    'PGstandard.pl',        'PGML.pl',
+    'StatisticalPlots.pl',
+    'PGcourse.pl'
 );
-TEXT(&beginproblem);
 
-$n = 50;
-$max = random( 29, 44, 5 );
-for( $i = 0; $i < $n; $i++ ){ $val = random( 0, $max, 1 );
-  push @list, $val;
-}  
-$name = list_random( 'Mathematics and Statistics', 'Chemistry', 'Biology', 'English' );
-$num = random( 5, $max - 10, 5 );
-@dir = ( $num.' or more ', ' less than '.$num );
-$ind = random( 0, 1 );
-foreach $val(@list){
-  if( $val < $num ){ push @newlist1, $val 
-  }else{ push @newlist2, $val } 
+Context('Numeric');
+
+$n        = 50;
+$max      = random(29, 44, 5);
+$num_bins = ($max + 1) / 5;
+
+# This is values of the years of service of each faculty member.
+@list = map { random(0, $max) } (1 .. $n);
+
+# This is the heights of each bar
+for my $val (@list) { $heights[ int($val / 5) ]++; }
+
+$ymax = 0;
+for my $h (@heights) { $ymax = $h if $ymax < $h; }
+
+$name = list_random(
+    'Mathematics and Statistics', 'Chemistry',
+    'Biology',                    'English',
+    'Political Science',          'Communications',
+    'Earth Science',              'Physics'
+);
+$num = random(5, $max - 10, 5);
+@dir = ($num . ' or more ', ' less than ' . $num);
+$ind = random(0, 1);
+
+for my $val (@list) {
+    if ($val < $num) {
+        push @newlist1, $val;
+    } else {
+        push @newlist2, $val;
+    }
 }
-if( $ind == 0 ){ $ans1 = ( 100 * scalar( @newlist2 ) ) / $n;
-}else{ $ans1 = ( 100 * scalar( @newlist1 ) ) / $n;}  
+$ans1 =
+    $ind == 0
+    ? Compute((100 * scalar(@newlist2)) / $n)
+    : Compute((100 * scalar(@newlist1)) / $n);
 
-do{ $low1 = random( 5, $max+1, 5 );
-  $high1 = random( 5, $max+1, 5 )
-} until( $low1 < $high1 ); 
+do {
+    $low1  = random(5, $max + 1, 5);
+    $high1 = random(5, $max + 1, 5);
+} until ($low1 < $high1);
 
-foreach $val(@list){
-  if( $val >= $low1 && $val < $high1 ){ push @newlist3, $val;
-  }
-}  
-$ans2 = ( scalar( @newlist3 ) ) / $n;
+for my $val (@list) {
+    push(@newlist3, $val) if ($val >= $low1 && $val < $high1);
+}
+$ans2 = Compute((scalar(@newlist3)) / $n);
 
-do{ $low2 = random( 5, $max+1-10, 5 );
-  $high2 = random( 5, $max+1-5, 5 )
-} until( $low2 < $high2 ); 
+do {
+    $low2  = random(5, $max + 1 - 10, 5);
+    $high2 = random(5, $max + 1 - 5,  5);
+} until ($low2 < $high2);
 
-foreach $val(@list){
-  if( $val < $low2 ){ push @newlist4, $val 
-  }
-  if( $val < $high2 ){ push @newlist5, $val } 
-  }
-$ans3 = scalar( @newlist4 ) / scalar( @newlist5 );
-BEGIN_TEXT
+for my $val (@list) {
+    push(@newlist4, $val) if ($val < $low2);
+    push(@newlist5, $val) if ($val < $high2);
+}
+$ans3 = Compute(scalar(@newlist4) / scalar(@newlist5));
 
-The histogram below gives the length of service of members of the Department of $name at a particular
-university. The classes, in years of service, are 0\(-\)4.9, 5\(-\)9.9, etc., and the vertical axis represents the 
+$stat_plot = StatPlot(
+    xmin => -5,
+    xmax => $max + 5,
+    # xlabel      => 'Years of Service',
+    xtick_delta => 5,
+    # xlocation    => 'below',
+    ymin            => -2,
+    ymax            => $ymax + 1,
+    ytick_positions => [ 1 .. $ymax ],
+    ylabel          => '',
+    show_grid       => 0,
+    aspect_ratio    => 2
+);
+$stat_plot->add_histogram(
+    ~~@list,
+    max          => $max + 1,
+    stroke_width => 1,
+    bins         => $num_bins,
+    fill_colors  => ['lightblue']
+);
+
+# Seems to be a bug in the xlocation 'below' option.
+$stat_plot->add_label(0.5 * $max, -1.5, 'Years of Service');
+
+BEGIN_PGML
+
+The histogram below gives the length of service of members of the Department of [$name] at a particular
+university. The classes, in years of service, are 0[`-`]4.9, 5[`-`]9.9, etc., and the vertical axis represents the 
 number of faculty.
-$PAR
 
-(a) What percent of the department faculty have $dir[$ind] years of service?$BR
-Answer: \{ans_rule( 15 )\}$PERCENT $PAR
-(b) If a member of the department is chosen at random to serve on a university committee, what is the
-probability (in decimal form) that the chosen representitive will have between $low1 and $high1 years of service?
-$BR
-Answer: \{ans_rule( 15 )\}
-$PAR
-(c) What is the probability the representative above will have less than $low2 years of service given that the person
-has less than $high2 years of service?$BR
-Answer: \{ans_rule( 15 )\}$PAR
-\{ Plot( Histogram( @list, bins => ( $max + 1 ) / 5, axislabel => 'Years of Service', 
-                                     labelcount => $n, title => $name.' Faculty'  ), tex_size=>900 )  \} $BR
+>>[!!]{$stat_plot}{500}<<
 
-END_TEXT
+a) What percent of the department faculty have [$dir[$ind]] years of service?  [_]{$ans1}
 
-ANS( num_cmp( $ans1 ) );
-ANS( num_cmp( $ans2 ) );
-ANS( num_cmp( $ans3 ) );
+b) If a member of the department is chosen at random to serve on a university committee, what is the
+probability (in decimal form) that the chosen representitive will have between [$low1] and [$high1] years of service?
+  
+    Answer: [_]{$ans2}
+
+c) What is the probability the representative above will have less than
+[$low2] years of service given that the person has less than [$high2] years of service?  
+
+    Answer: [_]{$ans3}
+
+END_PGML
+
+BEGIN_PGML_SOLUTION
+First, note that total number of faculty is the sum of the heights of the bars. This is
+[``` [@ join('+', @heights) @] = [$n] ```]
+
+a) The heights of the bars for [$dir[$ind]] years of service is [$ans1/2] so the percent is [`` \frac{[$ans1/2]}{[$n]}  = [$ans1]%``].
+
+b) The sum of the heights of the bars between [$low1] and [$high1] is [$n*$ans2] so the probability is [`` \frac{[$n*$ans2]}{[$n]} =  [$ans2]``].
+
+c) First, we need the heights of the bars under [$high2] or [@ scalar(@newlist5) @]. And then the heights of the bars under [$low2] is [@ scalar(@newlist4) @].
+
+    The probability then is [`` \frac{[@ scalar(@newlist4) @]}{[@ scalar(@newlist5) @]} = [$ans3] ``].
+END_PGML_SOLUTION
 
 ENDDOCUMENT();      

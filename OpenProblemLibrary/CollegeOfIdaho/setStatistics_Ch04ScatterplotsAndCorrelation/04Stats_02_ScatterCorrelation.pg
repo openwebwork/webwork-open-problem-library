@@ -19,10 +19,9 @@
 DOCUMENT();    # This should be the first executable line in the problem.
 
 loadMacros(
-    "PGstandard.pl",  'PGML.pl',
-    'PGtikz.pl',      'PGstatisticsmacros.pl',
-    "parserPopUp.pl", 'niceTables.pl',
-    "PGcourse.pl"
+    "PGstandard.pl",       'PGML.pl',
+    'StatisticalPlots.pl', 'PGstatisticsmacros.pl',
+    "parserPopUp.pl",      "PGcourse.pl"
 );
 
 sub gen_rand_pts {
@@ -40,19 +39,19 @@ sub gen_rand_pts {
 @coeffs = (
     {
         m   => -0.5,
-        a   => 1.5,
+        a   =>  1.5,
         alt => 'The scatterplot shows a moderate linear trend starting in '
             . 'the upper lefthand corner and moving downward to the right.'
     },
     {
         m   => -1.5,
-        a   => 0.2,
+        a   =>  0.2,
         alt => 'The scatterplot shows a very strong linear trend starting '
             . 'in the upper lefthand corner and moving downward to the right.'
     },
     {
         m   => -0.2,
-        a   => 0.3,
+        a   =>  0.3,
         alt => 'The scatterplot shows a weak linear trend starting in '
             . 'the upper lefthand corner and moving downward to the right.'
     },
@@ -76,20 +75,24 @@ sub gen_rand_pts {
     },
 );
 
-@plots = ();
-for $coeff (random_subset(4, @coeffs)) {
+for my $coeff (random_subset(4, @coeffs)) {
     @rand_pts = gen_rand_pts(30, $coeff->{m}, $coeff->{a});
-
-    $pt_str = join(' ', map {"($_->[0],$_->[1])"} @rand_pts);
-
-    $graph = createTikZImage();
-    $graph->texPackages(['pgfplots']);
-    $graph->BEGIN_TIKZ
-\begin{axis}
-\addplot [only marks, scale=0.5] coordinates { $pt_str };
-\end{axis}
-END_TIKZ
-
+    $ymax     = ceil(4 * max(map { $_->[1] } @rand_pts)) / 4;
+    $ymin     = floor(4 * min(map { $_->[1] } @rand_pts)) / 4;
+    $plot     = StatPlot(
+        xmin        => -0.25,
+        xmax        =>  1.25,
+        xtick_delta =>  0.25,
+        xlocation   => 'bottom',
+        xlabel      => '',
+        ymin        => $ymin,
+        ymax        => $ymax,
+        ytick_delta => 0.25,
+        ylocation   => 'left',
+        ylabel      => '',
+        show_grid   => 0
+    );
+    $plot->add_scatterplot(~~@rand_pts, mark_size => 0.5);
     push(
         @plots,
         {
@@ -97,7 +100,7 @@ END_TIKZ
                 [ map { $_->[0] } @rand_pts ],
                 [ map { $_->[1] } @rand_pts ]
             ),
-            im  => $graph,
+            im  => $plot,
             alt => $coeff->{alt}
         }
     );
@@ -105,37 +108,8 @@ END_TIKZ
 
 # sorted list of possible answers
 $list = [ lex_sort(map { 'r = ' . Round($_->{r}, 3) } @plots) ];
-
 @dropdowns =
     map { DropDown($list, 'r = ' . Round($plots[$_]->{r}, 3)) } (0 .. $#plots);
-
-$tab = LayoutTable(
-    [
-        [
-            map {
-                image(
-                    $plots[$_]->{im},
-                    width           => 150,
-                    tex_size        => 400,
-                    extra_html_tags => "alt = '$plots[$_]->{alt}'"
-                )
-            } (0 .. 1)
-        ],
-        [ map { $dropdowns[$_]->menu } (0 .. 1) ],
-        [
-            map {
-                image(
-                    $plots[$_]->{im},
-                    width           => 150,
-                    tex_size        => 400,
-                    extra_html_tags => "alt = '$plots[$_]->{alt}'"
-                )
-            } (2 .. 3)
-        ],
-        [ map { $dropdowns[$_]->menu } (2 .. 3) ]
-    ],
-    align => 'cc'
-);
 
 $showPartialCorrectAnswers = 0;
 
@@ -145,9 +119,28 @@ Match the correlation coefficients with their scatterplots.
 Select the letter of the scatterplot below which corresponds to the correlation
 coefficient.  (Click on image for a larger view.)
 
-[$tab]*
+[#
+    [.*A*.][.*B*.]*
+    [.[!!]{$plots[0]->{im}}{200}.][.[!!]{$plots[1]->{im}}{200}.]*
+    [. [_]{$dropdowns[0]} .][. [_]{$dropdowns[1]} .]*
+    [.*C*.][.*D*.]*
+    [.[!!]{$plots[2]->{im}}{200}.][.[!!]{$plots[3]->{im}}{200}.]*
+    [. [_]{$dropdowns[2]} .][. [_]{$dropdowns[3]} .]*
+#]{padding => 0.3}
 END_PGML
 
-ANS($dropdowns[$_]->cmp) for (0 .. 3);
+BEGIN_PGML_SOLUTION
+There are two general rules about correlation coefficients. 
+
+1. The closer a set of points is to a line, the closer [`r`] is to 1 or -1. 
+2. The sign of [`r`] is the sign of the slope of the line . 
+
+
+a. Becuase plot a) shows that [$plots[0]->{alt}] then the result is [$dropdowns[0]].
+b. Becuase plot a) shows that [$plots[1]->{alt}] then the result is [$dropdowns[1]].
+c. Becuase plot a) shows that [$plots[2]->{alt}] then the result is [$dropdowns[2]].
+d. Becuase plot a) shows that [$plots[3]->{alt}] then the result is [$dropdowns[3]].
+
+END_PGML_SOLUTION
 
 ENDDOCUMENT();

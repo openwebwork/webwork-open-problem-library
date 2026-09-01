@@ -24,102 +24,45 @@
 
 DOCUMENT();
 
-loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "PGML.pl",
-  "PGgraphmacros.pl",
-  "PGcourse.pl",
-#  "contextFraction.pl",
+loadMacros("PGstandard.pl", "PGML.pl", 'StatisticalPlots.pl', "PGcourse.pl");
+
+Context('Numeric');
+
+$whole    = random(350, 1950, 100);
+@percents = (
+    random(20, 36, 2),
+    random(16, 26, 2),
+    random(10, 20, 2),
+    random(10, 20, 2)
 );
+@percents[4] = 100 - $percents[0] - $percents[1] - $percents[2] - $percents[3];
 
-##############################################
+@fractions = map { $_ / 100 } @percents;
 
-TEXT(beginproblem());
-$refreshCachedImages = 1;
+$beatles = $fractions[0] * $whole;
+@legend =
+    ("Beatles", "Rolling Stone", "Four Seasons", "Michael Jackson", "others");
 
-Context("LimitedNumeric");
-
-$whole = random(350,1950,100);
-$perBeatles=random(20,36,2);
-$perRolling=random(16,26,2);
-$perFour=random(10,20,2);
-$perMichael=random(10,20,2);
-$perOther=100-$perBeatles-$perRolling-$perFour-$perMichael;
-$decBeatles=$perBeatles/100;
-$decRolling=$perRolling/100;
-$decFour=$perFour/100;
-$decMichael=$perMichael/100;
-$decOther=$perOther/100;
-
-$beatles = $decBeatles*$whole;
-
-@artists = (0,$perBeatles,$perRolling,$perFour,$perMichael,$perOther);
-
-$numParts = 5;
-$scale = 2;
-$downshift = -0.4;
-$radius = 1;
-$gr = init_graph(-$scale,-$scale,$scale,$scale,
-size=>[400,400]
-);
-
-$title = "Collection of Signatures from Different Artists";
-$gr->lb( new Label(0, $scale/1.5,$title,'black','center','middle'));
-
-$xfunc = sub { my $t = shift();
-    return $radius*cos($t); };
-$yfunc = sub { my $t = shift();
-    return $radius*sin($t)+$downshift; };
-$circle = new Fun( $xfunc, $yfunc, $gr );
-$circle->domain(0,6.2832);
-
-$gr->new_color("color0", 250,250,210);
-$gr->new_color("color1", 255,255,0);
-$gr->new_color("color2", 255,218,185);
-$gr->new_color("color3", 200,230,100);
-$gr->new_color("color4", 220,220,220);
-@color=("color0","color1","color2","color3","color4");
-
-@legend=("Beatles","Rolling Stone","Four Seasons","Michael Jackson","others");
-
-@perCumulative = ();
-$perCumulative[0] = 0;
-$perTemp=0;
-
-for my $i (1..$numParts) {
-   $perTemp = $perTemp + $artists[$i]/100;
-   $perCumulative[$i] = $perTemp;
+$stat_plot = StatPlot(xvisible => 0, yvisible => 0, show_grid => 0);
+$stat_plot->add_piechart(~~@percents, labels => ~~@legend, radius => 2.5);
+$angle = 0;
+for (0 .. $#percents) {
+    $stat_plot->add_label(
+        1.75 * cos($angle + $PI * $fractions[$_]),
+        1.75 * sin($angle + $PI * $fractions[$_]),
+        "$percents[$_]%"
+    );
+    $angle += 2 * $PI * $fractions[$_];
 }
 
-for my $i (0..$numParts-1) {
-   $end0x = $radius*cos($perCumulative[$i]*2*pi);
-   $end0y = $radius*sin($perCumulative[$i]*2*pi)+$downshift;
-   $end1x = $radius*cos($perCumulative[$i+1]*2*pi);
-   $end1y = $radius*sin($perCumulative[$i+1]*2*pi)+$downshift;
-   $end2x = $radius/2*cos(($perCumulative[$i]+$perCumulative[$i+1])*pi);
-   $end2y = $radius/2*sin(($perCumulative[$i]+$perCumulative[$i+1])*pi)+$downshift;
-   $end3x = 1.4*$radius*cos(($perCumulative[$i]+$perCumulative[$i+1])*pi);
-   $end3y = 1.4*$radius*sin(($perCumulative[$i]+$perCumulative[$i+1])*pi)+$downshift;
+$alt =
+    "This is a pie chart about a collection of artist signatures. The collection has $percents[0]% $legend[0] signatures, $percents[1]% $legend[1] signatures, $percents[2]% $legend[2] signatures, $percents[3]% $legend[3] signatures and $percents[4]% other signatures.";
 
-   $gr->moveTo(0,0+$downshift);
-   $gr->lineTo($end0x,$end0y,'blue',1);
-   $gr->moveTo(0,0+$downshift);
-   $gr->lineTo($end1x,$end1y,'blue',1);
-   $gr->fillRegion([$end2x,$end2y,$color[$i]]);
-
-   $gr->lb( new Label($end2x, $end2y,"$artists[$i+1]%",'black','center','middle'));
-   $gr->lb( new Label($end3x, $end3y,$legend[$i],'black','center','middle'));
-}
-
-$alt = "This is a pie chart about a collection of artist signatures. The collection has $artists[1]% $legend[0] signatures, $artists[2]% $legend[1] signatures, $artists[3]% $legend[2] signatures, $artists[4]% $legend[3] signatures and $artists[5]% other signatures.";
-
-##############################################
+Context('LimitedNumeric');
 
 BEGIN_PGML
 
->>[@image( insertGraph($gr), width=>400, 
-    height=>400, tex_size=>800, extra_html_tags => "alt = '$alt' title = '$alt'")@]*<<
+>>[!$alt!]{$stat_plot}{400}<<
 
 The pie chart represents a collector's collection of signatures from various artists. Answer the following question.
 
@@ -127,13 +70,13 @@ If the collector has a total of [`[$whole]`] signatures, there are [__________]{
 
 END_PGML
 
-##############################################
+$perBeatles = $percents[0];
 
 BEGIN_PGML_SOLUTION
 
 This problem can be boiled down to this question: What is  [` [$perBeatles]% `] of [` [$whole] `]? We will show multiple methods to solve this problem.
 
-####Method 1  
+#### Method 1  
 
 We will use proportion to solve this problem. Assume [` [$perBeatles]% `] of [` [$whole] `] is [`x`], so "[`[$perBeatles]`] out of [`100`]" corresponds to "[`x`] out of [`[$whole]`]".
 
@@ -151,7 +94,7 @@ We will write and solve the proportion:
 
 There are [`[$beatles]`] signatures by the Beatles in this collection.
 
-####Method 2  
+#### Method 2  
 
 We will use the percentage formula to solve this problem. This translation from English to math may help you remember the percentage formula.
 
@@ -168,7 +111,7 @@ The question is: What is [` [$perBeatles]% `] of [` [$whole] `]? Assume [`x`] is
 
 There are [`[$beatles]`] signatures by the Beatles in this collection.
 
-####Method 3
+#### Method 3
 
 In the sentence "What is [` [$perBeatles]% `] of [` [$whole] `],"
 

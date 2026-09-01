@@ -25,91 +25,111 @@
 DOCUMENT();
 
 loadMacros(
-  "PGgraphmacros.pl",
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "PGML.pl",
-  "parserNumberWithUnits.pl",
-  "PCCmacros.pl",
-  "PGcourse.pl",
+    "PGstandard.pl", 'PGML.pl', 'plots.pl',
+
+    "parserNumberWithUnits.pl",
+    "PGcourse.pl"
 );
 
 ##############################################
 
 Context("Numeric");
 
-do {
-  $height = random(10,30,1);
-  $rightSide = $height + random(2,4,1);
-  $bigbase = round(sqrt($rightSide**2 - $height**2))+random(10,15,1);
-} until ($bigbase > $height);
-$base = $bigbase - round(sqrt($rightSide**2 - $height**2));
-$leftSide = round(sqrt($bigbase**2 + $height**2));
+# We want a triangle with integer sides and approximate
+# integer height so one can approximate its
+# area = (1/2)base*height using these numbers
 
-$xmin = 0;         #The viewing window
-$xmax = $bigbase*240/210;
-$ymin = 0;
-$ymax = (210*$height/$bigbase+30)*$height/(210*$height/$bigbase);
+# Make the sides of the triangle integers
 
-@x = ($xmax/2-$bigbase/2,$xmax/2-$bigbase/2+$base);
-@y = (($ymax-$height)/2,($ymax+$height)/2);
+$roughheight = random(20, 30, 1);
+$rightSide   = $roughheight + random(2, 4, 1);
+$base        = random(10, 15, 1);
+$offset      = round(sqrt($rightSide**2 - $roughheight**2));
+$bigbase     = $base + $offset;
+$leftSide    = round(sqrt($bigbase**2 + $roughheight**2));
 
-$cornersize = $xmax*10/240;
+# get the exact area from Heron's formula
 
-$picture = init_graph($xmin,$ymin,$xmax,$ymax,
-      pixels=>[240,240*$ymax/$xmax]);
+$perimeter = $base + $leftSide + $rightSide;
+$s         = $perimeter / 2;
+$area      = sqrt($s * ($s - $leftSide) * ($s - $rightSide) * ($s - $base));
 
-$xTop = $x[0]+$bigbase;
+# approximate the height to the nearest integer
+$height = round(2 * $area / $base);
 
-$picture->lb( new Label($x[0]+$base/2, $y[0],"$base m",'black','center','top','large'));
-$picture->lb( new Label($xTop,($y[0]+$y[1])/2,"$height m",'black','center','bottom','large','vertical'));
-$picture->lb( new Label(($x[1]+$xTop)/2,($y[0]+$y[1])/2,"$rightSide m",'black','right','middle','large'));
-$picture->lb( new Label(($x[0]+$xTop)/2,($y[0]+$y[1])/2,"$leftSide m",'black','right','bottom','large'));
+# with this approximation the max error in the
+# area = base*height/2 formula is
+# about (delta height)/height < 0.5/20 = 2.25 %
 
-$picture->new_color("darkblue",  100,100,255); 
+@x = (($xmax - 2 * $base) / 2, ($xmax + 2 * $base) / 2);
+@y = (($ymax - $height) / 2, ($ymax + $height) / 2);
 
-$picture->moveTo($xTop,$y[1]);
-$picture->lineTo($xTop,$y[0], red,1,"dashed");
-$picture->lineTo($x[0]+$base,$y[0], red,1,"dashed"); 
-$picture->lineTo($xTop,$y[1], darkblue,3);
-$picture->lineTo($x[0],$y[0], darkblue,3);
-$picture->lineTo($x[0]+$base,$y[0], darkblue,3);
+$cornersize = min(($x[1] - $x[0]), ($y[1] - $y[0])) / 10;
 
-$picture->moveTo($x[0]+$bigbase,$y[0]+$cornersize);
-$picture->lineTo($x[0]+$bigbase-$cornersize,$y[0]+$cornersize, darkblue,1);
-$picture->lineTo($x[0]+$bigbase-$cornersize,$y[0], darkblue,1);
+$pict = Plot(
+    xmin            => -0.1 * $bigbase,
+    xmax            => 1.2 * $bigbase,
+    ymin            => -0.1 * $height,
+    ymax            => 1.1 * $height,
+    aspect_ratio    => 1,
+    xvisible        => 0,
+    yvisible        => 0,
+    show_grid       => 0,
+    rounded_corners => 1
+);
 
-$approxarea = $base*$height/2;
-$ansP = NumberWithUnits($perimeter,"m");
-$ansA = NumberWithUnits($approxarea,"m^2");
+$pict->add_dataset(
+    [ 0,        0 ],
+    [ $base,    0 ],
+    [ $bigbase, $height ],
+    [ 0,        0 ],
+    color => 'blue'
+);
+$pict->add_dataset(
+    [ $base, 0 ], [ $bigbase, 0 ], [ $bigbase, $height ],
+    color     => 'red',
+    linestyle => 'dashed'
+);
+$pict->add_dataset(
+    [ $bigbase - 0.05 * $bigbase, 0 ],
+    [ $bigbase - 0.05 * $bigbase, 0.05 * $bigbase ],
+    [ $bigbase,                   0.05 * $bigbase ],
+    color => 'blue'
+);
+$pict->add_label($bigbase, $height / 2, "$height m", h_align => 'left');
 
+$pict->add_label($base / 2, 0, "$base m", v_align => 'top');
+$pict->add_label(
+    $bigbase / 2, $height / 2, "$leftSide m",
+    v_align => 'bottom',
+    h_align => 'right'
+);
+$pict->add_label(
+    ($bigbase + $base) / 2, $height / 2, "$rightSide m",
+    v_align => 'top',
+    h_align => 'left'
+);
 
-$text = "an obtuse triangle with sides of lengths $base m, $rightSide m, and $leftSide m; its height perpendicular to the side of length $base m is approximately equal to $height m (rounded to the nearest meter).";
+$approxarea = $base * $height / 2;
+$ansP       = NumberWithUnits($perimeter,  "m");
+$ansA       = NumberWithUnits($approxarea, "m^2");
 
+$text =
+    "an obtuse triangle with sides of lengths $base m, $rightSide m, and $leftSide m; its height perpendicular to the side of length $base m is approximately equal to $height m (rounded to the nearest meter).";
 
-
-##############################################
-
-$text = "an obtuse triangle with legs of lengths $base m, $rightSide m, and $leftSide m; its height perpendicular to the side of length $base m is $height m";
-
-BEGIN_TEXT
+BEGIN_PGML
 
 Find the perimeter and area of the triangle.$PAR
 
-$BCENTER
-\{ image(insertGraph( $picture  ),  width=>240, extra_html_tags => 'alt = "$text"  title = "$text"') \}
-$ECENTER
-$PAR
-END_TEXT
-BEGIN_PGML
+The height is rounded off to the nearest meter, so if you use it to compute the area your result will only be correct to within 2 or 3 percent of the true area.
 
-    Its perimeter is [_]{$ansP}{5} and its area is [_]{$ansA}{5}. 
+>>[![$text]!]{$pict}{300}<<
+
+Its perimeter is [_____________]{$ansP} and its area is [_____________]{$ansA->cmp(tolerance=>0.03,tolType=>'relative')} [`\pm 3 \%`]. 
 
 [@KeyboardInstructions(q!(Use [|m|]* for meters and [|m^2|]* for square meters.)!)@]**
 
 END_PGML
-
-##############################################
 
 BEGIN_PGML_SOLUTION
 

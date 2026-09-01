@@ -13,131 +13,130 @@
 ## Problem1('')
 ## KEYWORDS('statistic', 'regression','residuals')
 
-DOCUMENT();        # This should be the first executable line in the problem.
+DOCUMENT();    # This should be the first executable line in the problem.
 
 loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "answerHints.pl",
-  "PGchoicemacros.pl",
-  "PGgraphmacros.pl",
-  "PGcourse.pl"
+    'PGstandard.pl',       'PGML.pl', 'PGStatisticsmacros.pl',
+    'StatisticalPlots.pl', 'answerHints.pl',
+    'PGchoicemacros.pl',   'PGcourse.pl'
 );
 
-TEXT(beginproblem());
-
-#################################################
 #  Set-up
 
-@e = (random(35,45,1),random(45,55,1),random(35,45,1),random(50,65,1),random(52,65,1),random(56,67,1),random(58,68,1),random(45,55,1),random(40,49,1),random(42,54,1),random(52,70,1),random(60,80,1),random(10,28,1),random(58,72,1),random(25,37,1),random(100,120,1));
+@e = (
+    random(35,  45),
+    random(45,  55),
+    random(35,  45),
+    random(50,  65),
+    random(52,  65),
+    random(56,  67),
+    random(58,  68),
+    random(45,  55),
+    random(40,  49),
+    random(42,  54),
+    random(52,  70),
+    random(60,  80),
+    random(10,  28),
+    random(58,  72),
+    random(25,  37),
+    random(100, 120)
+);
 
-@brain = (random(-.130,-.100,.001),random(.380,.398,.001),random(.005,.020,.001),random(.360,.380,.001),random(.005,.035,.001),random(.400,.425,.001),random(.090,.115,.001),random(.506,.520,.001),random(.140,.160,.001),random(.735,.750,.001),random(.245,.260,.001),random(.560,.580,.001),random(.205,.225,.001),random(.712,.730,.001),random(.350,.371,.001),random(.760,.790,.001));
+@brain = (
+    random(-.130, -.100, .001),
+    random(.380,  .398,  .001),
+    random(.005,  .020,  .001),
+    random(.360,  .380,  .001),
+    random(.005,  .035,  .001),
+    random(.400,  .425,  .001),
+    random(.090,  .115,  .001),
+    random(.506,  .520,  .001),
+    random(.140,  .160,  .001),
+    random(.735,  .750,  .001),
+    random(.245,  .260,  .001),
+    random(.560,  .580,  .001),
+    random(.205,  .225,  .001),
+    random(.712,  .730,  .001),
+    random(.350,  .371,  .001),
+    random(.760,  .790,  .001)
+);
 
+($m,$b) = linear_regression(~~@e, ~~@brain);
 
-for ($i=0; $i<16; $i++) {
-$sum_x += $e[$i];
-$sum_y += $brain[$i];
-$j = $i + 1;
-$subject[$i] = "subject $j";
-}
+$f = Compute("$m x + $b")->reduce;
 
-$mean_x = $sum_x/16;
-$mean_y = $sum_y/16;
+#Pick the residual to calculate.
+$choose = list_random(0, 1, 2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 
-for ($i=0; $i<16; $i++) {
-$sx_squared += ($e[$i] - $mean_x)*($e[$i] - $mean_x);}
+$f0 = $f->eval(x => $e[$choose]);
 
-$sx = sqrt($sx_squared/15);
+$res = $brain[$choose] -$f0;
 
-for ($i=0; $i<16; $i++) {
-$sy_squared += ($brain[$i] - $mean_y)*($brain[$i] - $mean_y);}
+$plot = StatPlot(
+    xmin        => -10,
+    xmax        =>  120,
+    xtick_delta =>  20,
+    ymin        => -0.25,
+    ymax        => 1
+);
+$plot->add_scatterplot([ map { [ $e[$_], $brain[$_] ] } (0 .. $#e) ],
+    mark_size => 1);
+$plot->add_function($f, 'x', -10, 120, color => 'blue');
+$plot->add_point($e[$choose], $brain[$choose], color => 'red', mark_size => 1);
+$plot->add_label(
+    $e[$choose], $brain[$choose], ' subject ' . ($choose + 1),
+    h_align => 'left',
+    color   => 'red'
+);
 
-$sy = sqrt($sy_squared/15);
+$tab = DataTable(
+    [
+        [ [ 'Subject', rowheader => 1 ], 1 .. 16 ],
+        [ PGML('*Empathy Score*'),       @e ],
+        [ PGML('*Brain Activity*'),      @brain ]
+    ],
+    align           => '|' . join('|', map {'c'} 1 .. 17) . '|',
+    horizontalrules => 1
+);
 
-for ($i=0; $i<16; $i++) {
-$sum_r += (($e[$i] - $mean_x)/$sx)*(($brain[$i] - $mean_y)/$sy);}
-
-$r = $sum_r/15;
-
-# Regression Line = y = a + bx
-#----------------
-$b = $r*($sy/$sx);
-$a = $mean_y - ($b*$mean_x);
-$intb = .00001*int(100000*($b+.000005));
-if ($a<0) {
-$inta = .00001*int(100000*($a-.000005));
-}
-else {
-$inta = $inta = .00001*int(100000*($a+.000005));
-}
-
-$f1 = Formula("$a + $b * x");
-
-# Residuals
-#---------------
-for($i=0;$i<16;$i++) {
-$res[$i] = $brain[$i]-($e[$i]*$intb + $inta);
-}
-
-$choose = list_random(0,1,2,4,6,7,8,9,10,11,12,13,14,15); #Pick the residual to calculate.
-
-# Grid
-#---------------
-
-$graph = 
-init_graph(-20,-.4,120,1.2,'grid'=>[14,16],'axes'=>[0,0],'size'=>[700,400]);
-
-# Draw circles
-#---------------
-for($i=0;$i<16;$i++){
-$circle[$i] = closed_circle($e[$i],$brain[$i]);
-$graph -> stamps($circle[$i]);
-}
-$circle[$choose]= closed_circle($e[$choose],$brain[$choose],'red');
-$graph -> stamps($circle[$choose]);
-
-add_functions($graph,"$f1 for x in [-30,130] using color=blue and weight=2");
-
-$label1 = new Label($e[$choose]-8,$brain[$choose]+.03, "$subject[$choose]",'red','center');
-$graph->lb($label1);
- 
-#################################################
-#  Main
-
-BEGIN_TEXT
-Empathy means being able to understand what others feel. To see how the brain expresses empathy, researchers recruited 16 couples in their midtwenties who were married or had been dating for at least two years. They zapped the man's hand with an electrode while the woman watched, and measured the activity in several parts of the woman's brain that would respond to her own pain. Brain activity was recorded as a fraction of the activity observed when the woman herself was zapped with the electrode. The women also completed a psychological test that measures empathy.
-$BCENTER
-\{ begintable(17)\}
-\{row('$BBOLD Subject $EBOLD','$BBOLD 1 $EBOLD','$BBOLD  2 $EBOLD','$BBOLD  3 $EBOLD','$BBOLD  4 $EBOLD','$BBOLD  5 $EBOLD','$BBOLD  6 $EBOLD','$BBOLD  7 $EBOLD','$BBOLD  8 $EBOLD','$BBOLD  9 $EBOLD','$BBOLD  10 $EBOLD','$BBOLD  11 $EBOLD','$BBOLD  12 $EBOLD','$BBOLD  13 $EBOLD','$BBOLD  14 $EBOLD','$BBOLD  15 $EBOLD','$BBOLD  16 $EBOLD')\}
-\{row('$BBOLD Empathy Score $EBOLD $SPACE $SPACE',$e[0],$e[1],$e[2],$e[3],$e[4],$e[5],$e[6],$e[7],$e[8],$e[9],$e[10],$e[11],$e[12],$e[13],$e[14],$e[15])\}
-\{row('$BBOLD Brain Activity $EBOLD',$brain[0],$brain[1],$brain[2],$brain[3],$brain[4],$brain[5],$brain[6],$brain[7],$brain[8],$brain[9],$brain[10],$brain[11],$brain[12],$brain[13],$brain[14],$brain[15])\}
-\{endtable()\}
-
-$BR
-\{ image( insertGraph($graph), tex_size => 500, width=>625, height=>375) \}
-$ECENTER
-$BR
-Given that the equation for the regression line is \( \hat{y} = $intb x + $inta \), what is the residual for $subject[$choose]?
-$BR
-ANSWER: $SPACE \{ ans_rule(8) \}
-END_TEXT
-
-######################################
-#  Answer
-
-$showPartialCorrectAnswers = 1;
-
-$ans_a1 = Real($res[$choose])->with(tolType=>'absolute', tolerance=>'0.005'); 
-ANS($ans_a1->cmp->withPostFilter(AnswerHints(
+$ans_a1 =
+    $res->with(tolType => 'absolute', tolerance => '0.005');
+$cmp1 = $ans_a1->cmp->withPostFilter(AnswerHints(
     sub {
-         my ($correct,$student,$ansHash) = @_;
-         return abs(-1*$correct-$student) <= .02;
-         } => ["Remember that the formula is Observed - Expected, order matters in subtraction", score => 0],
-     sub {
-         my ($correct,$student,$ansHash) = @_;
-         return abs($correct-$student) <= .02;
-         } => ["Close! Try keeping more accuracy in your calculation.", score => 0]
+        my ($correct, $student, $ansHash) = @_;
+        return abs(-1 * $correct - $student) <= .02;
+    } => [
+        'Remember that the formula is Observed - Expected, '
+            . 'order matters in subtraction',
+        score => 0
+    ],
+    sub {
+        my ($correct, $student, $ansHash) = @_;
+        return abs($correct - $student) <= .02;
+        } =>
+        [ "Close! Try keeping more accuracy in your calculation.", score => 0 ]
 
-)));
+));
+
+
+BEGIN_PGML
+Empathy means being able to understand what others feel. To see how the brain expresses empathy, researchers recruited 16 couples in their midtwenties who were married or had been dating for at least two years. They zapped the man's hand with an electrode while the woman watched, and measured the activity in several parts of the woman's brain that would respond to her own pain. Brain activity was recorded as a fraction of the activity observed when the woman herself was zapped with the electrode. The women also completed a psychological test that measures empathy.
+
+[$tab]*
+
+>>[!!]{$plot}{500}<<
+
+Given that the equation for the regression line is [` \hat{y} = [$f] `], what is the residual for subject [$choose +1]?
+  
+ANSWER:  [_]{$cmp1}
+END_PGML
+
+BEGIN_PGML_SOLUTION
+First, the value of [`\hat{y}`] is calculated for the value [`x=[$e[$choose]]`] or 
+[```\hat{y} = [$m] \cdot [$e[$choose]] + [$b] = [$f0]```].
+
+The residual is then the [`y`]-value of the chosen point minus the function value or
+[``` \text{residual} = [$brain[$choose]]-[$f0] = [$res]```]
+END_PGML_SOLUTION
 
 ENDDOCUMENT();

@@ -17,8 +17,8 @@ DOCUMENT();    # This should be the first executable line in the problem.
 
 loadMacros(
     'PGstandard.pl',         'PGML.pl',
-    'parserRadioButtons.pl', 'PGtikz.pl',
-    'PGcourse.pl',           'answerHints.pl'
+    'parserRadioButtons.pl', 'StatisticalPlots.pl',
+    'answerHints.pl',        'PGcourse.pl',
 );
 
 #  Setup
@@ -32,97 +32,113 @@ $Q3     = $median + random(4, 8);
 $min    = $Q1 - random(3, 6);
 $max    = $Q3 + random(3, 6);
 
-# randomly determine the shading.
+($xmin, $xmax) = (5 * int($min / 5), 5 * int($max / 5 + 1));
 
-$opt = random(1, 6);
+$boxplot = StatPlot(
+    xmin            => $xmin - 3,
+    xmax            => $xmax + 3,
+    xtick_delta     => 5,
+    xlabel          => '',
+    show_grid       =>  0,
+    ymin            => -4,
+    ymax            =>  16,
+    yvisible        =>  0,
+    aspect_ratio    =>  0.5,
+    rounded_corners => 1
+);
+
+$boxplot->add_boxplot(
+    {
+        min    => $min,
+        q1     => $Q1,
+        median => $median,
+        q3     => $Q3,
+        max    => $max
+    },
+    width => 1
+);
+
+$alt_text = <<~"END";
+    Box and whiskers plot is shown.  The left whisker is from $min to $Q1.  
+    The box is between $Q1 and $Q3. The middle line is at $median and the
+    right whisker runs from $Q3 to $max.
+    END
+
+# randomly determine the shading.
+$opt    = random(1, 7);
+$scores = $n;
+
+$scores *= 2 if $opt >= 5;
 if ($opt == 1) {
-    $scores    = $n;
-    $shadeline = "\draw[ultra thick, blue!50] ($min, 3) -- ($Q1,3);";
-    $shadebox  = "";
+    $boxplot->add_dataset([ $min, 8 ], [ $Q1, 8 ], color => 'blue', width => 3);
+    $alt_text .= ' The left whisker is shaded blue.';
 } elsif ($opt == 2) {
-    $scores    = $n;
-    $shadeline = "";
-    $shadebox  = "\fill[blue!50] ($Q1,2) rectangle ($median,4);";
+    $boxplot->add_rectangle(
+        [ $Q1, 4 ], [ $median, 12 ],
+        fill_color => 'blue',
+        color      => 'blue'
+    );
+    $alt_text .=
+        'The part of the box left of the vertical line in the middle is shaded blue.';
 } elsif ($opt == 3) {
-    $scores    = $n;
-    $shadeline = "";
-    $shadebox  = "\fill[blue!50] ($median,2) rectangle ($Q3,4);";
+    $boxplot->add_rectangle(
+        [ $median, 4 ], [ $Q3, 12 ],
+        fill_color => 'blue',
+        color      => 'blue'
+    );
+    $alt_text .=
+        'The part of the box right of the vertical line in the middle is shaded blue.';
 } elsif ($opt == 4) {
-    $scores    = $n;
-    $shadeline = "\draw[ultra thick, blue!50] ($Q3,3) -- ($max,3);";
-    $shadebox  = "";
+    $boxplot->add_dataset([ $Q3, 8 ], [ $max, 8 ], color => 'blue', width => 3);
+    $alt_text .= 'The right whisker is shaded blue.';
 } elsif ($opt == 5) {
-    $scores    = 2 * $n;
-    $shadeline = "\draw[ultra thick, blue!50] ($min, 3) -- ($Q1,3);";
-    $shadebox  = "\fill[blue!50] ($Q1,2) rectangle ($median,4);";
+    $boxplot->add_dataset([ $min, 8 ], [ $Q1, 8 ], color => 'blue', width => 3);
+    $boxplot->add_rectangle(
+        [ $Q1, 4 ], [ $median, 12 ],
+        fill_color => 'blue',
+        color      => 'blue'
+    );
+    $alt_text .=
+        'Both the left whisker and the part of the box left of the vertical line in the middle is shaded.';
 } elsif ($opt == 6) {
-    $scores    = 2 * $n;
-    $shadeline = "";
-    $shadebox  = "\fill[blue!50] ($Q1,2) rectangle ($Q3,4);";
+    $boxplot->add_rectangle(
+        [ $Q1, 4 ], [ $Q3, 12 ],
+        fill_color => 'blue',
+        color      => 'blue'
+    );
+    $alt_text .= 'The entire box is shaded blue.';
 } elsif ($opt == 7) {
-    $scores    = 2 * $n;
-    $shadeline = "";
-    $shadebox  = "\fill[blue!50] ($Q1,2) rectangle ($Q3,4);";
+    $boxplot->add_rectangle(
+        [ $median, 4 ], [ $Q3, 12 ],
+        fill_color => 'blue',
+        color      => 'blue'
+    );
+    $boxplot->add_dataset([ $Q3, 8 ], [ $max, 8 ], color => 'blue', width => 3);
+    $alt_text .=
+        'Both the right whisker and the part of the box right of the vertical line in the middle is shaded.';
 }
 
-($xmin, $xmax) = (5 * int($min / 5), 5 * int($max / 5 + 1));
-$xmin5 = $xmin + 5;
-
-$graph = createTikZImage();
-$graph->tikzOptions("xscale=0.5");
-
-$graph->BEGIN_TIKZ
-\filldraw[
-    draw=LightBlue,
-    fill=white,
-    rounded corners=10pt,
-    thick,use as bounding box
-] ({$xmin-4},-0.5) rectangle ({$xmax+4},6);
-\draw[<->,thick] ({$xmin-3},0) rectangle ({$xmax+3},5);
-\draw ({$xmin-3},1) -- ({$xmax+3},1);
-\foreach \x in {$xmin,$xmin5,...,$xmax} \draw (\x,1)--(\x,0.75) node[below] {\x};
-$shadebox;
-\draw ($min,3) -- ($Q1,3);
-\draw ($Q1,2) rectangle($Q3,4);
-
-\draw ($Q3,3) -- ($max,3);
-$shadeline;
-$shadebox;
-\draw ($median,2) -- ($median,4);
-END_TIKZ
-
-$alttext =
-    "alt='Box and whiskers plot for salaries listed in thousands of "
-    . "dollars.  The left whisker is from $min to $Q1.  The box is "
-    . "between $Q1 and $Q3. The middle line is at $median and the "
-    . "right whisker runs from $Q3 to $max'";
+$ans = Real($scores)->cmp->withPostFilter(AnswerHints(
+    Real(25)  => ["Give the number of scores not the percent."],
+    Real(.25) => ["Give the number of scores not the fraction of scores."],
+    Real(50)  => ["Give the number of scores not the percent."],
+    Real(.50) => ["Give the number of scores not the fraction of scores."]
+));
 
 BEGIN_PGML
 A boxplot for a set of [$number] scores is given below.
 
->>[! $alt_text !]{$graph}{600}<<
+>>[!!]{$boxplot}{long_description => $alt_text, width => 600}<<
 
-How many scores are represented in the blue section of the boxplot? [_]{5}{15}
+How many scores are represented in the blue section of the boxplot? [_]{$ans}{15}
 
 *Note: the shaded whiskers are blue and thicker.*
 END_PGML
 
-#  Answers
+BEGIN_PGML_SOLUTION
+Recall that the each of the whiskers is 25% of the total data, and each part of the box (to the left and right) of the vertical line represents 25% of the data. 
 
-$showPartialCorrectAnswers = 1;
+In this case [@ $opt >=5  ? "50%" : "25%" @] of the data is in the shaded part of the boxplot.  The total number then is [` [$number] \cdot [@ $opt >=5  ? "0.5" : "0.25" @]= [$scores] `]
+END_PGML_SOLUTION
 
-$ans = $n;    #The correct answer depends on the graph chosen.
-if ($choose == 3) { $ans = 2 * $n; }
-
-ANS(
-    Real($ans)->cmp->withPostFilter(AnswerHints(
-        Real(25)  => ["Give the number of scores not the percent."],
-        Real(.25) =>
-            ["Give the number of scores not the fraction of scores."],
-        Real(50)  => ["Give the number of scores not the percent."],
-        Real(.50) =>
-            ["Give the number of scores not the fraction of scores."]
-    ))
-);
-
-ENDDOCUMENT();        # This should be the last executable line in the problem.
+ENDDOCUMENT(); 

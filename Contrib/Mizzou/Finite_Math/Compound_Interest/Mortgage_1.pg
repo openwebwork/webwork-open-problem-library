@@ -12,104 +12,68 @@
 ## Author2('Jason Aubrey')
 ## Institution('University of Missouri')
 
-########################################################################
+DOCUMENT();
 
-DOCUMENT();      
-
-loadMacros(
-  "PGstandard.pl",
-  "MathObjects.pl",
-  "contextCurrency.pl",
-  "PGcourse.pl"
-);
-
-# Print problem number and point value (weight) for the problem
-TEXT(beginproblem());
-
-# Show which answers are correct and which ones are incorrect
-$showPartialCorrectAnswers = 1;
-
-##############################################################
-#
-#  Setup
-#
-#
-Context("Numeric");
-$house_value = random(100000,250000,10000);
-$financed = .8*$house_value;
-$years1 = random(13,19);
-$n1 = 360 - 12*$years1;
-$years2 = $years1 + 1;
-$n2 = $n1 - 12;
-
-$rate = random(4,8,0.02);
-$i = $rate/1200;
-
-$PMT = $i * $financed / (1 - (1+$i)**(-365));
-$pv_years1 = (1-(1+$i)**(-$n1))*$PMT / $i;
-$pv_years2 = (1-(1+$i)**(-$n2))*$PMT / $i;
-
+loadMacros('PGstandard.pl', 'PGML.pl', 'contextCurrency.pl', 'PGcourse.pl');
 
 Context("Currency");
-Context()->flags->set( 
-  tolerance => 0.05,
-  tolType => "absolute"
+Context()->flags->set(
+    tolerance => 0.05,
+    tolType   => "absolute"
 );
 
-$house_value = Currency($house_value);
-$financed = Currency($financed);
-$PMT = Currency($PMT);
-$paid = 12*$PMT;
+$house_value = Currency(random(100000, 250000, 10000));
+$financed    = .8 * $house_value;
+$years1      = random(13, 19);
+$n1          = 360 - 12 * $years1;
+$years2      = $years1 + 1;
+$n2          = $n1 - 12;
 
-$pv_years1 = Currency($pv_years1);
-$pv_years2 = Currency($pv_years2);
+$rate = random(4, 8, 0.02);
+$i    = $rate / 1200;
 
-$paid = 12*$PMT;
+$PMT       = $i * $financed / (1 - (1 + $i)**(-365));
+$pv_years1 = (1 - (1 + $i)**(-$n1)) * $PMT / $i;
+$pv_years2 = (1 - (1 + $i)**(-$n2)) * $PMT / $i;
+
+$paid        = 12 * $PMT;
 $int_paid = $paid - ($pv_years1 - $pv_years2);
-##############################################################
-#
+
 #  Text
-#
-#
 
-Context()->texStrings;
-BEGIN_TEXT
-Fifteen years ago a couple purchased a house for \( $house_value \) by paying a 20 $PERCENT down payment and financing the remaining balance with a 30-year mortgage at \($rate\)$PERCENT compounded monthly.
-$PAR
-(a) Find the monthly payment for this loan.
-$PAR
-Monthly Payment: \{ans_rule(10)\} (${BBOLD}Note: $EBOLD Your answer should include a dollar sign and be accurate to two decimal places)
-$PAR
-(b) Find the balance of the loan after \( $years1 \) years and after \( $years2 \) years?
-$PAR
-$BCENTER
-\{ begintable(2) \}
-\{ row( "After $years1 years", undef,"After $years2 years", undef) \}
-\{ row( "\(n=\)", ans_rule(3),"\(n=\)", ans_rule(3)   ) \}
-\{ row( "Loan Balance: ", ans_rule(10), "Loan Balance: ", ans_rule(10) ) \}
-\{ endtable() \}
-$ECENTER
-(${BBOLD}Note: $EBOLD The balance amounts should include a dollar sign and be accurate to two decimal places)
-$PAR
-(c) Find the total amount of interest paid by the couple during the \{$years2."th"\} year.
-$PAR
-Interest Paid During \{$years2."th"\} year: \{ans_rule(10)\} (${BBOLD}Note: $EBOLD Your answer should include a dollar sign and be accurate to two decimal places)
-END_TEXT
-Context()->normalStrings;
+BEGIN_PGML
+Fifteen years ago a couple purchased a house for [` [$house_value] `] by paying a 20% down payment and financing the remaining balance with a 30-year mortgage at [`[$rate]`]% compounded monthly.
 
-##############################################################
-#
-#  Answers
-#
-#
+a) Find the monthly payment for this loan.
 
-ANS($PMT->with(tolerance=>.5)->cmp);
-ANS(Real($n1)->cmp);
-ANS(Real($n2)->cmp);
-ANS($pv_years1->with(tolerance=>1)->cmp);
-ANS($pv_years2->with(tolerance=>1)->cmp);
-ANS($int_paid->with(tolerance=>1)->cmp);
+    Monthly Payment: [_]{$PMT} 
 
-COMMENT('MathObject version');
+
+b) Find the balance of the loan after [` [$years1] `] years and after [` [$years2] `] years?
+
+    [#
+        [.After [$years1] years.] [. .] [.After [$years2] years.] [. .]*{headerrow => 1}
+        [. [`n=`].][.[_]{$n1} .][. [`n=`].][.[_]{$n2} .]*
+        [. Loan balance .] [. [_]{$pv_years1} .]
+        [. Loan balance .] [. [_]{$pv_years2} .]* 
+    #]{horizontalrules => 1, align => '|c|c|c|c|'}
+
+
+c) Find the total amount of interest paid by the couple during the [$years2]th year: [_]{$int_paid}
+
+(*Note:* All answers with monetary solutions should include a dollar sign and be accurate to two decimal places)
+END_PGML
+
+BEGIN_PGML_SOLUTION
+First, we're only considering the amount of the loan (not the down payment).  The total loan amount will be 80% of [$house_value] which is [@ 0.8*$house_value@].
+
+a) to find the monthly payment, we use the formula
+[``` m = I_0 \frac{i(1+i)^t}{(1+i)^t-1} ```]
+where [`I_0`] is the amount of the loan (mortgage), [`i`] is the monthly interest rate, and [`t`] is the total number of payments, which is usually the number of months of the loan.
+
+    In this case, [`I = [@0.8*$house_value @] `], [``i=\frac{[$rate]}{12 \cdot 100} ``] and [`t=360`].  The resulting monthly payment is [$PMT]. 
+
+b) 
+END_PGML_SOLUTION
 
 ENDDOCUMENT();
