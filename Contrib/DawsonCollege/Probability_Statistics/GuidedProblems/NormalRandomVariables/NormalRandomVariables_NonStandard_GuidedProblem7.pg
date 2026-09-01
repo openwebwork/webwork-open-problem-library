@@ -1,0 +1,225 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Normal Cutoffs (Middle 50% 5K Times = “Average Runners”) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Normal Distribution)
+## Level(2)
+## KEYWORDS('normal distribution','standardization','z score','z table','percentile','cutoff','middle 50 percent')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+$mu    = Real("28.5");   # minutes
+$sigma = Real("3.2");    # minutes
+
+# Middle 50% means P(|Z| < z*) = 0.50, so each tail is 0.25 and P(Z < z*) = 0.75.
+# Typical table brackets 0.75 between z=0.67 (0.7486) and z=0.68 (0.7517), so average cutoff is 0.675.
+$z_star = Real("0.675");
+
+# Convert to time cutoffs: d = z* sigma, then t_L = mu - d, t_U = mu + d
+$d     = Real("2.160");      # 0.675 * 3.2
+$t_low = Real("26.340");     # 28.5 - 2.16
+$t_up  = Real("30.660");     # 28.5 + 2.16
+
+# Tolerances (allow small differences if students use a slightly different averaging/rounding)
+$tol_z = 0.002;   # z* to 3 decimals
+$tol_t = 0.005;   # times to 3 decimals
+
+$cmp_z = $z_star->cmp(tolType=>"absolute", tolerance=>$tol_z)->withPostFilter(AnswerHints(
+  0.75  => "0.75 is a probability, not a z-score. You need z* such that P(Z<z*)=0.75.",
+  0.67  => "You are very close. If the exact cutoff is not in the table, use the average of the two closest cutoffs.",
+  0.68  => "You are very close. If the exact cutoff is not in the table, use the average of the two closest cutoffs."
+));
+
+$cmp_low = $t_low->cmp(tolType=>"absolute", tolerance=>$tol_t)->withPostFilter(AnswerHints(
+  28.5 => "That is the mean. The lower cutoff should be below the mean.",
+  30.66 => "That looks like the upper cutoff. The lower cutoff should be smaller."
+));
+
+$cmp_up = $t_up->cmp(tolType=>"absolute", tolerance=>$tol_t)->withPostFilter(AnswerHints(
+  28.5 => "That is the mean. The upper cutoff should be above the mean.",
+  26.34 => "That looks like the lower cutoff. The upper cutoff should be larger."
+));
+
+# Rating checker (any integer 1–5 is marked correct)
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "always",
+    is_open  => "always",
+  );
+} else {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "when_previous_correct",
+    is_open  => "correct_or_first_incorrect",
+  );
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+The completion times for a certain 5K race are normally distributed with mean [``28.5``] minutes and standard deviation [``3.2``] minutes.
+
+In symbols:
+
+[``T \sim N(28.5,3.2)``]
+
+The running club wants to identify the **average runners**, meaning the **middle 50%** of completion times.
+
+Find the time interval [``(t_L,t_U)``] such that:
+
+[``P(t_L<T<t_U)=0.50``]
+
+Rounding:
+- Round [``z^*``] to **3 decimals**.
+- Round [``t_L``] and [``t_U``] to **3 decimals**.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Translate “middle 50%”
+# -------------------------------------------------------
+Section::Begin("Translate the requirement");
+BEGIN_PGML
+"Middle 50%" means 50% of the times are in the center of the distribution.
+
+Because a normal distribution is symmetric, the middle 50% leaves **25% in each tail**.
+
+So you can think of this as:
+
+- [``P(T<t_L)=0.25``] and [``P(T<t_U)=0.75``]
+
+Also, the middle interval is symmetric about the mean:
+
+[``t_L = 28.5 - d``] and [``t_U = 28.5 + d``]
+
+for some positive number [``d``].
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Find z*
+# -------------------------------------------------------
+Section::Begin("Find z* using the standard normal table");
+BEGIN_PGML
+Standardize using:
+
+[``z=\dfrac{t-28.5}{3.2}``]
+
+The middle 50% condition becomes:
+
+[``P(|Z|<z^*)=0.50``]
+
+This means:
+
+[``P(Z<z^*)=0.75``]
+
+Use your standard normal table to find [``z^*``].  
+If the exact cutoff is not available in the table, use the **average of the two closest cutoffs**.
+
+Enter [``z^*``] (round to 3 decimals): [____]
+END_PGML
+
+ANS($cmp_z);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Convert back to times t_L and t_U
+# -------------------------------------------------------
+Section::Begin("Convert back to times");
+BEGIN_PGML
+Now convert [``z^*``] back to the time scale.
+
+First find the distance from the mean:
+
+[``d=(z^*)(3.2)``]
+
+Then:
+
+[``t_L=28.5-d``]  and  [``t_U=28.5+d``]
+
+Enter the two cutoffs (round to 3 decimals):
+
+[``t_L``] = [____]  
+[``t_U``] = [____]
+END_PGML
+
+ANS($cmp_low, $cmp_up);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

@@ -1,0 +1,371 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Sampling Distribution of a Proportion: Bond Issue Support (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Sampling Distributions)
+## Level(2)
+## KEYWORDS('sampling distribution','sample proportion','p-hat','normal approximation','conditions for normality','within 5 percentage points','voters','bond issue')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data
+# =======================================================
+$p      = Real(0.38);
+$q      = Real(0.62);
+$n      = 900;
+$margin = Real(0.05);
+
+$lower  = Real(0.33);
+$upper  = Real(0.43);
+
+# =======================================================
+# Correct numeric targets
+# =======================================================
+$mu_phat_exact = 0.38;
+$se_exact      = 0.016179548132682128;
+$np_exact      = 342;
+$nq_exact      = 558;
+
+$z_lower_exact = -3.090321162863735;
+$z_upper_exact =  3.090321162863735;
+
+$p_final_exact = 0.9980005982948514;
+
+# =======================================================
+# Tolerances
+# =======================================================
+$tol_mu = 0.001;
+$tol_se = 0.001;
+$tol_n  = 0.001;
+$tol_z  = 0.03;
+$tol_p  = 0.001;
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_mu_phat = Real($mu_phat_exact)->cmp(tolType=>"absolute", tolerance=>$tol_mu)
+  ->withPostFilter(HintIfWrong("For p-hat, the mean is p."));
+
+$cmp_se = Real($se_exact)->cmp(tolType=>"absolute", tolerance=>$tol_se)
+  ->withPostFilter(HintIfWrong("Use sqrt(p(1-p)/n)."));
+
+$cmp_np = Real($np_exact)->cmp(tolType=>"absolute", tolerance=>$tol_n)
+  ->withPostFilter(HintIfWrong("Compute np using n=900 and p=0.38."));
+
+$cmp_nq = Real($nq_exact)->cmp(tolType=>"absolute", tolerance=>$tol_n)
+  ->withPostFilter(HintIfWrong("Compute n(1-p) using n=900 and 1-p=0.62."));
+
+# Step 3 MC: correct choice = 4
+$cmp_cond = Real(4)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return ($s == 4) ? 1 : 0;
+  }
+)->withPostFilter(HintIfWrong("The normal approximation for p-hat is justified when both np and n(1-p) are at least 5."));
+
+$cmp_z_lower = Real($z_lower_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Use z = (0.33 - 0.38)/sqrt(0.38(0.62)/900)."));
+
+$cmp_z_upper = Real($z_upper_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Use z = (0.43 - 0.38)/sqrt(0.38(0.62)/900)."));
+
+$cmp_final = Real($p_final_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("This is a middle-area probability: P(0.33 < p-hat < 0.43) = P(z_lower < Z < z_upper)."));
+
+# Rating checker
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(numbered=>1, can_open=>"always", is_open=>"always");
+} else {
+  Scaffold::Begin(numbered=>1, can_open=>"when_previous_correct", is_open=>"correct_or_first_incorrect");
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Suppose that in a population of voters in a certain region, **38%** are in favor of a particular bond issue.
+
+A random sample of [``n=900``] voters is selected, and each voter is asked whether they favor the bond issue.
+
+Let [``\hat p``] be the sample proportion of voters in the sample who are in favor of the bond issue.
+
+(a) Verify that the sampling distribution of [``\hat p``] can be approximated by a normal distribution.
+
+(b) Find the probability that the sample proportion [``\hat p``] is within **5 percentage points** of the true population proportion.
+
+That is, find
+
+[``P(|\hat p - p| < 0.05)``]
+
+Rounding: Round z-scores to 3 decimals and probabilities to 4 decimals.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Main concept
+# -------------------------------------------------------
+Section::Begin("Main concept: sampling distribution of p-hat");
+BEGIN_PGML
+For a sample proportion [``\hat p``], the sampling distribution is approximately normal when the sample is random and the success-failure conditions are satisfied.
+
+When the approximation is valid,
+
+- [``\mu_{\hat p} = p``]
+- [``\sigma_{\hat p} = \sqrt{\dfrac{p(1-p)}{n}}``]
+
+Using [``p=0.38``] and [``n=900``]:
+
+Enter [``\mu_{\hat p}``]: [____]
+
+Enter [``\sigma_{\hat p}``]: [____]
+END_PGML
+
+ANS($cmp_mu_phat, $cmp_se);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Check normality conditions
+# -------------------------------------------------------
+Section::Begin("Check the normality conditions");
+BEGIN_PGML
+To justify the normal approximation for [``\hat p``], check the success-failure conditions:
+
+- [``np \ge 5``]
+- [``n(1-p) \ge 5``]
+
+1) Compute [``np``]: [____]
+
+2) Compute [``n(1-p)``]: [____]
+
+3) Is normal approximation justified in this case? Choose the best conclusion:
+
+1) No, because [``p``] is not close to [``0.50``].  
+2) No, because [``\hat p``] is a proportion, not a mean.  
+3) Yes, because [``n=900``] is greater than [``30``].  
+4) Yes, because both [``np``] and [``n(1-p)``] are at least [``5``].  
+5) No, because the population proportion is less than [``1``].
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_np, $cmp_nq, $cmp_cond);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Rewrite the event and standardize
+# -------------------------------------------------------
+Section::Begin("Rewrite the event and standardize");
+BEGIN_PGML
+Being within [``5``] percentage points of the true proportion [``p=0.38``] means
+
+[``0.38 - 0.05 < \hat p < 0.38 + 0.05``]
+
+So we want
+
+[``P(0.33 < \hat p < 0.43)``]
+
+Now standardize the two endpoints.
+
+Lower endpoint z-score:
+
+[``z = \dfrac{0.33 - 0.38}{\sqrt{0.38(0.62)/900}}``]
+
+Enter the lower z-score: [____]
+
+Upper endpoint z-score:
+
+[``z = \dfrac{0.43 - 0.38}{\sqrt{0.38(0.62)/900}}``]
+
+Enter the upper z-score: [____]
+END_PGML
+
+ANS($cmp_z_lower, $cmp_z_upper);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 — Final Answer
+# -------------------------------------------------------
+Section::Begin("Final Answer");
+BEGIN_PGML
+Now find the probability
+
+[``P(0.33 < \hat p < 0.43) = P(z_{\text{lower}} < Z < z_{\text{upper}})``]
+
+Enter the probability: [____]
+END_PGML
+
+ANS($cmp_final);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+**1. Identify the statistic.**
+
+The statistic is the sample proportion [``\hat p``].
+
+The population proportion is
+
+[``p = 0.38``]
+
+so
+
+[``1-p = 0.62``]
+
+and the sample size is
+
+[``n = 900``]
+
+**2. Write the sampling distribution facts for [``\hat p``].**
+
+When the normal approximation is justified,
+
+[``\mu_{\hat p} = p = 0.38``]
+
+and
+
+[``\sigma_{\hat p} = \sqrt{\dfrac{p(1-p)}{n}} = \sqrt{\dfrac{(0.38)(0.62)}{900}} \approx 0.01618``]
+
+**3. Check the success-failure conditions.**
+
+We compute
+
+[``np = (900)(0.38) = 342``]
+
+and
+
+[``n(1-p) = (900)(0.62) = 558``]
+
+Both values are at least [``5``], so the sampling distribution of [``\hat p``] is approximately normal.
+
+**4. Rewrite the probability statement.**
+
+"Within 5 percentage points of the true proportion" means
+
+[``| \hat p - 0.38 | < 0.05``]
+
+which is the same as
+
+[``0.33 < \hat p < 0.43``]
+
+So we want
+
+[``P(0.33 < \hat p < 0.43)``]
+
+**5. Standardize the endpoints.**
+
+For the lower endpoint,
+
+[``z = \dfrac{0.33 - 0.38}{0.01618} \approx -3.090``]
+
+For the upper endpoint,
+
+[``z = \dfrac{0.43 - 0.38}{0.01618} \approx 3.090``]
+
+So
+
+[``P(0.33 < \hat p < 0.43) = P(-3.090 < Z < 3.090)``]
+
+**6. Find the probability.**
+
+Using the standard normal distribution,
+
+[``P(-3.090 < Z < 3.090) \approx 0.9980``]
+
+So the probability that the sample proportion is within 5 percentage points of the true population proportion is
+
+[``0.9980``]
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

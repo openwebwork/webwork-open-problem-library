@@ -1,0 +1,203 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Normal Probability (Battery Lifetimes) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Normal Distribution)
+## Level(2)
+## KEYWORDS('normal distribution','standardization','z score','z table','non-standard normal')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+$mu    = Real("18.5");
+$sigma = Real("2.1");
+
+# z-scores (students round to 2 decimals)
+$z1 = Real("-1.19");   # (16 - 18.5)/2.1 = -1.190476...
+$z2 = Real("1.19");    # (21 - 18.5)/2.1 =  1.190476...
+
+# Final probability using z = +/-1.19 from tables:
+# Phi(1.19)=0.8830 so P(-1.19<Z<1.19)=2(0.8830)-1 = 0.7660
+$p_final = Real("0.7660");
+
+# Tolerances
+$tol_z = 0.005;      # z-scores to 2 decimals
+$tol_p = 0.00005;    # probability to 4 decimals
+
+$cmp_z1 = $z1->cmp(tolType=>"absolute", tolerance=>$tol_z)->withPostFilter(AnswerHints(
+  1.19  => "Check the sign: 16 is below the mean 18.5, so the z-score should be negative.",
+  -1.00 => "These z-scores are not meant to be clean. Use (x - mean) / sd carefully."
+));
+
+$cmp_z2 = $z2->cmp(tolType=>"absolute", tolerance=>$tol_z)->withPostFilter(AnswerHints(
+  -1.19 => "Check the sign: 21 is above the mean 18.5, so the z-score should be positive."
+));
+
+$cmp_p = $p_final->cmp(tolType=>"absolute", tolerance=>$tol_p)->withPostFilter(AnswerHints(
+  0.8830 => "That looks like a single left-tail value. This question is the area between two cutoffs.",
+  0.3830 => "That is the area between 0 and z (for z=1.19). For the full interval -z to z, you need to double it.",
+  0.2340 => "That looks like a right-tail. Recheck whether you subtracted the two left-tail areas correctly."
+));
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "always",
+    is_open  => "always",
+  );
+} else {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "when_previous_correct",
+    is_open  => "correct_or_first_incorrect",
+  );
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+The lifetimes of a certain brand of phone battery are normally distributed with mean [``18.5``] hours and standard deviation [``2.1``] hours.
+
+In symbols:
+
+[``X \sim N(18.5,2.1)``]
+
+Find the probability that a randomly selected battery lasts **between 16 and 21 hours**:
+
+[``P(16<X<21)``]
+
+Rounding:
+- Round **z-scores** to **2 decimals**.
+- Round the final **probability** to **4 decimals**.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Standardizing (the main idea)
+# -------------------------------------------------------
+Section::Begin("Standardizing");
+BEGIN_PGML
+To use a standard normal table, convert [``X``] to a standard normal variable [``Z``] using:
+
+[``z=\dfrac{x-\mu}{\sigma}``]
+
+For this problem:
+
+[``z=\dfrac{x-18.5}{2.1}``]
+
+Then:
+
+[``P(16<X<21)=P\!\left(\dfrac{16-18.5}{2.1}<Z<\dfrac{21-18.5}{2.1}\right)``]
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Compute BOTH z-scores (combined)
+# -------------------------------------------------------
+Section::Begin("Compute the z-scores");
+BEGIN_PGML
+Compute the two z-scores (round to 2 decimals).
+
+1) [``z_1=\dfrac{16-18.5}{2.1}``]  Answer: [____]
+
+2) [``z_2=\dfrac{21-18.5}{2.1}``]  Answer: [____]
+END_PGML
+
+ANS($cmp_z1, $cmp_z2);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Final Answer
+# -------------------------------------------------------
+Section::Begin("Final Answer");
+BEGIN_PGML
+Now compute the probability (round to 4 decimals):
+
+[``P(16<X<21)=P(z_1<Z<z_2)``]
+
+Hint: You can find the area between two z-values by subtracting two cumulative areas.
+Also, in this problem the z-scores are symmetric, so you can use:
+
+[``P(-z<Z<z)=2\,P(0<Z<z)``]
+
+Answer: [____]
+END_PGML
+
+ANS($cmp_p);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  $cmp_rating = Real(3)->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+      return 0 unless defined $student;
+      my $s = $student->value;
+      return 0 unless defined $s;
+      return 0 unless $s == int($s);
+      return 0 unless ($s >= 1 && $s <= 5);
+      return 1;
+    }
+  );
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

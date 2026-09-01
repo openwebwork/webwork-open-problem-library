@@ -1,0 +1,318 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Bayes' Theorem (Guided / Scaffolded) — Warehouse Bulbs (2 Factories)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability)
+## Level(2)
+## KEYWORDS('Bayes theorem','Bayes','law of total probability','partition','conditional probability','defective bulbs')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+$P_B1          = 0.70;   # Factory 1 share
+$P_B2          = 0.30;   # Factory 2 share
+$P_A_given_B1  = 0.02;   # defect rate from Factory 1
+$P_A_given_B2  = 0.06;   # defect rate from Factory 2
+
+# P(A) via LTP
+$P_A = ($P_A_given_B1)*($P_B1) + ($P_A_given_B2)*($P_B2);
+
+# Bayes: P(B2|A)
+$P_B2_given_A = ($P_A_given_B2 * $P_B2) / $P_A;
+$P_B1_given_A = 1 - $P_B2_given_A;
+
+# 1000-bulb intuition numbers (expected counts)
+$N_total = 1000;
+$N_B1 = $N_total * $P_B1;        # 700
+$N_B2 = $N_total * $P_B2;        # 300
+$N_A_B1 = $N_B1 * $P_A_given_B1; # 14
+$N_A_B2 = $N_B2 * $P_A_given_B2; # 18
+$N_A = $N_A_B1 + $N_A_B2;        # 32
+
+# Store values as MathObjects
+$val_pA        = Real($P_A);
+$val_B2_givenA = Real($P_B2_given_A);
+$val_B1_givenA = Real($P_B1_given_A);
+
+$val_d1 = Real($P_A_given_B1);
+$val_w1 = Real($P_B1);
+$val_d2 = Real($P_A_given_B2);
+$val_w2 = Real($P_B2);
+
+$val_N_A_B1 = Real($N_A_B1);
+$val_N_A_B2 = Real($N_A_B2);
+$val_N_A    = Real($N_A);
+
+# =======================================================
+# Concept checkpoints (MC)
+# =======================================================
+$rb_when_bayes = RadioButtons(
+  [
+    'When we know probabilities like \(P(A\mid B_i)\) and want a probability like \(P(B_i\mid A)\) (reverse the conditioning), using cases \(B_1,B_2,\ldots\) that cover all possibilities.',
+    'When two events are independent.',
+    'When we want to add probabilities of disjoint events (no conditioning).',
+    'When we already know \(P(B_i\mid A)\) and want \(P(A\mid B_i)\).',
+    'When we want to compute \(P(A\cap B)\) by adding \(P(A)\) and \(P(B)\).',
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_need_ltp = RadioButtons(
+  [
+    'Because Bayes’ Theorem needs \(P(A)\) in the denominator, and we compute \(P(A)\) by combining the cases using the Law of Total Probability.',
+    'Because Bayes’ Theorem only works if the events are independent.',
+    'Because \(P(A)=P(B_1)+P(B_2)\) always.',
+    'Because \(P(A\mid B_1)=P(A\mid B_2)\) must be true first.',
+    'Because we must always compute \(P(B_1\mid A)\) before \(P(B_2\mid A)\).',
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Guided flow (Scaffold)
+# =======================================================
+Scaffold::Begin();
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A warehouse receives light bulbs from **two factories**.
+
+- **70%** of the bulbs in the warehouse come from **Factory 1** and **2%** of Factory 1 bulbs are defective.
+- **30%** of the bulbs in the warehouse come from **Factory 2** and **6%** of Factory 2 bulbs are defective.
+
+A bulb is selected at random **and it is found to be defective**.
+
+Find the probability that the bulb came from **Factory 2**.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Bayes' Theorem (setup)");
+
+BEGIN_PGML
+Let [`A`] be the event “the bulb is defective.”  
+Let [`B_1`] be the event “the bulb came from Factory 1,” and [`B_2`] be the event “the bulb came from Factory 2.”
+
+We are told the bulb is defective (event [`A`] happened), and we want [`P(B_2\mid A)`].
+END_PGML
+
+BEGIN_TEXT
+$PAR
+<div style="text-align:center;">
+\{ image("venn2.png", width => 520) \}
+</div>
+$PAR
+END_TEXT
+
+BEGIN_PGML
+From the definition of conditional probability:
+[`` P(B_2\mid A)=\dfrac{P(A\cap B_2)}{P(A)}. ``]
+
+Also,
+[`` P(A\cap B_2)=P(A\mid B_2)\,P(B_2). ``]
+
+So Bayes’ Theorem (for this problem) is:
+[`` P(B_2\mid A)=\dfrac{P(A\mid B_2)\,P(B_2)}{P(A)}. ``]
+
+**Checkpoint (When do we use Bayes’ Theorem?)**
+
+[@ $rb_when_bayes->buttons() @]*
+END_PGML
+
+ANS($rb_when_bayes->cmp);
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Find P(A) using the Law of Total Probability");
+
+BEGIN_PGML
+To use Bayes’ Theorem we need [`P(A)`] in the denominator.
+
+**Checkpoint (Why do we use the Law of Total Probability here?)**
+
+[@ $rb_need_ltp->buttons() @]*
+END_PGML
+ANS($rb_need_ltp->cmp);
+
+BEGIN_PGML
+Now extract the four probabilities from the problem statement.
+
+Probability the bulb is defective given it comes from Factory 1:  
+[`P(A\mid B_1)=`] [__________]{$val_d1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That is the defect rate for Factory 2. Here we want the defect rate for Factory 1.",
+))}
+
+Probability a randomly selected bulb comes from Factory 1:  
+[`P(B_1)=`] [__________]{$val_w1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That is the fraction from Factory 2. Here we want the fraction from Factory 1.",
+))}
+
+Probability the bulb is defective given it comes from Factory 2:  
+[`P(A\mid B_2)=`] [__________]{$val_d2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That is the defect rate for Factory 1. Here we want the defect rate for Factory 2.",
+))}
+
+Probability a randomly selected bulb comes from Factory 2:  
+[`P(B_2)=`] [__________]{$val_w2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That is the fraction from Factory 1. Here we want the fraction from Factory 2.",
+))}
+
+Now use the Law of Total Probability:
+[`` P(A)=P(A\mid B_1)P(B_1)+P(A\mid B_2)P(B_2). ``]
+
+Compute [`P(A)`]: [__________]{$val_pA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { $_[0] < 0.02 } => "This is too small. P(A) should be between 0.02 and 0.06.",
+  sub { $_[0] > 0.06 } => "This is too large. P(A) should be between 0.02 and 0.06.",
+  sub { abs($_[0]-0.02) < 0.0005 || abs($_[0]-0.06) < 0.0005 } =>
+    "Careful: 0.02 and 0.06 are conditional defect rates for a single factory. You must use the weighted sum.",
+  sub { abs($_[0]-0.08) < 0.0005 } =>
+    "Looks like you added 0.02 and 0.06 directly. Multiply each defect rate by its factory fraction, then add.",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Use Bayes' Theorem to find P(B2 | A)");
+
+BEGIN_PGML
+Now apply Bayes’ Theorem:
+[`` P(B_2\mid A)=\dfrac{P(A\mid B_2)\,P(B_2)}{P(A)}. ``]
+
+Compute [`P(B_2\mid A)`]: [__________]{$val_B2_givenA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B2) < 0.001 } =>
+    "That is P(B_2) (the overall factory-2 fraction). Here we want P(B_2|A), given that the bulb is defective.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.001 } =>
+    "That is P(A|B_2) (defect rate from Factory 2). Here we want P(B_2|A). Use Bayes: divide by P(A).",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Fast way to find P(B1 | A)");
+
+BEGIN_PGML
+Hint: The defective bulb must either come from Factory 1 or Factory 2.
+
+We already know [`P(B_2\mid A)`].  
+So there is a fast way to find [`P(B_1\mid A)`].
+
+Compute [`P(B_1\mid A)`]: [__________]{$val_B1_givenA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B1) < 0.001 } =>
+    "That is P(B_1) (the overall factory-1 fraction). Here we want P(B_1|A), given that the bulb is defective.",
+  sub { abs($_[0]-$P_B2_given_A) < 0.001 } =>
+    "That looks like P(B_2|A). For P(B_1|A), use 1 - P(B_2|A).",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("An intuitive way of understanding the Bayes' Theorem");
+
+BEGIN_PGML
+An intuitive way of understanding Bayes’ Theorem is to pretend we have **1000 bulbs**.
+
+From the problem statement:
+- about [`700`] bulbs come from Factory 1 and about [`300`] bulbs come from Factory 2.
+- among the Factory 1 bulbs, about [`2%`] are defective.
+- among the Factory 2 bulbs, about [`6%`] are defective.
+
+Now compute the **expected** number of defective bulbs from each factory (out of 1000 total).
+
+Defective from Factory 1 (out of 1000): [__________]{$val_N_A_B1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "A count cannot be negative.",
+  sub { abs($_[0]-$N_A_B2) < 0.5 } => "That looks like the Factory 2 defective count. Here we want Factory 1.",
+))}
+
+Defective from Factory 2 (out of 1000): [__________]{$val_N_A_B2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "A count cannot be negative.",
+  sub { abs($_[0]-$N_A_B1) < 0.5 } => "That looks like the Factory 1 defective count. Here we want Factory 2.",
+))}
+
+Total defective (out of 1000): [__________]{$val_N_A->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "A count cannot be negative.",
+  sub { abs($_[0]-$N_A_B1) < 0.5 || abs($_[0]-$N_A_B2) < 0.5 } =>
+    "That is only one piece. Total defective is defective from Factory 1 plus defective from Factory 2.",
+))}
+
+Now, among the defective bulbs, the fraction that came from Factory 2 is:
+[`` P(B_2\mid A)=\dfrac{\text{defective from Factory 2}}{\text{total defective}}. ``]
+
+Compute [`P(B_2\mid A)`] using the 1000-bulb table idea: [__________]{$val_B2_givenA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B2) < 0.001 } =>
+    "That is P(B_2), not P(B_2|A). Use (defective from Factory 2)/(total defective).",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning Bayes’ Theorem?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1–5): [___]{Real(3)->cmp(checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return ($v == int($v) && $v >= 1 && $v <= 5);
+  })->withPostFilter(AnswerHints(
+    sub { $_[0] < 1 || $_[0] > 5 } => "Please enter an integer from 1 to 5.",
+    sub { $_[0] != int($_[0]) } => "Please enter a whole number (integer) from 1 to 5.",
+  ))}
+  END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

@@ -1,0 +1,239 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Probability via Counting: Team of 5 with 3 Girls and 2 Boys (Guided / Scaffolded)
+## ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data & Calculations
+# =======================================================
+Context("Numeric");
+Context()->flags->set(implicitMultiplication => 1);
+
+# Class composition
+$G = 12;  # girls
+$B = 9;   # boys
+$n = 5;   # team size
+
+# helper: nCr without huge factorials
+sub nCr {
+  my ($n,$r) = @_;
+  return 0 if ($r < 0 || $r > $n);
+  $r = $n - $r if ($r > $n - $r);
+  my $prod = 1;
+  for (my $k = 1; $k <= $r; $k++) {
+    $prod = $prod * ($n - $r + $k) / $k;
+  }
+  return int($prod + 0.5);
+}
+
+# Sample space: choose 5 from 21
+$S_total = nCr($G + $B, $n);
+
+# Favorable: choose 3 girls AND 2 boys
+$E_g   = nCr($G, 3);
+$E_b   = nCr($B, 2);
+$E_fav = $E_g * $E_b;
+
+# Probability
+$prob = $E_fav / $S_total;
+
+# MathObjects
+$valS = Real($S_total);
+$valG = Real($E_g);
+$valB = Real($E_b);
+$valE = Real($E_fav);
+$valP = Real($prob);
+
+# =======================================================
+# Evaluators & MC
+# =======================================================
+
+# MC for Equally Likely Section
+$rb_why_counting = RadioButtons(
+  [
+    "Because every team of 5 students is equally likely, so we can count outcomes and divide.",
+    "Because there are more girls than boys.",
+    "Because the team has 5 students.",
+    "Because probability always uses combinations.",
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# MC for choosing method in sample space
+$rb_method_S = RadioButtons(
+  [
+    "Use \(21^5\) because there are 21 students and 5 spots.",
+    "Use \(P(21,5)\) because a team is ordered.",
+    "Use \(C(21,5)\) because a team is just a set (order does not matter).",
+  ],
+  2,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# MC for Multiplication Principle checkpoint
+$rb_mult_principle = RadioButtons(
+  [
+    "We add the number of ways to choose the girls and the boys.",
+    "We use the multiplication Principle: (ways to choose 3 girls) times (ways to choose 2 boys).",
+    "We divide because we are using two groups.",
+    "We multiply by 5! because there are 5 students.",
+    "We subtract because boys and girls overlap.",
+  ],
+  1,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# Answer evaluators (with a few common-mistake hints)
+
+$cmp_S = $valS->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (21**5)) < 0.5 } =>
+    "That looks like \(21^5\). That would treat the team as ordered and allow repeats, which is not correct.",
+  sub { abs($_[0] - (21*20*19*18*17)) < 0.5 } =>
+    "That looks like \(P(21,5)\). A team is not ordered, so use a combination.",
+));
+
+$cmp_G = $valG->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (12*11*10)) < 0.5 } =>
+    "That looks like \(P(12,3)\). Choosing 3 girls for a team is not ordered, so use \(C(12,3)\).",
+));
+
+$cmp_B = $valB->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (9*8)) < 0.5 } =>
+    "That looks like \(P(9,2)\). Choosing 2 boys for a team is not ordered, so use \(C(9,2)\).",
+));
+
+$cmp_E = $valE->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - ($E_g + $E_b)) < 0.5 } =>
+    "It looks like you added. Here we need a two-stage count, so multiply the stage counts.",
+));
+
+$cmp_P = $valP->cmp(
+  tolType => "absolute",
+  tol     => 1e-12,
+)->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "Probabilities cannot be greater than 1.",
+));
+
+# Rating (1–5) -- fixed (no setMessage warnings)
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+In a class of **9 boys** and **12 girls**, a team of **5 students** is chosen at random.
+
+What is the probability that the team consists of **3 girls** and **2 boys**?
+END_PGML
+Section::End();
+
+Section::Begin("Equally likely outcomes");
+BEGIN_PGML
+All possible teams of 5 students are **equally likely**.
+
+So if [`` E ``] is the event "3 girls and 2 boys", then: [`` P(E)=\frac{\#(E)}{\#(S)} ``].
+
+**Checkpoint:** Why can [`` P(E) ``] be calculated by simply counting and dividing here?
+
+[_]{$rb_why_counting}
+END_PGML
+Section::End();
+
+Section::Begin("Count the sample space");
+BEGIN_PGML
+The sample space consists of all possible teams of 5 students chosen from 21 students, where **order does not matter**.
+
+**Checkpoint:** Which counting method should we use for [`` \#(S) ``]?
+
+[_]{$rb_method_S}
+
+Now compute the sample space size:
+
+[`` \#(S) = ``] [________________]{$cmp_S}
+END_PGML
+Section::End();
+
+Section::Begin("Count Favorable Outcomes");
+BEGIN_PGML
+A favorable team has **3 girls** and **2 boys**. Think of this as a **two-stage process**.
+
+**Stage 1:** Choose **3 girls** from the 12 girls.  
+[`` \#(\text{Stage 1}) = ``] [____]{$cmp_G}
+
+**Stage 2:** Choose **2 boys** from the 9 boys.  
+[`` \#(\text{Stage 2}) = ``] [____]{$cmp_B}
+
+**Checkpoint:** Now that we have the number of ways each stage can be done, how do we calculate the total number of ways a favorable team can be created?
+
+[_]{$rb_mult_principle}
+
+**Total Favorable Outcomes:** [`` \#(E) = ``] [__________]{$cmp_E}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Using the counts above:
+
+[`` P(E) = ``] [____________________]{$cmp_P}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating 1–5)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

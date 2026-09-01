@@ -1,0 +1,425 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Confidence Interval for the Mean: Large Sample, Sigma Unknown (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Confidence Intervals)
+## DBsection(Confidence Interval for the Mean)
+## Level(2)
+## KEYWORDS('confidence interval','population mean','large sample','sigma unknown','sample standard deviation','z critical value','standard error','margin of error')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data
+# =======================================================
+$xbar = 72;
+$s    = 15;
+$n    = 100;
+$conf = 0.98;
+
+$alpha    = Real(0.02);
+$z_cutoff = Real(2.325);
+$se       = Real(1.5);
+$me       = Real(3.4875);
+$lcl      = Real(68.5125);
+$ucl      = Real(75.4875);
+
+# =======================================================
+# Tolerances
+# =======================================================
+$tol_alpha = 0.0005;
+$tol_z     = 0.005;
+$tol_se    = 0.005;
+$tol_me    = 0.01;
+$tol_end   = 0.02;
+
+# =======================================================
+# Comparators
+# =======================================================
+
+# Formula-selection MC: correct choice = 3
+$cmp_formula = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+    return ($v == 3) ? 1 : 0;
+  }
+)->withPostFilter(
+  HintIfWrong("Because the sample is large and sigma is unknown, we use xbar +/- z_(alpha/2)(s/sqrt(n)).")
+);
+
+$cmp_alpha = $alpha->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_alpha
+)->withPostFilter(
+  HintIfWrong("For a 98% confidence level, 1 - alpha = 0.98, so alpha = 0.02.")
+);
+
+$cmp_z = $z_cutoff->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong("For a 98% confidence interval, alpha = 0.02, so alpha/2 = 0.01 and the table cutoff is 2.325.")
+);
+
+$cmp_se = $se->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_se
+)->withPostFilter(
+  HintIfWrong("The standard error here is s/sqrt(n).")
+);
+
+$cmp_me = $me->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_me
+)->withPostFilter(
+  HintIfWrong("The margin of error is z_(alpha/2)(s/sqrt(n)).")
+);
+
+$cmp_lcl = $lcl->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_end
+)->withPostFilter(
+  HintIfWrong("The lower endpoint is xbar minus the margin of error.")
+);
+
+$cmp_ucl = $ucl->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_end
+)->withPostFilter(
+  HintIfWrong("The upper endpoint is xbar plus the margin of error.")
+);
+
+# Interpretation MC: correct choice = 4
+$cmp_interp = Real(4)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+    return ($v == 4) ? 1 : 0;
+  }
+)->withPostFilter(
+  HintIfWrong("A confidence interval for mu is interpreted as a plausible range for the true population mean.")
+);
+
+# Rating checker
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "always",
+    is_open  => "always"
+  );
+} else {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "when_previous_correct",
+    is_open  => "correct_or_first_incorrect"
+  );
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_PGML
+A streaming platform wants to estimate the true mean number of minutes users spend watching content in a session.
+
+A random sample of [``n=100``] users is selected. The sample mean is [``\bar x = 72``] minutes. The population standard deviation is unknown, but the sample standard deviation is [``s = 15``] minutes.
+
+Construct a [``98\%``] confidence interval for the true population mean [``\mu``].
+
+Because the sample is large, according to the CLT, the sampling distribution of [``\bar X``] is approximately normal.
+
+Round the cutoff, standard error, margin of error, and interval endpoints to 3 decimals.
+END_PGML
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Choose the correct formula
+# -------------------------------------------------------
+Section::Begin("Section B — Choose the correct formula");
+
+BEGIN_PGML
+Choose the correct confidence-interval formula for this problem, considering that the sample is large and the population standard deviation [``\sigma``] is unknown.
+
+1) [``\bar x \pm t_{\alpha/2}\dfrac{s}{\sqrt{n}}``]
+
+2) [``\hat p \pm z_{\alpha/2}\sqrt{\dfrac{\hat p(1-\hat p)}{n}}``]
+
+3) [``\bar x \pm z_{\alpha/2}\dfrac{s}{\sqrt{n}}``]
+
+4) [``\bar x \pm z_{\alpha/2}\dfrac{\sigma}{\sqrt{n}}``]
+
+5) [``\bar x \pm t_{\alpha/2}\dfrac{\sigma}{\sqrt{n}}``]
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_formula);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Find alpha and the cutoff
+# -------------------------------------------------------
+Section::Begin("Section C — Find alpha and the cutoff");
+
+BEGIN_PGML
+For a [``98\%``] confidence interval:
+
+- [``1-\alpha = 0.98``]
+- each tail has area [``\alpha/2``]
+
+1) Enter the value of [``\alpha``]:
+
+[____]
+
+[@ image("cutoff.jpg", width=>520) @]*
+
+2) Use the normal table to find the positive cutoff [``z_{\alpha/2}``].
+
+Enter [``z_{\alpha/2}``]: [____]
+END_PGML
+
+ANS($cmp_alpha, $cmp_z);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Compute the standard error and margin of error
+# -------------------------------------------------------
+Section::Begin("Section D — Compute the standard error and margin of error");
+
+BEGIN_PGML
+Compute the standard error:
+
+[``\dfrac{s}{\sqrt{n}}``]
+
+For this problem,
+
+[``\dfrac{15}{\sqrt{100}} =``] [____]
+
+Now compute the margin of error:
+
+[``E = z_{\alpha/2}\dfrac{s}{\sqrt{n}}``]
+
+For this problem,
+
+[``E = (2.325)\left(\dfrac{15}{\sqrt{100}}\right) =``] [____]
+END_PGML
+
+ANS($cmp_se, $cmp_me);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 — Construct the confidence interval
+# -------------------------------------------------------
+Section::Begin("Section E — Construct the confidence interval");
+
+BEGIN_PGML
+Now construct the confidence interval:
+
+[``\bar x \pm E``]
+
+Using [``\bar x = 72``] and your margin of error, enter the two endpoints.
+
+Lower endpoint: [____]
+
+Upper endpoint: [____]
+END_PGML
+
+ANS($cmp_lcl, $cmp_ucl);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 6 — Interpretation
+# -------------------------------------------------------
+Section::Begin("Section F — Interpret the confidence interval");
+
+BEGIN_PGML
+The [``98\%``] confidence interval is
+
+[``(68.513,\ 75.488)``]
+
+Choose the best interpretation.
+
+1) [``98\%``] of all user sessions last exactly between [``68.513``] and [``75.488``] minutes.
+
+2) There is a [``98\%``] chance that the sample mean [``\bar x``] is between [``68.513``] and [``75.488``].
+
+3) The interval proves that the true population mean is exactly [``72``] minutes.
+
+4) We are [``98\%``] confident that the true mean session time for all users is between [``68.513``] and [``75.488``] minutes.
+
+5) [``98\%``] of all possible sample means are exactly equal to [``\mu``].
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_interp);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+**1. Choose the correct formula**
+
+Because the sample is large and the population standard deviation [``\sigma``] is unknown, we use the sample standard deviation [``s``]. The correct formula is
+
+[``\bar x \pm z_{\alpha/2}\dfrac{s}{\sqrt{n}}``]
+
+**2. Find alpha and the cutoff**
+
+For a [``98\%``] confidence interval,
+
+[``1-\alpha = 0.98``]
+
+so
+
+[``\alpha = 0.02``]
+
+Then
+
+[``\alpha/2 = 0.01``]
+
+From the normal table,
+
+[``z_{\alpha/2} = z_{0.01} = 2.325``]
+
+**3. Compute the standard error**
+
+[``\dfrac{s}{\sqrt{n}} = \dfrac{15}{\sqrt{100}} = \dfrac{15}{10} = 1.500``]
+
+So the standard error is [``1.500``].
+
+**4. Compute the margin of error**
+
+[``E = z_{\alpha/2}\dfrac{s}{\sqrt{n}}``]
+
+So
+
+[``E = (2.325)(1.500) = 3.488``]
+
+**5. Construct the confidence interval**
+
+Use
+
+[``\bar x \pm E``]
+
+So
+
+[``72 \pm 3.488``]
+
+Lower endpoint:
+
+[``72 - 3.488 = 68.513``]
+
+Upper endpoint:
+
+[``72 + 3.488 = 75.488``]
+
+Therefore, the [``98\%``] confidence interval for [``\mu``] is
+
+[``(68.513,\ 75.488)``]
+
+**6. Interpret the confidence interval**
+
+The correct interpretation is:
+
+We are [``98\%``] confident that the true mean session time for all users is between [``68.513``] and [``75.488``] minutes.
+
+This interval gives a plausible range for the population mean [``\mu``]. It does **not** describe where [``98\%``] of individual session times fall, and it does **not** mean that the sample mean has a [``98\%``] chance of being in that interval.
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

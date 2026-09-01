@@ -1,0 +1,435 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Large-Sample Confidence Intervals for the Mean (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Confidence Intervals)
+## DBsection(Confidence Interval for the Mean)
+## Level(2)
+## KEYWORDS('confidence interval','large sample','mean','known sigma','unknown sigma','confidence level','critical value','z alpha over 2','sample standard deviation')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data for sample standard deviation checkpoint
+# =======================================================
+$x1 = 8;
+$x2 = 10;
+$x3 = 12;
+$x4 = 14;
+$x5 = 16;
+
+# sample standard deviation = sqrt(40/4) = sqrt(10)
+$s_exact = 3.16227766016838;
+
+# =======================================================
+# Correct targets
+# =======================================================
+$alpha_98 = Real(0.02);
+
+$z_010 = Real(1.645);
+$z_005 = Real(1.960);
+$z_002 = Real(2.325);
+$z_001 = Real(2.575);
+
+# =======================================================
+# Tolerances
+# =======================================================
+$tol_alpha = 0.0005;
+$tol_s     = 0.02;
+$tol_z     = 0.01;
+
+# =======================================================
+# Comparators
+# =======================================================
+
+# Section B MC: correct choice = 2 (xbar)
+$cmp_point_est = Real(2)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+    return ($v == 2) ? 1 : 0;
+  }
+)->withPostFilter(
+  HintIfWrong("The appropriate point estimate for mu is the sample mean xbar.")
+);
+
+$cmp_alpha_98 = $alpha_98->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_alpha
+)->withPostFilter(
+  HintIfWrong("For a 98% confidence level, 1 - alpha = 0.98, so alpha = 0.02.")
+);
+
+# Section C MC: correct choice = 3
+$cmp_conf_meaning = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+    return ($v == 3) ? 1 : 0;
+  }
+)->withPostFilter(
+  HintIfWrong("The confidence level describes the long-run success rate of the method over many random samples.")
+);
+
+$cmp_s = Real($s_exact)->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_s
+)->withPostFilter(
+  HintIfWrong("Use the sample standard deviation on your calculator, not the population standard deviation.")
+);
+
+$cmp_z_010 = $z_010->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong("For alpha = 0.10, alpha/2 = 0.05, so the cutoff is z_(0.05) = 1.645.")
+);
+
+$cmp_z_005 = $z_005->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong("For alpha = 0.05, alpha/2 = 0.025, so the cutoff is z_(0.025) = 1.960.")
+);
+
+$cmp_z_002 = $z_002->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong("For alpha = 0.02, alpha/2 = 0.01, so the cutoff is z_(0.01) = 2.326.")
+);
+
+$cmp_z_001 = $z_001->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong("For alpha = 0.01, alpha/2 = 0.005, so the cutoff is z_(0.005) = 2.576.")
+);
+
+# Rating checker
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "always",
+    is_open  => "always"
+  );
+} else {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "when_previous_correct",
+    is_open  => "correct_or_first_incorrect"
+  );
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_PGML
+In this Guided Problem, we introduce the idea of a large-sample confidence interval for the population mean [``\mu``].
+
+Assume a random sample of size [``n \ge 30``] is taken from a population. The goal is to estimate [``\mu``] using the sample data.
+
+In this GP, you will learn:
+
+- what a [``100(1-\alpha)\%``] confidence interval means,
+- what the confidence level represents,
+- the two large-sample formulas for a confidence interval for [``\mu``],
+- and the normal cutoffs [``z_{\alpha/2}``] for common values of [``\alpha``].
+
+Rounding: Round cutoff values to 3 decimals.
+END_PGML
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Section B
+# -------------------------------------------------------
+Section::Begin("Section B — Appropriate point estimate for mu");
+
+BEGIN_PGML
+A confidence interval for [``\mu``] has the form
+
+[``\text{estimate} \pm \text{margin of error}``]
+
+What is the appropriate point estimate for the population mean [``\mu``]?
+
+1) [``\mu``]  
+2) [``\bar x``]  
+3) [``\sigma``]  
+4) [``s``]  
+5) [``\alpha``]
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_point_est);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Section C
+# -------------------------------------------------------
+Section::Begin("Section C — Level of confidence");
+
+BEGIN_PGML
+When we build a confidence interval, we must consider the required level of confidence.
+
+Common values are usually [``90\%``] ([``\alpha = 0.10``]), [``95\%``] ([``\alpha = 0.05``]), and [``99\%``] ([``\alpha = 0.01``]).
+
+The confidence level describes how the method behaves over many random samples. For example, a [``95\%``] level of confidence means [``95\%``] of intervals built using this method, by repeatedly sampling the population, will capture the actual [``\mu``].
+
+1) If the confidence level is [``98\%``], enter the value of [``\alpha``]:
+
+[____]
+
+2) Choose the best interpretation of a [``100(1-\alpha)\%``] confidence interval:
+
+1) [``100(1-\alpha)\%``] of all sample means are equal to [``\mu``].  
+2) There is a [``100(1-\alpha)\%``] chance that [``\mu``] changes from sample to sample.  
+3) If we repeatedly took many random samples and built intervals the same way each time, about [``100(1-\alpha)\%``] of those intervals would contain [``\mu``].  
+4) A [``100(1-\alpha)\%``] confidence interval always contains [``\mu``].  
+5) The confidence level tells us that this particular sample must be correct.
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_alpha_98, $cmp_conf_meaning);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Section D
+# -------------------------------------------------------
+Section::Begin("Section D — Large-sample formulas and sample standard deviation");
+
+BEGIN_PGML
+For large samples, a confidence interval for [``\mu``] has the form
+
+[``\bar x \pm z_{\alpha/2}(\text{standard error})``]
+
+There are two common large-sample formulas:
+
+**Case 1: sigma known**  
+[``\bar x \pm z_{\alpha/2}\dfrac{\sigma}{\sqrt{n}}``]
+
+**Case 2: sigma unknown, but n is large**  
+[``\bar x \pm z_{\alpha/2}\dfrac{s}{\sqrt{n}}``]
+
+So when [``\sigma``] is unknown, we replace it with the sample standard deviation [``s``].
+
+Use your calculator to find the **sample standard deviation** of the following data:
+
+[``8,\ 10,\ 12,\ 14,\ 16``]
+
+Enter [``s``]: [____]
+END_PGML
+
+ANS($cmp_s);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 — Sections E
+# -------------------------------------------------------
+Section::Begin("Sections E — Cutoff values from the normal table");
+
+BEGIN_PGML
+For a [``100(1-\alpha)\%``] confidence interval:
+
+- the middle area is [``1-\alpha``]
+- the total area in the two tails is [``\alpha``]
+- each tail has area [``\alpha/2``]
+- the positive cutoff is [``z_{\alpha/2}``]
+
+[@ image("cutoff.jpg", width=>520) @]*
+
+Now use the normal table to find the positive cutoff [``z_{\alpha/2}``] for each value of [``\alpha``].
+
+For [``\alpha = 0.10``], enter [``z_{\alpha/2}``]: [____]
+
+For [``\alpha = 0.05``], enter [``z_{\alpha/2}``]: [____]
+
+For [``\alpha = 0.02``], enter [``z_{\alpha/2}``]: [____]
+
+For [``\alpha = 0.01``], enter [``z_{\alpha/2}``]: [____]
+
+Note that smaller [``\alpha``] means higher confidence level, which is desirable. However, smaller [``\alpha``] also means a bigger cutoff value that will result in a bigger margin of error for the confidence interval. This is a trade-off. Higher confidence level comes at the expense of a wider, and thus less precise, confidence interval. 
+END_PGML
+
+ANS($cmp_z_010, $cmp_z_005, $cmp_z_002, $cmp_z_001);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+**1. Appropriate point estimate**
+
+A confidence interval for [``\mu``] is centered at the sample mean.
+
+So the appropriate point estimate for the population mean [``\mu``] is
+
+[``\bar x``]
+
+**2. Confidence level and alpha**
+
+If the confidence level is [``98\%``], then
+
+[``1-\alpha = 0.98``]
+
+so
+
+[``\alpha = 0.02``]
+
+The confidence level describes the long-run success rate of the method. For example, a [``95\%``] confidence level means that if we repeatedly sample the population and build intervals the same way each time, about [``95\%``] of those intervals will capture the true [``\mu``].
+
+**3. Large-sample formulas**
+
+For large samples, the confidence interval for [``\mu``] has the form
+
+[``\bar x \pm z_{\alpha/2}(\text{standard error})``]
+
+If [``\sigma``] is known:
+
+[``\bar x \pm z_{\alpha/2}\dfrac{\sigma}{\sqrt{n}}``]
+
+If [``\sigma``] is unknown but the sample is large:
+
+[``\bar x \pm z_{\alpha/2}\dfrac{s}{\sqrt{n}}``]
+
+So when [``\sigma``] is unknown, we use the sample standard deviation [``s``].
+
+**4. Compute the sample standard deviation**
+
+For the data
+
+[``8,\ 10,\ 12,\ 14,\ 16``]
+
+the sample mean is
+
+[``\bar x = 12``]
+
+The deviations from the mean are
+
+[``-4,\ -2,\ 0,\ 2,\ 4``]
+
+Their squares are
+
+[``16,\ 4,\ 0,\ 4,\ 16``]
+
+The sum of squared deviations is
+
+[``40``]
+
+So the sample variance is
+
+[``s^2 = \dfrac{40}{5-1} = 10``]
+
+and the sample standard deviation is
+
+[``s = \sqrt{10} \approx 3.162``]
+
+**5. Cutoff values**
+
+For a [``100(1-\alpha)\%``] confidence interval, each tail has area [``\alpha/2``], and the positive cutoff is [``z_{\alpha/2}``].
+
+The common cutoff values are:
+
+- for [``\alpha = 0.10``]: [``z_{0.05} = 1.645``]
+- for [``\alpha = 0.05``]: [``z_{0.025} = 1.960``]
+- for [``\alpha = 0.02``]: [``z_{0.01} = 2.325``]
+- for [``\alpha = 0.01``]: [``z_{0.005} = 2.575``]
+
+These are the normal-table cutoffs commonly used for large-sample confidence intervals for the mean.
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

@@ -1,0 +1,204 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Probability via Counting: Lotto 6/49 Second Prize (Guided / Scaffolded)
+## ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data & Calculations
+# =======================================================
+Context("Numeric");
+Context()->flags->set(implicitMultiplication => 1);
+
+sub nCr {
+  my ($n,$r) = @_;
+  return 0 if ($r < 0 || $r > $n);
+  $r = $n - $r if ($r > $n - $r);
+  my $prod = 1;
+  for (my $k = 1; $k <= $r; $k++) {
+    $prod = $prod * ($n - $r + $k) / $k;
+  }
+  return int($prod + 0.5);
+}
+
+# Values for the problem
+$S_total      = nCr(49,6);
+$win_5_of_6   = nCr(6,5);     # 6
+$lose_1_of_43 = nCr(43,1);    # 43
+$E_fav        = $win_5_of_6 * $lose_1_of_43;  # 258
+$prob         = $E_fav / $S_total;
+
+# MathObjects
+$valS = Real($S_total);
+$valW = Real($win_5_of_6);
+$valL = Real($lose_1_of_43);
+$valE = Real($E_fav);
+$valP = Real($prob);
+
+# =======================================================
+# Evaluators & MC
+# =======================================================
+
+# MC for Equally Likely Section (4 choices => labels ABCD)
+$rb_why_counting = RadioButtons(
+  [
+    "Because all possible tickets have the same probability \(1/\#(S)\).",
+    "Because there are 49 balls in the machine.",
+    "Because we are choosing more than one number.",
+    "Because the prize depends on how many people play.",
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# MC checkpoint for Multiplication Principle (5 choices => labels ABCDE)
+$rb_mult_principle = RadioButtons(
+  [
+    "We add the number of ways from Stage 1 and Stage 2.",
+    "We use the multiplication Principle.",
+    "We subtract the Stage 2 count from the Stage 1 count.",
+    "We divide Stage 1 by Stage 2 because order does not matter.",
+    "We multiply by 49 because there are 49 balls.",
+  ],
+  1,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# Hint for Sample Space
+$cmp_S = $valS->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] == 10068347520 } => "That looks like P(49,6). Does the order of the numbers drawn matter in Lotto 6/49?",
+));
+
+# Hint for Favorable Stages
+$cmp_W = $valW->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] == 30 } => "It looks like you used P(6,5). Does the order of the 5 winning numbers matter?",
+));
+
+$cmp_L = $valL->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] == 49 } => "You need to pick a non-winning number. How many balls are NOT winning numbers?",
+));
+
+$cmp_E = $valE->cmp;
+
+$cmp_P = $valP->cmp(
+  tolType => "absolute",
+  tol     => 1e-12,
+);
+
+# =======================================================
+# Rating (1–5)
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+In **Lotto 6/49**, a player wins the **second prize** if exactly **five** of the six numbers on their ticket match the six winning numbers drawn (order does not matter).
+
+What is the probability that you win the second prize if you purchased a single ticket?
+END_PGML
+Section::End();
+
+Section::Begin("Equally likely outcomes");
+BEGIN_PGML
+All outcomes in the sample space of this experiment are **equally likely**.
+So if [`` E ``] is the event "win second prize", then: [`` P(E)=\frac{\#(E)}{\#(S)} ``].
+
+**Checkpoint:** Why can [`` P(E) ``] be calculated by simply counting and dividing here?
+
+[_]{$rb_why_counting}
+END_PGML
+Section::End();
+
+Section::Begin("Count the sample space");
+BEGIN_PGML
+How many possible ways can 6 numbers be drawn from 49 balls, if the order of the balls does not matter?
+
+[`` \#(S) = ``] [________________]{$cmp_S}
+END_PGML
+Section::End();
+
+Section::Begin("Count Favorable Outcomes");
+BEGIN_PGML
+You can think of building a second-prize winning ticket as a **two-stage process**.
+
+**Stage 1:** First, you need to pick **5 winning numbers** out of the 6 winning numbers available.  
+How many ways can you do that?  
+[____]{$cmp_W}
+
+**Stage 2:** Then, you need to pick **1 non-winning number** out of the remaining non-winning numbers.  
+How many ways can you do that?  
+[____]{$cmp_L}
+
+**Checkpoint:** Now that we have the number of ways each stage can be done, how do we calculate the total number of ways a second-prize winning ticket can be created?
+
+[_]{$rb_mult_principle}
+
+**Total Favorable Outcomes:** [`` \#(E) = ``] [__________]{$cmp_E}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Using the outcomes calculated above:
+
+[`` P(E) = ``] [____________________]{$cmp_P}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating 1–5)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();
