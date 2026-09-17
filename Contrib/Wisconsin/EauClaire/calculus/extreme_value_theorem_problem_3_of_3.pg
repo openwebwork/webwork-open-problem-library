@@ -1,0 +1,295 @@
+##DESCRIPTION
+##  Training problem on the relationship between rates of change and slopes of lines
+##ENDDESCRIPTION
+
+##KEYWORDS('secant line', 'tangent line', 'slope', 'average rate of change', 'instantaneous rate of change')
+
+## DBsubject('Calculus')
+## DBchapter('Limits, Derivatives')
+## DBsection('Rates of change')
+## Date('Summer 2023')
+## Author('Warren Shull')
+## Institution('UWEC')
+
+########################################################################
+
+DOCUMENT();
+
+loadMacros(
+   "PGstandard.pl",     # Standard macros for PG language
+   "MathObjects.pl",
+   "PGML.pl",
+   #"source.pl",        # allows code to be displayed on certain sites.
+   "PGcourse.pl",      # Customization file for the course
+   "scaffold.pl",
+   "parserPopUp.pl",   # <--------------------------------------NEEDED FOR DROPDOWN MENUS
+);
+
+loadMacros("customCSS.pl");
+
+# Print problem number and point value (weight) for the problem
+TEXT(beginproblem());
+
+# Show which answers are correct and which ones are incorrect
+$showPartialCorrectAnswers = 1;
+
+################################
+#  Desmos setup
+#
+#  In html mode, load the Desmos api script and create the <div> to attach the Desmos graph to.
+#  In tex mode, print a message to direct the student to the html version.
+#  Desmos API reference: https://www.desmos.com/api/v1.7/docs/index.html
+
+
+HEADER_TEXT(MODES(
+    HTML=>'<script src="https://www.desmos.com/api/v1.7/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>',
+    TeX=>''
+));
+
+$desmos_div = MODES(
+    HTML=>qq(<div id="$unique_div_id" style="width: ${width}px; height: ${height}px;"></div>), 
+    TeX=>'Interactive graph best viewed online'
+);
+
+##############################################################
+#
+#  Setup
+
+Context("Point");
+Context("Numeric");
+Context()->variables->add(t=>'Real',c=>'Real');
+
+$x1 = random(-5,2);
+$x2 = $x1+3;
+$a = 3*$x1+3*$x2;
+$b = 6*$x1*$x2;
+$y1 = random(-10,10);
+$c = random(-10,10);
+$c_left = $c-1;
+$c_right = $c+1;
+$d = random(1,10);
+
+$f = Formula("2*x^3-$a*x^2+$b*x+$y1")->reduce;
+$fp = Formula("6*x^2-2*$a*x+$b")->reduce;
+$fpc = Formula("6*c^2-2*$a*c+$b")->reduce;
+$g_partial = Formula("x-$c")->reduce;
+$g_partial_c = Formula("c-$c")->reduce;
+$g = Formula("x-3*((x-$c)^2)^(1/3)+$d"); #displays badly; only using to evaluate
+$gp = Formula("1-2*(x-$c)^(-1/3)");
+$gpc = Formula("1-2*(c-$c)^(-1/3)");
+
+$left=$x1-1;
+$right=$x2+2;
+
+$y2 = $f->eval(x=>$left);
+$y3 = $f->eval(x=>$x1);
+$y4 = $f->eval(x=>$x2);
+$y5 = $f->eval(x=>$right);
+
+$y_max = $y5; #underscore for f
+if ($y2>$y_max){$y_max=$y2};
+if ($y3>$y_max){$y_max=$y3};
+if ($y4>$y_max){$y_max=$y4};
+
+$y_min = $y4; #underscore for f
+if ($y2<$y_min){$y_min=$y2};
+if ($y3<$y_min){$y_min=$y3};
+if ($y5<$y_min){$y_min=$y5};
+
+$y7 = $g->eval(x=>$c);
+$y6 = $g->eval(x=>$c_left);
+$y8 = $g->eval(x=>$c_right);
+
+$ymax = $y7; #no underscore for g
+if ($y6>$ymax){$ymax=$y6};
+if ($y8>$ymax){$ymax=$y8};
+
+$ymin = $y6; #no underscore for g
+if ($y7<$ymin){$ymin=$y7};
+if ($y8<$ymin){$ymin=$y8};
+
+#$list1=List(1,3);
+
+$dropmenu = PopUp(
+  ["Choose one", "wrong1","wrong2","correct"],
+  "correct");
+
+## THIS IS PROBLEM 3 OF A 3 PROBLEM SERIES INTRODUCING THE EXTREME VALUE THEOREM. IF YOU USE THEM TOGETHER, YOU CAN USE PASSCODES TO ALLOW YOU TO REQUIRE THE PROBLEMS BE DONE IN ORDER. BELOW IS SOME OF THE CODE YOU'LL NEED:
+
+#SRAND($psvn);
+#$passcode1 = random(1000,9999);
+#$passcode2 = random(1000,9999);
+
+## END PASSCODE CODE
+
+
+
+##############################################################
+#
+#  Text
+
+Scaffold::Begin(
+      can_open => "when_previous_correct",
+      is_open  => "first_incorrect"
+);
+
+Section::Begin("Passcode");
+
+BEGIN_PGML
+
+At the end of the previous problem, we saw...
+
+[@ openDiv({ "class" => "importantFormula" }) @]*
+*Extreme Value Theorem*:
+
+If a function [`f`] is continuous on a closed interval [`[a,b]`], then [`f`] has both an absolute minimum and an absolute maximum on [`[a,b]`].
+[@ closeDiv() @]*
+
+[% Enter the passcode from the previous problem: [_]{$passcode2} %]
+
+So far, we have been finding the absolute maximum and minimum from graphs. How do we find them from an algebraic expression?
+
+END_PGML
+Section::End();
+
+Section::Begin("Closed Interval Method");
+
+BEGIN_PGML
+
+[@ openDiv({ "class" => "importantFormula" }) @]*
+*Fermat's Theorem*:
+
+If [`(c,f(c))`] is a local maximum or minimum, then either [`f'(c)=0`] or [`f'(c)`] does not exist.
+[@ closeDiv() @]*
+
+If [`f'(c)=0`] or [`f'(c)`] does not exist, we call the point [`(c,f(c))`] a _critical point_ (or [`c`] a _critical number_). The absolute maximum of [`f`] on a closed interval [`[a,b]`] can be [`a`], or [`b`], or one of the critical points. Anywhere else, the tangent line would slope up or down, so there would be nearby points both above and below (see "Why is Fermat's Theorem true?" in the previous problem).
+
+If we can find the [`x`]-values for these points, we can plug them in and get the [`y`]-values. One will be the highest, and one will be the lowest!
+
+[% Enter the passcode again: [_]{$passcode2} %]
+
+END_PGML
+Section::End();
+
+Section::Begin("Finding critical numbers");
+
+BEGIN_PGML
+
+Let [`f(x)=[$f]`]. Let's find the absolute maximum and minimum of [`f`] on [`[[$x1-1],[$x2+2]]`].
+
+[`f'(x)=`] [_]{$fp}
+
+We need all values of [`c`] such that [`f'(c)=0`] or [`f'(c)`] does not exist. In this case, [`f'(c)`] will always exist, but we can set [`f'(c)=0`]. Type [`f'(c)`] in the box below (same as your previous answer, but replace each [`x`] with [`c`]):
+
+[_]{$fpc} [` =0`]
+
+Now let's factor it! The first box should be a constant, and the others should be [`(c+\mbox{something})`] or [`(c-\mbox{something})`]. (If WebWork won't accept your factors, try swapping the order.)
+
+[_]{6}[`\cdot\Big(`][_]{Formula("c-$x1")}[`\Big)\cdot\Big(`][_]{Formula("c-$x2")}[`\Big)=0`]
+
+Now solve for [`c`]. Enter the lower value first, and the higher one second: [`c=`] [_]{$x1} or [`c=`] [_]{$x2}.
+
+These are our critical numbers!
+
+END_PGML
+Section::End();
+
+Section::Begin("Choosing the correct maximum and minimum");
+
+BEGIN_PGML
+
+Recall that the interval is [`[[$left],[$right]]`].
+
+To find the maximum and minimum, we test the critical numbers and the endpoints of the interval. List those four [`x`] values, separated by commas: [_]{List("$left,$x1,$x2,$right")};
+
+Now we evaluate [`f`] at each of these [`x`]-values. Enter the [`x`]-values in increasing order on the left, then enter the correct [`y`]-value in each box on the right.
+
+Enter the [`x`]-value at the left endpoint (the first number in the interval). Then find the [`y`]-value. of the interval:
+
+[`f\Big(`][_]{$left}[`\Big)=`] [_]{$y2};
+
+[`f\Big(`][_]{$x1}[`\Big)=`] [_]{$y3};
+
+[`f\Big(`][_]{$x2}[`\Big)=`] [_]{$y4};
+
+[`f\Big(`][_]{$right}[`\Big)=`] [_]{$y5};
+
+The absolute maximum is the highest [`y`]-value: [_]{$y_max}
+
+The absolute maximum is the lowest [`y`]-value: [_]{$y_min}
+
+END_PGML
+Section::End();
+
+Section::Begin("Another example");
+
+BEGIN_PGML
+
+Let [`g(x)=x-3([$g_partial])^{\frac23}+[$d]`]. Let's find the absolute maximum and minimum of [`g`] on [`[[$c-1],[$c+1]]`].
+
+[`g'(x)=`] [_]{$gp}
+
+END_PGML
+Section::End();
+
+Section::Begin("Zero derivative");
+
+BEGIN_PGML
+
+Now let's solve the equation [`g'(c)=0`]. Fill in [`g'(c)`] in the box. Express it without any negative or fractional exponents (introducing fractions and roots as needed).
+
+[_]{$gpc} [`=0`]
+
+Now solve it for [`c`].
+
+[`c=`] [_]{$c+8}
+
+
+END_PGML
+Section::End();
+
+Section::Begin("Nonexistent derivative");
+
+BEGIN_PGML
+
+But we also need the values where [`g'(c)`] does not exist. In this case, that will happen when [`\sqrt[3]{[$g_partial_c]}=0`]. Solve this for [`c`].
+
+[`c=`] [_]{$c}
+
+END_PGML
+Section::End();
+
+Section::Begin("Finishing the job");
+
+BEGIN_PGML
+
+Recall that the interval is [`[[$c-1],[$c+1]]`].
+
+List the four [`x`] values that are either a critical number or an endpoint (separated by commas): [_]{List("$c-1,$c,$c+1,$c+8")}
+
+You may have noticed that one of these numbers is outside the interval. We don't need to worry about that one! List the other three: [_]{List("$c-1,$c,$c+1")}
+
+Now we evaluate [`g`] at each of these [`x`]-values (in increasing order), as before.
+
+[`g\Big(`][_]{$c-1}[`\Big)=`] [_]{$y6};
+
+[`g\Big(`][_]{$c}[`\Big)=`] [_]{$y7};
+
+[`g\Big(`][_]{$c+1}[`\Big)=`] [_]{$y8};
+
+The absolute maximum is the highest [`y`]-value: [_]{$ymax}
+
+The absolute maximum is the lowest [`y`]-value: [_]{$ymin}
+
+END_PGML
+Section::End();
+
+Scaffold::End();
+
+Context()->normalStrings;
+
+##################################
+#  Desmos graph (via the API)
+#  Execute this only after the $desmos_div object has been put on the html page.
+
+ENDDOCUMENT();
