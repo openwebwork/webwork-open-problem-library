@@ -1,0 +1,378 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Raffle: Probability Distribution, P(win), and Expected Value (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Random Variables)
+## Level(2)
+## KEYWORDS('probability distribution','expected value','net gain','raffle','discrete random variable')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser flag (hide rating in LB)
+# ----------------------------------------------------------------
+$inLibraryBrowser = $main::inLibraryBrowser || 0;
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+
+# Ticket + prizes
+$N = Real(1000);
+
+# Net gains (prize - cost)
+$x1 = Compute("300-1");   # 299
+$x2 = Compute("200-1");   # 199
+$x3 = Compute("100-1");   # 99
+$x0 = Compute("0-1");     # -1 (no prize)
+
+# Probabilities
+$p1 = Compute("1/1000");
+$p2 = Compute("1/1000");
+$p3 = Compute("1/1000");
+$p0 = Compute("997/1000");
+
+$Pwin = Compute("3/1000");
+$sumP = Compute("1");
+
+# Work-table xP values and expected value
+$xp1 = Compute("(300-1)*(1/1000)");
+$xp2 = Compute("(200-1)*(1/1000)");
+$xp3 = Compute("(100-1)*(1/1000)");
+$xp0 = Compute("(0-1)*(997/1000)");
+
+$EX  = Compute("-2/5");   # -0.4
+$Loss = Compute("2/5");   # expected loss per ticket (positive amount)
+
+# =======================================================
+# Evaluators
+# =======================================================
+
+# Counts
+$cmp_N = $N->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 1000) < 1e-6 } =>
+    "There are 1000 tickets, and each ticket has an equal chance of being the one you bought.",
+));
+
+$cmp_winners = Real(3)->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 1) < 1e-6 } =>
+    "There are three prizes, so there are three winning tickets (one for each prize).",
+));
+
+# Net gains
+$cmp_x1 = $x1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 300) < 1e-6 } =>
+    "Net gain means prize minus cost. You must subtract the $1 ticket cost.",
+));
+$cmp_x2 = $x2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 200) < 1e-6 } =>
+    "Net gain means prize minus cost. Subtract 1 from the prize.",
+));
+$cmp_x3 = $x3->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 100) < 1e-6 } =>
+    "Net gain means prize minus cost. Subtract 1 from the prize.",
+));
+$cmp_x0 = $x0->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0) < 1e-6 } =>
+    "If you win nothing, your net gain is not 0. You still paid $1 for the ticket.",
+));
+
+# Probabilities for distribution table
+$cmp_p1 = $p1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (3/1000)) < 1e-6 } =>
+    "3/1000 is the probability of winning any prize. Here you need the probability of FIRST prize only.",
+));
+$cmp_p2 = $p2->cmp;
+$cmp_p3 = $p3->cmp;
+$cmp_p0 = $p0->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (997/1000)) < 1e-6 } =>
+    "There are 3 winning tickets out of 1000. The remaining tickets are not winners.",
+  sub { abs($_[0] - (1/1000)) < 1e-6 } =>
+    "1/1000 is the probability of a specific prize. For 'no prize' you need the complement.",
+));
+
+# Check sum to 1
+$cmp_sumP = $sumP->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (3/1000)) < 1e-6 } =>
+    "3/1000 is P(winning any money). Here you are checking that ALL probabilities add to 1.",
+));
+
+# Part (b)
+$cmp_Pwin = $Pwin->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (997/1000)) < 1e-6 } =>
+    "997/1000 is the probability of winning nothing (no prize). Here you want the probability of winning any prize.",
+));
+
+# Work-table copied probabilities (to avoid AnSwEr warnings)
+$cmp_pw1 = $p1->cmp;
+$cmp_pw2 = $p2->cmp;
+$cmp_pw3 = $p3->cmp;
+$cmp_pw0 = $p0->cmp;
+
+# Work-table xP entries
+$cmp_xp1 = $xp1->cmp;
+$cmp_xp2 = $xp2->cmp;
+$cmp_xp3 = $xp3->cmp;
+$cmp_xp0 = $xp0->cmp;
+
+# Expected value + interpretation numeric
+$cmp_EX = $EX->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (597/1000)) < 1e-6 } =>
+    "That adds the three winning net gains but forgets the big negative contribution from the 'no prize' outcome.",
+));
+$cmp_Loss = $Loss->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $_[0]) < 0 } =>
+    "If E(X) is negative, the expected loss per ticket is -E(X).",
+));
+
+# Final answers (expression entries)
+$cmp_final_EX   = $EX->cmp;
+$cmp_final_Pwin = $Pwin->cmp;
+
+# =======================================================
+# Rating (1–5)
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A service organization in a large town organizes a raffle each month.
+
+One thousand raffle tickets are sold for \$1 each. Each has an equal chance of winning.  
+First prize is \$300, second prize is \$200, and third prize is \$100.
+
+Let [`` X ``] denote the **net gain** from the purchase of one ticket.
+
+a) Construct the probability distribution of [`` X ``].  
+b) Find the probability of winning any money in the purchase of one ticket.  
+c) Find the expected value of [`` X ``], and interpret its meaning.
+END_PGML
+Section::End();
+
+Section::Begin("Outcomes and possible values of X");
+BEGIN_PGML
+Think of the outcome as “which ticket number wins.”
+
+1) How many equally likely outcomes are there?
+
+[____]{$cmp_N}
+
+2) How many winning tickets are there in total?
+
+[____]{$cmp_winners}
+
+Now compute the possible values of [`` X ``] (net gain = prize minus the \$1 cost):
+
+First prize net gain:  [`` 300-1 = ``] [____]{$cmp_x1}  
+Second prize net gain: [`` 200-1 = ``] [____]{$cmp_x2}  
+Third prize net gain:  [`` 100-1 = ``] [____]{$cmp_x3}  
+No prize net gain:     [`` 0-1 = ``]   [____]{$cmp_x0}
+END_PGML
+Section::End();
+
+Section::Begin("Construct the probability distribution (Part a)");
+BEGIN_PGML
+Each ticket has probability [`` 1/1000 ``] of being the one you bought.
+
+Fill in the probability distribution table for [`` X ``].
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+  </tr>
+  <tr><td style="text-align:center;">\(299\)</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p1",12) \}</td></tr>
+  <tr><td style="text-align:center;">\(199\)</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p2",12) \}</td></tr>
+  <tr><td style="text-align:center;">\(99\)</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p3",12) \}</td></tr>
+  <tr><td style="text-align:center;">\(-1\)</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p0",12) \}</td></tr>
+</table>
+$ECENTER
+END_TEXT
+
+Section::End();
+
+NAMED_ANS("p1", $cmp_p1);
+NAMED_ANS("p2", $cmp_p2);
+NAMED_ANS("p3", $cmp_p3);
+NAMED_ANS("p0", $cmp_p0);
+
+Section::Begin("Check the probability distribution");
+BEGIN_PGML
+Check that the probabilities add to 1:
+
+[`` P(X=299)+P(X=199)+P(X=99)+P(X=-1)= ``] [____]{$cmp_sumP}
+END_PGML
+Section::End();
+
+Section::Begin("Probability of winning any money (Part b)");
+BEGIN_PGML
+“Winning any money” means you win first prize, second prize, or third prize.
+
+Compute:
+[`` P(\text{win any money}) = P(X=299)+P(X=199)+P(X=99)= ``] [____]{$cmp_Pwin}
+END_PGML
+Section::End();
+
+Section::Begin("Quick reminders");
+BEGIN_PGML
+Use this formula:
+
+**Expected value (mean):**  
+Multiply each value by its probability, then add.
+[`` E(X)=\sum x\,P(X=x) ``]
+END_PGML
+Section::End();
+
+Section::Begin("Work table (compute E(X))");
+BEGIN_PGML
+Copy your probabilities from Part (a) into the second column, then compute the third column.
+
+Finally, add the third column. That total is [`` E(X) ``].
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+    <th style="text-align:center;">\(xP(X=x)\)</th>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">\(299\)</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw1",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp1",12) \}</td>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">\(199\)</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw2",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp2",12) \}</td>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">\(99\)</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw3",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp3",12) \}</td>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">\(-1\)</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw0",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp0",12) \}</td>
+  </tr>
+
+  <tr>
+    <td style="text-align:center; font-weight:bold;" colspan="2">Total</td>
+    <td style="text-align:center;">
+      \{ NAMED_ANS_RULE("EX",12) \}<br/>
+      <span style="font-size:90%;">(this total is \(E(X)\))</span>
+    </td>
+  </tr>
+</table>
+$ECENTER
+END_TEXT
+
+Section::End();
+
+# Grade copied probabilities (prevents AnSwEr warnings)
+NAMED_ANS("pw1", $cmp_pw1);
+NAMED_ANS("pw2", $cmp_pw2);
+NAMED_ANS("pw3", $cmp_pw3);
+NAMED_ANS("pw0", $cmp_pw0);
+
+# Grade xP column + total
+NAMED_ANS("xp1", $cmp_xp1);
+NAMED_ANS("xp2", $cmp_xp2);
+NAMED_ANS("xp3", $cmp_xp3);
+NAMED_ANS("xp0", $cmp_xp0);
+NAMED_ANS("EX",  $cmp_EX);
+
+Section::Begin("Interpret the expected value (Part c)");
+BEGIN_PGML
+If your expected value [`` E(X) ``] is negative, that means the raffle is unfavorable to the buyer.
+
+Compute the **expected loss per ticket** (a positive number):
+[`` \text{expected loss} = -E(X)= ``] [____]{$cmp_Loss}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Enter the final results.
+END_PGML
+
+BEGIN_TEXT
+$PAR
+$BR \(P(\text{win any money})=\) \{ NAMED_ANS_RULE("finalPwin",12) \}
+$BR \(E(X)=\) \{ NAMED_ANS_RULE("finalEX",12) \}
+END_TEXT
+
+Section::End();
+
+NAMED_ANS("finalPwin", $cmp_final_Pwin);
+NAMED_ANS("finalEX",   $cmp_final_EX);
+
+# -------------------------------------------------------
+# Feedback (rating 1–5) (hidden in LB)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning expected value?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

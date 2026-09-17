@@ -1,0 +1,297 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Birthday Problem (Complement Rule) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Counting Methods)
+## Level(2)
+## KEYWORDS('birthday problem','complement rule','counting','permutations','probability')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+Context()->flags->set(implicitMultiplication => 1);
+
+# Use Compute for better handling of formula inputs vs raw numbers
+$num = Compute("(365)(364)(363)(362)(361)");
+$den = Compute("365^5");
+$pAc = Compute("((365)(364)(363)(362)(361))/(365^5)");
+$pA  = Compute("1 - ((365)(364)(363)(362)(361))/(365^5)");
+
+# Extra scenarios (rounded answers required)
+$pAc20_val = 1;
+for ($k=0; $k<20; $k++) { $pAc20_val *= (365-$k)/365; }
+$pA20_val  = 1 - $pAc20_val;
+$pA20_round = sprintf("%.4f",$pA20_val);
+
+$pAc30_val = 1;
+for ($k=0; $k<30; $k++) { $pAc30_val *= (365-$k)/365; }
+$pA30_val  = 1 - $pAc30_val;
+$pA30_round = sprintf("%.4f",$pA30_val);
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_num = $num->cmp;
+$cmp_den = $den->cmp;
+$cmp_pAc = $pAc->cmp;
+$cmp_pA  = $pA->cmp;
+
+# Rounded-to-4-decimals checkers
+$cmp_pA20 = Real($pA20_round)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (!defined($v)) {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Enter a decimal number rounded to the nearest 10000th (4 digits after the decimal point).";
+      return 0;
+    }
+    my $s = sprintf("%.4f",$v);
+    if ($s eq $pA20_round) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Correct!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Round to the nearest 10000th (4 digits after the decimal point).";
+    }
+    return $ansHash->{score};
+  }
+);
+
+$cmp_pA30 = Real($pA30_round)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (!defined($v)) {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Enter a decimal number rounded to the nearest 10000th (4 digits after the decimal point).";
+      return 0;
+    }
+    my $s = sprintf("%.4f",$v);
+    if ($s eq $pA30_round) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Correct!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Round to the nearest 10000th (4 digits after the decimal point).";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# Rating Check
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# RadioButtons
+# =======================================================
+$rb_comp = RadioButtons(
+  [
+    'Exactly 2 people share a birthday',
+    'At least 2 people share a birthday',
+    'All 5 people have different birthdays',
+    'All 5 people share the same birthday'
+  ],
+  2,   # correct is "All 5 people have different birthdays"
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_formula = RadioButtons(
+  [
+    'P(A) = 1 + P(complement of A)',
+    'P(A) = P(complement of A)',
+    'P(A) = 1 - P(complement of A)',
+    'P(A) = 1 / P(complement of A)'
+  ],
+  2,   # correct is "P(A) = 1 - P(complement of A)"
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+In a room of 5 people, what is the probability that at least 2 of them share a birthday?
+
+Assume:
+- 365 equally likely birthdays (ignore leap day)
+- birthdays are independent
+END_PGML
+Section::End();
+
+Section::Begin("Identify the complement event");
+BEGIN_PGML
+Let event **A** be: “At least 2 of the 5 people share a birthday.”
+
+**Checkpoint:** Which event is the complement of event A?
+
+[_]{$rb_comp}
+END_PGML
+Section::End();
+
+Section::Begin("Use the complement rule");
+BEGIN_PGML
+In this problem finding the probability of the complement event (All 5 people have different birthdays) is easier.
+
+**Checkpoint:** Which formula can used to find [`` P(A) ``] once we have [`` P(\text{complement of }A) ``]?
+
+[_]{$rb_formula}
+END_PGML
+Section::End();
+
+Section::Begin("Count the complement event");
+BEGIN_PGML
+We should use:
+[`` P(\text{complement of }A)=\dfrac{\text{number of ways 5 people can have different birthdays}}{\text{number of all possibilities regarding birthdays of 5 people}}. ``]
+
+**Numerator (two ways to understand it):**
+
+**Way 1 (direct counting):**  
+Person 1 has 365 choices.  
+Person 2 must avoid that birthday: 364 choices.  
+Then 363, then 362, then 361.  
+So the numerator is:
+[`` (365)(364)(363)(362)(361) ``]
+
+**Way 2 (permutations idea):**  
+This is like first picking 5 days out of 365 and then multiplying that by:
+[`` 5! ``]
+This is equal to:
+[`` P(365,5) ``]
+and:
+[`` P(365,5)=(365)(364)(363)(362)(361) ``]
+
+**Enter the numerator:** [_]{$cmp_num}{25}
+
+**Denominator:**  
+Each of the 5 people can have any of 365 birthdays, independently.  
+So the denominator is:
+[`` 365^5 ``]
+
+**Enter the denominator:** [_]{$cmp_den}{15}
+END_PGML
+Section::End();
+
+Section::Begin("Compute P(complement of A) and P(A)");
+BEGIN_PGML
+Let [`` A^c ``] be the complement event.
+
+**1)** Compute [`` P(A^c) ``]:
+[_]{$cmp_pAc}{35}
+
+**2)** Compute [`` P(A) ``]:
+[_]{$cmp_pA}{35}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# NEW STEP: n = 20
+# -------------------------------------------------------
+Section::Begin("What if there are 20 people in the room?");
+BEGIN_PGML
+Now suppose there are [`` 20 ``] people in the room.
+
+Using the same complement idea, compute the probability that **at least 2** of them share a birthday.
+
+**Enter your final answer rounded to the nearest 10000th (4 digits after the decimal point):** [_]{$cmp_pA20}{10}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# NEW STEP: n = 30
+# -------------------------------------------------------
+Section::Begin("What if there are 30 people in the room?");
+BEGIN_PGML
+Now suppose there are [`` 30 ``] people in the room.
+
+Using the same complement idea, compute the probability that **at least 2** of them share a birthday.
+
+**Enter your final answer rounded to the nearest 10000th (4 digits after the decimal point):** [_]{$cmp_pA30}{10}
+
+**Note:** The birthday problem refers to the counterintuitive fact that only 30 people are needed for that probability to exceed 70%. So there is a high chance, that in your statistics class of about 30, at least 2 students share a birthday.
+END_PGML
+Section::End();
+
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+The probability is:
+
+**1.** Let [`` A ``] be the event “at least 2 people share a birthday.”  
+Then [`` A^c ``] is “all 5 birthdays are different.”
+
+**2.** Count outcomes.
+
+- Total outcomes: [`` 365^5 ``]
+- Favorable outcomes for [`` A^c ``]: [`` (365)(364)(363)(362)(361) ``]
+
+So,
+[`` P(A^c)=\dfrac{(365)(364)(363)(362)(361)}{365^5}. ``]
+
+**3.** Use the complement rule:
+[`` P(A)=1-P(A^c)=1-\dfrac{(365)(364)(363)(362)(361)}{365^5}. ``]
+
+**4.** Extra scenarios:
+
+For [`` 20 ``] people, the rounded answer is:
+[`` P(A)\approx 0.4114 ``]
+
+For [`` 30 ``] people, the rounded answer is:
+[`` P(A)\approx 0.7063 ``]
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

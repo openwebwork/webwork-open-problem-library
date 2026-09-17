@@ -1,0 +1,212 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Probability via Counting: 4-Digit PIN with No Repeated Digits (Guided / Scaffolded)
+## ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+$n = 10;
+$r = 4;
+$S_total = $n**$r;          # 10^4
+$E_fav   = 10 * 9 * 8 * 7;  # P(10,4)
+$prob    = $E_fav / $S_total;
+
+$val10   = Real(10);
+$valS    = Real($S_total);
+
+$valE1   = Real(10);
+$valE2   = Real(9);
+$valE3   = Real(8);
+$valE4   = Real(7);
+
+$valEfav = Real($E_fav);
+$valProb = Real($prob);
+
+# =======================================================
+# Evaluators
+# =======================================================
+$cmp_d1 = $val10->cmp->withPostFilter(
+  AnswerHints(
+    sub { $_[0] == 9 } =>
+      "A PIN can start with 0, so the first digit has 10 choices."
+  )
+);
+$cmp_d2 = $val10->cmp;
+$cmp_d3 = $val10->cmp;
+$cmp_d4 = $val10->cmp;
+
+$cmp_S = $valS->cmp->withPostFilter(
+  AnswerHints(
+    sub { abs($_[0] - 1000) < 0.5 } =>
+      "It looks like you used 10^3. A 4-digit PIN has 4 positions.",
+    sub { abs($_[0] - $E_fav) < 0.5 } =>
+      "That counts only no-repeat PINs. The sample space includes all possible PINs.",
+  )
+);
+
+$cmp_E1 = $valE1->cmp;
+$cmp_E2 = $valE2->cmp->withPostFilter(
+  AnswerHints(
+    sub { $_[0] == 10 } =>
+      "No repeats means you cannot reuse the first digit."
+  )
+);
+$cmp_E3 = $valE3->cmp;
+$cmp_E4 = $valE4->cmp;
+
+$cmp_Efav = $valEfav->cmp->withPostFilter(
+  AnswerHints(
+    sub { abs($_[0] - 34) < 0.5 } =>
+      "It looks like you added instead of multiplying.",
+    sub { abs($_[0] - 210) < 0.5 } =>
+      "210 is C(10,4). A PIN is ordered, so use P(10,4).",
+  )
+);
+
+$cmp_prob = $valProb->cmp->withPostFilter(
+  AnswerHints(
+    sub { $_[0] > 1 } => "Probabilities cannot be greater than 1.",
+  )
+);
+
+# Step 2 MC
+$rb_why_counting = RadioButtons(
+  [
+    "Because all possible PINs have the same probability \(1/\#(S)\).",
+    "Because we are only using 10 digits.",
+    "Because the number of favorable outcomes is less than the total.",
+    "Because PIN codes are always calculated this way.",
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# Step 4 MC
+$rb_reason = RadioButtons(
+  [
+    "Because a PIN is an ordered code and we are not allowing repeated digits.",
+    "Because order does not matter when choosing digits for a PIN.",
+    "Because we must divide by 4! to remove overcounting.",
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+
+    my $v = eval { $student->value };   # safe extraction
+
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A **4-digit PIN** is generated at random (digits 0 through 9 are allowed in each position).
+
+What is the probability that there is **no repeated digit**?
+END_PGML
+Section::End();
+
+Section::Begin("Equally likely outcomes");
+BEGIN_PGML
+All outcomes in the sample space of this experiment are **equally likely**.
+So if [`` E ``] is the event "no repeated digit", then: [`` P(E)=\frac{\#(E)}{\#(S)} ``].
+
+**Checkpoint:** Why can [`` P(E) ``] be calculated by simply counting and dividing here?
+
+[@ $rb_why_counting->buttons() @]*
+END_PGML
+ANS($rb_why_counting->cmp);
+Section::End();
+
+Section::Begin("Count the sample space");
+BEGIN_PGML
+How many options do we have for each digit if there is no limitation?
+
+Digit 1: [__]{$cmp_d1}  Digit 2: [__]{$cmp_d2}  Digit 3: [__]{$cmp_d3}  Digit 4: [__]{$cmp_d4}
+
+Total outcomes [`` \#(S) = ``] [__________]{$cmp_S}
+END_PGML
+Section::End();
+
+Section::Begin("Count favorable outcomes");
+BEGIN_PGML
+Count PINs with **no repeated digit**. How many options do we have for each digit if **no repetition** is allowed?
+
+Digit 1: [__]{$cmp_E1}  Digit 2: [__]{$cmp_E2}  Digit 3: [__]{$cmp_E3}  Digit 4: [__]{$cmp_E4}
+
+Favorable outcomes [`` \#(E) = ``] [__________]{$cmp_Efav}
+
+Why should we use [`` P(10,4) ``] in this case?
+
+[@ $rb_reason->buttons() @]*
+END_PGML
+ANS($rb_reason->cmp);
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Using [`` P(E)=\frac{\#(E)}{\#(S)} ``]:
+
+[`` P(E) = ``] [____________________]{$cmp_prob}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating 1–5)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

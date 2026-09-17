@@ -1,0 +1,363 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Union & Intersection (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Union and Intersection)
+## Level(2)
+## KEYWORDS('probability','event','intersection','union','two dice')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "contextString.pl",
+  "scaffold.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# IMAGES (place these files in your course html/images folder):
+#   venn_intersection.jpg
+#   venn_union.jpg
+# NOTE: On your server, image() throws "Unimplemented" in BEGIN_TEXT.
+# We output images using safe HTML <img> tags instead.
+# ----------------------------------------------------------------
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Sample space table (HTML) for outcomes 11..66
+# =======================================================
+my @nums = (1..6);
+
+# FIX #1: make table variable visible inside BEGIN_TEXT via \{ ... \}
+our $table_html = '<table border="1" cellpadding="4" cellspacing="0">';
+$table_html .= '<tr><th>Die 1 / Die 2</th>';
+for my $j (@nums) { $table_html .= "<th>$j</th>"; }
+$table_html .= '</tr>';
+
+for my $i (@nums) {
+  $table_html .= "<tr><th>$i</th>";
+  for my $j (@nums) {
+    my $code = "$i$j";
+    $table_html .= "<td>$code</td>";
+  }
+  $table_html .= "</tr>";
+}
+$table_html .= "</table>";
+
+# =======================================================
+# Set-entry context for outcomes like 46, 55, 66
+# =======================================================
+my $ctxSet = Context("String");
+$ctxSet->operators->redefine(',', using => ',');
+
+my %allowed = ();
+for my $i (@nums) {
+  for my $j (@nums) {
+    $allowed{"$i$j"} = {};
+  }
+}
+$ctxSet->strings->add(%allowed);
+
+# =======================================================
+# Events for this problem
+# A: sum is 7
+# B: at least one die is 5
+# =======================================================
+my @A  = qw(16 25 34 43 52 61);
+my @B  = qw(51 52 53 54 55 56 15 25 35 45 65);
+
+my @AiB = qw(25 52);  # A ∩ B
+my @AuB = qw(51 52 53 54 55 56 15 25 35 45 65 16 34 43 61); # A ∪ B (15 outcomes)
+
+# -------------------------------------------------------
+# FIX #2: comparators for sets A and B (order doesn't matter)
+# -------------------------------------------------------
+my $cmp_A_set   = List(map { String($_) } @A)->cmp(ignoreOrder => 1);
+my $cmp_B_set   = List(map { String($_) } @B)->cmp(ignoreOrder => 1);
+
+my $cmp_AiB_set = List(map { String($_) } @AiB)->cmp(ignoreOrder => 1);
+my $cmp_AuB_set = List(map { String($_) } @AuB)->cmp(ignoreOrder => 1);
+
+# =======================================================
+# Numeric comparators
+# =======================================================
+Context("Numeric");
+
+my $cmp_nS    = Real(36)->cmp();
+
+# FIX #2: probabilities for A and B
+my $cmp_PA    = Real(1/6)->cmp(     tolType => "absolute", tolerance => 0.001 );   # 6/36
+my $cmp_PB    = Real(11/36)->cmp(   tolType => "absolute", tolerance => 0.001 );   # 11/36
+
+my $cmp_PAiB  = Real(1/18)->cmp(    tolType => "absolute", tolerance => 0.001 );   # 2/36
+my $cmp_PAuB  = Real(5/12)->cmp(    tolType => "absolute", tolerance => 0.001 );   # 15/36
+
+# FIX #4: addition rule verification (RHS and difference)
+my $cmp_add_rhs = Real(5/12)->cmp(  tolType => "absolute", tolerance => 0.001 );   # P(A)+P(B)-P(A∩B)
+my $cmp_zero    = Real(0)->cmp(     tolType => "absolute", tolerance => 0.001 );
+
+my $cmp_rating = Real(1)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return ($v >= 1 && $v <= 5) ? 1 : 0;
+  }
+);
+
+# Back to set context for set-entry blanks
+Context($ctxSet);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_TEXT
+Two fair six-sided dice are rolled at the same time.
+We record the ordered pair (first die, second die) using a two-digit code.
+For example, 54 means (first die = 5, second die = 4).
+$PAR
+Here is the sample space:
+$PAR
+\{ $table_html \}
+$PAR
+How many outcomes are in the sample space?
+$BR
+\{ ans_rule(5) \}
+END_TEXT
+
+Context("Numeric");
+ANS($cmp_nS);
+Context($ctxSet);
+
+Section::End();
+
+# -------------------------------------------------------
+# FIX #2: add set entry blanks for A and B, and ask for P(A), P(B)
+# -------------------------------------------------------
+Section::Begin("Define the events");
+BEGIN_TEXT
+Define these two events:
+$PAR
+\(A\): The sum of the two dice is 7.
+$BR
+\(B\): At least one of the dice shows 5.
+$PAR
+
+<b>Step 1 (List event \(A\)).</b>
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(A\) = { \{ ans_rule(60) \} }
+$PAR
+
+<b>Step 2 (Find P(\(A\))).</b>
+Because all 36 outcomes are equally likely:
+$BR
+P(\(A\)) = (number of outcomes in \(A\)) / 36
+$BR
+Enter P(\(A\)) as a fraction or a decimal:
+$BR
+P(\(A\)) = \{ ans_rule(12) \}
+$PAR
+
+<b>Step 3 (List event \(B\)).</b>
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(B\) = { \{ ans_rule(80) \} }
+$PAR
+
+<b>Step 4 (Find P(\(B\))).</b>
+Because all 36 outcomes are equally likely:
+$BR
+P(\(B\)) = (number of outcomes in \(B\)) / 36
+$BR
+Enter P(\(B\)) as a fraction or a decimal:
+$BR
+P(\(B\)) = \{ ans_rule(12) \}
+END_TEXT
+
+# IMPORTANT: ANS order must match ans_rule order above
+Context($ctxSet);
+ANS($cmp_A_set);
+
+Context("Numeric");
+ANS($cmp_PA);
+
+Context($ctxSet);
+ANS($cmp_B_set);
+
+Context("Numeric");
+ANS($cmp_PB);
+
+Context($ctxSet);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Intersection");
+BEGIN_TEXT
+<b>Intersection</b>
+$PAR
+The intersection of \(A\) and \(B\), written \(A \cap B\), is the set of outcomes that are in <b>both</b> events.
+In words, it corresponds to combining the descriptions using <b>and</b>.
+$PAR
+\{ image("venn_intersection.jpg", width => 300) \}
+$PAR
+<b>Step 1 (Build \(A \cap B\)).</b>
+List all outcomes (two-digit codes) that satisfy:
+$BR
+"sum is 7" <b>and</b> "at least one die is 5".
+$PAR
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(A \cap B\) = { \{ ans_rule(40) \} }
+$PAR
+
+<b>Step 2 (Probability of the intersection).</b>
+Because the 36 outcomes are equally likely:
+$BR
+P(\(A \cap B\)) = (number of outcomes in \(A \cap B\)) / 36
+$PAR
+Enter P(\(A \cap B\)) as a fraction or a decimal:
+$BR
+P(\(A \cap B\)) = \{ ans_rule(12) \}
+END_TEXT
+
+Context($ctxSet);
+ANS($cmp_AiB_set);
+
+Context("Numeric");
+ANS($cmp_PAiB);
+Context($ctxSet);
+
+Section::End();
+
+# -------------------------------------------------------
+# FIX #3: Combine Union + Final Answer into one section
+# -------------------------------------------------------
+Section::Begin("Union (Final Answer)");
+BEGIN_TEXT
+<b>Union</b>
+$PAR
+The union of \(A\) and \(B\), written \(A \cup B\), is the set of outcomes that are in <b>at least one</b> of the events.
+In words, it corresponds to combining the descriptions using <b>or</b> (including “both”).
+$PAR
+\{ image("venn_union.jpg", width => 300) \}
+$PAR
+<b>Step 1 (Build \(A \cup B\)).</b>
+List all outcomes (two-digit codes) that satisfy:
+$BR
+"sum is 7" <b>or</b> "at least one die is 5" (or both).
+$PAR
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(A \cup B\) = { \{ ans_rule(80) \} }
+$PAR
+
+<b>Step 2 (Final Answer: Probability of the union).</b>
+Because the 36 outcomes are equally likely:
+$BR
+P(\(A \cup B\)) = (number of outcomes in \(A \cup B\)) / 36
+$PAR
+Enter P(\(A \cup B\)) as a fraction or a decimal:
+$BR
+P(\(A \cup B\)) = \{ ans_rule(12) \}
+END_TEXT
+
+Context($ctxSet);
+ANS($cmp_AuB_set);
+
+Context("Numeric");
+ANS($cmp_PAuB);
+
+Context($ctxSet);
+
+Section::End();
+
+# -------------------------------------------------------
+# FIX #4: Add additive (addition) rule verification section
+# -------------------------------------------------------
+Section::Begin("Addition Rule of Probability (Verify)");
+BEGIN_TEXT
+<b>Addition Rule of Probability</b>
+$PAR
+For any two events \(A\) and \(B\):
+$BR
+P(\(A \cup B\)) = P(\(A\)) + P(\(B\)) - P(\(A \cap B\))
+$PAR
+
+<b>Step 1.</b>
+Using this example, compute:
+$BR
+P(\(A\)) + P(\(B\)) - P(\(A \cap B\)) = \{ ans_rule(12) \}
+$PAR
+
+<b>Step 2 (Verify).</b>
+Now compute the difference:
+$BR
+P(\(A \cup B\)) - (P(\(A\)) - P(\(B\)) + P(\(A \cap B\))) = \{ ans_rule(12) \}
+$PAR
+If the rule checks out, that difference should be 0 (up to rounding).
+END_TEXT
+
+Context("Numeric");
+ANS($cmp_add_rhs);
+ANS($cmp_zero);
+
+Context($ctxSet);
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING (ACTIVE)
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+  BEGIN_TEXT
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+$PAR
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+$BR
+Note: Consider using the Email Instructor button below to suggest improvements.
+$PAR
+Rating:
+$BR
+\{ ans_rule(6) \}
+END_TEXT
+
+  Context("Numeric");
+  ANS($cmp_rating);
+  Context($ctxSet);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

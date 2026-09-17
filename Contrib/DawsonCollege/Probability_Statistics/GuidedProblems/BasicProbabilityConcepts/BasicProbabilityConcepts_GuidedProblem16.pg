@@ -1,0 +1,261 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Independence of Events (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Independence)
+## Level(2)
+## KEYWORDS('probability','independence','conditional probability','cards','face cards','red cards')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Numeric context
+# =======================================================
+Context("Numeric");
+
+# Known probabilities in a standard deck (52 cards)
+# Face cards: J,Q,K in 4 suits => 12
+# Red cards: hearts, diamonds => 26
+# Face AND red: J,Q,K in 2 red suits => 6
+
+our $cmp_pF    = Real(12/52)->cmp( tolType => "absolute", tolerance => 0.001 );
+our $cmp_pR    = Real(26/52)->cmp( tolType => "absolute", tolerance => 0.001 );
+our $cmp_pFgR  = Real(6/26)->cmp(  tolType => "absolute", tolerance => 0.001 );   # P(F|R)
+our $cmp_pFiR  = Real(6/52)->cmp(  tolType => "absolute", tolerance => 0.001 );   # P(F∩R)
+our $cmp_pFpR  = Real((12/52)*(26/52))->cmp( tolType => "absolute", tolerance => 0.001 );
+
+our $cmp_zero  = Real(0)->cmp( tolType => "absolute", tolerance => 0.001 );
+
+# Independence decisions (both should be YES)
+our $rb_indep1 = RadioButtons(
+  [ "No", "Yes" ],
+  1,                    # 0-based index => Yes
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+our $rb_indep2 = RadioButtons(
+  [ "No", "Yes" ],
+  1,                    # 0-based index => Yes
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Rating checker (integer 1..5)
+# =======================================================
+our ($rating, $rating_cmp);
+
+if ($ENABLE_GP_RATING) {
+
+  $rating = Real(3);   # placeholder only
+
+  $rating_cmp = $rating->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+
+      if (!defined($student)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $val;
+      eval { $val = $student->value; };
+      if (!defined($val)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $ival = int($val);
+      if (abs($val - $ival) > 1e-12) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      if ($ival < 1 || $ival > 5) {
+        $ansHash->{ans_message} = "Your rating must be 1, 2, 3, 4, or 5.";
+        return 0;
+      }
+
+      return 1;
+    }
+  );
+}
+
+# =======================================================
+# Scaffold (sequential gating)
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_TEXT
+A card is drawn at random from a standard 52-card deck.
+$PAR
+Define the events:
+$BR
+\(F\): the card is a <b>face card</b> (Jack, Queen, or King).
+$BR
+\(R\): the card is <b>red</b> (hearts or diamonds).
+$PAR
+We want to prove that \(F\) and \(R\) are <b>independent</b>.
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Independence (intuitive definition)");
+
+BEGIN_TEXT
+<b>Independence (idea)</b>
+$PAR
+Events \(A\) and \(B\) are independent if knowing that \(B\) happened does <b>not</b> change how likely \(A\) is.
+$PAR
+A common definition is:
+$BR
+\(A\) and \(B\) are independent if \(P(A \mid B)=P(A)\) (assuming \(P(B)>0\)).
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Verify independence using conditional probability");
+
+BEGIN_TEXT
+Compute the following probabilities (fraction or decimal):
+$PAR
+\(P(F)\) = \{ NAMED_ANS_RULE("pF",12) \}
+$BR
+\(P(R)\) = \{ NAMED_ANS_RULE("pR",12) \}
+$PAR
+
+Now compute \(P(F \mid R)\).
+$PAR
+<b>Hint:</b> You can do this <b>without</b> using the conditional probability formula.
+If you know the card is red, restrict the sample space to only the <b>26 red cards</b>.
+Then compute:
+(number of red face cards) / (number of red cards).
+$PAR
+\(P(F \mid R)\) = \{ NAMED_ANS_RULE("pFgR",12) \}
+$PAR
+
+Based on your results, are \(F\) and \(R\) independent?
+$PAR
+\{ $rb_indep1->buttons \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pF",   $cmp_pF);
+NAMED_ANS("pR",   $cmp_pR);
+NAMED_ANS("pFgR", $cmp_pFgR);
+
+ANS($rb_indep1->cmp());
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Equivalent definition using intersection (and algebra)");
+
+BEGIN_TEXT
+Another common definition says:
+$PAR
+\(A\) and \(B\) are independent if \(P(A \cap B)=P(A)P(B)\).
+$PAR
+These two definitions are equivalent (when \(P(B)>0\)).
+Here is the algebra:
+$PAR
+Start with the conditional probability formula:
+$BR
+\(P(A \mid B)=\dfrac{P(A \cap B)}{P(B)}\).
+$PAR
+If \(A\) and \(B\) are independent, then \(P(A \mid B)=P(A)\).
+So:
+$BR
+\(\dfrac{P(A \cap B)}{P(B)}=P(A)\).
+$PAR
+Multiply both sides by \(P(B)\):
+$BR
+\(P(A \cap B)=P(A)P(B)\).
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Verify independence using P(A intersection B)=P(A)P(B)");
+
+BEGIN_TEXT
+Compute the following (fraction or decimal). Remember that intersection means "and", so you need to count the number of cards that are Red and Face out of all possible cards:
+$PAR
+\(P(F \cap R)\) = \{ NAMED_ANS_RULE("pFiR",12) \}
+$BR
+\(P(F)P(R)\) = \{ NAMED_ANS_RULE("pFpR",12) \}
+$PAR
+
+Check the difference:
+$BR
+\(P(F \cap R)-P(F)P(R)\) = \{ NAMED_ANS_RULE("diff",12) \}
+$PAR
+If \(F\) and \(R\) are independent, that last answer should be 0.
+$PAR
+Are \(F\) and \(R\) independent?
+$PAR
+\{ $rb_indep2->buttons \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pFiR", $cmp_pFiR);
+NAMED_ANS("pFpR", $cmp_pFpR);
+NAMED_ANS("diff", $cmp_zero);
+
+ANS($rb_indep2->cmp());
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+  BEGIN_PGML
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating: [__]{$rating_cmp}
+END_PGML
+  Section::End();
+
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

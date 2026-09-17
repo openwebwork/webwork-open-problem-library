@@ -1,0 +1,197 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Normal Cutoff from a Top-Percent Requirement (CEE Top 20%) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Normal Distribution)
+## Level(2)
+## KEYWORDS('normal distribution','standardization','z score','z table','percentile','cutoff','top 20 percent')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+$mu    = Real(510);
+$sigma = Real(60);
+
+# Top 20% means right tail 0.20, left tail 0.80.
+# z* for left tail 0.80 is about 0.8416; with standard tables students often get 0.845.
+$z_star = Real("0.845");
+
+
+# Convert back to x*: x* = 510 + 0.845(60) = 560.700
+$x_star = Real("560.700");
+
+# Tolerances
+$tol_z = 0.0005;    # z to 3 decimals
+$tol_x = 0.0005;    # x* to 3 decimals
+
+# Checkers
+$cmp_z = $z_star->cmp(tolType=>"absolute", tolerance=>$tol_z)->withPostFilter(AnswerHints(
+  0.80 => "0.80 is a probability, not a z-score. Use your table to find z such that P(Z<z)=0.80.",
+  1.28 => "1.28 corresponds to about 0.90 in the left tail. Here we need the left tail 0.80."
+));
+
+$cmp_x = $x_star->cmp(tolType=>"absolute", tolerance=>$tol_x)->withPostFilter(AnswerHints(
+  0.842 => "That is z*. Convert back using x* = 510 + (z*)(60).",
+  510  => "510 is the mean, not the cutoff for the top 20%."
+));
+
+# Rating checker (any integer 1–5 is marked correct)
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "always",
+    is_open  => "always",
+  );
+} else {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "when_previous_correct",
+    is_open  => "correct_or_first_incorrect",
+  );
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Scores on a standardized college entrance examination (CEE) are normally distributed with mean [``510``] and standard deviation [``60``].
+
+In symbols:
+
+[``X \sim N(510,60)``]
+
+A selective university considers for admission only applicants with CEE scores in the **top 20%**.
+
+Find the minimum score [``x^*``] that meets this requirement.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Translate “top 20%” into a probability statement
+# -------------------------------------------------------
+Section::Begin("Translate the requirement");
+BEGIN_PGML
+"Top 20%" means that 20% of the scores are **above** the cutoff [``x^*``].
+
+So you can write the requirement as either:
+
+- [``P(X>x^*)=0.20``]  (right tail), or equivalently
+- [``P(X<x^*)=0.80``]  (left tail)
+
+We will use the left-tail form:
+
+[``P(X<x^*)=0.80``]
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Standardize the cutoff
+# -------------------------------------------------------
+Section::Begin("Standardize");
+BEGIN_PGML
+Convert the cutoff [``x^*``] to a z-score:
+
+[``z^*=\dfrac{x^*-510}{60}``]
+
+Then the requirement becomes:
+
+[``P(Z<z^*)=0.80``]
+
+Use your standard normal table to find [``z^*``].  
+If the exact cutoff is not available in the table, use the **average of the two closest cutoffs**.
+
+Enter [``z^*``] (round to 3 decimals): [____]
+END_PGML
+
+ANS($cmp_z);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Convert back to the original score scale
+# -------------------------------------------------------
+Section::Begin("Convert back to the score x*");
+BEGIN_PGML
+Now convert [``z^*``] back to [``x^*``] using:
+
+[``x^*= \mu + (z^*)(\sigma) = 510+(z^*)(60)``]
+
+Enter [``x^*``] (round to 3 decimals): [____]
+END_PGML
+
+ANS($cmp_x);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

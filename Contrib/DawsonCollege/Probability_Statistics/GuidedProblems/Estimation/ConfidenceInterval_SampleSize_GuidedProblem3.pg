@@ -1,0 +1,488 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Sample Size for Estimating a Proportion:
+## No Estimate for p-hat Given (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Confidence Intervals)
+## DBsection(Sample Size for Estimating a Proportion)
+## Level(2)
+## KEYWORDS(
+##   'sample size',
+##   'margin of error',
+##   'confidence interval',
+##   'population proportion',
+##   'no estimate for p-hat',
+##   'z critical value'
+## )
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ============================================================
+# Settings
+# ============================================================
+
+$ENABLE_GP_RATING = 1;
+
+$inLibraryBrowser = 0;
+if ((defined($envir{isLibraryBrowser}) && $envir{isLibraryBrowser})
+ || (defined($envir{isLibrary})        && $envir{isLibrary})) {
+  $inLibraryBrowser = 1;
+}
+
+Context("Numeric");
+
+# ============================================================
+# Helper: show a hint only when the student's answer is wrong
+# ============================================================
+sub HintIfWrong {
+  my $msg = shift;
+
+  return sub {
+    my $ans = shift;
+
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+
+    return $ans;
+  };
+}
+
+# ============================================================
+# Data
+# Context: sunscreen use among young adults
+# ============================================================
+
+$conf      = 0.90;
+$phat_est  = Real(0.5);
+$qhat_est  = Real(0.5);
+$E         = Real(0.03);
+$alpha     = Real(0.10);
+$z_cut     = Real(1.645);
+$n_raw     = Real(751.6736111111);
+$n_final   = 752;
+
+# ============================================================
+# Tolerances
+# ============================================================
+
+$tol_basic = 0.0005;
+$tol_z     = 0.005;
+$tol_raw   = 0.05;
+
+# ============================================================
+# Comparators
+# ============================================================
+
+# ------------------------------------------------------------
+# Concept multiple choice: why use p-hat = 0.5?
+# Correct answer: 2
+# ------------------------------------------------------------
+$cmp_why_half = Real(2)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+
+    return 0 unless defined $student;
+
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+
+    return ($v == 2) ? 1 : 0;
+  }
+)->withPostFilter(
+  HintIfWrong(
+    "When no estimate for p-hat is available, using 0.5 makes p-hat(1-p-hat) as large as possible, which gives the largest and safest sample size."
+  )
+);
+
+# ------------------------------------------------------------
+# Identify ingredients
+# ------------------------------------------------------------
+$cmp_phat = $phat_est->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_basic
+)->withPostFilter(
+  HintIfWrong("When no estimate for p-hat is available, use p-hat = 0.5 for planning.")
+);
+
+$cmp_E = $E->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_basic
+)->withPostFilter(
+  HintIfWrong("Three percentage points means a margin of error of 0.03.")
+);
+
+$cmp_alpha = $alpha->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_basic
+)->withPostFilter(
+  HintIfWrong("For a 90% confidence level, 1 - alpha = 0.90, so alpha = 0.10.")
+);
+
+# ------------------------------------------------------------
+# z cutoff
+# ------------------------------------------------------------
+$cmp_z = $z_cut->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_z
+)->withPostFilter(
+  HintIfWrong(
+    "For a 90% confidence level, alpha = 0.10, so alpha/2 = 0.05 and z_(alpha/2) = 1.645."
+  )
+);
+
+# ------------------------------------------------------------
+# Raw sample size
+# ------------------------------------------------------------
+$cmp_n_raw = $n_raw->cmp(
+  tolType   => "absolute",
+  tolerance => $tol_raw
+)->withPostFilter(
+  HintIfWrong("Substitute into n = z_(alpha/2)^2 p-hat(1-p-hat) / E^2 using p-hat = 0.5, then compute before rounding.")
+);
+
+# ------------------------------------------------------------
+# Final sample size
+# ------------------------------------------------------------
+$cmp_n_final = Real($n_final)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+
+    return 0 unless defined $student;
+
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+
+    return ($v == $n_final) ? 1 : 0;
+  }
+)->withPostFilter(
+  HintIfWrong("Always round the required sample size up to the next whole number.")
+);
+
+# ------------------------------------------------------------
+# Interpretation multiple choice
+# Correct answer: 4
+# ------------------------------------------------------------
+$cmp_interp = Real(4)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+
+    return 0 unless defined $student;
+
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+
+    return ($v == 4) ? 1 : 0;
+  }
+)->withPostFilter(
+  HintIfWrong(
+    "The final answer is the minimum whole-number sample size needed so the margin of error is at most the target value."
+  )
+);
+
+# ------------------------------------------------------------
+# Rating checker
+# Any integer 1 to 5 is accepted
+# ------------------------------------------------------------
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+
+    return 0 unless defined $student;
+
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return 0 unless ($v >= 1 && $v <= 5);
+
+    return 1;
+  }
+);
+
+# ============================================================
+# Scaffold setup
+# ============================================================
+
+if ($inLibraryBrowser) {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "always",
+    is_open  => "always"
+  );
+}
+else {
+  Scaffold::Begin(
+    numbered => 1,
+    can_open => "when_previous_correct",
+    is_open  => "correct_or_first_incorrect"
+  );
+}
+
+# ============================================================
+# Step 1 — Problem Statement
+# ============================================================
+Section::Begin("Problem Statement");
+
+BEGIN_PGML
+A dermatologist wishes to estimate the proportion of young adults who apply sunscreen regularly before going out in the sun in the summer.
+
+Find the minimum sample size required to estimate the population proportion to within [``3``] percentage points at the [``90\%``] confidence level.
+
+Assume that no previous estimate of the population proportion is available.
+
+Round the raw calculator value of [``n``] to 3 decimals, then round the final sample size up to the next whole number.
+END_PGML
+
+Section::End();
+
+# ============================================================
+# Step 2 — Formula
+# ============================================================
+Section::Begin("Section B — Formula");
+
+BEGIN_PGML
+For planning sample size for a population proportion, we use
+
+[``n=\dfrac{z_{\alpha/2}^{2}\hat p(1-\hat p)}{E^{2}}``]
+
+When no estimate for [``\hat p``] is available, we use [``\hat p=0.5``].
+END_PGML
+
+Section::End();
+
+# ============================================================
+# Step 3 — Why do we use p-hat = 0.5?
+# ============================================================
+Section::Begin("Section C — Why use p-hat = 0.5?");
+
+BEGIN_PGML
+Why do we use [``\hat p = 0.5``] when no prior estimate is available?
+
+1) Because [``0.5``] is always the true population proportion.
+
+2) Because [``\hat p(1-\hat p)``] is largest when [``\hat p=0.5``], so this gives the largest and safest required sample size.
+
+3) Because [``0.5``] makes the margin of error equal to [``0``].
+
+4) Because the confidence level is [``90\%``].
+
+5) Because [``0.5``] makes the cutoff [``z_{\alpha/2}``] equal to [``1.645``].
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_why_half);
+
+Section::End();
+
+# ============================================================
+# Step 4 — Identify the ingredients
+# ============================================================
+Section::Begin("Section D — Identify the ingredients");
+
+BEGIN_PGML
+For this problem, identify the values you will substitute into the formula.
+
+Value of [``\hat p``]: [____]
+
+Desired margin of error [``E``]: [____]
+
+Value of [``\alpha``]: [____]
+END_PGML
+
+ANS($cmp_phat, $cmp_E, $cmp_alpha);
+
+Section::End();
+
+# ============================================================
+# Step 5 — Find the cutoff
+# ============================================================
+Section::Begin("Section E — Find the cutoff");
+
+BEGIN_PGML
+For a [``90\%``] confidence level, use the normal table to find [``z_{\alpha/2}``].
+
+[@ image("cutoff.jpg", width=>520) @]*
+
+Enter [``z_{\alpha/2}``]: [____]
+END_PGML
+
+ANS($cmp_z);
+
+Section::End();
+
+# ============================================================
+# Step 6 — Compute the raw sample size
+# ============================================================
+Section::Begin("Section F — Compute the raw sample size");
+
+BEGIN_PGML
+Substitute into the sample-size formula:
+
+[``n=\dfrac{z_{\alpha/2}^{2}\hat p(1-\hat p)}{E^{2}}``]
+
+For this problem,
+
+[``n=\dfrac{(1.645)^2(0.5)(0.5)}{(0.03)^2} =``] [____]
+END_PGML
+
+ANS($cmp_n_raw);
+
+Section::End();
+
+# ============================================================
+# Step 7 — Round up to get the required sample size
+# ============================================================
+Section::Begin("Section G — Round up");
+
+BEGIN_PGML
+The raw calculator value of [``n``] is not a whole number.
+
+To guarantee that the margin of error is at most [``0.03``], we must round up.
+
+Enter the minimum whole-number sample size required: [____]
+END_PGML
+
+ANS($cmp_n_final);
+
+Section::End();
+
+# ============================================================
+# Step 8 — Interpretation
+# ============================================================
+Section::Begin("Section H — Interpret the answer");
+
+BEGIN_PGML
+Choose the best interpretation of your answer.
+
+1) The dermatologist should survey exactly [``751.674``] young adults.
+
+2) The answer means that [``90\%``] of young adults use sunscreen regularly.
+
+3) The sample size [``752``] guarantees that the true population proportion will be found exactly.
+
+4) The dermatologist must survey at least [``752``] young adults so that a [``90\%``] confidence interval for the true proportion has a margin of error of at most [``0.03``], using [``\hat p = 0.5``] for planning.
+
+5) The answer means that the true population proportion is [``0.752``].
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_interp);
+
+Section::End();
+
+# ============================================================
+# Feedback — hidden in Library Browser
+# ============================================================
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+# ============================================================
+# Solution
+# ============================================================
+BEGIN_PGML_SOLUTION
+**1. Use the formula**
+
+For planning a sample size for estimating a population proportion, we use
+
+[``n=\dfrac{z_{\alpha/2}^{2}\hat p(1-\hat p)}{E^{2}}``]
+
+Since no estimate for [``\hat p``] is available, we use
+
+[``\hat p=0.5``]
+
+**2. Why do we use [``0.5``]?**
+
+We use [``0.5``] because [``\hat p(1-\hat p)``] is largest when [``\hat p=0.5``].
+
+That gives the largest and most conservative required sample size.
+
+**3. Identify the ingredients**
+
+From the problem:
+
+- [``\hat p = 0.5``]
+- [``1-\hat p = 0.5``]
+- desired margin of error [``E = 0.03``]
+- confidence level [``90\%``], so [``\alpha = 0.10``]
+
+**4. Find the cutoff**
+
+Since [``\alpha = 0.10``], we have
+
+[``\alpha/2 = 0.05``]
+
+From the normal table,
+
+[``z_{\alpha/2} = 1.645``]
+
+**5. Compute the raw sample size**
+
+Substitute into the formula:
+
+[``n=\dfrac{z_{\alpha/2}^{2}\hat p(1-\hat p)}{E^{2}}``]
+
+So
+
+[``n=\dfrac{(1.645)^2(0.5)(0.5)}{(0.03)^2}``]
+
+[``n=\dfrac{2.706025(0.25)}{0.0009}``]
+
+[``n=\dfrac{0.67650625}{0.0009}``]
+
+[``n=751.674``]
+
+**6. Round up**
+
+Since sample size must be a whole number and must guarantee the desired margin of error, we round up:
+
+[``n=752``]
+
+**7. Interpretation**
+
+The correct interpretation is:
+
+The dermatologist must survey at least [``752``] young adults so that a [``90\%``] confidence interval for the true proportion has a margin of error of at most [``0.03``], using [``\hat p = 0.5``] for planning.
+END_PGML_SOLUTION
+
+ENDDOCUMENT();
