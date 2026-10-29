@@ -1,0 +1,387 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Number of Even Results on Two 4-Sided Dice: Distribution, Mean, Std Dev, and P(X<=1) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Random Variables)
+## Level(2)
+## KEYWORDS('probability distribution','discrete random variable','four-sided dice','expected value','variance','standard deviation','even outcomes')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser flag (hide rating in LB)
+# ----------------------------------------------------------------
+$inLibraryBrowser = $main::inLibraryBrowser || 0;
+
+# =======================================================
+# Context
+# =======================================================
+Context("Numeric");
+
+# =======================================================
+# True distribution for X = number of even results (2 or 4) on two fair 4-sided dice
+# Each die: P(even)=2/4=1/2, P(odd)=1/2
+# X in {0,1,2} with probabilities 1/4, 1/2, 1/4
+# =======================================================
+$P0 = Compute("1/4");
+$P1 = Compute("1/2");
+$P2 = Compute("1/4");
+
+$sumP = Compute("1");
+
+# Work-table columns (exact)
+$xp0  = Compute("0*(1/4)");
+$xp1  = Compute("1*(1/2)");
+$xp2  = Compute("2*(1/4)");
+
+$x2p0 = Compute("(0^2)*(1/4)");
+$x2p1 = Compute("(1^2)*(1/2)");
+$x2p2 = Compute("(2^2)*(1/4)");
+
+# Totals
+$EX  = Compute("1");      # 0*1/4 + 1*1/2 + 2*1/4
+$EX2 = Compute("3/2");    # 0 + 1/2 + 1
+$Var = Compute("1/2");    # EX2 - EX^2
+$Sig = Compute("sqrt(2)/2");
+
+$P_le1 = Compute("3/4");  # P(0)+P(1)
+
+# =======================================================
+# Evaluators
+# =======================================================
+
+# Outcomes / values
+$cmp_n_outcomes = Real(16)->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 4) < 1e-6 } =>
+    "One 4-sided die has 4 outcomes. With two dice, think in ordered pairs (first die, second die).",
+));
+$cmp_minX  = Real(0)->cmp;
+$cmp_maxX  = Real(2)->cmp;
+$cmp_kvals = Real(3)->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 2) < 1e-6 } =>
+    "X can be 0, 1, or 2. That's 3 possible values.",
+));
+
+# Distribution entries (Part a) — conceptual hints (no numeric giveaways)
+$cmp_p0 = $P0->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/2)) < 1e-6 } =>
+    "1/2 is the probability a single die is even (or odd). Here X=0 means BOTH dice are odd.",
+));
+$cmp_p1 = $P1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/4)) < 1e-6 } =>
+    "1/4 would be the probability of both dice odd OR both dice even. X=1 means one even and one odd.",
+));
+$cmp_p2 = $P2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/2)) < 1e-6 } =>
+    "1/2 is not P(X=2). X=2 means BOTH dice are even (2 or 4).",
+));
+
+# Check sum to 1
+$cmp_sumP = $sumP->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (3/4)) < 1e-6 } =>
+    "3/4 is P(X<=1). Here you are checking that ALL probabilities add to 1.",
+));
+
+# Work-table: copied probabilities (graded so no AnSwEr warnings)
+$cmp_pw0 = $P0->cmp;
+$cmp_pw1 = $P1->cmp;
+$cmp_pw2 = $P2->cmp;
+
+# Work-table computed columns
+$cmp_xp0  = $xp0->cmp;   $cmp_x2p0 = $x2p0->cmp;
+$cmp_xp1  = $xp1->cmp;   $cmp_x2p1 = $x2p1->cmp;
+$cmp_xp2  = $xp2->cmp;   $cmp_x2p2 = $x2p2->cmp;
+
+# Totals in work table
+$cmp_EX  = $EX->cmp;
+$cmp_EX2 = $EX2->cmp;
+
+# Var and sigma
+$cmp_var = $Var->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $_[1]) < 1e-6 } =>
+    "Use Var(X) = E(X^2) - [E(X)]^2, using the two totals from your work table.",
+));
+
+$cmp_sig = $Sig->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $_[1]) < 1e-6 } =>
+    "Standard deviation is sigma_X = sqrt(Var(X)).",
+));
+
+# P(X<=1)
+$cmp_Ple1 = $P_le1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/4)) < 1e-6 } =>
+    "1/4 is P(X=0) (both odd) or P(X=2) (both even). For X<=1 you need P(0)+P(1).",
+));
+
+# Final answers
+$cmp_final_EX   = $EX->cmp;
+$cmp_final_sig  = $Sig->cmp;
+$cmp_final_Ple1 = $P_le1->cmp;
+
+# =======================================================
+# Rating (1–5)
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Two fair 4-sided dice are rolled. (Each die has faces [`` 1,2,3,4 ``].)
+
+Let [`` X ``] be the number of dice that show an even number.  
+(Here “even” means [`` 2 ``] or [`` 4 ``].)
+
+a) Construct the probability distribution of [`` X ``].  
+b) Find [`` E(X) ``].  
+c) Find [`` \sigma_X ``].  
+d) Find [`` P(X \le 1) ``].
+END_PGML
+Section::End();
+
+Section::Begin("Outcomes and possible values of X");
+BEGIN_PGML
+When two 4-sided dice are rolled, outcomes can be represented as ordered pairs [`` (i,j) ``] where
+[`` i ``] is the first die and [`` j ``] is the second die.
+
+1) How many equally likely outcomes are there?
+
+[____]{$cmp_n_outcomes}
+
+The random variable counts how many of the two dice are even:
+[`` X = \text{(number of even results among the two dice)} ``]
+
+2) What is the smallest possible value of [`` X ``]?
+
+[____]{$cmp_minX}
+
+3) What is the largest possible value of [`` X ``]?
+
+[____]{$cmp_maxX}
+
+4) How many possible values can [`` X ``] take?
+
+[____]{$cmp_kvals}
+END_PGML
+Section::End();
+
+Section::Begin("Construct the probability distribution (Part a)");
+BEGIN_PGML
+Fill in the probability distribution table for [`` X ``].
+
+(You can enter probabilities as fractions, like 1/4.)
+
+After you fill it in, you will check that the probabilities add to 1.
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+  </tr>
+  <tr><td style="text-align:center;">0</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p0",12) \}</td></tr>
+  <tr><td style="text-align:center;">1</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p1",12) \}</td></tr>
+  <tr><td style="text-align:center;">2</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p2",12) \}</td></tr>
+</table>
+$ECENTER
+END_TEXT
+
+Section::End();
+
+NAMED_ANS("p0", $cmp_p0);
+NAMED_ANS("p1", $cmp_p1);
+NAMED_ANS("p2", $cmp_p2);
+
+Section::Begin("Check the probability distribution");
+BEGIN_PGML
+Check that the probabilities add to 1:
+
+[`` P(X=0)+P(X=1)+P(X=2)= ``] [____]{$cmp_sumP}
+END_PGML
+Section::End();
+
+Section::Begin("Quick reminders");
+BEGIN_PGML
+Use these steps and formulas:
+
+**Mean (expected value):**  
+Multiply each value by its probability, then add.
+[`` E(X)=\sum x\,P(X=x) ``]
+
+**Variance:**  
+First compute [`` E(X^2) ``] by squaring each [`` x ``], multiplying by its probability, then adding.  
+Then:
+[`` \mathrm{Var}(X)=E(X^2)-[E(X)]^2 ``]
+
+**Standard deviation:**  
+Take the square root of the variance.
+[`` \sigma_X=\sqrt{\mathrm{Var}(X)} ``]
+END_PGML
+Section::End();
+
+Section::Begin("Work table (compute E(X) and E(X^2))");
+BEGIN_PGML
+Copy your probabilities from Part (a) into the second column. Then compute the two calculated columns.
+
+- Column 3: compute [`` xP(X=x) ``]
+- Column 4: compute [`` x^2P(X=x) ``]
+
+Finally, add each calculated column.  
+The total of column 3 is [`` E(X) ``], and the total of column 4 is [`` E(X^2) ``].
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+    <th style="text-align:center;">\(xP(X=x)\)</th>
+    <th style="text-align:center;">\(x^2P(X=x)\)</th>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">0</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw0",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp0",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("x2p0",12) \}</td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">1</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw1",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp1",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("x2p1",12) \}</td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">2</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pw2",10) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xp2",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("x2p2",12) \}</td>
+  </tr>
+
+  <tr>
+    <td style="text-align:center; font-weight:bold;" colspan="2">Totals</td>
+    <td style="text-align:center;">
+      \{ NAMED_ANS_RULE("EX",12) \}<br/>
+      <span style="font-size:90%;">(this total is \(E(X)\))</span>
+    </td>
+    <td style="text-align:center;">
+      \{ NAMED_ANS_RULE("EX2",12) \}<br/>
+      <span style="font-size:90%;">(this total is \(E(X^2)\))</span>
+    </td>
+  </tr>
+</table>
+$ECENTER
+END_TEXT
+
+Section::End();
+
+# Grade copied probabilities (prevents AnSwEr warnings)
+NAMED_ANS("pw0", $cmp_pw0);
+NAMED_ANS("pw1", $cmp_pw1);
+NAMED_ANS("pw2", $cmp_pw2);
+
+# Grade computed columns + totals
+NAMED_ANS("xp0",  $cmp_xp0);   NAMED_ANS("x2p0", $cmp_x2p0);
+NAMED_ANS("xp1",  $cmp_xp1);   NAMED_ANS("x2p1", $cmp_x2p1);
+NAMED_ANS("xp2",  $cmp_xp2);   NAMED_ANS("x2p2", $cmp_x2p2);
+
+NAMED_ANS("EX",   $cmp_EX);
+NAMED_ANS("EX2",  $cmp_EX2);
+
+Section::Begin("Compute Var(X) and sigma_X");
+BEGIN_PGML
+Now compute:
+
+1) Variance:
+[`` \mathrm{Var}(X)=E(X^2)-[E(X)]^2 = ``] [____]{$cmp_var}
+
+2) Standard deviation:
+[`` \sigma_X=\sqrt{\mathrm{Var}(X)} = ``] [____]{$cmp_sig}
+END_PGML
+Section::End();
+
+Section::Begin("Compute P(X <= 1) (Part d)");
+BEGIN_PGML
+Use your probability distribution:
+
+[`` P(X \le 1)=P(X=0)+P(X=1)= ``] [____]{$cmp_Ple1}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Enter your final results.
+END_PGML
+
+BEGIN_TEXT
+$PAR
+$BR \(E(X)=\) \{ NAMED_ANS_RULE("finalEX",12) \}
+$BR \(\sigma_X=\) \{ NAMED_ANS_RULE("finalSig",12) \}
+$BR \(P(X\le 1)=\) \{ NAMED_ANS_RULE("finalP",12) \}
+END_TEXT
+
+Section::End();
+
+NAMED_ANS("finalEX",  $cmp_final_EX);
+NAMED_ANS("finalSig", $cmp_final_sig);
+NAMED_ANS("finalP",   $cmp_final_Ple1);
+
+# -------------------------------------------------------
+# Feedback (rating 1–5) (hidden in LB)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning probability distributions and expected value?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

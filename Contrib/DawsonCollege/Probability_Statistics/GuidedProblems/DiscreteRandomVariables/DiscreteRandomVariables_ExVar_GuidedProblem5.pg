@@ -1,0 +1,319 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Life Insurance: Probability Distribution and Expected Value (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Random Variables)
+## Level(2)
+## KEYWORDS('expected value','probability distribution','net gain','life insurance','discrete random variable')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser flag (hide rating in LB)
+# ----------------------------------------------------------------
+$inLibraryBrowser = $main::inLibraryBrowser || 0;
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+
+# Given probabilities
+$p_survive = Compute("9997/10000");  # 0.9997
+$p_die     = Compute("3/10000");     # 0.0003
+$sumP      = Compute("1");
+
+# Net gain to the company:
+# - If survive: company keeps premium
+# - If die: company pays 200000 but still collected premium
+$x_survive = Compute("195");              # +195
+$x_die     = Compute("195-200000");       # -199805
+
+# Expected value
+$xp_survive = Compute("195*(9997/10000)");
+$xp_die     = Compute("(195-200000)*(3/10000)");
+$EX         = Compute("135");
+
+# Interpretation helper (positive amount; profit if EX>0, loss if EX<0)
+$absEX      = Compute("135");
+
+# =======================================================
+# Evaluators
+# =======================================================
+
+$cmp_p_die = $p_die->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.9997) < 1e-6 } =>
+    "0.9997 is the probability of surviving. The probability of dying is the complement.",
+  sub { abs($_[0] - 0.0003) < 1e-6 } =>
+    "Good. P(die) = 1 - P(survive).",
+));
+
+$cmp_x_survive = $x_survive->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0) < 1e-6 } =>
+    "If the person survives, the company still collected the premium. Net gain is not 0.",
+  sub { abs($_[0] - 195) < 1e-6 } =>
+    "Good. If no claim is paid, the company keeps the premium.",
+));
+
+$cmp_x_die = $x_die->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (-200000)) < 1e-6 } =>
+    "You included the payout but forgot the company also collected the premium.",
+  sub { abs($_[0] - (-199805)) < 1e-6 } =>
+    "Good. Net gain = premium - payout.",
+));
+
+# Distribution-table probabilities
+$cmp_ps = $p_survive->cmp;
+$cmp_pd = $p_die->cmp;
+
+# Check sum
+$cmp_sumP = $sumP->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.9997) < 1e-6 } =>
+    "That is only P(survive). Here you are checking that BOTH probabilities add to 1.",
+));
+
+# Work-table copied probabilities (avoid AnSwEr warnings)
+$cmp_pws = $p_survive->cmp;
+$cmp_pwd = $p_die->cmp;
+
+# Work-table xP
+$cmp_xps = $xp_survive->cmp;
+$cmp_xpd = $xp_die->cmp;
+
+# Expected value
+$cmp_EX = $EX->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 195) < 1e-6 } =>
+    "That would be the gain if the person ALWAYS survived. You must weight by probabilities.",
+  sub { abs($_[0] - (-199805)) < 1e-6 } =>
+    "That would be the gain if the person ALWAYS died. You must weight by probabilities.",
+));
+
+# Interpretation numeric (positive amount)
+$cmp_absEX = $absEX->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 135) < 1e-6 } =>
+    "Good. If E(X) is positive, this is an expected profit. If E(X) were negative, this would be the expected loss = -E(X).",
+));
+
+# Final answers
+$cmp_final_EX = $EX->cmp;
+
+# =======================================================
+# Rating (1–5)
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A life insurance company will sell a \$200,000 one-year term life insurance policy to an individual in a particular risk group for a premium of \$195.
+
+A person in this risk group has a 99.97% chance of surviving one year.
+
+Let [`` X ``] be the **net gain to the company** from a single policy.
+
+a) Construct the probability distribution of [`` X ``].  
+b) Find [`` E(X) ``].  
+c) Interpret the meaning of [`` E(X) ``] for the company.
+END_PGML
+Section::End();
+
+Section::Begin("Outcomes and net gain values");
+BEGIN_PGML
+There are two outcomes for the year:
+
+- The person **survives** (no payout)
+- The person **dies** (the company pays \$200,000)
+
+You are given:
+[`` P(\text{survive})=0.9997 ``]
+
+1) Compute:
+[`` P(\text{die})=1-P(\text{survive})= ``] [____]{$cmp_p_die}
+
+Now compute the possible values of [`` X ``] (net gain to the company):
+
+2) If the person survives, the company keeps the premium:
+[`` X=\text{premium}= ``] [____]{$cmp_x_survive}
+
+3) If the person dies, the company pays \$200,000 but still collected the premium:
+[`` X=\text{premium}-200000= ``] [____]{$cmp_x_die}
+END_PGML
+Section::End();
+
+Section::Begin("Probability distribution of X (Part a)");
+BEGIN_PGML
+Fill in the probability distribution table for [`` X ``].  
+(You may enter probabilities as decimals or fractions.)
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+  </tr>
+  <tr>
+    <td style="text-align:center;">\(195\)</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("ps",12) \}</td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">\(-199805\)</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pd",12) \}</td>
+  </tr>
+</table>
+$ECENTER
+END_TEXT
+
+Section::End();
+
+NAMED_ANS("ps", $cmp_ps);
+NAMED_ANS("pd", $cmp_pd);
+
+Section::Begin("Check the probability distribution");
+BEGIN_PGML
+Check that the probabilities add to 1:
+
+[`` P(X=195)+P(X=-199805)= ``] [____]{$cmp_sumP}
+END_PGML
+Section::End();
+
+Section::Begin("Quick reminders");
+BEGIN_PGML
+**Expected value (mean):**  
+Multiply each value by its probability, then add.
+[`` E(X)=\sum x\,P(X=x) ``]
+END_PGML
+Section::End();
+
+Section::Begin("Work table (compute E(X))");
+BEGIN_PGML
+Copy your probabilities into column 2, compute column 3, then add column 3.
+
+The total of column 3 is [`` E(X) ``].
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+    <th style="text-align:center;">\(xP(X=x)\)</th>
+  </tr>
+  <tr>
+    <td style="text-align:center;">\(195\)</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pws",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xps",12) \}</td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">\(-199805\)</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("pwd",12) \}</td>
+    <td style="text-align:center;">\{ NAMED_ANS_RULE("xpd",12) \}</td>
+  </tr>
+  <tr>
+    <td style="text-align:center; font-weight:bold;" colspan="2">Total</td>
+    <td style="text-align:center;">
+      \{ NAMED_ANS_RULE("EX",12) \}<br/>
+      <span style="font-size:90%;">(this total is \(E(X)\))</span>
+    </td>
+  </tr>
+</table>
+$ECENTER
+END_TEXT
+
+Section::End();
+
+# Grade copied probabilities (avoid AnSwEr warnings)
+NAMED_ANS("pws", $cmp_pws);
+NAMED_ANS("pwd", $cmp_pwd);
+
+# Grade xP column + total
+NAMED_ANS("xps", $cmp_xps);
+NAMED_ANS("xpd", $cmp_xpd);
+NAMED_ANS("EX",  $cmp_EX);
+
+Section::Begin("Interpretation (Part c)");
+BEGIN_PGML
+The expected value is the long-run average net gain **per policy** if the company sells many such policies.
+
+Enter the expected **profit or loss amount** as a positive number:
+- If your [`` E(X) ``] is positive, enter [`` E(X) ``].
+- If your [`` E(X) ``] is negative, enter [`` -E(X) ``].
+
+Expected profit/loss amount per policy:
+[____]{$cmp_absEX}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Enter the expected value to the company:
+END_PGML
+
+BEGIN_TEXT
+$PAR
+$BR \(E(X)=\) \{ NAMED_ANS_RULE("finalEX",12) \}
+END_TEXT
+
+Section::End();
+
+NAMED_ANS("finalEX", $cmp_final_EX);
+
+# -------------------------------------------------------
+# Feedback (rating 1–5) (hidden in LB)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning expected value?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

@@ -1,0 +1,285 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Binomial Counting: Parts Needed for 5 Service Calls (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Random Variables)
+## Level(2)
+## KEYWORDS('binomial','probability distribution','discrete random variable','at most','cumulative probability')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser flag (hide rating in LB)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{isLibrary}) && $envir{isLibrary}) { $inLibraryBrowser = 1; }
+if (defined($envir{isLibraryBrowser}) && $envir{isLibraryBrowser}) { $inLibraryBrowser = 1; }
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+
+# X = number of calls (out of 5) that require the part
+# p = 1/3, q = 2/3
+$p = Compute("1/3");
+$q = Compute("2/3");
+
+# Binomial probabilities for n=5
+$P0 = Compute("(2/3)^5");
+$P1 = Compute("5*(1/3)*(2/3)^4");
+$P2 = Compute("10*(1/3)^2*(2/3)^3");
+$P3 = Compute("10*(1/3)^3*(2/3)^2");
+$P4 = Compute("5*(1/3)^4*(2/3)");
+$P5 = Compute("(1/3)^5");
+
+$sumP = Compute("1");
+
+# Cumulative probabilities
+$C0 = Compute($P0->string);
+$C1 = Compute($P0->string . " + " . $P1->string);
+$C2 = Compute($P0->string . " + " . $P1->string . " + " . $P2->string);
+$C3 = Compute($P0->string . " + " . $P1->string . " + " . $P2->string . " + " . $P3->string);
+$C4 = Compute($P0->string . " + " . $P1->string . " + " . $P2->string . " + " . $P3->string . " + " . $P4->string);
+$C5 = Compute("1");
+
+# Part (a)
+$PatMost1 = $C1;
+
+# Part (b) minimum m with P(X<=m) >= 0.95
+$minParts = Real(3);
+
+# =======================================================
+# Evaluators
+# =======================================================
+
+$cmp_n_calls = Real(5)->cmp;
+$cmp_minX = Real(0)->cmp;
+$cmp_maxX = Real(5)->cmp;
+$cmp_kvals = Real(6)->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 5) < 1e-6 } => "X can be 0,1,2,3,4,5 (that is 6 possible values)."
+));
+
+$cmp_p0 = $P0->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/3)**5) < 1e-6 } => "That would be the probability all 5 calls require the part. For X=0 you want no successes: (2/3)^5."
+));
+$cmp_p1 = $P1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (2/3)**5) < 1e-6 } => "That is P(X=0). For X=1 you need exactly one success: C(5,1)(1/3)^1(2/3)^4."
+));
+
+$cmp_atMost1 = $PatMost1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $P1->value) < 1e-6 } => "At most 1 means X=0 or X=1. Add P(0)+P(1)."
+));
+
+$cmp_minParts = $minParts->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (!defined($v) || $v != int($v) || $v < 0 || $v > 5) {
+      $ansHash->{ans_message} = "Enter an integer from 0 to 5.";
+      return 0;
+    }
+    return ($v == 3) ? 1 : 0;
+  }
+);
+
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($c, $s, $ans) = @_;
+    my $v = eval { $s->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ans->{score} = 1; $ans->{ans_message} = "Thanks!";
+    } else {
+      $ans->{score} = 0; $ans->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ans->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+
+# Force scaffold open for Library Browser
+if ($inLibraryBrowser) {
+  Scaffold::Begin(can_open => "always", is_open => "always");
+} else {
+  Scaffold::Begin(open_one_at_a_time => 1, can_open => "when_previous_correct");
+}
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+An appliance repairman services five washing machines on site each day.
+One-third of the service calls require installation of a particular part.
+
+Let [`` X ``] be the number (out of 5) that require this part.
+
+a) The repairman has only one such part on his truck today. Find the probability that the one part will be enough today (that is, [`` X \le 1 ``]).  
+b) Find the minimum number of such parts he should take each day so that the probability he has enough is at least 95%.
+END_PGML
+Section::End();
+
+Section::Begin("Outcomes and possible values of X");
+BEGIN_PGML
+Each service call can be thought of as:
+
+- Success (S): the machine requires the part, with probability [`` 1/3 ``]
+- Failure (F): it does not require the part, with probability [`` 2/3 ``]
+
+The random variable counts successes in 5 calls:
+[`` X = \text{number of S in 5 calls} ``]
+
+1) How many service calls are there each day? [____]{$cmp_n_calls}
+
+2) Smallest possible value of [`` X ``]: [____]{$cmp_minX}
+
+3) Largest possible value of [`` X ``]: [____]{$cmp_maxX}
+
+4) How many possible values can [`` X ``] take? [____]{$cmp_kvals}
+END_PGML
+Section::End();
+
+Section::Begin("Quick reminders (binomial probabilities)");
+BEGIN_PGML
+This is a binomial setting: each call is independent, and the probability of "requires the part" is the same each time.
+
+For [`` k=0,1,2,3,4,5 ``]:
+[`` P(X=k)=\binom{5}{k}\left(\frac{1}{3}\right)^k\left(\frac{2}{3}\right)^{5-k} ``]
+END_PGML
+Section::End();
+
+Section::Begin("Construct the probability distribution of X");
+BEGIN_PGML
+Fill in the probability distribution table for [`` X ``]. (Fractions are fine.)
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+  </tr>
+  <tr><td style="text-align:center;">0</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p0",12) \}</td></tr>
+  <tr><td style="text-align:center;">1</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p1",12) \}</td></tr>
+  <tr><td style="text-align:center;">2</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p2",12) \}</td></tr>
+  <tr><td style="text-align:center;">3</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p3",12) \}</td></tr>
+  <tr><td style="text-align:center;">4</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p4",12) \}</td></tr>
+  <tr><td style="text-align:center;">5</td><td style="text-align:center;">\{ NAMED_ANS_RULE("p5",12) \}</td></tr>
+</table>
+$ECENTER
+END_TEXT
+
+NAMED_ANS("p0", $cmp_p0);
+NAMED_ANS("p1", $cmp_p1);
+NAMED_ANS("p2", $P2->cmp);
+NAMED_ANS("p3", $P3->cmp);
+NAMED_ANS("p4", $P4->cmp);
+NAMED_ANS("p5", $P5->cmp);
+
+Section::End();
+
+Section::Begin("Check the probability distribution");
+BEGIN_PGML
+Check that the probabilities add to 1:
+
+[`` P(0)+P(1)+P(2)+P(3)+P(4)+P(5)= ``] [____]{$sumP->cmp}
+END_PGML
+Section::End();
+
+Section::Begin("At most one part is needed (Part a)");
+BEGIN_PGML
+"One part is enough" means **at most one** machine requires the part:
+
+[`` X \le 1 ``] means [`` X=0 ``] or [`` X=1 ``].
+
+Compute:
+[`` P(X \le 1)=P(X=0)+P(X=1)= ``] [____]{$cmp_atMost1}
+END_PGML
+Section::End();
+
+Section::Begin("How many parts for at least 95%? (Part b)");
+BEGIN_PGML
+If the repairman carries [`` m ``] parts, then he has enough exactly when [`` X \le m ``].
+
+So we want the **smallest** [`` m ``] such that:
+[`` P(X \le m) \ge 0.95 ``]
+
+Compute cumulative probabilities:
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(m\)</th>
+    <th style="text-align:center;">\(P(X \le m)\)</th>
+  </tr>
+  <tr><td style="text-align:center;">0</td><td style="text-align:center;">\{ NAMED_ANS_RULE("c0",12) \}</td></tr>
+  <tr><td style="text-align:center;">1</td><td style="text-align:center;">\{ NAMED_ANS_RULE("c1",12) \}</td></tr>
+  <tr><td style="text-align:center;">2</td><td style="text-align:center;">\{ NAMED_ANS_RULE("c2",12) \}</td></tr>
+  <tr><td style="text-align:center;">3</td><td style="text-align:center;">\{ NAMED_ANS_RULE("c3",12) \}</td></tr>
+  <tr><td style="text-align:center;">4</td><td style="text-align:center;">\{ NAMED_ANS_RULE("c4",12) \}</td></tr>
+  <tr><td style="text-align:center;">5</td><td style="text-align:center;">\{ NAMED_ANS_RULE("c5",12) \}</td></tr>
+</table>
+$ECENTER
+END_TEXT
+
+NAMED_ANS("c0", $C0->cmp);
+NAMED_ANS("c1", $C1->cmp);
+NAMED_ANS("c2", $C2->cmp);
+NAMED_ANS("c3", $C3->cmp);
+NAMED_ANS("c4", $C4->cmp);
+NAMED_ANS("c5", $C5->cmp);
+
+BEGIN_PGML
+Now enter the minimum number of parts [`` m ``] that makes [`` P(X \le m)\ge 0.95 ``]:
+
+Minimum number of parts: [____]{$cmp_minParts}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Enter your final results.
+
+[`` P(X\le 1)= ``] [____]{$PatMost1->cmp}
+
+Minimum number of parts [`` m= ``] [____]{$minParts->cmp}
+END_PGML
+Section::End();
+
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning binomial probability and cumulative probability?
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

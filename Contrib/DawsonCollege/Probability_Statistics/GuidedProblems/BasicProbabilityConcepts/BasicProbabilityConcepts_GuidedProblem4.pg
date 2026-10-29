@@ -1,0 +1,363 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Sample Spaces & Events (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Sample Spaces and Events)
+## Level(2)
+## KEYWORDS('probability','sample space','event','equally likely','contingency table','additive rule')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "contextString.pl",
+  "scaffold.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data (percentages)
+# Rows: Bus(B), Metro(M), Car(C), Walk(W), Bike(K), Other commute(O)
+# Cols: Montreal(M), West Island(W), Other region(O)
+# =======================================================
+%pct = (
+  B => { M => 6.0,  W => 1.5, O => 10.5 },  # 18.0
+  M => { M => 10.0, W => 2.0, O => 10.0 },  # 22.0
+  C => { M => 8.0,  W => 5.0, O => 12.0 },  # 25.0
+  W => { M => 8.0,  W => 0.8, O => 1.2  },  # 10.0
+  K => { M => 2.0,  W => 0.6, O => 2.4  },  # 5.0
+  O => { M => 6.0,  W => 1.1, O => 12.9 },  # 20.0
+);
+
+# Correct event probabilities (decimals) — used only for grading
+$p_public = (18.0 + 22.0)/100;        # Bus or Metro
+$p_active = (10.0 +  5.0)/100;        # Walk or Bike
+$p_island = (40.0 + 11.0)/100;        # Montreal or West Island
+
+# =======================================================
+# Working set-entry method (String context + comma redefine)
+# Students enter comma-separated outcome codes like: BM, MW, OO
+# =======================================================
+$ctxSet = Context("String");
+$ctxSet->operators->redefine(',', using => ',');
+
+# Allowed outcome codes (6 commute modes x 3 regions = 18 outcomes)
+$ctxSet->strings->add(
+  "BM" => {}, "BW" => {}, "BO" => {},
+  "MM" => {}, "MW" => {}, "MO" => {},
+  "CM" => {}, "CW" => {}, "CO" => {},
+  "WM" => {}, "WW" => {}, "WO" => {},
+  "KM" => {}, "KW" => {}, "KO" => {},
+  "OM" => {}, "OW" => {}, "OO" => {},
+);
+
+# Correct event sets (order doesn't matter)
+$eventP = List( String("BM"), String("BW"), String("BO"), String("MM"), String("MW"), String("MO") );
+$eventA = List( String("WM"), String("WW"), String("WO"), String("KM"), String("KW"), String("KO") );
+$eventI = List(
+  String("BM"), String("BW"),
+  String("MM"), String("MW"),
+  String("CM"), String("CW"),
+  String("WM"), String("WW"),
+  String("KM"), String("KW"),
+  String("OM"), String("OW")
+);
+
+$cmp_eventP = $eventP->cmp(ignoreOrder => 1);
+$cmp_eventA = $eventA->cmp(ignoreOrder => 1);
+$cmp_eventI = $eventI->cmp(ignoreOrder => 1);
+
+# =======================================================
+# Numeric comparators (probabilities + rating)
+# =======================================================
+Context("Numeric");
+
+$cmp_prob_public = Real($p_public)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_prob_active = Real($p_active)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_prob_island = Real($p_island)->cmp(tolType => "absolute", tolerance => 0.001);
+
+$cmp_rating = Real(1)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return ($v >= 1 && $v <= 5) ? 1 : 0;
+  }
+);
+
+# Restore set context for set-building blanks
+Context($ctxSet);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_TEXT
+The breakdown of the student body at Dawson in terms of <b>commute mode</b> and <b>home region</b> is shown in the contingency table below.
+A student is selected at random, and we record the student's commute mode and home region.
+$PAR
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr>
+  <th></th>
+  <th>Montreal (M)</th>
+  <th>West Island (W)</th>
+  <th>Other region (O)</th>
+</tr>
+<tr>
+  <th>Bus (B)</th>
+  <td>$pct{B}{M}%</td><td>$pct{B}{W}%</td><td>$pct{B}{O}%</td>
+</tr>
+<tr>
+  <th>Metro (M)</th>
+  <td>$pct{M}{M}%</td><td>$pct{M}{W}%</td><td>$pct{M}{O}%</td>
+</tr>
+<tr>
+  <th>Car (C)</th>
+  <td>$pct{C}{M}%</td><td>$pct{C}{W}%</td><td>$pct{C}{O}%</td>
+</tr>
+<tr>
+  <th>Walk (W)</th>
+  <td>$pct{W}{M}%</td><td>$pct{W}{W}%</td><td>$pct{W}{O}%</td>
+</tr>
+<tr>
+  <th>Bike (K)</th>
+  <td>$pct{K}{M}%</td><td>$pct{K}{W}%</td><td>$pct{K}{O}%</td>
+</tr>
+<tr>
+  <th>Other commute (O)</th>
+  <td>$pct{O}{M}%</td><td>$pct{O}{W}%</td><td>$pct{O}{O}%</td>
+</tr>
+</table>
+
+$PAR
+Quick check: Are the outcomes equally likely?
+$BR
+A) Yes, because the table is smaller
+$BR
+B) No, because different outcomes have different percentages
+$BR
+C) Yes, because outcomes use letters
+$BR
+D) No, because a table cannot show probability
+$PAR
+Answer (A/B/C/D): \{ ans_rule(2) \}
+END_TEXT
+
+ANS( str_cmp("B") );
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Additive Rule for Outcomes");
+BEGIN_TEXT
+<b>Additive Rule for Outcomes</b>
+$PAR
+Example:
+$BR
+\(S=\lbrace o_1,o_2,o_3,o_4\rbrace\)
+$PAR
+\(E=\lbrace o_1,o_2\rbrace\)
+$PAR
+Only one outcome happens in one trial, so we add the probabilities of the outcomes inside the event:
+$BR
+\(P(E)=P(o_1)+P(o_2)\)
+$PAR
+
+In this problem, each <b>cell</b> of the table is one outcome.
+So the probability of an event is found by adding the <b>percentages</b> of the cells in that event,
+then dividing by 100.
+END_TEXT
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Outcome codes and the sample space");
+BEGIN_TEXT
+We label outcomes using a <b>two-letter code</b>.
+$PAR
+
+First letter (commute mode):
+$BR
+B = Bus, M = Metro, C = Car, W = Walk, K = Bike, O = Other commute
+$PAR
+
+Second letter (home region):
+$BR
+M = Montreal, W = West Island, O = Other region
+$PAR
+
+Examples:
+$BR
+BO means (Bus, Other region)
+$BR
+MW means (Metro, West Island)
+$BR
+OO means (Other commute, Other region)
+$PAR
+
+So the sample space looks like this:
+$BR
+S = { BM, BW, BO, MM, MW, ... , OO }
+$PAR
+
+Checkpoint: Which code represents "Car and Other region"?
+$BR
+A) OC
+$BR
+B) CW
+$BR
+C) CO
+$BR
+D) MC
+$PAR
+Answer (A/B/C/D): \{ ans_rule(2) \}
+END_TEXT
+
+ANS( str_cmp("C") );
+Section::End();
+
+# =======================================================
+# EVENT P (build + probability)
+# =======================================================
+Section::Begin("Event P — Public transport");
+BEGIN_TEXT
+Let P be the event: "<b>The student uses public transport</b>."
+$PAR
+For this problem, public transport means <b>Bus</b> or <b>Metro</b>.
+$PAR
+
+<b>Step 1 (Build the event).</b>
+Enter the outcomes in P using two-letter codes (comma-separated, order doesn't matter).
+$BR
+P = { \{ ans_rule(40) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Using the table, add the percentages for all outcomes you included in P, then divide by 100.
+$PAR
+Enter P(P) as a decimal (example: 40% would be 0.40):
+$BR
+P(P) = \{ ans_rule(10) \}
+END_TEXT
+
+ANS($cmp_eventP);
+
+Context("Numeric");
+ANS($cmp_prob_public);
+Context($ctxSet);
+
+Section::End();
+
+# =======================================================
+# EVENT A (build + probability)
+# =======================================================
+Section::Begin("Event A — Active transport");
+BEGIN_TEXT
+Let A be the event: "<b>The student uses active transport</b>."
+$PAR
+For this problem, active transport means <b>Walk</b> or <b>Bike</b>.
+$PAR
+
+<b>Step 1 (Build the event).</b>
+Enter the outcomes in A using two-letter codes (comma-separated, order doesn't matter).
+$BR
+A = { \{ ans_rule(40) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Using the table, add the percentages for all outcomes you included in A, then divide by 100.
+$PAR
+Enter P(A) as a decimal:
+$BR
+P(A) = \{ ans_rule(10) \}
+END_TEXT
+
+ANS($cmp_eventA);
+
+Context("Numeric");
+ANS($cmp_prob_active);
+Context($ctxSet);
+
+Section::End();
+
+# =======================================================
+# EVENT I (build + probability)
+# =======================================================
+Section::Begin("Event I — Lives on the island");
+BEGIN_TEXT
+Let I be the event: "<b>The student lives on the island</b>."
+$PAR
+For this problem, living on the island means the home region is <b>Montreal</b> or <b>West Island</b>.
+$PAR
+
+<b>Step 1 (Build the event).</b>
+Enter the outcomes in I using two-letter codes (comma-separated, order doesn't matter).
+$BR
+I = { \{ ans_rule(50) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Using the table, add the percentages for all outcomes you included in I, then divide by 100.
+$PAR
+Enter P(I) as a decimal:
+$BR
+P(I) = \{ ans_rule(10) \}
+END_TEXT
+
+ANS($cmp_eventI);
+
+Context("Numeric");
+ANS($cmp_prob_island);
+Context($ctxSet);
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING (ACTIVE)
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_TEXT
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+$PAR
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+$BR
+Note: Consider using the Email Instructor button below to suggest improvements.
+$PAR
+Rating:
+$BR
+\{ ans_rule(6) \}
+END_TEXT
+
+  Context("Numeric");
+  ANS($cmp_rating);
+  Context($ctxSet);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

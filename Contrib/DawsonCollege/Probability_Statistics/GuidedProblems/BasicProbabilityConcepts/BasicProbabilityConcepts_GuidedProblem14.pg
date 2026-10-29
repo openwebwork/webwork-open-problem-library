@@ -1,0 +1,316 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Conditional Probability (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability)
+## Level(2)
+## KEYWORDS('probability','conditional probability','intersection','independence','die')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "contextString.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# Library Browser / SetMaker flag (define early; BP rule)
+# ----------------------------------------------------------------
+our $inLibraryBrowser = (defined($envir{problemSeed}) && $envir{problemSeed} == 0) ? 1 : 0;
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Set context for outcomes (BP Section P pattern)
+# =======================================================
+our $ctxSet = Context("String")->copy;
+Context($ctxSet);
+
+# Allow comma-separated lists of strings to be parsed as a List
+Context()->operators->redefine(',', using => ',');
+
+our %allowed = map { $_ => {} } qw(1 2 3 4 5 6);
+Context()->strings->add(%allowed);
+
+# Correct sets as Lists of Strings (order doesn't matter)
+# We define the objects here, but we will generate the .cmp locally later
+our $correctA   = List( String("2"), String("4"), String("6") );
+our $correctB   = List( String("3"), String("4"), String("5"), String("6") );
+our $correctAiB = List( String("4"), String("6") );
+
+# =======================================================
+# Numeric comparators
+# =======================================================
+Context("Numeric");
+
+# It is generally safe to keep Numeric comparators global as they are more robust
+our $cmp_pA        = Real(1/2)->cmp( tolType => "absolute", tolerance => 0.001 );
+our $cmp_pB        = Real(2/3)->cmp( tolType => "absolute", tolerance => 0.001 );
+our $cmp_pAiB      = Real(1/3)->cmp( tolType => "absolute", tolerance => 0.001 );
+our $cmp_pA_givenB = Real(1/2)->cmp( tolType => "absolute", tolerance => 0.001 );  # (1/3)/(2/3)
+our $cmp_pB_givenA = Real(2/3)->cmp( tolType => "absolute", tolerance => 0.001 );  # (1/3)/(1/2)
+
+# =======================================================
+# Independence question (RadioButtons; avoids A/B parsing issues)
+# Correct: Yes
+# =======================================================
+our $rb_indep = RadioButtons(
+  [
+    "Yes",
+    "No",
+  ],
+  0,                 # 0-based index => Yes
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Rating checker (integer 1..5)
+# =======================================================
+our $rating     = Real(3);  # placeholder
+our $rating_cmp = $rating->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+
+    if (!defined($student)) {
+      $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+      return 0;
+    }
+
+    my $val;
+    eval { $val = $student->value; };
+    if (!defined($val)) {
+      $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+      return 0;
+    }
+
+    my $ival = int($val);
+    if (abs($val - $ival) > 1e-12) {
+      $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+      return 0;
+    }
+
+    if ($ival < 1 || $ival > 5) {
+      $ansHash->{ans_message} = "Your rating must be 1, 2, 3, 4, or 5.";
+      return 0;
+    }
+
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_TEXT
+A fair 6-sided die is rolled once.
+$PAR
+Sample space:
+$BR
+\(S=\lbrace 1,2,3,4,5,6\rbrace\)
+$PAR
+Define the events:
+$BR
+\(A\): the roll is <b>even</b>.
+$BR
+\(B\): the roll is <b>greater than 2</b>.
+END_TEXT
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Build the events as sets");
+BEGIN_TEXT
+Enter each event as a set of outcomes (comma-separated, order doesn't matter).
+Do not type braces.
+$PAR
+\(A\) = { \{ NAMED_ANS_RULE("Aset",30) \} }
+$BR
+\(B\) = { \{ NAMED_ANS_RULE("Bset",30) \} }
+END_TEXT
+
+# FIX: Set Context, then generate cmp immediately
+Context($ctxSet);
+NAMED_ANS("Aset", $correctA->cmp(ignoreOrder => 1));
+NAMED_ANS("Bset", $correctB->cmp(ignoreOrder => 1));
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Intersection and basic probabilities");
+BEGIN_TEXT
+<b>Step 1 (Intersection).</b>
+Build the intersection \(A \cap B\) as a set of outcomes.
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(A \cap B\) = { \{ NAMED_ANS_RULE("AiBset",30) \} }
+$PAR
+
+<b>Step 2 (Basic probabilities).</b>
+Because the die is fair, all 6 outcomes are equally likely.
+$PAR
+Enter each probability as a fraction or a decimal.
+$BR
+\(P(A)\) = \{ NAMED_ANS_RULE("pA",12) \}
+$BR
+\(P(B)\) = \{ NAMED_ANS_RULE("pB",12) \}
+$BR
+\(P(A \cap B)\) = \{ NAMED_ANS_RULE("pAiB",12) \}
+END_TEXT
+
+# FIX: Set Context, then generate cmp immediately
+Context($ctxSet);
+NAMED_ANS("AiBset", $correctAiB->cmp(ignoreOrder => 1));
+
+Context("Numeric");
+NAMED_ANS("pA",   $cmp_pA);
+NAMED_ANS("pB",   $cmp_pB);
+NAMED_ANS("pAiB", $cmp_pAiB);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Conditional probability means a restricted sample space");
+BEGIN_TEXT
+<b>Key idea:</b> \(P(A \mid B)\) means "the probability that \(A\) happens <b>given</b> that \(B\) happened."
+$PAR
+When we know \(B\) happened, we throw away all outcomes not in \(B\).
+So the new sample space is the set of outcomes in \(B\).
+$PAR
+
+<b>Checkpoint:</b> List the outcomes that are possible <b>given \(B\)</b>.
+(So, list the outcomes in \(B\).)
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(S_B\) = { \{ NAMED_ANS_RULE("SBset",30) \} }
+$PAR
+
+<b>Definition:</b> If \(P(B) > 0\), then
+$BR
+\(P(A \mid B)=\dfrac{P(A \cap B)}{P(B)}\).
+$PAR
+
+Compute:
+$BR
+\(P(A \mid B)\) = \{ NAMED_ANS_RULE("pAgB",12) \}
+END_TEXT
+
+# FIX: Set Context, then generate cmp immediately
+Context($ctxSet);
+NAMED_ANS("SBset", $correctB->cmp(ignoreOrder => 1));
+
+Context("Numeric");
+NAMED_ANS("pAgB", $cmp_pA_givenB);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Final Answer");
+BEGIN_TEXT
+<b>Final Answer.</b>
+Use the definition of conditional probability to compute:
+$PAR
+Enter your answer as a fraction or a decimal.
+$BR
+\(P(B \mid A)\) = \{ NAMED_ANS_RULE("pBgA",12) \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pBgA", $cmp_pB_givenA);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Independence (intuitive meaning)");
+BEGIN_TEXT
+<b>Independence (intuitive meaning):</b>
+$PAR
+Events \(A\) and \(B\) are independent if knowing that \(B\) happened does <b>not</b> change how likely \(A\) is.
+Another way to say it: knowing \(B\) gives no useful information about whether \(A\) happens.
+$PAR
+A common test is:
+$BR
+\(A\) and \(B\) are independent if \(P(A \mid B)=P(A)\).
+$PAR
+Based on your results, are \(A\) and \(B\) independent?
+$PAR
+\{ $rb_indep->buttons \}
+END_TEXT
+
+ANS($rb_indep->cmp());
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING (ACTIVE)
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+  BEGIN_TEXT
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+$PAR
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+$BR
+Note: Consider using the Email Instructor button below to suggest improvements.
+$PAR
+Rating:
+$BR
+\{ NAMED_ANS_RULE("rating",6) \}
+END_TEXT
+
+  Context("Numeric");
+  NAMED_ANS("rating", $rating_cmp);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+**1.** The events are:
+
+- A = {2, 4, 6}
+- B = {3, 4, 5, 6}
+- A ∩ B = {4, 6}
+
+**2.** Basic probabilities (all 6 outcomes are equally likely):
+
+- P(A) = 3/6 = 1/2
+- P(B) = 4/6 = 2/3
+- P(A ∩ B) = 2/6 = 1/3
+
+**3.** Conditional probabilities:
+
+- P(A | B) = P(A ∩ B) / P(B) = (1/3) / (2/3) = 1/2
+- P(B | A) = P(A ∩ B) / P(A) = (1/3) / (1/2) = 2/3
+
+**4.** Independence:
+
+Since P(A | B) = P(A), the events A and B are independent.
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

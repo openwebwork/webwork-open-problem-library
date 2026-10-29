@@ -1,0 +1,329 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Sensitivity and Independent Testing (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability and Independence)
+## Level(2)
+## KEYWORDS('probability','independence','sensitivity','complement rule','diagnostic test')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "contextString.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Parameters (given)
+# =======================================================
+our $sens = 0.92;          # sensitivity = P(positive | disease)
+our $neg  = 1 - $sens;     # P(negative | disease)
+
+# Values used only for answer checking (not displayed)
+our $p_PP       = $sens * $sens;       # P(A ∩ B)
+our $p_NN       = $neg  * $neg;        # P(A^c ∩ B^c)
+our $p_atleast1 = 1 - $p_NN;           # P(E) where E = at least one positive
+
+# =======================================================
+# Numeric answer evaluators
+# =======================================================
+Context("Numeric");
+
+our $cmp_pPP = Real($p_PP)->cmp( tolType => "absolute", tolerance => 0.001 );
+our $cmp_pNN = Real($p_NN)->cmp( tolType => "absolute", tolerance => 0.001 );
+our $cmp_pE  = Real($p_atleast1)->cmp( tolType => "absolute", tolerance => 0.001 );
+
+# =======================================================
+# Set/List context for sample space outcomes: NN, NP, PN, PP
+# =======================================================
+our $ctxSet = Context("String");
+$ctxSet->operators->redefine(',', using => ',');
+
+our %allowed = map { $_ => {} } qw(NN NP PN PP);
+$allowed{"none"} = { caseSensitive => 0 };
+$ctxSet->strings->add(%allowed);
+
+# =======================================================
+# MC: independence intersection rule (5 options; correct is D)
+# =======================================================
+our $rb_indep_rule = RadioButtons(
+  [
+    '\(P(A \cap B)=P(A)+P(B)\)',
+    '\(P(A \cap B)=P(A)-P(B)\)',
+    '\(P(A \cap B)=P(A)/P(B)\)',
+    '\(P(A \cap B)=P(A)P(B)\)',
+    '\(P(A \cap B)=P(A \cup B)\)',
+  ],
+  3,                  # 0-based index => D
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# MC: why complement makes sense (5 options; correct is C)
+# =======================================================
+our $rb_complement = RadioButtons(
+  [
+    "Because it makes the arithmetic look nicer, even if it changes the event.",
+    "Because 'at least one positive' is impossible to compute directly.",
+    "Because the complement is the single outcome NN (both negative), which is easier to compute.",
+    "Because complements only work when events are independent.",
+    "Because it guarantees the answer will be close to 1.",
+  ],
+  2,                  # 0-based index => C
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# MC: moral (5 options; correct is B)
+# =======================================================
+our $rb_moral = RadioButtons(
+  [
+    "Doing the test twice guarantees detection.",
+    "Getting tested independently at two labs increases the chance of detection.",
+    "Two tests always cancel each other out, so it does not matter.",
+    "If one test is negative, the other must be positive.",
+    "Sensitivity only matters when the person does not have the disease.",
+  ],
+  1,                  # 0-based index => B
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Scaffold (sequential gating)
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_TEXT
+Many diagnostic tests for detecting diseases do not test for the disease directly but for a chemical or biological product of the disease, so they are not perfectly reliable.
+The <b>sensitivity</b> of a test is the probability that the test will be positive when administered to a person who actually has the disease.
+$PAR
+Suppose the sensitivity of a diagnostic procedure is \(92\%\).
+A person who actually has the disease is tested by <b>two independent laboratories</b>.
+$PAR
+Let:
+$BR
+\(A\): Lab 1 result is positive (for a person who actually has the disease)
+$BR
+\(B\): Lab 2 result is positive (for a person who actually has the disease)
+$PAR
+(a) What is the probability that <b>both</b> test results will be positive?
+$BR
+(b) What is the probability that <b>at least one</b> of the two test results will be positive?
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Interpret sensitivity and independence");
+
+BEGIN_TEXT
+Since the person actually has the disease, the sensitivity \(0.92\) applies directly to each lab:
+$BR
+\(P(A)=0.92\) and \(P(B)=0.92\).
+$PAR
+The labs are independent, meaning the result from one lab does not affect the other.
+So knowing whether \(A\) happened does not change how likely \(B\) is (and vice versa).
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Independence and the intersection rule");
+
+BEGIN_TEXT
+If we want the probability that <b>both</b> labs are positive, we want the probability that \(A\) and \(B\) happen together.
+That event is the <b>intersection</b> \(A \cap B\).
+$PAR
+Because the labs are independent, \(A\) and \(B\) are independent events.
+$PAR
+<b>Checkpoint:</b> If \(A\) and \(B\) are independent, which equation should we use?
+$PAR
+\{ $rb_indep_rule->buttons \}
+END_TEXT
+
+ANS($rb_indep_rule->cmp());
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Part (a): both test results positive");
+
+BEGIN_TEXT
+Compute the probability that <b>both</b> test results are positive.
+$PAR
+<b>Hint:</b> Use the independence equation from the previous step with \(P(A)=0.92\) and \(P(B)=0.92\).
+$PAR
+\(P(A \cap B)\) = \{ NAMED_ANS_RULE("pPP",12) \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pPP", $cmp_pPP);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Sample space and event E");
+
+BEGIN_TEXT
+For two tests, each lab result can be Positive (P) or Negative (N). For example, both positive can be denoted as PP.
+$PAR
+List the sample space outcomes (comma-separated, order does not matter):
+$BR
+\{ NAMED_ANS_RULE("S",40) \}
+$PAR
+Now define the event:
+$BR
+\(E\): at least one positive test result
+END_TEXT
+
+Context($ctxSet);
+NAMED_ANS("S", List(map { String($_) } qw(NN NP PN PP))->cmp(ignoreOrder => 1));
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Why the complement helps");
+
+BEGIN_TEXT
+We want \(P(E)\), where \(E\) means "at least one positive."
+$PAR
+<b>Checkpoint:</b> Why does it make sense to use the complement here?
+$PAR
+\{ $rb_complement->buttons \}
+$PAR
+The complement of "at least one positive" is "no positives," meaning <b>both negative</b>, which is the single outcome NN.
+$PAR
+Also, NN means:
+$BR
+Lab 1 is negative AND Lab 2 is negative.
+So:
+$BR
+\(P(NN)=P(A^c \cap B^c)\).
+END_TEXT
+
+ANS($rb_complement->cmp());
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Part (b): at least one positive");
+
+BEGIN_TEXT
+Now compute the probability that <b>at least one</b> of the two test results is positive.
+$PAR
+<b>Hint:</b>
+$BR
+\(P(E)=1-P(E^c)\), and \(E^c\) is NN.
+$BR
+Also, \(P(NN)=P(A^c \cap B^c)\), and since the labs are independent, you can multiply:
+\(P(A^c \cap B^c)=P(A^c)P(B^c)\).
+$PAR
+\(P(NN)\) = \{ NAMED_ANS_RULE("pNN",12) \}
+$PAR
+\(P(E)\) = \{ NAMED_ANS_RULE("pE",12) \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pNN", $cmp_pNN);
+NAMED_ANS("pE",  $cmp_pE);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Moral of the story");
+
+BEGIN_TEXT
+<b>Checkpoint:</b> What is the moral of these calculations?
+$PAR
+\{ $rb_moral->buttons \}
+END_TEXT
+
+ANS($rb_moral->cmp());
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING  (FIXED: force Numeric context inside the block)
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+
+  Context("Numeric");
+
+  our $rating = Real(3);   # placeholder only
+
+  our $rating_cmp = $rating->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+
+      if (!defined($student)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $val;
+      eval { $val = $student->value; };
+      if (!defined($val)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $ival = int($val);
+      if (abs($val - $ival) > 1e-12) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      if ($ival < 1 || $ival > 5) {
+        $ansHash->{ans_message} = "Your rating must be 1, 2, 3, 4, or 5.";
+        return 0;
+      }
+
+      return 1;
+    }
+  );
+
+  BEGIN_PGML
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating: [__]{$rating_cmp}
+END_PGML
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

@@ -1,0 +1,275 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Sampling Distribution of the Sample Mean (Normal Population): Battery Lives (n=36) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Sampling Distributions)
+## Level(2)
+## KEYWORDS('normal distribution','sampling distribution','sample mean','z-score','standardization','sigma over root n','battery life')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data (given)
+# =======================================================
+$mu    = Real(50);
+$sigma = Real(6);
+$c     = Real(48);
+$n     = 36;
+
+# =======================================================
+# Correct numeric targets (precomputed)
+# =======================================================
+# Standard error: sigma/sqrt(36) = 1
+$SE_exact = 1.0;
+
+# Part (a): z = (48-50)/6 = -1/3
+$z_a_exact  = -0.3333333333333333;
+# P(X<48) = Phi(-1/3) = 0.369441...
+$P_a_exact  = 0.36944134018176367;
+
+# Part (b): z = (48-50)/(6/sqrt(36)) = (48-50)/1 = -2
+$z_b_exact  = -2.0;
+# P(Xbar<48) = Phi(-2) = 0.0227501...
+$P_b_exact  = 0.02275013194817921;
+
+# =======================================================
+# Tolerances
+# =======================================================
+# Students will likely round z to 3 decimals and probabilities to 4 decimals.
+$tol_mu = 0.001;
+$tol_se = 0.01;
+$tol_z  = 0.02;
+$tol_p  = 0.001;
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_mu_bar = $mu->cmp(tolType=>"absolute", tolerance=>$tol_mu)
+  ->withPostFilter(HintIfWrong("For a normal population, the mean of X-bar is the same as the mean of X."));
+
+$cmp_se = Real($SE_exact)->cmp(tolType=>"absolute", tolerance=>$tol_se)
+  ->withPostFilter(HintIfWrong("Standard error is sigma divided by sqrt(n). Here: 6/sqrt(36)."));
+
+$cmp_z1 = Real($z_a_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Compute z = (48 - 50)/6."));
+
+$cmp_p1 = Real($P_a_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("Use the standard normal table/CDF: P(X<48)=P(Z<z)."));
+
+$cmp_z2 = Real($z_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Use z = (48 - 50)/(sigma/sqrt(36)). The denominator is the standard error."));
+
+$cmp_p2 = Real($P_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("Use the standard normal table/CDF: P(X-bar<48)=P(Z<z)."));
+
+# Part (c): numeric MC (enter 1-5). Correct choice: 3
+$cmp_mc = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return ($s == 3) ? 1 : 0;
+  }
+)->withPostFilter(HintIfWrong("If the claim is true, the probability in part (b) is very small (about 0.02), so this sample mean is unusual."));
+
+# =======================================================
+# Rating checker
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(numbered=>1, can_open=>"always", is_open=>"always");
+} else {
+  Scaffold::Begin(numbered=>1, can_open=>"when_previous_correct", is_open=>"correct_or_first_incorrect");
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+An automobile battery manufacturer claims that its midgrade battery has a mean life of [``50``] months with a standard deviation of [``6``] months.
+Suppose the distribution of battery lives of this particular brand is approximately normal.
+
+Let [``X``] be the life (in months) of a randomly selected battery.
+
+Assume:
+[``X \sim N(50,\,6)``]
+
+(a) On the assumption that the manufacturer's claims are true, find [``P(X<48)``].
+
+(b) On the same assumption, find the probability that the mean of a random sample of [``n=36``] such batteries will be less than [``48``] months, i.e. find [``P(\bar X<48)``].
+
+(c) If you observe a sample mean as low as [``48``] (or lower) for a random sample of [``36``] batteries, will you be inclined to suspect the manufacturer's claim?
+
+Rounding: Round z-scores to 3 decimals and probabilities to 4 decimals.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Main concept (no image)
+# -------------------------------------------------------
+Section::Begin("Main concept: sampling distribution of the mean (normal population)");
+BEGIN_PGML
+**Theorem (Normal population):**  
+If [``X``] is normally distributed, then for any sample size [``n``], the sample mean [``\bar X``] is also normally distributed, with
+
+- [``\mu_{\bar X}=\mu``]
+- [``\sigma_{\bar X}=\sigma/\sqrt{n}``]
+
+For this problem, [``n=36``].
+
+Enter [``\mu_{\bar X}``]: [____]  
+Enter [``\sigma_{\bar X}``] (the standard error): [____]
+END_PGML
+
+ANS($cmp_mu_bar, $cmp_se);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Part (a)
+# -------------------------------------------------------
+Section::Begin("Part (a): P(X < 48)");
+BEGIN_PGML
+To find [``P(X<48)``], standardize:
+
+[``z=\dfrac{48-\mu}{\sigma}``]
+
+1) Compute the z-score: [____]
+
+2) Then compute [``P(X<48)=P(Z<z)``]: [____]
+END_PGML
+
+ANS($cmp_z1, $cmp_p1);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Part (b)
+# -------------------------------------------------------
+Section::Begin("Part (b): P(X-bar < 48) for n=36");
+BEGIN_PGML
+Because the population is approximately normal, the sample mean is approximately normal:
+
+[``\bar X \sim N\!\left(\mu,\dfrac{\sigma}{\sqrt{36}}\right)``]
+
+Standardize:
+
+[``z=\dfrac{48-\mu}{\sigma/\sqrt{36}}``]
+
+1) Compute the z-score for [``\bar X``]: [____]
+
+2) Then compute [``P(\bar X<48)=P(Z<z)``]: [____]
+END_PGML
+
+ANS($cmp_z2, $cmp_p2);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 — Part (c): decision (numeric MC)
+# -------------------------------------------------------
+Section::Begin("Part (c): should we suspect the claim?");
+BEGIN_PGML
+If you observe a sample mean as low as [``48``] (or lower) for a random sample of [``36``] batteries, will you be inclined to suspect the manufacturer's claim?
+
+Choose the best answer:
+
+1) No. This happens most of the time if the claim is true.  
+2) No. The sample mean is always close to 48 when the claim is true.  
+3) Yes. If the claim is true, the probability from part (b) is very small, so this sample mean is unusual.  
+4) Yes. Because the sample mean is not (approximately) normal for [``n=36``].  
+5) Not enough information.
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_mc);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

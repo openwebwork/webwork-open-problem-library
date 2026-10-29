@@ -1,0 +1,273 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Identifying a Binomial Random Variable + Binomial Formula (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Random Variables)
+## Level(2)
+## KEYWORDS('binomial distribution','binomial random variable','probability formula','expected value','variance','standard deviation')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE by default)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Robust Library Browser detection (LB / SetMaker preview)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{isLibrary}) && $envir{isLibrary}) { $inLibraryBrowser = 1; }
+if (defined($envir{isLibraryBrowser}) && $envir{isLibraryBrowser}) { $inLibraryBrowser = 1; }
+if (defined($main::displayMode) && $main::displayMode eq 'TeXML') { $inLibraryBrowser = 1; }
+
+# Disable rating in LB to reduce preview failures
+if ($inLibraryBrowser) { $ENABLE_GP_RATING = 0; }
+
+# =======================================================
+# Context & Binomial Parameters (correct option is D)
+# =======================================================
+Context("Numeric");
+
+$n  = Real(6);
+$p  = Compute("1/6");
+
+$EX  = Compute("1");          # np
+$Var = Compute("5/6");        # np(1-p)
+$Sig = Compute("sqrt(5/6)");
+
+$P0   = Compute("(5/6)^6");
+$P1   = Compute("6*(1/6)*(5/6)^5");
+$P2   = Compute("15*(1/6)^2*(5/6)^4");
+$Ple2 = Compute("(5/6)^6 + 6*(1/6)*(5/6)^5 + 15*(1/6)^2*(5/6)^4");
+
+# =======================================================
+# RadioButtons
+# =======================================================
+
+$rb_pick = RadioButtons(
+  ["Option A", "Option B", "Option C", "Option D", "Option E"],
+  3, # Index of Option D
+  labels => "ABC",
+  displayLabels => 0,
+);
+
+$rb_whyA = RadioButtons(
+  [
+    "Because X is the sum of results, not a count of successes.",
+    "Because the success probability changes from draw to draw (no replacement).",
+    "Because the number of trials is not fixed.",
+    "Because each trial has more than two outcomes.",
+    "Because probabilities cannot add to 1.",
+  ],
+  1,
+  labels => "ABC",
+);
+
+$rb_whyB = RadioButtons(
+  [
+    "Because the number of trials is not fixed.",
+    "Because X is not counting successes; it is adding the outcomes.",
+    "Because p changes from trial to trial.",
+    "Because the trials are not independent.",
+    "Because there are no successes or failures.",
+  ],
+  1,
+  labels => "ABC",
+);
+
+$rb_whyC = RadioButtons(
+  [
+    "Because the probability of success is not constant.",
+    "Because the number of trials is not fixed in advance.",
+    "Because X is the sum of outcomes.",
+    "Because each trial has more than two outcomes.",
+    "Because probabilities cannot add to 1.",
+  ],
+  1,
+  labels => "ABC",
+);
+
+$rb_whyE = RadioButtons(
+  [
+    "Because the success probability changes from selection to selection (no replacement).",
+    "Because X is the sum of outcomes.",
+    "Because the number of trials is not fixed.",
+    "Because the outcomes are not equally likely.",
+    "Because there are more than two outcomes per trial.",
+  ],
+  0,
+  labels => "ABC",
+);
+
+# =======================================================
+# Evaluators (with AnswerHints)
+# =======================================================
+
+$cmp_n = $n->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 4) < 1e-6 } => "Count the number of trials (rolls) in the binomial option.",
+));
+
+$cmp_p = $p->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (5/6)) < 1e-6 } => "5/6 is the probability of NOT rolling a 6. Use p=1/6.",
+));
+
+$cmp_EX = $EX->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 6) < 1e-6 } => "Use E(X)=np with p=1/6.",
+));
+
+$cmp_Var = $Var->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (5/36)) < 1e-6 } => "Don't forget the factor n in Var(X)=np(1-p).",
+));
+
+$cmp_Peq2 = $P2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/6)) < 1e-6 } => "Use the binomial formula with n=6 and x=2.",
+));
+
+$cmp_Ple2 = $Ple2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $P2->value) < 1e-6 } => "For P(X<=2), add P(0)+P(1)+P(2).",
+));
+
+$cmp_Sig = $Sig->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (5/6)) < 1e-6 } => "Standard deviation is the square root of the variance.",
+));
+
+if ($ENABLE_GP_RATING) {
+  $cmp_rating = Real(3)->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+      my $v = eval { $student->value };
+      if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+        $ansHash->{score} = 1; $ansHash->{ans_message} = "Thanks!";
+      } else {
+        $ansHash->{score} = 0; $ansHash->{ans_message} = "Enter 1 to 5.";
+      }
+      return $ansHash->{score};
+    }
+  );
+}
+
+# =======================================================
+# Main Problem Rendering
+# =======================================================
+
+# 1. Force a top-level render so the Library Browser "wakes up"
+BEGIN_PGML
+## Guided Problem: Identifying a Binomial Random Variable
+END_PGML
+
+# 2. Start Scaffold (Force open for LB preview)
+if ($inLibraryBrowser) {
+  Scaffold::Begin(can_open => "always", is_open => "always");
+} else {
+  Scaffold::Begin();
+}
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Five discrete random variables are described below. Exactly **one** of them is binomial.
+
+* **Option A:** Draw 5 cards from a standard deck **without replacement**. Let [`` X ``] be the number of hearts drawn.  
+* **Option B:** Roll a fair die 6 times. Let [`` X ``] be the **sum** of the 6 results.  
+* **Option C:** Flip a fair coin until the first head occurs. Let [`` X ``] be the number of flips.  
+* **Option D:** Roll a fair die 6 times. Let [`` X ``] be the number of times the result is 6.  
+* **Option E:** Select 10 light bulbs from a box of 20 bulbs (4 are defective) **without replacement**. Let [`` X ``] be the number of defective bulbs selected.
+
+We are going to figure out which option describes a binomial random variable.
+END_PGML
+Section::End();
+
+Section::Begin("Definition");
+BEGIN_PGML
+A random variable [`` X ``] has a **binomial distribution** with parameters [`` n ``] and [`` p ``] if:
+
+1. There are [`` n ``] identical and independent trials of a common procedure.  
+2. Each trial has exactly two outcomes: success or failure.  
+3. The probability of success on any one trial is the same number [`` p ``].  
+4. [`` X ``] counts the number of successes in the [`` n ``] trials.
+
+Based on the definition, which option is binomial?
+
+[@ $rb_pick->buttons() @]*
+END_PGML
+ANS($rb_pick->cmp);
+Section::End();
+
+Section::Begin("Why the other options are not binomial");
+BEGIN_PGML
+**Option A:** Why is Option A not binomial?  
+[@ $rb_whyA->buttons() @]*
+
+**Option B:** Why is Option B not binomial?  
+[@ $rb_whyB->buttons() @]*
+
+**Option C:** Why is Option C not binomial?  
+[@ $rb_whyC->buttons() @]*
+
+**Option E:** Why is Option E not binomial?  
+[@ $rb_whyE->buttons() @]*
+END_PGML
+ANS($rb_whyA->cmp);
+ANS($rb_whyB->cmp);
+ANS($rb_whyC->cmp);
+ANS($rb_whyE->cmp);
+Section::End();
+
+Section::Begin("Identify the parameters n and p");
+BEGIN_PGML
+Now focus on the binomial option.
+- A "trial" is one roll of the die.  
+- A "success" is rolling a 6.
+
+1) [`` n= ``] [____]{$cmp_n}  
+2) [`` p= ``] [____]{$cmp_p}
+END_PGML
+Section::End();
+
+Section::Begin("Formula, mean, and variance");
+BEGIN_PGML
+**Binomial probability formula:** For [`` x=0,1,2,\dots,n ``], [`` P(X=x)=\binom{n}{x}p^x(1-p)^{n-x} ``]
+
+**Mean and variance:** [`` E(X)=np ``], [`` \mathrm{Var}(X)=np(1-p) ``]
+
+1) [`` E(X)= ``] [____]{$cmp_EX}  
+2) [`` \mathrm{Var}(X)= ``] [____]{$cmp_Var}
+END_PGML
+Section::End();
+
+Section::Begin("Compute probabilities and sigma_X");
+BEGIN_PGML
+1) Compute [`` P(X=2) ``]: [____]{$cmp_Peq2}  
+2) Compute [`` P(X \le 2) ``]: [____]{$cmp_Ple2}  
+3) Compute the standard deviation: [`` \sigma_X=\sqrt{\mathrm{Var}(X)}= ``] [____]{$cmp_Sig}
+END_PGML
+Section::End();
+
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+  How useful was this guided problem (1-5)? [___]{$cmp_rating}
+  END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();
