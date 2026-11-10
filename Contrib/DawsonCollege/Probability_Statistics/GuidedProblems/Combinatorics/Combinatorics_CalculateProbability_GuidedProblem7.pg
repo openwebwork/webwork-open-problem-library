@@ -1,0 +1,224 @@
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+Context()->flags->set(implicitMultiplication => 1);
+
+# Use Compute for better handling of formula inputs vs raw numbers
+$space_n = Compute("2^10");
+
+$num1  = Compute("4^7");
+$den1  = Compute("5^10");
+$num2  = Compute("4^7");
+$den2  = Compute("5^10");
+
+$prob_one = Compute("(1/5)^3*(4/5)^7");
+$count    = Compute("120");
+$final    = Compute("120*(1/5)^3*(4/5)^7");
+
+$hint_indep = "Hint: P(FFSFFSFFSF) = P(F)P(F)P(S)P(F)P(F)P(S)P(F)P(F)P(S)P(F). Use 1/5 for P(S) and 4/5 for P(F).";
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_space = $space_n->cmp->withPostFilter(AnswerHints(
+  $space_n => "Correct! (2^10)",
+  sub {
+    my ($correct, $student, $ansHash) = @_;
+    return ($ansHash->{score} // 0) < 1;
+  } => "Hint: Each question becomes either S or F. That's 2 choices per question."
+));
+
+$cmp_num_1 = $num1->cmp;
+$cmp_den_1 = $den1->cmp;
+$cmp_num_2 = $num2->cmp;
+$cmp_den_2 = $den2->cmp;
+$cmp_prob_one = $prob_one->cmp;
+$cmp_count    = $count->cmp;
+$cmp_final    = $final->cmp;
+
+# Rating Check
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# RadioButtons
+# =======================================================
+$rb_inE   = RadioButtons(
+  ['SSFFFSFFSF','FFFFFSFFFF','SFFFFSFFSF','SFSFFFFSSF'],
+  2,                   # Correct is FFSFFSFFSF (Index 2)
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_equal = RadioButtons(
+  [ 'Yes, the likelyhood is the same, regardless of the number of successes', 'No, the likelyhood depends on the number of successes' ],
+  1,                   # Correct is "No" (Index 1)
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A multiple-choice quiz contains 10 questions with five possible answers each.
+
+**Question:** Evaluate the probability of purely randomly guessing the answers and getting exactly 3 questions correct.
+END_PGML
+Section::End();
+
+Section::Begin("Turn into Success and Failure Experiment");
+BEGIN_PGML
+We will turn this into an experiment where each trial consist of 10 independent questions. Each question can either be a  **Success** or a **Failure**.
+
+- Let **S (Success)** mean: “your guess is correct”
+- Let **F (Failure)** mean: “your guess is not correct”
+
+Then each outcome becomes a 10-letter string made of S’s and F’s, such as:
+
+- `FFSFFSFFSF` or `SFFSFFFFSF`  (these have exactly 3 successes)
+- `SSFFFSFFSF` or `FFFFFSFFFF`  (these do **not** have exactly 3 successes)
+
+Let event **E** be: “exactly 3 successes out of 10 questions.”
+
+**Checkpoint:** Which outcome belongs to event E (exactly 3 successes)?  
+[_]{$rb_inE}
+END_PGML
+Section::End();
+
+Section::Begin("How many S/F outcomes exist?");
+BEGIN_PGML
+What is the total number of outcomes in the sample space regardless of the number successes. Outcomes such as **FFSFFSFFSF** or **SSFFFSFFSF**?
+
+**Enter the number of S/F outcomes in the sample space:** [_]{$cmp_space}{10}
+END_PGML
+Section::End();
+
+Section::Begin("Are these S/F outcomes equally likely?");
+BEGIN_PGML
+**Checkpoint:** Are these [`2^{10}`] outcomes equally likely? For example are **FFSFFSFFSF** and **SSFFFSFFSF** equally likely?
+[_]{$rb_equal}
+END_PGML
+Section::End();
+
+# -----------------------
+Section::Begin("Additive rule for outcomes");
+BEGIN_PGML
+Because the S/F outcomes are **not** equally likely, we cannot just do:
+
+- “number of favorable outcomes divided by total outcomes.”
+
+Instead we use the **additive rule for outcomes**:
+
+- The probability of an event equals the sum of the probabilities of the outcomes in that event.
+
+So here:
+- Event E = “all S/F strings with exactly 3 S’s”
+- We need to add the probabilities of those favorable strings.
+END_PGML
+Section::End();
+
+
+Section::Begin("Use independence to compute two outcome probabilities");
+BEGIN_PGML
+The 10 questions are independent, so the probability of a specific S/F string is the product of the question probabilities.
+
+- \(P(S)=1/5\)
+- \(P(F)=4/5\)
+
+**1)** Compute [` P(FFSFFSFFSF) `] (exactly 3 successes).  
+Numerator: [_]{$cmp_num_1}{10} / Denominator: [_]{$cmp_den_1}{10}
+
+**2)** Compute [` P(SFFSFFFFSF) `] (exactly 3 successes).  
+Numerator: [_]{$cmp_num_2}{10} / Denominator: [_]{$cmp_den_2}{10}
+
+**Note:** [@ $hint_indep @]
+END_PGML
+Section::End();
+
+Section::Begin("Same probability for any 3S–7F string");
+BEGIN_PGML
+Any outcome with exactly **3 successes** and **7 failures** has the **same** probability. Enter this probability in the form [`(P(S))^3`] times [`(P(F))^7`]:
+
+**Enter this probability as a single expression:** [_]{$cmp_prob_one}{20}
+END_PGML
+Section::End();
+
+Section::Begin("Count favorable outcomes using the MISSISSIPPI idea");
+BEGIN_PGML
+Event E consists of all permutations of `SSSFFFFFFF`. We know that all these permutations have the same probability. So we just need to use the `MISSISSIPPI` idea to figure out how many of all outcomes in the sample space consist exactly 3 S's and 7 F's.
+
+**Enter the number of favorable outcomes in E:** [_]{$cmp_count}{10}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+At this point we know that there are 120 events in Event (E=“exactly 3 successes out of 10 questions.”). Each one have the same probability [`p=(1/5)^3(4/5)^7`]. Using **additive rule for outcomes** what is the probability of getting exactly 3 successes out of 10 questions? 
+**Final Answer:** [_]{$cmp_final}{30}
+END_PGML
+Section::End();
+
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+The probability is:
+
+**1.** Use the binomial model with \(n=10\) and \(p=1/5\):
+\\(
+P(E)=\\binom{10}{3}\\left(\\dfrac{1}{5}\\right)^3\\left(\\dfrac{4}{5}\\right)^7
+\\).
+
+**2.** Simplify:
+\\(
+P(E)=120\\left(\\dfrac{4^7}{5^{10}}\\right)
+\\).
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

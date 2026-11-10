@@ -1,0 +1,247 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Normal Distribution + Empirical Rule (68–95–99.7) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Continuous Random Variables)
+## Level(2)
+## KEYWORDS('normal distribution','bell curve','empirical rule','68-95-99.7 rule','probability density function')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser flag (LB-safe)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{isLibrary}) && $envir{isLibrary}) { $inLibraryBrowser = 1; }
+if (defined($envir{isLibraryBrowser}) && $envir{isLibraryBrowser}) { $inLibraryBrowser = 1; }
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+
+$mu    = Real(69.5);
+$sigma = Real(2.5);
+
+# Empirical-rule building blocks
+$half68 = Real(0.34);   # half of 0.68
+$tail2  = Real(0.025);  # (1-0.95)/2
+
+# Target probabilities (empirical rule approximations)
+$Pa = Real(0.50);
+$Pb = Real(0.34);
+$Pc = Real(0.68);
+$Pd = Real(0.95);
+$Pe = Real(0.025);
+
+# =======================================================
+# One checkpoint (minimal MC)
+# =======================================================
+$rb_area = RadioButtons(
+  [
+    "A probability is the area under the normal curve over an interval.",
+    "A probability is the height of the curve at a point.",
+    "A probability is the x-value where the curve is highest.",
+  ],
+  0, # correct is A
+  labels        => "ABC",
+  displayLabels => 0,
+  checked       => 0,
+);
+
+# =======================================================
+# Evaluators (with non-giveaway hints)
+# =======================================================
+
+$cmp_half68 = $half68->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.68) < 0.02 } =>
+    "0.68 is the probability from mu - sigma to mu + sigma. From mu to mu + sigma is HALF of that (symmetry).",
+  sub { abs($_[0] - 0.50) < 0.02 } =>
+    "0.50 is the area to one side of the mean. Here you want only from mu to mu + sigma.",
+));
+
+$cmp_tail2 = $tail2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.05) < 0.02 } =>
+    "0.05 is the total area OUTSIDE mu ± 2sigma (both tails). One tail is half of that.",
+  sub { abs($_[0] - 0.95) < 0.02 } =>
+    "0.95 is the area INSIDE mu ± 2sigma, not the tail area.",
+));
+
+$cmp_a = $Pa->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.34) < 0.02 } =>
+    "0.34 is from mu to mu + sigma. Here you want P(X > mu), which is half the curve.",
+));
+
+$cmp_b = $Pb->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.68) < 0.02 } =>
+    "0.68 is from mu - sigma to mu + sigma. Here you want only from mu to mu + sigma.",
+));
+
+$cmp_c = $Pc->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.34) < 0.02 } =>
+    "0.34 is only from mu to mu + sigma. Here you want from mu - sigma to mu + sigma (both sides).",
+  sub { abs($_[0] - 0.95) < 0.02 } =>
+    "0.95 is for mu ± 2sigma. This interval is mu ± 1sigma.",
+));
+
+$cmp_d = $Pd->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.68) < 0.02 } =>
+    "0.68 is for mu ± 1sigma. This interval is mu ± 2sigma.",
+));
+
+$cmp_e = $Pe->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.05) < 0.02 } =>
+    "0.05 is BOTH tails beyond ±2sigma. 'Shorter than mu - 2sigma' is only the left tail (half).",
+));
+
+# Rating (1–5)
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($c, $s, $ans) = @_;
+    my $v = eval { $s->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ans->{score} = 1; $ans->{ans_message} = "Thanks!";
+    } else {
+      $ans->{score} = 0; $ans->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ans->{score};
+  }
+);
+
+# =======================================================
+# Scaffold (LB-safe)
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(can_open => "always", is_open => "always");
+} else {
+  Scaffold::Begin(open_one_at_a_time => 1, can_open => "when_previous_correct");
+}
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+In this guided problem we are going to learn about the most important and most commonly used probability density function. Most people have heard of the "bell curve." It is the graph of a specific density function [`` f(x) ``] that describes the behavior of many continuous random variables as different as the heights and weights of human beings, IQs, aggregated scores such as SAT, measurement errors and the velocities of molecules in a gas.
+
+We are also going to learn about the empirical rule (also known as the 68, 95, 99.7 Rule.) That can be used to solve the following problem.
+
+Heights of 25-year-old men in a certain region have mean 69.5 inches and standard deviation 2.5 inches. These heights are approximately normally distributed. Thus the height [`` X ``] of a randomly selected 25-year-old man is a normal random variable with mean [`` \mu = 69.5 ``] and standard deviation [`` \sigma = 2.5 ``].
+
+Find the probability that a randomly selected 25-year-old man
+
+a) is more than 69.5 inches tall.  
+b) is between 69.5 and 72 inches tall.  
+c) is between 67 and 72 inches tall  
+d) is between 64.5 and 74.5 inches  
+e) is shorter than 64.5
+END_PGML
+Section::End();
+
+Section::Begin("Normal density function + picture");
+BEGIN_PGML
+The **normal distribution** has the density function:
+
+[`` f(x)=\frac{1}{\sigma\sqrt{2\pi}}\,e^{-\frac{(x-\mu)^2}{2\sigma^2}} ``]
+
+In this formula [`` \mu ``] and [`` \sigma ``] are the **mean** and **standard deviation** of the normal distribution.  [`` \mu ``] determines were the distribution is centered at and [`` \sigma ``] determines the amount of variability in the distribution. A probability like [`` P(a<X<b) ``] is an **area under the curve** over the interval [`` (a,b) ``]. For example, [`` P(\mu< X< \mu+\sigma) ``] is [`` 0.34 ``]. Like any valid probability density function [`` f(x) ``] never goes below the x-axis and the total area under the curve is [`` 1 ``].
+
+[@ image("1.png", width => 520) @]*
+
+**Checkpoint:** Which statement is correct?
+
+[@ $rb_area->buttons() @]*
+END_PGML
+ANS($rb_area->cmp);
+Section::End();
+
+Section::Begin("Empirical Rule (68–95–99.7)");
+BEGIN_PGML
+For a normal (bell-shaped) distribution, the empirical rule says approximately:
+
+- About [`` 0.68 ``] of the area is between [`` \mu-\sigma ``] and [`` \mu+\sigma ``].  
+- About [`` 0.95 ``] of the area is between [`` \mu-2\sigma ``] and [`` \mu+2\sigma ``].  
+- About [`` 0.997 ``] of the area is between [`` \mu-3\sigma ``] and [`` \mu+3\sigma ``].
+
+1) Empirical Rule, find [`` P(\mu< X< \mu+\sigma) ``].  
+Answer: [____]
+
+2) Empirical Rule, find [`` P(X<\mu-2\sigma) ``].  
+Answer: [____]
+END_PGML
+ANS($cmp_half68);
+ANS($cmp_tail2);
+Section::End();
+
+Section::Begin("Use the empirical rule to answer (a)–(e)");
+BEGIN_PGML
+First, notice how the given numbers line up with [`` \mu ``] and [`` \sigma ``]:
+
+- [`` 72 ``] is [`` \mu+\sigma ``] because [`` 72-69.5=2.5=\sigma ``].  
+- [`` 67 ``] is [`` \mu-\sigma ``] because [`` 69.5-67=2.5=\sigma ``].  
+- [`` 64.5 ``] is [`` \mu-2\sigma ``] and [`` 74.5 ``] is [`` \mu+2\sigma ``] because they are 5 inches from the mean and [`` 5=2\sigma ``].
+
+Now use the empirical rule areas:
+
+a) More than 69.5 inches tall means [`` X>\mu ``].  
+[`` P(X>69.5)= ``] [____]
+
+b) Between 69.5 and 72 inches is from [`` \mu ``] to [`` \mu+\sigma ``].  
+[`` P(69.5<X<72)= ``] [____]
+
+c) Between 67 and 72 inches is from [`` \mu-\sigma ``] to [`` \mu+\sigma ``].  
+[`` P(67<X<72)= ``] [____]
+
+d) Between 64.5 and 74.5 inches is from [`` \mu-2\sigma ``] to [`` \mu+2\sigma ``].  
+[`` P(64.5<X<74.5)= ``] [____]
+
+e) Shorter than 64.5 inches means [`` X<\mu-2\sigma ``].  
+[`` P(X<64.5)= ``] [____]
+END_PGML
+ANS($cmp_a);
+ANS($cmp_b);
+ANS($cmp_c);
+ANS($cmp_d);
+ANS($cmp_e);
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating 1–5) (hidden in LB)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning the empirical rule?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]
+END_PGML
+  ANS($cmp_rating);
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

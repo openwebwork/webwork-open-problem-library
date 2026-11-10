@@ -1,0 +1,334 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Continuous Random Variables: Intro to PDFs (Geometry Only, Quarter Circle + Rectangle) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Continuous Random Variables)
+## Level(2)
+## KEYWORDS('continuous random variable','probability density function','pdf','area','geometry','interval probability','point probability')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser flag (LB-safe)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{isLibrary}) && $envir{isLibrary}) { $inLibraryBrowser = 1; }
+if (defined($envir{isLibraryBrowser}) && $envir{isLibraryBrowser}) { $inLibraryBrowser = 1; }
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+
+# PDF shape:
+# - On [0,1]: a quarter-circle arc that passes (0,0) and (1,1)
+#   (circle centered at (0,1), radius 1):  f(x)=1 - sqrt(1-x^2)
+# - On [1, 1+pi/4]: a rectangle of height 1
+# - Elsewhere: 0
+#
+# Geometry facts:
+# - Area under sqrt(1-x^2) on [0,1] is a quarter circle area = pi/4
+# - So area under f(x)=1 - sqrt(1-x^2) on [0,1] is (area of 1x1 square) - (pi/4) = 1 - pi/4
+# - Rectangle width is pi/4, height 1, so rectangle area is pi/4
+# - Total area = 1
+
+$pi4 = Compute("pi/4");
+$pi8 = Compute("pi/8");
+
+$arcArea   = Compute("1 - pi/4");   # area on [0,1]
+$rectWidth = Compute("pi/4");       # (1+pi/4) - 1
+$rectArea  = Compute("pi/4");       # width * height
+$totalArea = Compute("1");
+
+# Interval probabilities
+$P_Xge1         = $rectArea;                     # P(X >= 1) = rectangle area
+$P_0_to_1       = $arcArea;                      # P(0<=X<=1)
+$P_1_to_1pi8    = $pi8;                          # slice of rectangle: width pi/8, height 1
+$P_0_to_1pi8    = Compute($arcArea->string . " + " . $pi8->string);  # arc + slice
+$P_1pi8_to_1pi4 = $pi8;                          # remaining rectangle: pi/8
+
+$P_point = Real(0);
+$f_at_1  = Real(1);
+
+# =======================================================
+# Evaluators (+ hints)
+# =======================================================
+
+# Definition checkpoint (MC)
+$rb_pdfprob = RadioButtons(
+  [
+    "The height of the graph at x=1 (that is, f(1)).",
+    "The area under the graph of f(x) from x=1 to x=1+pi/8.",
+    "The number of x-values between 1 and 1+pi/8.",
+  ],
+  1, # correct is B (not A)
+  labels        => "ABC",
+  displayLabels => 0,
+  checked       => 0,
+);
+
+# Areas to verify pdf
+$cmp_arcArea = $arcArea->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 1) < 1e-6 } =>
+    "1 is the area of the 1×1 square. The arc area is (square area) minus (quarter-circle area).",
+  sub { abs($_[0] - $pi4->value) < 1e-6 } =>
+    "pi/4 is the quarter-circle area. The arc area here is 1 - pi/4.",
+));
+
+$cmp_rectWidth = $rectWidth->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1 + $pi4->value)) < 1e-6 } =>
+    "That is the RIGHT endpoint. The width is (1+pi/4) - 1.",
+));
+
+$cmp_rectArea = $rectArea->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $rectWidth->value) < 1e-6 } =>
+    "You entered the width only. Rectangle area = (width)(height). The height is 1.",
+));
+
+$cmp_totalArea = $totalArea->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $arcArea->value) < 1e-6 } =>
+    "You entered only the arc part. Add arc + rectangle.",
+  sub { abs($_[0] - $rectArea->value) < 1e-6 } =>
+    "You entered only the rectangle part. Add arc + rectangle.",
+));
+
+# Probabilities
+$cmp_P_0_1 = $P_0_to_1->cmp;
+$cmp_P_Xge1 = $P_Xge1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1 - $pi4->value)) < 1e-6 } =>
+    "That is the arc area (from 0 to 1). For X>=1, you want the rectangle area.",
+));
+
+$cmp_P_0_to_1pi8 = $P_0_to_1pi8->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $arcArea->value) < 1e-6 } =>
+    "That is only the arc part (0 to 1). You also need the rectangle slice from 1 to 1+pi/8.",
+  sub { abs($_[0] - $pi8->value) < 1e-6 } =>
+    "That is only the rectangle slice. You also need the arc part from 0 to 1.",
+));
+
+$cmp_P_tail = $P_1pi8_to_1pi4->cmp;
+
+# Endpoints + point probability
+$cmp_same_open = $P_0_to_1->cmp;
+$cmp_diff_endpoints = Real(0)->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $P_0_to_1->value) < 1e-6 } =>
+    "You entered the probability itself. The difference should be 0 for a continuous random variable.",
+));
+
+$cmp_f1 = $f_at_1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0) < 1e-6 } =>
+    "f(1) is a height (density), not a probability. Read the height at x=1 from the graph.",
+));
+
+$cmp_point = $P_point->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 1) < 1e-6 } =>
+    "1 is f(1), the height. A single point has zero width, so the probability is 0.",
+));
+
+# Rating (1–5)
+if ($ENABLE_GP_RATING) {
+  $cmp_rating = Real(3)->cmp(
+    checker => sub {
+      my ($c, $s, $ans) = @_;
+      my $v = eval { $s->value };
+      if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+        $ans->{score} = 1; $ans->{ans_message} = "Thanks!";
+      } else {
+        $ans->{score} = 0; $ans->{ans_message} = "Please enter an integer from 1 to 5.";
+      }
+      return $ans->{score};
+    }
+  );
+}
+
+# =======================================================
+# Scaffold (LB-safe)
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(can_open => "always", is_open => "always");
+} else {
+  Scaffold::Begin(open_one_at_a_time => 1, can_open => "when_previous_correct");
+}
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+This guided problem introduces **probability density functions** (pdfs) using **geometry only** (no integration).
+
+Let [`` X ``] be a continuous random variable with pdf [`` f(x) ``] shown in the graph below.
+
+You will:
+- check the two pdf conditions,
+- compute probabilities of intervals by finding **areas under the curve**,
+- see why point probabilities are 0.
+
+[@ image("pdf_quartercircle_origin_to_1_1_plus_rectangle.png", width => 520) @]*
+END_PGML
+Section::End();
+
+Section::Begin("Two conditions and the interval rule");
+BEGIN_PGML
+Every density function [`` f(x) ``] must satisfy:
+
+1. [`` f(x)\ge 0 ``] for all [`` x ``] (the graph never drops below the x-axis).
+2. The total area under the graph of [`` f(x) ``] is 1.
+
+Also, for any continuous random variable [`` X ``]:
+[`` P(a\le X\le b)=P(a< X\le b)=P(a\le X< b)=P(a< X< b) ``]
+
+**Checkpoint:** Which expression represents a probability like [`` P(1\le X\le 1+\pi/8) ``]?
+
+[@ $rb_pdfprob->buttons() @]*
+END_PGML
+ANS($rb_pdfprob->cmp);
+Section::End();
+
+Section::Begin("Geometry toolbox (the only formulas we need)");
+BEGIN_PGML
+We will compute probabilities using basic geometry:
+
+- Rectangle area = (base)(height)
+- Quarter circle area (radius 1) = [`` \pi/4 ``]
+
+Key idea for the curved part:
+On [`` 0\le x\le 1 ``], the pdf is the “top of the 1×1 square” minus a quarter-circle arc.
+So the area under the curve on [`` 0\le x\le 1 ``] is:
+
+(area of 1×1 square) − (area of quarter circle).
+END_PGML
+Section::End();
+
+Section::Begin("Check condition 2: total area is 1");
+BEGIN_PGML
+Compute the total area in pieces.
+
+1) Area under the curved part on [`` 0\le x\le 1 ``] (square minus quarter circle):
+
+[____]
+
+2) Width (base) of the rectangle part (from [`` 1 ``] to [`` 1+\pi/4 ``]):
+
+[____]
+
+3) Area of the rectangle part (height 1):
+
+[____]
+
+4) Total area (curved part + rectangle part):
+
+[____]
+END_PGML
+ANS($cmp_arcArea);
+ANS($cmp_rectWidth);
+ANS($cmp_rectArea);
+ANS($cmp_totalArea);
+Section::End();
+
+Section::Begin("Interval probabilities by geometry");
+BEGIN_PGML
+Now compute probabilities as **areas** under the graph.
+
+1) [`` P(0\le X\le 1) ``]  (this is exactly the curved-part area):
+
+[____]
+
+2) [`` P(X\ge 1) ``]  (this is exactly the rectangle area):
+
+[____]
+
+3) [`` P(0\le X\le 1+\pi/8) ``]  (curved part + a rectangle slice of width [`` \pi/8 ``]):
+
+[____]
+
+4) [`` P(1+\pi/8\le X\le 1+\pi/4) ``]  (the remaining rectangle slice):
+
+[____]
+END_PGML
+ANS($cmp_P_0_1);
+ANS($cmp_P_Xge1);
+ANS($cmp_P_0_to_1pi8);
+ANS($cmp_P_tail);
+Section::End();
+
+Section::Begin("Endpoints do not matter");
+BEGIN_PGML
+For continuous random variables, endpoints do not affect probability.
+
+Compute:
+
+1) [`` P(0< X< 1)= ``] [____]
+
+2) [`` P(0\le X\le 1)-P(0< X< 1)= ``] [____]
+END_PGML
+ANS($cmp_same_open);
+ANS($cmp_diff_endpoints);
+Section::End();
+
+Section::Begin("Point probability is zero");
+BEGIN_PGML
+A pdf value like [`` f(1) ``] is a **height** (density), not a probability.
+
+1) Read from the graph: [`` f(1)= ``] [____]
+
+2) But the probability of a single point is always zero for a continuous random variable:
+[`` P(X=1)= ``] [____]
+END_PGML
+ANS($cmp_f1);
+ANS($cmp_point);
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Enter the key takeaways:
+
+Total area under the pdf [`` = ``] [____]  
+[`` P(X\ge 1)= ``] [____]  
+[`` P(X=1)= ``] [____]
+END_PGML
+ANS($totalArea->cmp);
+ANS($P_Xge1->cmp);
+ANS($P_point->cmp);
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating 1–5) (hidden in LB)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for understanding what a pdf means?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]
+END_PGML
+  ANS($cmp_rating);
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

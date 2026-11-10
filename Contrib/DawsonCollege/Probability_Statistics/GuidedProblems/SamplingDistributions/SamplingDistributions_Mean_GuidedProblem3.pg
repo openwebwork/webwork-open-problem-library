@@ -1,0 +1,238 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Sampling Distribution of the Sample Mean (Normal Population): Salmon Weights (n=5) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Sampling Distributions)
+## Level(2)
+## KEYWORDS('normal distribution','sampling distribution','sample mean','z-score','standardization','sigma over root n','salmon weights')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data (given)
+# =======================================================
+$mu    = Real(4.5);
+$sigma = Real(0.6);
+$c     = Real(4.0);
+$n     = 5;
+
+# =======================================================
+# Correct numeric targets (precomputed)
+# =======================================================
+# Standard error: sigma/sqrt(5) = 0.268328...
+$SE_exact = 0.2683281572999747;
+
+# Part (a): z = (4.0-4.5)/0.6 = -0.833333...
+$z_a_exact  = -0.8333333333333334;
+# P(X<4.0) = Phi(z) = 0.202328...
+$P_a_exact  = 0.20232838096364303;
+
+# Part (b): z = (4.0-4.5)/(0.6/sqrt(5)) = -1.863389...
+$z_b_exact  = -1.8633899812498251;
+# P(Xbar<4.0) = Phi(z) = 0.0312037...
+$P_b_exact  = 0.0312037092843529;
+
+# =======================================================
+# Tolerances
+# =======================================================
+# Students will likely round z to 3 decimals and probabilities to 4 decimals.
+$tol_mu = 0.001;
+$tol_se = 0.002;    # allows 0.268 or 0.2683
+$tol_z  = 0.02;     # allows typical rounding of z
+$tol_p  = 0.001;    # allows 4-decimal rounding safely
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_mu_bar = $mu->cmp(tolType=>"absolute", tolerance=>$tol_mu)
+  ->withPostFilter(HintIfWrong("For a normal population, the mean of X-bar is the same as the mean of X."));
+
+$cmp_se = Real($SE_exact)->cmp(tolType=>"absolute", tolerance=>$tol_se)
+  ->withPostFilter(HintIfWrong("Standard error is sigma divided by sqrt(n). Here: 0.6/sqrt(5)."));
+
+$cmp_z1 = Real($z_a_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Compute z = (c - mu)/sigma."));
+
+$cmp_p1 = Real($P_a_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("Use the standard normal table/CDF: P(X<c)=P(Z<z)."));
+
+$cmp_z2 = Real($z_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Use z = (c - mu)/(sigma/sqrt(n)). The denominator is the standard error."));
+
+$cmp_p2 = Real($P_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("Use the standard normal table/CDF: P(X-bar<c)=P(Z<z)."));
+
+# =======================================================
+# Rating checker
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(numbered=>1, can_open=>"always", is_open=>"always");
+} else {
+  Scaffold::Begin(numbered=>1, can_open=>"when_previous_correct", is_open=>"correct_or_first_incorrect");
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Let [``X``] be the weight (in kg) of a farm-raised salmon at the time of harvest.
+
+Assume [``X``] is normally distributed with mean [``\mu=4.5``] and standard deviation [``\sigma=0.6``]. In symbols:
+
+[``X \sim N(4.5,\,0.6)``]
+
+Let [``c=4.0``] kg.
+
+(a) Find [``P(X<c)``].
+
+(b) Take a random sample of [``n=5``] salmon. Let [``\bar X``] be the sample mean. Find [``P(\bar X<c)``].
+
+Rounding: Round z-scores to 3 decimals and probabilities to 4 decimals.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Main concept (no image)
+# -------------------------------------------------------
+Section::Begin("Main concept: sampling distribution of the mean (normal population)");
+BEGIN_PGML
+**Theorem (Normal population):**  
+If [``X``] is normally distributed, then for any sample size [``n``], the sample mean [``\bar X``] is also normally distributed, with
+
+- [``\mu_{\bar X}=\mu``]
+- [``\sigma_{\bar X}=\sigma/\sqrt{n}``]
+
+For this problem, [``n=5``].
+
+Enter [``\mu_{\bar X}``]: [____]  
+Enter [``\sigma_{\bar X}``] (the standard error): [____]
+END_PGML
+
+ANS($cmp_mu_bar, $cmp_se);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Part (a): probability for one salmon
+# -------------------------------------------------------
+Section::Begin("Part (a): P(X < c)");
+BEGIN_PGML
+To find [``P(X<c)``], standardize:
+
+[``z=\dfrac{c-\mu}{\sigma}``]
+
+1) Compute the z-score for [``X``]: [____]  
+
+2) Then compute [``P(X<c)=P(Z<z)``]: [____]
+END_PGML
+
+ANS($cmp_z1, $cmp_p1);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Part (b): probability for the sample mean (n=5)
+# -------------------------------------------------------
+Section::Begin("Part (b): P(X-bar < c) for n=5");
+BEGIN_PGML
+Because the population is normal, the sample mean is normal:
+
+[``\bar X \sim N\!\left(\mu,\dfrac{\sigma}{\sqrt{5}}\right)``]
+
+Standardize:
+
+[``z=\dfrac{c-\mu}{\sigma/\sqrt{5}}``]
+
+1) Compute the z-score for [``\bar X``]: [____]  
+
+2) Then compute [``P(\bar X<c)=P(Z<z)``]: [____]
+END_PGML
+
+ANS($cmp_z2, $cmp_p2);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

@@ -1,0 +1,283 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Central Limit Theorem (CLT): Customer Returns per Day (Discrete X, n=49) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Sampling Distributions)
+## Level(2)
+## KEYWORDS('central limit theorem','CLT','sampling distribution','sample mean','z-score','standardization','sigma over root n','discrete random variable','customer returns')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data (given) -- discrete and clearly not normal; do NOT give a distribution
+# =======================================================
+# X = number of customer returns received in one day
+$mu    = Real(40);
+$sigma = Real(15);
+$n     = 49;
+$cut   = Real(45);
+
+# =======================================================
+# Correct numeric targets (precomputed)
+# =======================================================
+# Standard error: sigma/sqrt(49) = 15/7
+$SE_exact   = 2.142857142857143;
+
+# z = (45 - 40)/(15/sqrt(49)) = 2.333333333...
+$z_b_exact  = 2.3333333333333335;
+
+# P(Xbar > 45) = P(Z > 2.333333333...) = 0.0098153286...
+$P_b_exact  = 0.009815328628645342;
+
+# =======================================================
+# Tolerances
+# =======================================================
+$tol_mu = 0.001;
+$tol_se = 0.02;
+$tol_z  = 0.03;
+$tol_p  = 0.001;
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_mu_bar = $mu->cmp(tolType=>"absolute", tolerance=>$tol_mu)
+  ->withPostFilter(HintIfWrong("For the sample mean, mu_Xbar equals mu."));
+
+$cmp_se = Real($SE_exact)->cmp(tolType=>"absolute", tolerance=>$tol_se)
+  ->withPostFilter(HintIfWrong("Standard error is sigma divided by sqrt(n). Here: 15/sqrt(49)."));
+
+# Part (a) MC (numeric 1-5). Correct choice: 2 (cannot compute).
+$cmp_a = Real(2)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return ($s == 2) ? 1 : 0;
+  }
+)->withPostFilter(HintIfWrong("We only know mu and sigma. Without the probability distribution of X, we cannot compute P(X>45)."));
+
+$cmp_zb = Real($z_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Use z = (45 - mu)/(sigma/sqrt(n)). The denominator is the standard error."));
+
+$cmp_pb = Real($P_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("Upper tail: P(X-bar>45)=P(Z>z)=1-P(Z<z)."));
+
+# Part (c) MC (numeric 1-5). Correct choice: 1 (yes, suspicious).
+$cmp_mc = Real(1)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return ($s == 1) ? 1 : 0;
+  }
+)->withPostFilter(HintIfWrong("If the claim is true, the probability in part (b) is very small (less than 0.05), so X-bar > 45 would be unusual."));
+
+# =======================================================
+# Rating checker
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(numbered=>1, can_open=>"always", is_open=>"always");
+} else {
+  Scaffold::Begin(numbered=>1, can_open=>"when_previous_correct", is_open=>"correct_or_first_incorrect");
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A warehouse tracks the number of customer returns received each day.
+
+Let [``X``] be the number of customer returns in one day. This is a **discrete** random variable (a nonnegative integer), and it is **not** expected to look normal.
+
+The warehouse manager claims that the mean number of returns per day is [``\mu=40``] and the standard deviation is [``\sigma=15``].
+
+(a) On the assumption that the manager's claims are true, find [``P(X>45)``].
+
+(b) On the same assumption, take a random sample of [``n=49``] days. Let [``\bar X``] be the sample mean number of returns per day. Find [``P(\bar X>45)``].
+
+(c) If you observe a sample mean as high as [``45``] (or higher) for a random sample of [``49``] days, will you be inclined to suspect the manager's claim?
+
+Rounding: Round z-scores to 3 decimals and probabilities to 4 decimals.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Main concept: Central Limit Theorem
+# -------------------------------------------------------
+Section::Begin("Main concept: Central Limit Theorem");
+BEGIN_PGML
+**Central Limit Theorem (CLT):**  
+For samples of size [``30``] or more, the sample mean [``\bar X``] is approximately normally distributed, with
+
+- [``\mu_{\bar X}=\mu``]
+- [``\sigma_{\bar X}=\sigma/\sqrt{n}``]
+
+Here, [``n=49``].
+
+Enter [``\mu_{\bar X}``]: [____]  
+Enter [``\sigma_{\bar X}``] (the standard error): [____]
+END_PGML
+
+ANS($cmp_mu_bar, $cmp_se);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Part (a): Can we compute P(X > 45)?
+# -------------------------------------------------------
+Section::Begin("Part (a): can we compute P(X > 45)?");
+BEGIN_PGML
+Can [``P(X>45)``] be calculated from the information in the problem statement?
+
+Choose the best answer:
+
+1) Yes, because CLT says [``X``] is (approximately) normal.  
+2) No, because we do not know the probability distribution of [``X``].  
+3) Yes, because [``n=49``] is large.  
+4) Yes, because [``\bar X``] is approximately normal, so [``X``] must be normal too.  
+5) No, because [``X``] is discrete.
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_a);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Part (b): Use CLT for P(X-bar > 45)
+# -------------------------------------------------------
+Section::Begin("Part (b): use CLT to find P(X-bar > 45)");
+BEGIN_PGML
+Now we want [``P(\bar X>45)``] for [``n=49``].
+
+By CLT, [``\bar X``] is approximately normal with mean [``\mu``] and standard deviation [``\sigma/\sqrt{n}``].
+
+Standardize:
+
+[``z=\dfrac{45-\mu}{\sigma/\sqrt{n}}``]
+
+1) Compute the z-score for [``\bar X``]: [____]
+
+2) Then compute the probability:
+[``P(\bar X>45)=P(Z>z)``]: [____]
+
+Note that since [``X``] is NOT normally distributed, for these calculations to be justified we need a large sample size, at least 30. CLT is not valid for small samples.
+END_PGML
+
+ANS($cmp_zb, $cmp_pb);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 — Part (c): should we suspect the claim?
+# -------------------------------------------------------
+Section::Begin("Part (c): should we suspect the claim?");
+BEGIN_PGML
+If you observe a sample mean as high as [``45``] (or higher) for a random sample of [``49``] days, will you be inclined to suspect the manager's claim?
+
+Choose the best answer:
+
+1) Yes. If the claim is true, the probability of observing such a large sample mean or even larger, calculated in part (b), is unusually small (less than 1 percent). In other words this sample mean would be very unlikely.  
+2) Yes. Any sample mean above [``45``] contradicts the claim.  
+3) No. If the claim is true, the probability in part (b) is not very small, so this sample mean is not that unusual.  
+4) No. The sample mean must always equal [``\mu``] when [``n=49``].  
+5) Not enough information.
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_mc);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

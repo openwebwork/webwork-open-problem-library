@@ -1,0 +1,253 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Bayes Theorem (Guided / Scaffolded) — Breast Cancer (Canada)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability)
+## Level(2)
+## KEYWORDS('Bayes theorem','Bayes','law of total probability','total probability','conditional probability','medical test','sensitivity','specificity','breast cancer')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# Library Browser (safe detection)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{probContext}) && ref($envir{probContext}) eq 'HASH' && $envir{probContext}{inLibraryBrowser}) {
+  $inLibraryBrowser = 1;
+}
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+# Prevalence (0.35% per year)
+$P_C    = 0.0035;         # P(C)
+$P_notC = 1 - $P_C;       # P(C^c)
+
+# Given data:
+# false negative = 11% among those with cancer  => P(-|C) = 0.11
+# false positive = 7% among those without cancer => P(+|C^c) = 0.07
+$P_neg_given_C     = 0.11;            # false negative rate
+$P_pos_given_C     = 1 - $P_neg_given_C;  # sensitivity
+
+$P_pos_given_notC  = 0.07;            # false positive rate
+$P_neg_given_notC  = 1 - $P_pos_given_notC; # specificity
+
+# Overall positive rate via LTP
+$P_pos = ($P_pos_given_C)*($P_C) + ($P_pos_given_notC)*($P_notC);
+
+# Bayes posterior after one positive
+$P_C_given_pos = ($P_pos_given_C * $P_C) / $P_pos;
+
+# Two independent clinics (two positives)
+$P_pospos_given_C    = ($P_pos_given_C)*($P_pos_given_C);
+$P_pospos_given_notC = ($P_pos_given_notC)*($P_pos_given_notC);
+$P_pospos            = ($P_pospos_given_C)*($P_C) + ($P_pospos_given_notC)*($P_notC);
+$P_C_given_pospos    = ($P_pospos_given_C * $P_C) / $P_pospos;
+
+# Store values as MathObjects
+$val_PC     = Real($P_C);
+$val_PnotC  = Real($P_notC);
+
+$val_sens = Real($P_pos_given_C);
+$val_fnr  = Real($P_neg_given_C);
+$val_spec = Real($P_neg_given_notC);
+$val_fpr  = Real($P_pos_given_notC);
+
+$val_Ppos        = Real($P_pos);
+$val_C_given_pos = Real($P_C_given_pos);
+
+$val_C_given_pp  = Real($P_C_given_pospos);
+
+# =======================================================
+# Concept checkpoint (MC): two independent clinics
+# =======================================================
+$rb_two_clinics = RadioButtons(
+  [
+    "about 0.07",
+    "about 0.89",
+    "about 0.50",
+    "about 0.36",
+    "about 0.04",
+  ],
+  3,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Guided flow (Scaffold)
+# =======================================================
+Scaffold::Begin();
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Breast Cancer in Canada: In Canada, about **0.35%** of women over 40 will develop breast cancer in any given year. A common screening test for cancer is the mammogram, but this test is not perfect. In about **11%** of patients with breast cancer, the test gives a false negative: it indicates a woman does not have breast cancer when she does have breast cancer. Similarly, the test gives a false positive in **7%** of patients who do not have breast cancer: it indicates these patients have breast cancer when they actually do not. If we tested a random woman over 40 for breast cancer using a mammogram and the test came back
+positive, what is the probability that the patient actually has breast cancer?
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Key rates: Sensitivity, false negative, specificity, false positive");
+BEGIN_PGML
+Now we will introduce notation.
+
+Let [`C`] mean "the woman has breast cancer" and [`C^c`] mean "the woman does not have breast cancer."  
+Let [`+`] mean "mammogram is positive" and [`-`] mean "mammogram is negative."
+
+Definitions:
+
+- **Sensitivity (true positive rate):** [`P(+\mid C)`]
+- **False negative rate:** [`P(-\mid C)`]
+- **Specificity (true negative rate):** [`P(-\mid C^c)`]
+- **False positive rate:** [`P(+\mid C^c)`]
+
+
+**Identify each value from the problem data (enter decimals).**
+
+Sensitivity = [`P(+\mid C)=`] [__________]{$val_sens->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "Use a decimal (for example 0.07), not a percent (like 7).",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_neg_given_C) < 0.0005 } => "That is P(-|C), the false negative rate. Sensitivity is P(+|C)=1-P(-|C).",
+))}
+
+False negative rate = [`P(-\mid C)=`] [__________]{$val_fnr->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "Use a decimal (for example 0.11), not a percent (like 11).",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_pos_given_C) < 0.0005 } => "That is P(+|C), the sensitivity. False negative rate is P(-|C).",
+))}
+
+Specificity = [`P(-\mid C^c)=`] [__________]{$val_spec->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "Use a decimal (for example 0.93), not a percent (like 93).",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_pos_given_notC) < 0.0005 } => "That is P(+|C^c), the false positive rate. Specificity is 1 - false positive rate.",
+))}
+
+False positive rate = [`P(+\mid C^c)=`] [__________]{$val_fpr->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "Use a decimal (for example 0.07), not a percent (like 7).",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_neg_given_notC) < 0.0005 } => "That is P(-|C^c), the specificity. False positive rate is P(+|C^c).",
+))}
+
+Base rates:
+
+[`P(C)=`] [__________]{$val_PC->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "Use a decimal (for example 0.0035), not a percent (like 0.35).",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_notC) < 0.0005 } => "That is P(C^c). Here we want P(C).",
+))}
+
+[`P(C^c)=`] [__________]{$val_PnotC->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "Use a decimal between 0 and 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_C) < 0.0005 } => "That is P(C). Here we want P(C^c)=1-P(C).",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Find the overall positive probability using the Law of Total Probability");
+BEGIN_PGML
+To use Bayes Theorem we need the overall probability of a positive test, [`P(+)`].
+
+A positive test can happen in two non-overlapping cases:
+- the woman has breast cancer
+- the woman does not have breast cancer
+
+So we use the Law of Total Probability:
+[`` P(+)=P(+\mid C)P(C)+P(+\mid C^c)P(C^c). ``]
+
+Compute [`P(+)`]: [__________]{$val_Ppos->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "This is greater than 1, so it cannot be a probability. Make sure you are using decimals like 0.07, not 7%.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_pos_given_C*$P_C) < 0.0005 } => "That is only the cancer piece P(+|C)P(C). You must also add the no-cancer piece.",
+  sub { abs($_[0]-$P_pos_given_notC*$P_notC) < 0.0005 } => "That is only the no-cancer piece P(+|C^c)P(C^c). You must also add the cancer piece.",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Bayes Theorem (compute the answer)");
+BEGIN_PGML
+We want the probability the woman actually has breast cancer **given** that the test is positive.
+
+Bayes Theorem:
+[`` P(C\mid +)=\dfrac{P(+\mid C)\,P(C)}{P(+)}. ``]
+
+Here [`P(+)`] is the value you computed in the previous step.
+
+Compute [`P(C\mid +)`]: [__________]{$val_C_given_pos->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_C) < 0.0005 } => "That is the base rate P(C)=0.0035. After a positive test, the probability should be larger than 0.0035.",
+  sub { abs($_[0]-$P_pos_given_C) < 0.0005 } => "That is P(+|C), the sensitivity. Here we want P(C|+). Use Bayes: divide by P(+).",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Two independent clinics (prediction question)");
+BEGIN_PGML
+Now suppose the woman takes the **same type of mammogram at two independent clinics**, and both tests come back **positive**.
+
+Assume the test results are independent given whether she has breast cancer or not.
+
+**Guess:** What would the probability be that she actually has breast cancer now?
+
+[@ $rb_two_clinics->buttons() @]*
+END_PGML
+ANS($rb_two_clinics->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] ne "" } => "If you compute it, you would use Bayes again with P(++|C)=(P(+|C))(P(+|C)) and P(++|C^c)=(P(+|C^c))(P(+|C^c)).",
+)));
+Section::End();
+
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning Bayes Theorem?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{Real(3)->cmp(checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return ($v == int($v) && $v >= 1 && $v <= 5);
+  })->withPostFilter(AnswerHints(
+    sub { $_[0] < 1 || $_[0] > 5 } => "Please enter an integer from 1 to 5.",
+    sub { $_[0] != int($_[0]) } => "Please enter a whole number (integer) from 1 to 5.",
+  ))}
+  END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

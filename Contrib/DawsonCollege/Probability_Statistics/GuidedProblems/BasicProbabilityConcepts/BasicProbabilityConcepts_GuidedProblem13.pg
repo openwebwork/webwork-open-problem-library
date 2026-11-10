@@ -1,0 +1,475 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Union & Intersection from a Contingency Table (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Union and Intersection)
+## Level(2)
+## KEYWORDS('probability','event','intersection','union','contingency table','additive rule')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "contextString.pl",
+  "scaffold.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Population data (counts)
+# Rows: Gender (F = Female, M = Male)
+# Cols: Program (A = Arts, E = Engineering, C = Commerce)
+# =======================================================
+%cnt = (
+  F => { A => 120, E => 210, C =>  90 },   # row total 420
+  M => { A => 180, E => 150, C =>  50 },   # row total 380
+);
+
+$rowF = $cnt{F}{A} + $cnt{F}{E} + $cnt{F}{C};
+$rowM = $cnt{M}{A} + $cnt{M}{E} + $cnt{M}{C};
+
+$colA = $cnt{F}{A} + $cnt{M}{A};
+$colE = $cnt{F}{E} + $cnt{M}{E};
+$colC = $cnt{F}{C} + $cnt{M}{C};
+
+$N = $rowF + $rowM;
+
+# =======================================================
+# Working set-entry method (String context + comma redefine)
+# Students enter comma-separated outcome codes like: FA, ME, MC
+# =======================================================
+$ctxSet = Context("String");
+$ctxSet->operators->redefine(',', using => ',');
+
+$ctxSet->strings->add(
+  "FA" => {}, "FE" => {}, "FC" => {},
+  "MA" => {}, "ME" => {}, "MC" => {},
+);
+
+# Correct event sets (order doesn't matter)
+$set_E    = List( String("FE"), String("ME") );                                # Engineering
+$set_Cc   = List( String("FA"), String("FE"), String("MA"), String("ME") );    # not Commerce
+$set_MuA  = List( String("FA"), String("MA"), String("ME"), String("MC") );    # Male or Arts
+
+$cmp_set_E   = $set_E->cmp(ignoreOrder => 1);
+$cmp_set_Cc  = $set_Cc->cmp(ignoreOrder => 1);
+$cmp_str_FE  = String("FE")->cmp();                                            # Female and Engineering
+$cmp_set_MuA = $set_MuA->cmp(ignoreOrder => 1);
+
+# =======================================================
+# Numeric comparators (probabilities + rating)
+# =======================================================
+Context("Numeric");
+
+$prob_E    = $colE / $N;
+$prob_Cc   = 1 - ($colC / $N);
+$prob_FE   = $cnt{F}{E} / $N;
+$prob_MuA  = ($rowM + $colA - $cnt{M}{A}) / $N;   # general additive rule value
+
+$cmp_prob_E   = Real($prob_E)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_prob_Cc  = Real($prob_Cc)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_prob_FE  = Real($prob_FE)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_prob_MuA = Real($prob_MuA)->cmp(tolType => "absolute", tolerance => 0.001);
+
+# For new additive-rule verification section (Male or Arts)
+$prob_M   = $rowM / $N;
+$prob_A   = $colA / $N;
+$prob_MiA = $cnt{M}{A} / $N;
+
+$cmp_prob_M   = Real($prob_M)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_prob_A   = Real($prob_A)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_prob_MiA = Real($prob_MiA)->cmp(tolType => "absolute", tolerance => 0.001);
+
+$cmp_add_expr = Real($prob_M + $prob_A - $prob_MiA)->cmp(tolType => "absolute", tolerance => 0.001);
+
+$cmp_rating = Real(1)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return ($v >= 1 && $v <= 5) ? 1 : 0;
+  }
+);
+
+# Restore set context for set-building blanks
+Context($ctxSet);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_TEXT
+The breakdown of the students enrolled in a college by <b>gender</b> and <b>program</b> is shown in the contingency table below.
+A student is selected at random, and we record the student's gender and program.
+$PAR
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr>
+  <th></th>
+  <th>Arts (A)</th>
+  <th>Engineering (E)</th>
+  <th>Commerce (C)</th>
+  <th>Row total</th>
+</tr>
+<tr>
+  <th>Female (F)</th>
+  <td>$cnt{F}{A}</td><td>$cnt{F}{E}</td><td>$cnt{F}{C}</td>
+  <td>$rowF</td>
+</tr>
+<tr>
+  <th>Male (M)</th>
+  <td>$cnt{M}{A}</td><td>$cnt{M}{E}</td><td>$cnt{M}{C}</td>
+  <td>$rowM</td>
+</tr>
+<tr>
+  <th>Column total</th>
+  <td>$colA</td><td>$colE</td><td>$colC</td>
+  <td>$N</td>
+</tr>
+</table>
+
+$PAR
+In this problem, each <b>cell</b> of the table is one outcome.
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Outcome codes and the sample space");
+
+BEGIN_TEXT
+We label outcomes using a <b>two-letter code</b>.
+$PAR
+
+First letter (gender):
+$BR
+F = Female, M = Male
+$PAR
+
+Second letter (program):
+$BR
+A = Arts, E = Engineering, C = Commerce
+$PAR
+
+Examples:
+$BR
+FA means (Female, Arts)
+$BR
+ME means (Male, Engineering)
+$BR
+MC means (Male, Commerce)
+$PAR
+
+So the sample space looks like this:
+$BR
+\(S = \lbrace FA, FE, FC, MA, ME, MC \rbrace\)
+$PAR
+
+Checkpoint: Which code represents "Female and Engineering"?
+$BR
+A) EF
+$BR
+B) FE
+$BR
+C) ME
+$BR
+D) FC
+$PAR
+Answer (A/B/C/D): \{ ans_rule(2) \}
+END_TEXT
+
+ANS( str_cmp("B") );
+
+Section::End();
+
+# =======================================================
+# EVENT 1 (simple)
+# =======================================================
+Section::Begin("Event 1 — Engineering");
+
+BEGIN_TEXT
+<b>Event 1 (Simple event)</b>
+$PAR
+Let \(E\) be the event: "<b>The student is enrolled in Engineering</b>."
+$PAR
+
+<b>Step 1 (Build the event).</b>
+List all outcome codes that satisfy "enrolled in Engineering".
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(E\) = { \{ ans_rule(40) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Use the table to compute:
+$BR
+\(P(E) = \dfrac{\text{(number in Engineering)}}{\text{(total number of students)}}\)
+$PAR
+Enter \(P(E)\) as a decimal (example: 40% would be 0.40):
+$BR
+\(P(E)\) = \{ ans_rule(10) \}
+END_TEXT
+
+ANS($cmp_set_E);
+
+Context("Numeric");
+ANS($cmp_prob_E);
+Context($ctxSet);
+
+Section::End();
+
+# =======================================================
+# EVENT 2 (complement)
+# =======================================================
+Section::Begin("Event 2 — Not Commerce");
+
+BEGIN_TEXT
+<b>Event 2 (Complement event)</b>
+$PAR
+Let \(C\) be the event: "<b>The student is enrolled in Commerce</b>."
+Then \(C^c\) means: "<b>The student is NOT enrolled in Commerce</b>."
+$PAR
+
+<b>Step 1 (Build the complement event).</b>
+List all outcome codes that satisfy "not Commerce".
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(C^c\) = { \{ ans_rule(40) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+You may compute it directly from counts, or use:
+$BR
+\(P(C^c)=1-P(C)\)
+$PAR
+Enter \(P(C^c)\) as a decimal:
+$BR
+\(P(C^c)\) = \{ ans_rule(10) \}
+END_TEXT
+
+ANS($cmp_set_Cc);
+
+Context("Numeric");
+ANS($cmp_prob_Cc);
+Context($ctxSet);
+
+Section::End();
+
+# =======================================================
+# EVENT 3a (choose notation for "and")
+# =======================================================
+Section::Begin("Event 3A — Choose the correct notation (and)");
+
+BEGIN_TEXT
+<b>Event 3 (Compound event with "and")</b>
+$PAR
+Consider the event: "<b>Female and Engineering</b>".
+$PAR
+Which option correctly represents this compound event?
+$PAR
+$BR
+A) \(F \cup E\)
+$BR
+B) \(F^c \cap E\)
+$BR
+C) \(F \cap E\)
+$BR
+D) \(F \cap E^c\)
+$PAR
+Answer (A/B/C/D): \{ ans_rule(2) \}
+END_TEXT
+
+ANS( str_cmp("C") );
+
+Section::End();
+
+# =======================================================
+# EVENT 3b ("and" = intersection; build + probability)
+# =======================================================
+Section::Begin("Event 3B — Build the event and find its probability");
+
+BEGIN_TEXT
+Now build the event "<b>Female and Engineering</b>" and compute its probability.
+$PAR
+
+<b>Step 1 (Build the event).</b>
+List all outcome codes that satisfy: Female <b>and</b> Engineering.
+(If the event has only one outcome, just type that one code.)
+$BR
+\(F \cap E\) = { \{ ans_rule(20) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Enter \(P(F \cap E)\) as a decimal:
+$BR
+\(P(F \cap E)\) = \{ ans_rule(10) \}
+END_TEXT
+
+ANS($cmp_str_FE);
+
+Context("Numeric");
+ANS($cmp_prob_FE);
+Context($ctxSet);
+
+Section::End();
+
+# =======================================================
+# EVENT 4a (choose notation for "or")
+# =======================================================
+Section::Begin("Event 4A — Choose the correct notation (or)");
+
+BEGIN_TEXT
+<b>Event 4 (Compound event with "or")</b>
+$PAR
+Consider the event: "<b>Male or Arts</b>".
+(Remember: "or" includes the case where both happen.)
+$PAR
+Which option correctly represents this compound event?
+$PAR
+$BR
+A) \(M \cap A\)
+$BR
+B) \(M \cup A\)
+$BR
+C) \(M^c \cup A\)
+$BR
+D) \(M \cup A^c\)
+$PAR
+Answer (A/B/C/D): \{ ans_rule(2) \}
+END_TEXT
+
+ANS( str_cmp("B") );
+
+Section::End();
+
+# =======================================================
+# EVENT 4b ("or" = union; build + probability)
+# =======================================================
+Section::Begin("Event 4B — Build the event and find its probability");
+
+BEGIN_TEXT
+Now build the event "<b>Male or Arts</b>" and compute its probability.
+$PAR
+
+<b>Step 1 (Build the event).</b>
+List all outcome codes that satisfy: Male <b>or</b> Arts (or both).
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(M \cup A\) = { \{ ans_rule(40) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Compute \(P(M \cup A)\) using the table (be careful not to double-count).
+$PAR
+Enter \(P(M \cup A)\) as a decimal:
+$BR
+\(P(M \cup A)\) = \{ ans_rule(10) \}
+END_TEXT
+
+ANS($cmp_set_MuA);
+
+Context("Numeric");
+ANS($cmp_prob_MuA);
+Context($ctxSet);
+
+Section::End();
+
+# =======================================================
+# NEW SECTION: General Additive Rule verification
+# =======================================================
+Section::Begin("General Additive Rule");
+
+BEGIN_TEXT
+<b>General Additive Rule</b>
+$PAR
+For any two events \(X\) and \(Y\):
+$BR
+\(P(X \cup Y)=P(X)+P(Y)-P(X \cap Y)\)
+$PAR
+
+In the previous section we calculated the probability of "Male or Arts" to be \(5/8\).
+Now let's use the general additive rule to get the same result.
+$PAR
+
+<b>Step 1.</b> Find \(P(M)\):
+$BR
+\(P(M)\) = \{ ans_rule(10) \}
+$PAR
+
+<b>Step 2.</b> Find \(P(A)\):
+$BR
+\(P(A)\) = \{ ans_rule(10) \}
+$PAR
+
+<b>Step 3.</b> Find \(P(M \cap A)\):
+$BR
+\(P(M \cap A)\) = \{ ans_rule(10) \}
+$PAR
+
+<b>Step 4.</b> Compute:
+$BR
+\(P(M \cup A)=P(M)+P(A)-P(M \cap A)\) = \{ ans_rule(10) \}
+END_TEXT
+
+Context("Numeric");
+ANS($cmp_prob_M);
+ANS($cmp_prob_A);
+ANS($cmp_prob_MiA);
+ANS($cmp_add_expr);
+
+Context($ctxSet);
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING (ACTIVE)
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+  BEGIN_TEXT
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+$PAR
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+$BR
+Note: Consider using the Email Instructor button below to suggest improvements.
+$PAR
+Rating:
+$BR
+\{ ans_rule(6) \}
+END_TEXT
+
+  Context("Numeric");
+  ANS($cmp_rating);
+  Context($ctxSet);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

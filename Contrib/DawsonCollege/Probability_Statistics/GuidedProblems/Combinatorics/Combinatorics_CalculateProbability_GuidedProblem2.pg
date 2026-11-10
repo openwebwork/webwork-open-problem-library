@@ -1,0 +1,184 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Probability via Counting: Lotto 6/49 Jackpot (Guided / Scaffolded)
+## ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+# Lotto 6/49: choose 6 numbers from 49 (order does not matter)
+$n = 49;
+$r = 6;
+
+# helper: nCr without huge factorials
+sub nCr {
+  my ($n,$r) = @_;
+  return 0 if ($r < 0 || $r > $n);
+  $r = $n - $r if ($r > $n - $r);
+  my $prod = 1;
+  for (my $k = 1; $k <= $r; $k++) {
+    $prod = $prod * ($n - $r + $k) / $k;
+  }
+  return int($prod + 0.5);
+}
+
+# Sample space size: C(49,6)
+$S_total = nCr($n,$r);
+
+# Common wrong counts (for hints)
+$S_perm = 1;
+for (my $i = 0; $i < $r; $i++) { $S_perm *= ($n - $i); }
+$S_pow  = $n**$r;
+
+# Favorable outcomes for ONE ticket
+$E_fav = 1;
+
+# Probability
+$prob = $E_fav / $S_total;
+
+# =======================================================
+# Values
+# =======================================================
+$valS    = Real($S_total);
+$valEfav = Real($E_fav);
+$valProb = Real($prob);
+
+# =======================================================
+# Evaluators
+# =======================================================
+$cmp_S = $valS->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-$S_perm) < 0.5 } => "That is \(P(49,6)\). For Lotto 6/49, the order does NOT matter, so use \(C(49,6)\).",
+  sub { abs($_[0]-$S_pow) < 0.5 }  => "That is \(49^6\). In Lotto, balls are drawn without replacement and order does not matter.",
+));
+
+$cmp_Efav = $valEfav->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-720) < 0.5 } => "A single ticket is ONE specific set of 6 numbers.",
+  sub { abs($_[0]-6) < 0.5 }   => "One ticket is one outcome, not 6.",
+));
+
+$cmp_prob = $valProb->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "Probabilities cannot be greater than 1.",
+));
+
+# Step 2 checkpoint
+$rb_method = RadioButtons(
+  [
+    "Use \(49^6\) because each draw has 49 choices.",
+    "Use \(P(49,6)\) because the balls are drawn one after another.",
+    "Use \(C(49,6)\) because only the set of 6 numbers matters (order does not matter).",
+  ],
+  2,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+
+    my $v = eval { $student->value };   # safe extraction
+
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Guided flow (Scaffold)
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+In **Lotto 6/49**, six numbers are drawn at random from a set of 49 numbers (balls labeled 1 to 49). The 6 balls are drawn **without replacement**.
+
+You buy **one ticket** by choosing **6 distinct numbers**. You hit the **jackpot** if your numbers match the draws perfectly. **Order does not matter.**
+
+Find the probability of hitting the jackpot with a single ticket.
+END_PGML
+Section::End();
+
+Section::Begin("Equally likely outcomes");
+BEGIN_PGML
+All 6-number sets are **equally likely**. If [`` E ``] is the event "hit the jackpot", then:
+[`` P(E)=\frac{\#(E)}{\#(S)} ``].
+
+**Checkpoint:** Which counting method should we use for [`` \#(S) ``] here?
+
+[@ $rb_method->buttons() @]*
+END_PGML
+ANS($rb_method->cmp);
+Section::End();
+
+Section::Begin("Count the sample space");
+BEGIN_PGML
+The sample space consists of all possible sets of 6 numbers from 49, where **order does not matter**.
+
+The number of all possible outcomes:
+
+[`` \#(S) = ``] [________________]{$cmp_S}
+END_PGML
+Section::End();
+
+Section::Begin("Count favorable outcomes");
+BEGIN_PGML
+How many outcomes (6-number sets) from the sample space match your specific ticket exactly?
+
+[`` \#(E) = ``] [____]{$cmp_Efav}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Using [`` P(E)=\frac{\#(E)}{\#(S)} ``]:
+
+[`` P(E) = ``] [____________________]{$cmp_prob}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating 1–5)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

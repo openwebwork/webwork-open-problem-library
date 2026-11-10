@@ -1,0 +1,338 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — General Additive Rule (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Addition Rule)
+## Level(2)
+## KEYWORDS('probability','event','union','intersection','addition rule','Venn diagram','language')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "parserRadioButtons.pl",
+  "answerHints.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# IMAGES (same folder as this .pg, per your server rule)
+#   venn_3.png     (A shades E, B shades E union F, C shades E intersection F)
+#   venn_2.png     (English Only / French Only; intersection is pure white)
+# ----------------------------------------------------------------
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+$showPartialCorrectAnswers = 1;
+
+Context("Numeric");
+
+# -------------------------------------------------------
+# Given probabilities (decimals)
+# -------------------------------------------------------
+$P_E    = Real(0.56);
+$P_EuF  = Real(0.78);
+$P_EiF  = Real(0.23);
+
+# Derived
+$P_F      = Real(0.78 - 0.56 + 0.23);                 # 0.45
+$P_Eonly  = Real(0.56 - 0.23);                        # 0.33
+$P_Fonly  = Real((0.78 - 0.56 + 0.23) - 0.23);        # 0.22
+
+# -------------------------------------------------------
+# Numeric comparators (with AnswerHints; hints stay enabled)
+# -------------------------------------------------------
+$cmp_PE = $P_E->cmp->withPostFilter(AnswerHints(
+  Real(56) => "Use decimals (example: 56% = 0.56).",
+));
+
+$cmp_PEuF = $P_EuF->cmp->withPostFilter(AnswerHints(
+  Real(78) => "Use decimals (example: 78% = 0.78).",
+));
+
+$cmp_PEiF = $P_EiF->cmp->withPostFilter(AnswerHints(
+  Real(23) => "Use decimals (example: 23% = 0.23).",
+));
+
+$cmp_PF = $P_F->cmp->withPostFilter(AnswerHints(
+  Real(0.79) => "General additive rule: subtract the intersection once.",
+  Real(0.33) => "That looks like English-only. Here we want P(F).",
+));
+
+$cmp_Eonly = $P_Eonly->cmp->withPostFilter(AnswerHints(
+  Real(0.23) => "English-only is NOT the overlap. Subtract the overlap from P(English).",
+));
+
+$cmp_Fonly = $P_Fonly->cmp->withPostFilter(AnswerHints(
+  Real(0.45) => "That is P(F). French-only subtracts the overlap.",
+));
+
+$cmp_union_check = $P_EuF->cmp->withPostFilter(AnswerHints(
+  Real(1) => "If you got 1, you counted everyone. Use only + only + both.",
+));
+
+# -------------------------------------------------------
+# Radio buttons (PGML style: [_]{$rb})
+# -------------------------------------------------------
+$rb_E = RadioButtons(
+  [
+    'Diagram A',
+    'Diagram B',
+    'Diagram C',
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_EuF = RadioButtons(
+  [
+    'Diagram A',
+    'Diagram B',
+    'Diagram C',
+  ],
+  1,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_EiF = RadioButtons(
+  [
+    'Diagram A',
+    'Diagram B',
+    'Diagram C',
+  ],
+  2,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_add_rule = RadioButtons(
+  [
+    '\(P(E \cup F)=P(E)+P(F)\)',
+    '\(P(E \cup F)=P(E)+P(F)-P(E \cap F)\)',
+    '\(P(E \cap F)=P(E)+P(F)\)',
+    '\(P(F)=P(E \cup F)-P(E)-P(E \cap F)\)',
+    '\(P(E \cup F)=P(E)-P(F)+P(E \cap F)\)',
+  ],
+  1,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# -------------------------------------------------------
+# Rating checker (integer 1..5)
+# -------------------------------------------------------
+$rating = Real(3);  # placeholder only
+
+$rating_cmp = $rating->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+
+    if (!defined($student)) {
+      $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+      return 0;
+    }
+
+    my $val;
+    eval { $val = $student->value; };
+    if (!defined($val)) {
+      $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+      return 0;
+    }
+
+    my $ival = int($val);
+    if (abs($val - $ival) > 1e-12) {
+      $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+      return 0;
+    }
+
+    if ($ival < 1 || $ival > 5) {
+      $ansHash->{ans_message} = "Your rating must be 1, 2, 3, 4, or 5.";
+      return 0;
+    }
+
+    return 1;
+  }
+);
+
+# -------------------------------------------------------
+# Scaffold
+# -------------------------------------------------------
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+
+# -------------------------------------------------------
+Section::Begin("Step 1: Problem Statement and Diagrams");
+
+BEGIN_TEXT
+In a Montreal community center, residents commonly communicate in two languages:
+English and French.
+$PAR
+Let \(E\) be the event "a randomly chosen resident speaks English"
+and let \(F\) be the event "a randomly chosen resident speaks French."
+$PAR
+We are told:
+$BR
+56% of the residents speak English.
+$BR
+78% speak at least one of the two languages.
+$BR
+23% speak both languages.
+$PAR
+Here are three Venn diagrams labeled A, B, and C:
+$PAR
+\{ image("venn_3.png", width => 720) \}
+$PAR
+END_TEXT
+
+BEGIN_TEXT
+Which diagram represents the event: "speaks English"?
+$PAR
+\{ $rb_E->buttons \}
+$PAR
+Which diagram represents the event: "speaks at least one of the two languages"?
+$PAR
+\{ $rb_EuF->buttons \}
+$PAR
+Which diagram represents the event: "speaks both languages"?
+$PAR
+\{ $rb_EiF->buttons \}
+END_TEXT
+
+ANS($rb_E->cmp());
+ANS($rb_EuF->cmp());
+ANS($rb_EiF->cmp());
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Step 2: Enter the given probabilities");
+
+BEGIN_TEXT
+Enter the three given probabilities as decimals.
+$PAR
+\(P(E)\) = \{ ans_rule(8) \}
+$BR
+\(P(E \cup F)\) = \{ ans_rule(8) \}
+$BR
+\(P(E \cap F)\) = \{ ans_rule(8) \}
+END_TEXT
+
+ANS($cmp_PE);
+ANS($cmp_PEuF);
+ANS($cmp_PEiF);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Step 3: General Additive Rule");
+
+BEGIN_TEXT
+To connect union, intersection, and individual probabilities, we use the
+<b>general additive rule</b>.
+$PAR
+<b>Quiz Time</b>
+$BR
+Which formula is the correct general additive rule?
+$PAR
+\{ $rb_add_rule->buttons \}
+END_TEXT
+
+ANS($rb_add_rule->cmp());
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Step 4: Solve for P(F)");
+
+BEGIN_TEXT
+Use the general additive rule:
+$BR
+\(P(E \cup F)=P(E)+P(F)-P(E \cap F)\)
+$PAR
+Solve for \(P(F)\) and enter your answer as a decimal.
+$PAR
+\(P(F)\) = \{ ans_rule(10) \}
+END_TEXT
+
+ANS($cmp_PF);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Step 5: English only and French only (with Venn help)");
+
+BEGIN_TEXT
+Now we will find the "only" probabilities.
+Use the Venn diagrams below as a visual hint.
+(The intersection is pure white.)
+$PAR
+\{ image("venn_2.png", width => 720) \}
+$PAR
+
+English only means "English but not French."
+$BR
+\(P(\text{English only})\) = \{ ans_rule(10) \}
+$PAR
+
+French only means "French but not English."
+$BR
+\(P(\text{French only})\) = \{ ans_rule(10) \}
+$PAR
+
+Quick check:
+(English only) + (French only) + (both) should equal \(P(E \cup F)\).
+$BR
+\(P(\text{English only}) + P(\text{French only}) + P(E \cap F)\) = \{ ans_rule(10) \}
+END_TEXT
+
+ANS($cmp_Eonly);
+ANS($cmp_Fonly);
+ANS($cmp_union_check);
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_TEXT
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+$PAR
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+$BR
+Note: Consider using the Email Instructor button below to suggest improvements.
+$PAR
+Rating:
+$BR
+\{ ans_rule(6) \}
+END_TEXT
+
+  ANS($rating_cmp);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

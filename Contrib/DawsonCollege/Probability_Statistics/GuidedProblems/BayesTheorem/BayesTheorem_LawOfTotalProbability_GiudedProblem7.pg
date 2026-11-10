@@ -1,0 +1,247 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Bayes Theorem (Guided / Scaffolded) — Medical Diagnosis
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability)
+## Level(2)
+## KEYWORDS('Bayes theorem','Bayes','law of total probability','total probability','conditional probability','medical test','sensitivity','specificity')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# Library Browser (safe detection)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{probContext}) && ref($envir{probContext}) eq 'HASH' && $envir{probContext}{inLibraryBrowser}) {
+  $inLibraryBrowser = 1;
+}
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+$P_D    = 0.01;   # prevalence
+$P_notD = 1 - $P_D;
+
+$P_pos_given_D    = 0.90;  # sensitivity
+$P_pos_given_notD = 0.02;  # false positive rate
+
+$P_neg_given_D    = 1 - $P_pos_given_D;       # false negative rate
+$P_neg_given_notD = 1 - $P_pos_given_notD;    # specificity
+
+# Law of Total Probability for overall positive rate
+$P_pos = ($P_pos_given_D)*($P_D) + ($P_pos_given_notD)*($P_notD);
+
+# Bayes posterior after one positive
+$P_D_given_pos = ($P_pos_given_D * $P_D) / $P_pos;
+
+# Two independent clinics (two positives)
+$P_pospos_given_D    = ($P_pos_given_D)*($P_pos_given_D);
+$P_pospos_given_notD = ($P_pos_given_notD)*($P_pos_given_notD);
+$P_pospos            = ($P_pospos_given_D)*($P_D) + ($P_pospos_given_notD)*($P_notD);
+$P_D_given_pospos    = ($P_pospos_given_D * $P_D) / $P_pospos;
+
+# Store values as MathObjects
+$val_PD    = Real($P_D);
+$val_PnotD = Real($P_notD);
+
+$val_sens = Real($P_pos_given_D);
+$val_fnr  = Real($P_neg_given_D);
+$val_spec = Real($P_neg_given_notD);
+$val_fpr  = Real($P_pos_given_notD);
+
+$val_Ppos        = Real($P_pos);
+$val_P_D_given_p = Real($P_D_given_pos);
+
+# For the MC (two clinics)
+$val_P_D_given_pp = Real($P_D_given_pospos);
+
+# =======================================================
+# Concept checkpoint (MC): two independent clinics
+# =======================================================
+$rb_two_clinics = RadioButtons(
+  [
+    "about 0.08",
+    "about 0.95",
+    "about 0.31",
+    "about 0.02",
+    "about 0.50",
+  ],
+  1,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Guided flow (Scaffold)
+# =======================================================
+Scaffold::Begin();
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Medical Diagnosis: Suppose a certain medical test for a particular disease is known to detect the disease correctly **90%** of the time when a person actually has it. The disease is rare, occurring in only **1%** of the population. We also know that the test has a false positive rate of **2%**. If a person tests positive for the disease, what is the probability that they actually have it?
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Key rates: Sensitivity, false negative, specificity, false positive");
+BEGIN_PGML
+Now we will introduce notation.
+
+Let [`D`] mean "the person has the disease" and [`D^c`] mean "the person does not have the disease."  
+Let [`+`] mean "test is positive" and [`-`] mean "test is negative."
+
+Here are the key definitions:
+
+- **Sensitivity (true positive rate):** [`P(+\mid D)`]
+- **False negative rate:** [`P(-\mid D)`]
+- **Specificity (true negative rate):** [`P(-\mid D^c)`]
+- **False positive rate:** [`P(+\mid D^c)`]
+
+**Identify each value from the problem data.**
+
+Sensitivity = [`P(+\mid D)=`] [__________]{$val_sens->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_neg_given_D) < 0.0005 } => "That is P(-|D), the false negative rate. Sensitivity is P(+|D).",
+))}
+
+False negative rate = [`P(-\mid D)=`] [__________]{$val_fnr->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_pos_given_D) < 0.0005 } => "That is P(+|D), the sensitivity. False negative rate is 1 - sensitivity.",
+))}
+
+Specificity = [`P(-\mid D^c)=`] [__________]{$val_spec->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_pos_given_notD) < 0.0005 } => "That is P(+|D^c), the false positive rate. Specificity is P(-|D^c).",
+))}
+
+False positive rate = [`P(+\mid D^c)=`] [__________]{$val_fpr->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_neg_given_notD) < 0.0005 } => "That is P(-|D^c), the specificity. False positive rate is P(+|D^c).",
+))}
+
+Also identify the base rates:
+
+[`P(D)=`] [__________]{$val_PD->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_notD) < 0.0005 } => "That is P(D^c). Here we want P(D).",
+))}
+
+[`P(D^c)=`] [__________]{$val_PnotD->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_D) < 0.0005 } => "That is P(D). Here we want P(D^c)=1-P(D).",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Find the overall positive probability using the Law of Total Probability");
+BEGIN_PGML
+To use Bayes Theorem we need the overall probability of a positive test, [`P(+)`].
+
+A positive test can happen in two non-overlapping cases:
+- the person has the disease, or
+- the person does not have the disease
+
+So we use the Law of Total Probability:
+[`` P(+)=P(+\mid D)P(D)+P(+\mid D^c)P(D^c). ``]
+
+Compute [`P(+)`]: [__________]{$val_Ppos->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "This is greater than 1, so it cannot be a probability. Make sure you are using decimals like 0.02, not 2%.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_pos_given_D*$P_D) < 0.0005 } => "That is only the disease piece P(+|D)P(D). You must also add the no-disease piece.",
+  sub { abs($_[0]-$P_pos_given_notD*$P_notD) < 0.0005 } => "That is only the no-disease piece P(+|D^c)P(D^c). You must also add the disease piece.",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Bayes Theorem (compute the answer)");
+BEGIN_PGML
+We want the probability the person actually has the disease **given** that the test is positive.
+
+Bayes Theorem:
+[`` P(D\mid +)=\dfrac{P(+\mid D)\,P(D)}{P(+)}. ``]
+
+Here [`P(+)`] is the value you computed in the previous step.
+
+Compute [`P(D\mid +)`]: [__________]{$val_P_D_given_p->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_D) < 0.0005 } => "That is the base rate P(D)=0.01. After a positive test, the probability should be larger than 0.01.",
+  sub { abs($_[0]-$P_pos_given_D) < 0.0005 } => "That is P(+|D), the sensitivity. Here we want P(D|+). Use Bayes: divide by P(+).",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Two independent clinics (prediction question)");
+BEGIN_PGML
+Now suppose the person takes the **same type of test at two independent clinics**, and both tests come back **positive**.
+
+Assume the test results are independent given whether the person has the disease or not.
+
+**Guess:** What would the probability be that the person actually has the disease now?
+
+[@ $rb_two_clinics->buttons() @]*
+END_PGML
+ANS($rb_two_clinics->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] ne "" } => "If you compute it, you would use Bayes again with P(++|D)=(0.90)(0.90) and P(++|D^c)=(0.02)(0.02).",
+)));
+Section::End();
+
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning Bayes Theorem?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{Real(3)->cmp(checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return ($v == int($v) && $v >= 1 && $v <= 5);
+  })->withPostFilter(AnswerHints(
+    sub { $_[0] < 1 || $_[0] > 5 } => "Please enter an integer from 1 to 5.",
+    sub { $_[0] != int($v) } => "Please enter a whole number (integer) from 1 to 5.",
+  ))}
+  END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

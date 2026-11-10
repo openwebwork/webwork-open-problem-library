@@ -1,0 +1,214 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Continuous Random Variables: Uniform(0,1) Interval Probabilities (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Continuous Random Variables)
+## Level(2)
+## KEYWORDS('continuous random variable','uniform distribution','pdf','area','geometry','interval probability')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser flag (LB-safe)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{isLibrary}) && $envir{isLibrary}) { $inLibraryBrowser = 1; }
+if (defined($envir{isLibraryBrowser}) && $envir{isLibraryBrowser}) { $inLibraryBrowser = 1; }
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+
+# Uniform(0,1): f(x)=1 on [0,1], 0 otherwise
+$A_total = Compute("1");
+
+$P_gt_075 = Compute("1 - 0.75");   # 0.25
+$P_le_02  = Compute("0.2");        # 0.2
+$P_04_07  = Compute("0.7 - 0.4");  # 0.3
+
+# =======================================================
+# MC checkpoint (1)
+# =======================================================
+$rb_rule = RadioButtons(
+  [
+    "It is the height f(a).",
+    "It is the area under f(x) from a to b.",
+    "It is the number of points between a and b.",
+  ],
+  1,  # correct is B (not A)
+  labels        => "ABC",
+  displayLabels => 0,
+  checked       => 0,
+);
+
+# =======================================================
+# Evaluators (with friendly hints)
+# =======================================================
+$cmp_total = $A_total->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0) < 1e-6 } =>
+    "Total area under a pdf cannot be 0. For Uniform(0,1), the region is a 1-by-1 rectangle.",
+));
+
+$cmp_gt_075 = $P_gt_075->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.75) < 1e-6 } =>
+    "0.75 is the left endpoint, not the probability. For Uniform(0,1), probability is the width of the interval (with height 1).",
+  sub { abs($_[0] - 1) < 1e-6 } =>
+    "1 is the height, not the probability. Probability is an area (width)(height).",
+));
+
+$cmp_le_02 = $P_le_02->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.8) < 1e-6 } =>
+    "0.8 is P(X>0.2). Here you want P(X<=0.2).",
+));
+
+$cmp_04_07 = $P_04_07->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.4) < 1e-6 } =>
+    "0.4 is the left endpoint. For Uniform(0,1), probability is the width: 0.7 minus 0.4.",
+  sub { abs($_[0] - 0.7) < 1e-6 } =>
+    "0.7 is the right endpoint. For Uniform(0,1), probability is the width: 0.7 minus 0.4.",
+));
+
+# Endpoints check (same value)
+$cmp_closed = $P_04_07->cmp;
+
+# Rating (1–5)
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($c, $s, $ans) = @_;
+    my $v = eval { $s->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ans->{score} = 1; $ans->{ans_message} = "Thanks!";
+    } else {
+      $ans->{score} = 0; $ans->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ans->{score};
+  }
+);
+
+# =======================================================
+# Scaffold (LB-safe)
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(can_open => "always", is_open => "always");
+} else {
+  Scaffold::Begin(open_one_at_a_time => 1, can_open => "when_previous_correct");
+}
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A random variable [`` X ``] has the **uniform distribution on** [`` [0,1] ``].  
+Its density function is [`` f(x)=1 ``] if [`` 0\le x\le 1 ``] and [`` f(x)=0 ``] otherwise, as shown in the figure.
+
+[@ image("uniform_0_to_1.jpg", width => 520) @]*
+
+a. Find [`` P(X>0.75) ``].  
+b. Find [`` P(X\le 0.2) ``].  
+c. Find [`` P(0.4<X<0.7) ``].
+END_PGML
+Section::End();
+
+Section::Begin("Two pdf conditions and the area rule");
+BEGIN_PGML
+Every density function [`` f(x) ``] must satisfy:
+
+1. [`` f(x)\ge 0 ``] for all [`` x ``].  
+2. The total area under [`` f(x) ``] is 1.
+
+Also, for a continuous random variable, probabilities come from **areas**:
+
+[`` P(a< X< b) ``] is the **area under** [`` f(x) ``] from [`` a ``] to [`` b ``].
+
+**Checkpoint:** Which statement correctly describes [`` P(a< X< b) ``]?
+
+[@ $rb_rule->buttons() @]*
+END_PGML
+ANS($rb_rule->cmp);
+Section::End();
+
+Section::Begin("Warm-up: why the total area is 1");
+BEGIN_PGML
+For Uniform(0,1), the graph is a rectangle with:
+
+- base length [`` 1-0 ``]
+- height [`` 1 ``]
+
+So the total area is (base)(height).
+
+Total area under the pdf: [____]
+END_PGML
+ANS($cmp_total);
+Section::End();
+
+Section::Begin("Compute the probabilities (geometry only)");
+BEGIN_PGML
+Because the height is 1 on [`` [0,1] ``], the area over an interval is:
+
+(width)(height) = (width)(1) = width.
+
+So for Uniform(0,1), probabilities are just **lengths of intervals** inside [`` [0,1] ``].
+
+a) [`` P(X>0.75)= ``] [____]
+
+b) [`` P(X\le 0.2)= ``] [____]
+
+c) [`` P(0.4<X<0.7)= ``] [____]
+END_PGML
+ANS($cmp_gt_075);
+ANS($cmp_le_02);
+ANS($cmp_04_07);
+Section::End();
+
+Section::Begin("Endpoints do not matter (quick check)");
+BEGIN_PGML
+For continuous random variables, endpoints do not affect probability.
+
+Compute:
+[`` P(0.4\le X\le 0.7)= ``] [____]
+END_PGML
+ANS($cmp_closed);
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating 1–5) (hidden in LB)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning continuous probability using areas?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]
+END_PGML
+  ANS($cmp_rating);
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

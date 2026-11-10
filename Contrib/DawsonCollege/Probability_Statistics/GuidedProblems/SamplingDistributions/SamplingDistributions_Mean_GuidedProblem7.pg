@@ -1,0 +1,232 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Central Limit Theorem (CLT): IT Service Desk Requests (Discrete X, n=50) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Sampling Distributions)
+## Level(2)
+## KEYWORDS('central limit theorem','CLT','sampling distribution','sample mean','z-score','standardization','sigma over root n','discrete random variable','service desk')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data (given) -- do NOT state the distribution of X
+# =======================================================
+# X = number of IT service desk requests per day (discrete)
+$mu    = Real(120);
+$sigma = Real(30);
+$c     = Real(10);
+$n     = 50;
+
+# =======================================================
+# Correct numeric targets (precomputed)
+# =======================================================
+# Standard error: sigma/sqrt(50) = 4.242640687...
+$SE_exact = 4.2426406871192848;
+
+# z-bound for X-bar band: z = c / (sigma/sqrt(n)) = c*sqrt(n)/sigma
+$z_b_exact = 2.3570226039551585;
+
+# P(mu-c < X-bar < mu+c) = P(-z < Z < z) = 0.9815778745...
+$P_b_exact = 0.9815778745459009;
+
+# =======================================================
+# Tolerances
+# =======================================================
+$tol_mu = 0.001;
+$tol_se = 0.02;   # allows 4.243
+$tol_z  = 0.03;   # allows rounding to 3 decimals
+$tol_p  = 0.001;  # allows 4-decimal rounding
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_mu_bar = $mu->cmp(tolType=>"absolute", tolerance=>$tol_mu)
+  ->withPostFilter(HintIfWrong("For the sample mean, mu_Xbar equals mu."));
+
+$cmp_se = Real($SE_exact)->cmp(tolType=>"absolute", tolerance=>$tol_se)
+  ->withPostFilter(HintIfWrong("Standard error is sigma divided by sqrt(n). Here: 30/sqrt(50)."));
+
+# Part (a): Enter 1 if you can compute, 0 if you cannot.
+$cmp_a_can = Compute("0")->cmp(tolType=>"absolute", tolerance=>0.001)
+  ->withPostFilter(HintIfWrong("We only know mu and sigma. Without the distribution of X, we cannot compute that probability for X."));
+
+$cmp_zb = Real($z_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Use z = c/(sigma/sqrt(n)) = c*sqrt(n)/sigma."));
+
+$cmp_pb = Real($P_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("After you find z, compute P(-z < Z < z) using the standard normal table/CDF."));
+
+# =======================================================
+# Rating checker
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(numbered=>1, can_open=>"always", is_open=>"always");
+} else {
+  Scaffold::Begin(numbered=>1, can_open=>"when_previous_correct", is_open=>"correct_or_first_incorrect");
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Let [``X``] be the number of requests an IT service desk receives in one day. This is a discrete random variable.
+
+From long-term records, the mean number of requests per day is [``\mu=120``] and the standard deviation is [``\sigma=30``].
+
+Let [``c=10``]. So the interval from [``\mu-c``] to [``\mu+c``] is from [``110``] to [``130``].
+
+(a) Find [``P(\mu-c < X < \mu+c)``].
+
+(b) Take a random sample of size [``n=50``] days. Let [``\bar X``] be the sample mean number of requests per day. Find [``P(\mu-c < \bar X < \mu+c)``].
+
+Rounding: Round z-scores to 3 decimals and probabilities to 4 decimals.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Main concept: Central Limit Theorem (no image)
+# -------------------------------------------------------
+Section::Begin("Main concept: Central Limit Theorem");
+BEGIN_PGML
+**Central Limit Theorem (CLT):**  
+For samples of size [``30``] or more, the sample mean [``\bar X``] is approximately normally distributed, with
+
+- [``\mu_{\bar X}=\mu``]
+- [``\sigma_{\bar X}=\sigma/\sqrt{n}``]
+
+Here, [``n=50``].
+
+Enter [``\mu_{\bar X}``]: [____]  
+Enter [``\sigma_{\bar X}``] (the standard error): [____]
+END_PGML
+
+ANS($cmp_mu_bar, $cmp_se);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Part (a): Can we compute P(mu-c < X < mu+c)?
+# -------------------------------------------------------
+Section::Begin("Part (a): can we compute the probability for X?");
+BEGIN_PGML
+We want [``P(\mu-c < X < \mu+c)``], which is [``P(110 < X < 130)``].
+
+But we were not told the probability distribution of [``X``]. With only [``\mu``] and [``\sigma``], Can this probability be computed?
+
+Enter [``1``] if this probability can be computed from the given information, or enter [``0``] if it cannot be computed:
+
+Answer: [____]
+END_PGML
+
+ANS($cmp_a_can);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Part (b): Use CLT for the sample mean
+# -------------------------------------------------------
+Section::Begin("Part (b): use CLT for the sample mean");
+BEGIN_PGML
+Now we want [``P(\mu-c < \bar X < \mu+c)``] for [``n=50``], which is [``P(110 < \bar X < 130)``].
+
+By CLT, [``\bar X``] is approximately normal with mean [``\mu``] and standard deviation [``\sigma/\sqrt{n}``].
+
+Standardize the bounds:
+
+[``-\dfrac{c}{\sigma/\sqrt{n}} < Z < \dfrac{c}{\sigma/\sqrt{n}}``]
+
+1) Compute the z-bound [``z=\dfrac{c}{\sigma/\sqrt{n}}``]: [____]
+
+2) Then compute [``P(-z<Z<z)``]: [____]  
+Note that since [``X``] is NOT normally distributed, for these calculations to be justified we need a large sample size, at least 30. CLT is not valid for small samples.
+
+END_PGML
+
+ANS($cmp_zb, $cmp_pb);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

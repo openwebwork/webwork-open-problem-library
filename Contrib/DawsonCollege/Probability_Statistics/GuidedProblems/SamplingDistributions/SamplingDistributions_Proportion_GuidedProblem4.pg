@@ -1,0 +1,348 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Sampling Distribution of a Proportion: Hospital Recovery Claim (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Sampling Distributions)
+## Level(2)
+## KEYWORDS('sampling distribution','sample proportion','p-hat','normal approximation','conditions for normality','z-score','hospital','recovery rate')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data
+# =======================================================
+# Claim: 90% recover without complications
+$p         = Real(0.90);
+$q         = Real(0.10);
+$n         = 225;
+$x         = 199;
+$phat_obs  = Real($x / $n);
+
+# =======================================================
+# Correct numeric targets
+# =======================================================
+$phat_exact = 0.8844444444444445;
+$np_exact   = 202.5;
+$nq_exact   = 22.5;
+$se_exact   = 0.02;
+$z_exact    = -0.7777777777777773;
+$p_final_exact = 0.218350015361379;
+
+# =======================================================
+# Tolerances
+# =======================================================
+$tol_phat = 0.001;
+$tol_n    = 0.01;
+$tol_se   = 0.001;
+$tol_z    = 0.03;
+$tol_p    = 0.001;
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_phat = Real($phat_exact)->cmp(tolType=>"absolute", tolerance=>$tol_phat)
+  ->withPostFilter(HintIfWrong("Sample proportion is number of successes divided by sample size: 199/225."));
+
+$cmp_np = Real($np_exact)->cmp(tolType=>"absolute", tolerance=>$tol_n)
+  ->withPostFilter(HintIfWrong("Use np with n=225 and p=0.90."));
+
+$cmp_nq = Real($nq_exact)->cmp(tolType=>"absolute", tolerance=>$tol_n)
+  ->withPostFilter(HintIfWrong("Use n(1-p) with n=225 and 1-p=0.10."));
+
+# Step 3 MC: correct choice = 4
+$cmp_cond = Real(4)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return ($s == 4) ? 1 : 0;
+  }
+)->withPostFilter(HintIfWrong("For p-hat, the normal approximation is justified when both np and n(1-p) are at least 5."));
+
+$cmp_se = Real($se_exact)->cmp(tolType=>"absolute", tolerance=>$tol_se)
+  ->withPostFilter(HintIfWrong("Use sqrt(p(1-p)/n) with p=0.90 and n=225."));
+
+$cmp_z = Real($z_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Use z = (p-hat - p)/sqrt(p(1-p)/n), with p-hat = 199/225 and p = 0.90."));
+
+$cmp_final = Real($p_final_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("This is a lower-tail probability: P(p-hat <= observed) = P(Z < z)."));
+
+# Step 6 MC: correct choice = 3
+$cmp_interp = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return ($s == 3) ? 1 : 0;
+  }
+)->withPostFilter(HintIfWrong("If the claim is true, the observed sample result is not rare enough to cast serious doubt on the claim."));
+
+# Rating checker
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(numbered=>1, can_open=>"always", is_open=>"always");
+} else {
+  Scaffold::Begin(numbered=>1, can_open=>"when_previous_correct", is_open=>"correct_or_first_incorrect");
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A hospital claims that **90%** of patients recover from a certain outpatient procedure without complications.
+
+A patient advocacy group reviewed [``225``] randomly selected cases; [``199``] of those patients recovered without complications.
+
+(a) Compute the sample proportion of patients who recovered without complications.
+
+(b) Confirm that the sample is large enough to assume that the sample proportion is approximately normally distributed. Use [``p=0.90``], corresponding to the assumption that the hospital's claim is valid.
+
+(c) Assuming the hospital's claim is true, find the probability that a sample of size [``225``] would produce a sample proportion as low as was observed in this sample.
+
+(d) Based on the answer to part (c), draw a conclusion about the hospital's claim.
+
+Rounding: Round z-scores to 3 decimals and probabilities to 4 decimals.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Compute the sample proportion
+# -------------------------------------------------------
+Section::Begin("Compute the sample proportion");
+BEGIN_PGML
+The observed sample proportion is
+
+[``\hat p = \dfrac{\text{number of recoveries}}{\text{sample size}}``]
+
+Enter the observed sample proportion:
+
+[____]
+END_PGML
+
+ANS($cmp_phat);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Check normality conditions
+# -------------------------------------------------------
+Section::Begin("Check the normality conditions");
+BEGIN_PGML
+To justify the normal approximation for [``\hat p``], check the success-failure conditions using the claimed value [``p=0.90``]:
+
+- [``np \ge 5``]
+- [``n(1-p) \ge 5``]
+
+1) Compute [``np``]: [____]
+
+2) Compute [``n(1-p)``]: [____]
+
+3) Is normal approximation justified in this case? Choose the best conclusion:
+
+1) No, because [``p``] is greater than [``0.50``].  
+2) No, because [``\hat p``] is a proportion, not a mean.  
+3) Yes, because [``n=225``] is greater than [``30``].  
+4) Yes, because both [``np``] and [``n(1-p)``] are at least [``5``].  
+5) No, because the observed sample proportion is not exactly [``0.90``].
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_np, $cmp_nq, $cmp_cond);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Standardize the observed result
+# -------------------------------------------------------
+Section::Begin("Standardize the observed result");
+BEGIN_PGML
+Assuming the hospital's claim is true, the sampling distribution of [``\hat p``] is approximately normal with
+
+[``\sigma_{\hat p} = \sqrt{\dfrac{p(1-p)}{n}}``]
+
+1) Compute the standard deviation of [``\hat p``]: [____]
+
+2) Compute the z-score of the observed sample proportion:
+
+[``z = \dfrac{\hat p - p}{\sqrt{p(1-p)/n}}``]
+
+Enter the z-score: [____]
+END_PGML
+
+ANS($cmp_se, $cmp_z);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 — Final Answer
+# -------------------------------------------------------
+Section::Begin("Final Answer");
+BEGIN_PGML
+Now find the probability that a sample of size [``225``] would produce a sample proportion as low as the one observed:
+
+[``P(\hat p \le \text{observed value}) = P(Z < z)``]
+
+Enter the probability: [____]
+END_PGML
+
+ANS($cmp_final);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 6 — Interpretation
+# -------------------------------------------------------
+Section::Begin("Interpretation");
+BEGIN_PGML
+We did all the calculations assuming that the hospital's claim [``p=0.9``] is true. Based on the probability you found, what is the best conclusion about the hospital's claim?
+
+1) The claim must be false, because the observed sample proportion is below [``0.90``].  
+2) The claim is doubtful, because the observed result would almost never happen if the claim were true.  
+3) The observed result is not unusual enough to cast doubt on the claim, so the claim is not suspicious.  
+4) The claim must be true, because the normal approximation applies.  
+5) There is no way to make any conclusion from the sample.
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_interp);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+**1. Compute the sample proportion.**
+
+The observed sample proportion is
+
+[``\hat p = \dfrac{199}{225} \approx 0.8844``]
+
+**2. Check that the sample is large enough for a normal approximation.**
+
+Using the claimed population proportion [``p=0.90``],
+
+[``np = (225)(0.90) = 202.5``]
+
+and
+
+[``n(1-p) = (225)(0.10) = 22.5``]
+
+Both values are at least [``5``], so the sampling distribution of [``\hat p``] is approximately normal.
+
+**3. Compute the standard deviation of [``\hat p``].**
+
+[``\sigma_{\hat p} = \sqrt{\dfrac{(0.90)(0.10)}{225}} = \sqrt{0.0004} = 0.02``]
+
+**4. Standardize the observed result.**
+
+We want the probability of getting a sample proportion as low as the one observed.
+
+First compute the z-score:
+
+[``z = \dfrac{0.8844 - 0.90}{0.02} \approx -0.778``]
+
+**5. Find the probability.**
+
+So
+
+[``P(\hat p \le 0.8844) = P(Z < -0.778) \approx 0.2184``]
+
+**6. Draw a conclusion.**
+
+If the hospital's claim is true, a sample result this low would happen with probability about [``0.2184``].
+
+That is not a small probability, so the observed result is not unusual enough to cast doubt on the claim.
+
+So the hospital's claim is **not suspicious** based on this sample.
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

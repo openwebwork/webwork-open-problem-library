@@ -1,0 +1,380 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project - Sampling Distribution of a Proportion: Battery First-Pass Rate (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Sampling Distributions)
+## Level(2)
+## KEYWORDS('sampling distribution','sample proportion','p-hat','normal approximation','conditions for normality','z-score','success rate','battery inspection')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data
+# =======================================================
+# p = true proportion of batteries that pass inspection on first attempt
+$p      = Real(0.92);
+$q      = Real(0.08);
+$n      = 400;
+$cutoff = Real(0.89);
+
+# =======================================================
+# Correct numeric targets
+# =======================================================
+$mu_phat_exact = 0.92;
+$se_exact      = 0.01356465996625053;
+$np_exact      = 368;
+$nq_exact      = 32;
+$z_exact       = -2.2116293423234596;
+$p_final_exact = 0.013496143136201066;
+
+# =======================================================
+# Tolerances
+# =======================================================
+$tol_mu = 0.001;
+$tol_se = 0.001;
+$tol_n  = 0.001;
+$tol_z  = 0.03;
+$tol_p  = 0.001;
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_mu_phat = Real($mu_phat_exact)->cmp(tolType=>"absolute", tolerance=>$tol_mu)
+  ->withPostFilter(HintIfWrong("For p-hat, the mean is p."));
+
+$cmp_se = Real($se_exact)->cmp(tolType=>"absolute", tolerance=>$tol_se)
+  ->withPostFilter(HintIfWrong("The standard deviation of p-hat is sqrt(p(1-p)/n)."));
+
+$cmp_np = Real($np_exact)->cmp(tolType=>"absolute", tolerance=>$tol_n)
+  ->withPostFilter(HintIfWrong("Compute np using n=400 and p=0.92."));
+
+$cmp_nq = Real($nq_exact)->cmp(tolType=>"absolute", tolerance=>$tol_n)
+  ->withPostFilter(HintIfWrong("Compute n(1-p) using n=400 and 1-p=0.08."));
+
+# Step 3 MC: correct choice = 4
+$cmp_cond = Real(4)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return ($s == 4) ? 1 : 0;
+  }
+)->withPostFilter(HintIfWrong("The normal approximation for p-hat is justified when both np and n(1-p) are at least 5."));
+
+$cmp_z = Real($z_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("Use z = (0.89 - p)/sqrt(p(1-p)/n)."));
+
+$cmp_final = Real($p_final_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("This is a lower-tail probability: P(p-hat < 0.89) = P(Z < z)."));
+
+# Step 6 MC: correct choice = 2
+$cmp_interp = Real(2)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return ($s == 2) ? 1 : 0;
+  }
+)->withPostFilter(HintIfWrong("If the claim is true, getting p-hat <= 0.89 is fairly unlikely, so such a sample would make us suspicious."));
+
+# Rating checker
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(numbered=>1, can_open=>"always", is_open=>"always");
+} else {
+  Scaffold::Begin(numbered=>1, can_open=>"when_previous_correct", is_open=>"correct_or_first_incorrect");
+}
+
+# -------------------------------------------------------
+# Step 1 - Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A company claims that **92%** of its rechargeable batteries pass quality inspection on the first attempt.
+
+A random sample of [``n=400``] batteries is selected. Let [``\hat p``] be the sample proportion of batteries that pass inspection on the first attempt.
+
+(a) Verify that the sampling distribution of [``\hat p``] can be approximated by a normal distribution.
+
+(b) Assuming the company's claim is true, find [``P(\hat p < 0.89)``].
+
+(c) If, in a sample of [``400``] batteries, you observe a sample proportion as low as [``0.89``] or lower, would you be inclined to suspect the company's claim?
+
+Rounding: Round z-scores to 3 decimals and probabilities to 4 decimals.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 - Main concept
+# -------------------------------------------------------
+Section::Begin("Main concept: sampling distribution of p-hat");
+BEGIN_PGML
+For a sample proportion [``\hat p``], the sampling distribution is approximately normal when the sample is random and the success-failure conditions are satisfied.
+
+When the approximation is valid,
+
+- [``\mu_{\hat p} = p``]
+- [``\sigma_{\hat p} = \sqrt{\dfrac{p(1-p)}{n}}``]
+
+Using [``p=0.92``] and [``n=400``]:
+
+Enter [``\mu_{\hat p}``]: [____]
+
+Enter [``\sigma_{\hat p}``]: [____]
+END_PGML
+
+ANS($cmp_mu_phat, $cmp_se);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 - Check normality conditions
+# -------------------------------------------------------
+Section::Begin("Check the normality conditions");
+BEGIN_PGML
+To justify the normal approximation for [``\hat p``], check the success-failure conditions:
+
+- [``np \ge 5``]
+- [``n(1-p) \ge 5``]
+
+1) Compute [``np``]: [____]
+
+2) Compute [``n(1-p)``]: [____]
+
+3) Is normal approximation justified in this case? Choose the best conclusion:
+
+1) No, because [``p``] is greater than [``0.50``].  
+2) No, because [``\hat p``] is a proportion, not a mean.  
+3) Yes, because [``n=400``] is greater than [``30``].  
+4) Yes, because both [``np``] and [``n(1-p)``] are at least [``5``].  
+5) No, because the population proportion is too close to [``1``].
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_np, $cmp_nq, $cmp_cond);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 - Standardize
+# -------------------------------------------------------
+Section::Begin("Standardize the sample proportion");
+BEGIN_PGML
+Now find the z-score for [``\hat p = 0.89``].
+
+Use
+
+[``z = \dfrac{0.89 - p}{\sqrt{p(1-p)/n}}``]
+
+Enter the z-score: [____]
+END_PGML
+
+ANS($cmp_z);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 - Final Answer
+# -------------------------------------------------------
+Section::Begin("Final Answer");
+BEGIN_PGML
+Using your z-score, find the probability
+
+[``P(\hat p < 0.89) = P(Z < z)``]
+
+Enter the probability: [____]
+END_PGML
+
+ANS($cmp_final);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 6 - Interpretation
+# -------------------------------------------------------
+Section::Begin("Interpretation");
+BEGIN_PGML
+We did all the calculations assuming that the company's claim [``p=0.92``] is true.
+
+If you observe a sample proportion as low as [``0.89``] (or lower) in a sample of [``400``] batteries, would you be inclined to suspect the claim?
+
+Choose the best answer:
+
+1) No. A sample proportion of [``0.89``] is always close enough to [``0.92``].  
+2) Yes. If the claim is true, getting [``\hat p \le 0.89``] is fairly unlikely.  
+3) No. Sample proportions this small happen about half the time.  
+4) Yes. The sample proportion must equal the population proportion when [``n=400``].  
+5) Not enough information.
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_interp);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) - hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+**1. Identify the statistic.**
+
+The statistic here is the sample proportion [``\hat p``].
+
+The claimed population proportion is
+
+[``p = 0.92``]
+
+so
+
+[``1-p = 0.08``]
+
+and the sample size is
+
+[``n = 400``]
+
+**2. Write the sampling distribution facts for [``\hat p``].**
+
+When the normal approximation is justified,
+
+[``\mu_{\hat p} = p``]
+
+and
+
+[``\sigma_{\hat p} = \sqrt{\dfrac{p(1-p)}{n}}``]
+
+So,
+
+[``\mu_{\hat p} = 0.92``]
+
+and
+
+[``\sigma_{\hat p} = \sqrt{\dfrac{(0.92)(0.08)}{400}} \approx 0.01356``]
+
+**3. Check the success-failure conditions.**
+
+We compute
+
+[``np = (400)(0.92) = 368``]
+
+and
+
+[``n(1-p) = (400)(0.08) = 32``]
+
+Both values are at least [``5``], so the sampling distribution of [``\hat p``] is approximately normal.
+
+**4. Standardize [``\hat p = 0.89``].**
+
+We want
+
+[``P(\hat p < 0.89)``]
+
+First compute the z-score:
+
+[``z = \dfrac{0.89 - 0.92}{0.01356} \approx -2.212``]
+
+**5. Find the probability.**
+
+So
+
+[``P(\hat p < 0.89) = P(Z < -2.212)``]
+
+Using the standard normal table or calculator,
+
+[``P(Z < -2.212) \approx 0.0135``]
+
+**6. Interpret the result.**
+
+If the company's claim is true, the probability of getting a sample proportion as low as [``0.89``] is only about [``0.0135``].
+
+That is a small probability, so such a result would be unusual.
+
+So yes, observing [``\hat p \le 0.89``] would make us suspicious of the claim.
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

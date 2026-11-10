@@ -1,0 +1,384 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Mutually Exclusive Events (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Mutually Exclusive Events)
+## Level(2)
+## KEYWORDS('probability','event','mutually exclusive','intersection','union','two dice','4-sided dice')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "contextString.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# IMAGES (per BP rule):
+# Put image files in the SAME folder as this .pg file (or a relative
+# subfolder), then insert them with image() inside BEGIN_TEXT.
+# Required image for this problem (optional but used here):
+#   venn_union.jpg
+# ----------------------------------------------------------------
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Sample space table (HTML) for outcomes 11..44 (4-sided dice)
+# =======================================================
+my @nums = (1..4);
+
+our $table_html = '<table border="1" cellpadding="4" cellspacing="0">';
+$table_html .= '<tr><th>Die 1 / Die 2</th>';
+for my $j (@nums) { $table_html .= "<th>$j</th>"; }
+$table_html .= '</tr>';
+
+for my $i (@nums) {
+  $table_html .= "<tr><th>$i</th>";
+  for my $j (@nums) {
+    my $code = "$i$j";
+    $table_html .= "<td>$code</td>";
+  }
+  $table_html .= "</tr>";
+}
+$table_html .= "</table>";
+
+# =======================================================
+# Set context: allow comma-separated outcomes + "none"
+# =======================================================
+my $ctxSet = Context("String");
+$ctxSet->operators->redefine(',', using => ',');
+
+my %allowed = ();
+for my $i (@nums) {
+  for my $j (@nums) {
+    $allowed{"$i$j"} = {};
+  }
+}
+$allowed{"none"} = { caseSensitive => 0 };
+$ctxSet->strings->add(%allowed);
+
+# =======================================================
+# Events
+# A: double
+# B: sum is an odd prime (3, 5, or 7)
+# =======================================================
+my @A   = qw(11 22 33 44);
+my @B   = qw(12 21 14 23 32 41 34 43);
+my @AuB = qw(11 22 33 44 12 21 14 23 32 41 34 43);
+
+# Build evaluators while in String context
+Context($ctxSet);
+
+$cmp_A_set   = List(map { String($_) } @A)->cmp(ignoreOrder => 1);
+$cmp_B_set   = List(map { String($_) } @B)->cmp(ignoreOrder => 1);
+$cmp_AiB     = String("none")->cmp();  # intersection is empty; students type "none"
+$cmp_AuB_set = List(map { String($_) } @AuB)->cmp(ignoreOrder => 1);
+
+# Numeric evaluators
+Context("Numeric");
+
+$cmp_nS   = Real(16)->cmp();
+
+$cmp_PA   = Real(1/4)->cmp(  tolType => "absolute", tolerance => 0.001 );
+$cmp_PB   = Real(1/2)->cmp(  tolType => "absolute", tolerance => 0.001 );
+$cmp_PAiB = Real(0)->cmp(    tolType => "absolute", tolerance => 0.001 );
+$cmp_PAuB = Real(3/4)->cmp(  tolType => "absolute", tolerance => 0.001 );
+
+$cmp_sum_PA_PB = Real(3/4)->cmp( tolType => "absolute", tolerance => 0.001 );
+$cmp_zero      = Real(0)->cmp(   tolType => "absolute", tolerance => 0.001 );
+
+# =======================================================
+# Quiz Time (Radio Buttons): Which statement is FALSE?
+# (Use simple MathJax in option strings; avoid nested P(\(...\)) patterns.)
+# =======================================================
+$rb_false_me = RadioButtons(
+  [
+    '\(P(A \cap B)=0\).',
+    'If \(A\) happens, then \(B\) cannot happen (and vice versa).',
+    '\(P(A \cup B)=P(A)+P(B)\).',
+    'Mutually exclusive events are always independent.',
+    '\(A \cap B\) is an empty set.',
+  ],
+  3,                 # 0-based index => D is the false statement
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Rating checker (integer 1..5)
+# =======================================================
+$rating = Real(3);   # placeholder only
+
+$rating_cmp = $rating->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+
+    if (!defined($student)) {
+      $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+      return 0;
+    }
+
+    my $val;
+    eval { $val = $student->value; };
+    if (!defined($val)) {
+      $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+      return 0;
+    }
+
+    my $ival = int($val);
+    if (abs($val - $ival) > 1e-12) {
+      $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+      return 0;
+    }
+
+    if ($ival < 1 || $ival > 5) {
+      $ansHash->{ans_message} = "Your rating must be 1, 2, 3, 4, or 5.";
+      return 0;
+    }
+
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_TEXT
+Two fair four-sided dice are rolled at the same time.
+We record the ordered pair (first die, second die) using a two-digit code.
+For example, 34 means (first die = 3, second die = 4).
+$PAR
+Here is the sample space:
+$PAR
+\{ $table_html \}
+$PAR
+How many outcomes are in the sample space?
+$BR
+\{ ans_rule(5) \}
+END_TEXT
+
+Context("Numeric");
+ANS($cmp_nS);
+Context($ctxSet);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Define the events");
+
+BEGIN_TEXT
+Define these two events:
+$PAR
+\(A\): The roll is a double. (Both dice show the same number.)
+$BR
+\(B\): The sum of the two dice is an odd prime.
+$BR
+(So the sum is 3, 5, or 7.)
+$PAR
+
+<b>Step 1 (List event \(A\)).</b>
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(A\) = { \{ ans_rule(70) \} }
+$PAR
+
+<b>Step 2 (Find \(P(A)\)).</b>
+Enter \(P(A)\) as a fraction or a decimal:
+$BR
+\(P(A)\) = \{ ans_rule(12) \}
+$PAR
+
+<b>Step 3 (List event \(B\)).</b>
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(B\) = { \{ ans_rule(90) \} }
+$PAR
+
+<b>Step 4 (Find \(P(B)\)).</b>
+Enter \(P(B)\) as a fraction or a decimal:
+$BR
+\(P(B)\) = \{ ans_rule(12) \}
+END_TEXT
+
+Context($ctxSet);
+ANS($cmp_A_set);
+
+Context("Numeric");
+ANS($cmp_PA);
+
+Context($ctxSet);
+ANS($cmp_B_set);
+
+Context("Numeric");
+ANS($cmp_PB);
+
+Context($ctxSet);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Intersection and Mutually Exclusive");
+
+BEGIN_TEXT
+<b>Definition</b>
+$PAR
+Events \(A\) and \(B\) are <b>mutually exclusive</b> if they have no elements in common.
+$PAR
+\{ image("venn_mutually_exclusive.png", width => 400) \}
+$PAR
+<b>Step 1 (Build the intersection).</b>
+List all outcomes (two-digit codes) that are in <b>both</b> events.
+$BR
+If there is no shared outcome, type <b>none</b>.
+$PAR
+\(A \cap B\) = { \{ ans_rule(40) \} }
+$PAR
+
+<b>Step 2 (Probability of the intersection).</b>
+Enter \(P(A \cap B)\) as a fraction or a decimal:
+$BR
+\(P(A \cap B)\) = \{ ans_rule(12) \}
+END_TEXT
+
+Context($ctxSet);
+ANS($cmp_AiB);
+
+Context("Numeric");
+ANS($cmp_PAiB);
+
+Context($ctxSet);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Probability Rule and Quiz Time");
+
+BEGIN_TEXT
+<b>Probability Rule for Mutually Exclusive Events</b>
+$PAR
+Events \(A\) and \(B\) are mutually exclusive <b>if and only if</b> \(P(A \cap B)=0\).
+$PAR
+<b>Quiz Time</b>
+$BR
+Which statement is <b>false</b> for mutually exclusive events \(A\) and \(B\)?
+$PAR
+\{ $rb_false_me->buttons \}
+END_TEXT
+
+ANS($rb_false_me->cmp());
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Union (Final Answer)");
+
+BEGIN_TEXT
+<b>Union</b>
+$PAR
+The union of \(A\) and \(B\), written \(A \cup B\), is the set of outcomes that are in <b>at least one</b> of the events.
+$PAR
+<b>Step 1 (Build the union).</b>
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+\(A \cup B\) = { \{ ans_rule(120) \} }
+$PAR
+
+<b>Step 2 (Final Answer).</b>
+Enter \(P(A \cup B)\) as a fraction or a decimal:
+$BR
+\(P(A \cup B)\) = \{ ans_rule(12) \}
+END_TEXT
+
+Context($ctxSet);
+ANS($cmp_AuB_set);
+
+Context("Numeric");
+ANS($cmp_PAuB);
+
+Context($ctxSet);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Mutually Exclusive Union Rule (Verify)");
+
+BEGIN_TEXT
+If \(A\) and \(B\) are mutually exclusive, then there is no overlap to subtract.
+So the Additive Rule of Probability:
+$BR
+\(P(A \cup B)=P(A)+P(B)-P(A \cap B)\)
+$BR
+reduces to:
+$BR
+\(P(A \cup B)=P(A)+P(B)\)
+$PAR
+
+<b>Step 1.</b> Compute \(P(A)+P(B)\):
+$BR
+\(P(A)+P(B)\) = \{ ans_rule(12) \}
+$PAR
+
+<b>Step 2 (Verify).</b> Compute:
+$BR
+\(P(A \cup B) - (P(A)+P(B))\) = \{ ans_rule(12) \}
+$PAR
+If your reasoning is correct, that last answer should be 0 (up to rounding).
+END_TEXT
+
+Context("Numeric");
+ANS($cmp_sum_PA_PB);
+ANS($cmp_zero);
+
+Context($ctxSet);
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+  BEGIN_PGML
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating: [__]{$rating_cmp}
+END_PGML
+  Section::End();
+
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

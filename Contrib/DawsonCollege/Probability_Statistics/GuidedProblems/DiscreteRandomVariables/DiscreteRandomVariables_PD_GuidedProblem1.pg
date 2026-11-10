@@ -1,0 +1,372 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Probability Distribution of a Discrete Random Variable (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Random Variables)
+## Level(2)
+## KEYWORDS('probability distribution','discrete random variable','coin toss','probability table','at least one')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+Context()->flags->set(implicitMultiplication => 1);
+
+$k_vals   = Compute("3");     # X can be 0,1,2  (3 values)
+$P0       = Compute("1/4");
+$P1       = Compute("1/2");
+$P2       = Compute("1/4");
+$sumP     = Compute("1");
+$Patleast = Compute("3/4");
+
+# =======================================================
+# Evaluators
+# =======================================================
+$cmp_k = $k_vals->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 2) < 1e-6 } =>
+    "If X is the number of heads in 2 tosses, it can be 0, 1, or 2 (that is 3 values).",
+));
+
+$cmp_P0 = $P0->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/2)) < 1e-6 } =>
+    "X=0 means no heads. That happens only for TT (one outcome out of 4).",
+));
+
+$cmp_P1 = $P1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/4)) < 1e-6 } =>
+    "X=1 happens in HT and TH (two outcomes out of 4).",
+));
+
+$cmp_P2 = $P2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/2)) < 1e-6 } =>
+    "X=2 means two heads. That happens only for HH (one outcome out of 4).",
+));
+
+$cmp_sumP = $sumP->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (3/4)) < 1e-6 } =>
+    "3/4 is P(at least one head). Here you are checking the sum P(X=0)+P(X=1)+P(X=2).",
+));
+
+$cmp_Patleast = $Patleast->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/4)) < 1e-6 } =>
+    "1/4 is P(X=0) (no heads). 'At least one head' is the complement of that.",
+  sub { abs($_[0] - (1/2)) < 1e-6 } =>
+    "1/2 is P(X=1). 'At least one head' means X=1 or X=2.",
+));
+
+# =======================================================
+# RadioButtons (fixed-looking random order, correct not always A)
+# =======================================================
+
+# Definition MC (correct is NOT A)
+$rb_def = RadioButtons(
+  [
+    "Only the possible values of X (without probabilities).",
+    "A list of each possible value of X together with the probability that X takes that value.",
+    "A list of outcomes like HH, HT, TH, TT.",
+    "Only the most likely value of X.",
+    "A formula that always looks the same for every experiment.",
+  ],
+  1,                 # correct is option index 1
+  labels        => "ABC",
+  displayLabels => 0,
+  checked       => 0, # prevents empty submission (avoids parserRadioButtons warning)
+);
+
+# Section 3 MCs: Is this a probability distribution table?
+$rb_pd1 = RadioButtons(
+  [
+    "Yes",
+    "No, because the probabilities do not add to 1",
+    "No, because one probability is not between 0 and 1",
+    "No, because the table does not list probabilities for all possible values of X",
+  ],
+  0,                 # Yes
+  labels        => "ABC",
+  displayLabels => 0,
+  checked       => 0,
+);
+
+$rb_pd2 = RadioButtons(
+  [
+    "Yes",
+    "No, because one probability is not between 0 and 1",
+    "No, because the table does not list probabilities for all possible values of X",
+    "No, because the probabilities do not add to 1",
+  ],
+  3,                 # sum not 1
+  labels        => "ABC",
+  displayLabels => 0,
+  checked       => 0,
+);
+
+$rb_pd3 = RadioButtons(
+  [
+    "Yes",
+    "No, because one probability is not between 0 and 1",
+    "No, because the probabilities do not add to 1",
+    "No, because the table does not list probabilities for all possible values of X",
+  ],
+  1,                 # prob outside [0,1]
+  labels        => "ABC",
+  displayLabels => 0,
+  checked       => 0,
+);
+
+$rb_pd4 = RadioButtons(
+  [
+    "Yes",
+    "No, because one probability is not between 0 and 1",
+    "No, because the probabilities do not add to 1",
+    "No, because the table does not list probabilities for all possible values of X",
+  ],
+  3,                 # missing value(s) of X
+  labels        => "ABC",
+  displayLabels => 0,
+  checked       => 0,
+);
+
+# =======================================================
+# Rating (1–5)
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A fair coin is tossed twice. Let [`` X ``] be the number of heads that are observed.
+
+a. Construct the probability distribution of [`` X ``].  
+b. Find the probability that at least one head is observed.
+END_PGML
+Section::End();
+
+Section::Begin("Definition");
+BEGIN_PGML
+The probability distribution of a discrete random variable [`` X ``] is a list of each possible value of [`` X ``] together with the probability that [`` X ``] takes that value in one trial of the experiment.
+
+**Checkpoint:** Which statement best matches the definition of a probability distribution?
+
+[@ $rb_def->buttons() @]*
+END_PGML
+ANS($rb_def->cmp);
+Section::End();
+
+Section::Begin("Two properties");
+BEGIN_PGML
+Any probability distribution for a discrete random variable must satisfy:
+
+1. Each probability [`` P(x) ``] must be between 0 and 1:  [`` 0 \le P(x) \le 1 ``]  
+2. The sum of all the probabilities is 1:  [`` \sum P(x) = 1 ``]
+
+Now decide whether each table is a valid probability distribution table.
+
+**Table 1**
+
+[`` \begin{array}{c|ccc}
+x & 0 & 1 & 2 \\
+\hline
+P(X=x) & 0.25 & 0.50 & 0.25
+\end{array} ``]
+
+Does this represent a probability distribution table?
+
+[@ $rb_pd1->buttons() @]*
+
+---
+
+**Table 2**
+
+[`` \begin{array}{c|ccc}
+x & 0 & 1 & 2 \\
+\hline
+P(X=x) & 0.30 & 0.60 & 0.30
+\end{array} ``]
+
+Does this represent a probability distribution table?
+
+[@ $rb_pd2->buttons() @]*
+
+---
+
+**Table 3**
+
+[`` \begin{array}{c|ccc}
+x & 0 & 1 & 2 \\
+\hline
+P(X=x) & -0.10 & 0.60 & 0.50
+\end{array} ``]
+
+Does this represent a probability distribution table?
+
+[@ $rb_pd3->buttons() @]*
+
+---
+
+**Table 4**
+
+[`` \begin{array}{c|cc}
+x & 0 & 1 \\
+\hline
+P(X=x) & 0.25 & 0.75
+\end{array} ``]
+
+Assume [`` X ``] is supposed to have possible values [`` \{0,1,2\} ``].  
+Does this represent a probability distribution table?
+
+[@ $rb_pd4->buttons() @]*
+END_PGML
+ANS($rb_pd1->cmp);
+ANS($rb_pd2->cmp);
+ANS($rb_pd3->cmp);
+ANS($rb_pd4->cmp);
+Section::End();
+
+Section::Begin("Outcomes and the random variable");
+BEGIN_PGML
+For two coin tosses, the outcomes are:
+[`` \{\text{HH},\text{HT},\text{TH},\text{TT}\} ``]
+and they are all equally likely.
+
+Now compute [`` X ``] (the number of heads) for each outcome:
+
+- [`` \text{HH} ``] gives [`` X=2 ``]
+- [`` \text{HT} ``] gives [`` X=1 ``]
+- [`` \text{TH} ``] gives [`` X=1 ``]
+- [`` \text{TT} ``] gives [`` X=0 ``]
+
+How many possible values can [`` X ``] take?
+
+[____]{$cmp_k}
+END_PGML
+Section::End();
+
+Section::Begin("Construct the probability distribution");
+BEGIN_PGML
+**How to build the table:**  
+For each value of [`` X ``], count how many of the 4 equally likely outcomes produce that value, then divide by 4.
+
+Fill in the probability distribution table:
+END_PGML
+
+BEGIN_TEXT
+$BCENTER
+<table border="1" cellpadding="10" cellspacing="0" style="border-collapse:collapse;">
+  <tr>
+    <th style="text-align:center;">\(x\)</th>
+    <th style="text-align:center;">\(P(X=x)\)</th>
+  </tr>
+  <tr>
+    <td style="text-align:center; vertical-align:middle;">0</td>
+    <td style="text-align:center; vertical-align:middle;">
+      <div style="display:inline-block;">
+        \{ NAMED_ANS_RULE("p0",12) \}
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td style="text-align:center; vertical-align:middle;">1</td>
+    <td style="text-align:center; vertical-align:middle;">
+      <div style="display:inline-block;">
+        \{ NAMED_ANS_RULE("p1",12) \}
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td style="text-align:center; vertical-align:middle;">2</td>
+    <td style="text-align:center; vertical-align:middle;">
+      <div style="display:inline-block;">
+        \{ NAMED_ANS_RULE("p2",12) \}
+      </div>
+    </td>
+  </tr>
+</table>
+$ECENTER
+END_TEXT
+
+Section::End();
+
+# Register evaluators immediately after the table (top-to-bottom, left-to-right)
+NAMED_ANS("p0", $cmp_P0);
+NAMED_ANS("p1", $cmp_P1);
+NAMED_ANS("p2", $cmp_P2);
+
+Section::Begin("Check the two properties");
+BEGIN_PGML
+Now check the second property: the probabilities must add to 1.
+
+Compute:
+[`` P(X=0)+P(X=1)+P(X=2)= ``] [____]{$cmp_sumP}
+END_PGML
+Section::End();
+
+Section::Begin("At least one head (Part b)");
+BEGIN_PGML
+“At least one head” means [`` X \ge 1 ``], which means [`` X=1 ``] or [`` X=2 ``].
+
+Compute:
+[`` P(\text{at least one head}) = P(X=1)+P(X=2)= ``] [____]{$cmp_Patleast}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating 1–5)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

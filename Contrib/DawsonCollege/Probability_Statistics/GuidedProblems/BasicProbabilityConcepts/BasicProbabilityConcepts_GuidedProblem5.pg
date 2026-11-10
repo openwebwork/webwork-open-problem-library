@@ -1,0 +1,333 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Sample Spaces & Events (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Equally Likely Outcomes)
+## Level(2)
+## KEYWORDS('probability','sample space','event','equally likely','two dice','additive rule')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "contextString.pl",
+  "scaffold.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Build the sample space table (HTML) for outcomes 11..66
+# =======================================================
+$table_html = '<table border="1" cellpadding="4" cellspacing="0">';
+$table_html .= '<tr><th>Die 1 \\ Die 2</th>';
+for $j (1..6) { $table_html .= "<th>$j</th>"; }
+$table_html .= '</tr>';
+
+for $i (1..6) {
+  $table_html .= "<tr><th>$i</th>";
+  for $j (1..6) {
+    $code = "$i$j";
+    $table_html .= "<td>$code</td>";
+  }
+  $table_html .= "</tr>";
+}
+$table_html .= "</table>";
+
+# =======================================================
+# String-context set entry for outcome codes like 46, 55, 66
+# =======================================================
+$ctxSet = Context("String");
+$ctxSet->operators->redefine(',', using => ',');
+
+@outcomes = ();
+for $i (1..6) {
+  for $j (1..6) {
+    push @outcomes, "$i$j";
+  }
+}
+%allowed = map { $_ => {} } @outcomes;
+$ctxSet->strings->add(%allowed);
+
+# Events (as outcome sets)
+@E1 = qw(46 55 64 56 65 66);   # sum > 9
+@E2 = qw(14 41 25 52 36 63);   # absolute difference = 3
+@E3 = qw(16 61 23 32);         # product = 6
+@E4 = qw(11 22 33 44 55 66);   # double
+
+$event1 = List(map { String($_) } @E1);
+$event2 = List(map { String($_) } @E2);
+$event3 = List(map { String($_) } @E3);
+$event4 = List(map { String($_) } @E4);
+
+$cmp_event1 = $event1->cmp(ignoreOrder => 1);
+$cmp_event2 = $event2->cmp(ignoreOrder => 1);
+$cmp_event3 = $event3->cmp(ignoreOrder => 1);
+$cmp_event4 = $event4->cmp(ignoreOrder => 1);
+
+# =======================================================
+# Numeric comparators (probabilities + rating)
+# =======================================================
+Context("Numeric");
+
+$p1 = 6/36;   # 1/6
+$p2 = 6/36;   # 1/6
+$p3 = 4/36;   # 1/9
+$p4 = 6/36;   # 1/6
+
+$cmp_p1 = Real($p1)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_p2 = Real($p2)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_p3 = Real($p3)->cmp(tolType => "absolute", tolerance => 0.001);
+$cmp_p4 = Real($p4)->cmp(tolType => "absolute", tolerance => 0.001);
+
+$cmp_rating = Real(1)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return 0 unless $v == int($v);
+    return ($v >= 1 && $v <= 5) ? 1 : 0;
+  }
+);
+
+# Restore set context for set-building blanks
+Context($ctxSet);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_TEXT
+Two fair six-sided dice are rolled at the same time.
+We record the ordered pair (first die, second die).
+
+$PAR
+
+Quick check: Are the outcomes <b>equally likely</b>?
+$BR
+A) No, because the dice are identical
+$BR
+B) No, because there are 36 outcomes
+$BR
+C) Yes, because the dice are fair and each ordered pair has the same chance
+$BR
+D) Yes, but only for doubles
+$PAR
+Answer (A/B/C/D): \{ ans_rule(2) \}
+END_TEXT
+
+ANS( str_cmp("C") );
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Sample Space as a Table");
+BEGIN_TEXT
+We will write an outcome as a two-digit code.
+$BR
+For example, 54 means (first die = 5, second die = 4).
+$PAR
+
+Here is the sample space:
+$PAR
+$table_html
+$PAR
+
+How many outcomes are in the sample space?
+$BR
+\{ ans_rule(5) \}
+END_TEXT
+
+Context("Numeric");
+ANS( Real(36)->cmp );
+Context($ctxSet);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Additive Rule for Outcomes");
+BEGIN_TEXT
+<b>Additive Rule for Outcomes</b>
+$PAR
+If an event contains several outcomes, the probability of the event is found by adding the probabilities of the outcomes in that event.
+$PAR
+Because all 36 outcomes are equally likely here:
+$BR
+Probability of an event = (number of outcomes in the event) / 36
+END_TEXT
+Section::End();
+
+# =======================================================
+# Event 1: Sum > 9
+# =======================================================
+Section::Begin("Event 1 — Sum is over 9");
+BEGIN_TEXT
+Event 1: The <b>sum</b> of the two dice is greater than 9.
+$PAR
+
+<b>Step 1 (Build the event).</b>
+List all outcomes (two-digit codes) where the sum is greater than 9.
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+E1 = { \{ ans_rule(60) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Use the Additive Rule for Outcomes.
+Since outcomes are equally likely, count how many outcomes are in E1 and divide by 36.
+$PAR
+Enter P(E1) as a fraction or a decimal:
+$BR
+P(E1) = \{ ans_rule(12) \}
+END_TEXT
+
+ANS($cmp_event1);
+
+Context("Numeric");
+ANS($cmp_p1);
+Context($ctxSet);
+
+Section::End();
+
+# =======================================================
+# Event 2: |difference| = 3
+# =======================================================
+Section::Begin("Event 2 — Difference is 3");
+BEGIN_TEXT
+Event 2: The <b>absolute difference</b> between the dice is 3.
+(Example: 14 and 41 both have absolute difference 3.)
+$PAR
+
+<b>Step 1 (Build the event).</b>
+List all outcomes (two-digit codes) where the absolute difference is 3.
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+E2 = { \{ ans_rule(60) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Count how many outcomes are in E2 and divide by 36.
+$PAR
+Enter P(E2) as a fraction or a decimal:
+$BR
+P(E2) = \{ ans_rule(12) \}
+END_TEXT
+
+ANS($cmp_event2);
+
+Context("Numeric");
+ANS($cmp_p2);
+Context($ctxSet);
+
+Section::End();
+
+# =======================================================
+# Event 3: Product = 6
+# =======================================================
+Section::Begin("Event 3 — Product is 6");
+BEGIN_TEXT
+Event 3: The <b>product</b> of the two dice is 6.
+$PAR
+
+<b>Step 1 (Build the event).</b>
+List all outcomes (two-digit codes) where the product is 6.
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+E3 = { \{ ans_rule(40) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Count how many outcomes are in E3 and divide by 36.
+$PAR
+Enter P(E3) as a fraction or a decimal:
+$BR
+P(E3) = \{ ans_rule(12) \}
+END_TEXT
+
+ANS($cmp_event3);
+
+Context("Numeric");
+ANS($cmp_p3);
+Context($ctxSet);
+
+Section::End();
+
+# =======================================================
+# Event 4: Double
+# =======================================================
+Section::Begin("Event 4 — Double");
+BEGIN_TEXT
+Event 4: A <b>double</b> is rolled (both dice show the same number).
+$PAR
+
+<b>Step 1 (Build the event).</b>
+List all outcomes (two-digit codes) that are doubles.
+Comma-separated, order doesn't matter. Do not type braces.
+$BR
+E4 = { \{ ans_rule(40) \} }
+$PAR
+
+<b>Step 2 (Find the probability).</b>
+Count how many outcomes are in E4 and divide by 36.
+$PAR
+Enter P(E4) as a fraction or a decimal:
+$BR
+P(E4) = \{ ans_rule(12) \}
+END_TEXT
+
+ANS($cmp_event4);
+
+Context("Numeric");
+ANS($cmp_p4);
+Context($ctxSet);
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING (ACTIVE)
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+  BEGIN_TEXT
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+$PAR
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+$BR
+Note: Consider using the Email Instructor button below to suggest improvements.
+$PAR
+Rating:
+$BR
+\{ ans_rule(6) \}
+END_TEXT
+
+  Context("Numeric");
+  ANS($cmp_rating);
+  Context($ctxSet);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();
