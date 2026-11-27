@@ -4,6 +4,8 @@
 ## DBsubject(Calculus - single variable)
 ## DBchapter(Integrals)
 ## DBsection(Riemann sums)
+## KEYWORDS(definite integral, fundamental theorem of calculus)
+## KEYWORDS('Riemann sum', 'right-hand rule', 'left-hand rule')
 ## Institution(Valdosta State University)
 ## Author(S. V. Ault)
 ## Level(3)
@@ -16,11 +18,9 @@
 
 DOCUMENT();
 loadMacros(
-    'PGstandard.pl',     'PGML.pl',
-    'weightedGrader.pl', 'parserPopUp.pl',
-    'PGtikz.pl',         'PGcourse.pl'
+    'PGstandard.pl', 'PGML.pl', 'plots.pl', 'parserPopUp.pl',
+    'PGcourse.pl'
 );
-install_weighted_grader();
 
 $c = random(9, 13);       # a constant for scaling the function
 $f = Compute("x^2/$c");
@@ -33,115 +33,77 @@ $b = $a + 2;              # right endpoint of interval
 # endpoint Riemann sums.
 $n  = 4;                # number of rectangles
 $dx = ($b - $a) / $n;
-for $k (0 .. $n) {
+for my $k (0 .. $n) {
     $x[$k] = $a + $k * $dx;
     $y[$k] = $f->eval(x => $x[$k]);
 }
 $sumLeft  = 0;
 $sumRight = 0;
-for $k (0 .. $n - 1) {
+for my $k (0 .. $n - 1) {
     $sumLeft  += $y[$k] * $dx;
     $sumRight += $y[ $k + 1 ] * $dx;
 }
 
-# Graph of the Left Riemann sum rectangles
-$graph1 = createTikZImage();
-$graph1->tikzLibraries('arrows.meta');
-$graph1->BEGIN_TIKZ
-\tikzset{>={Stealth[scale=2]}}
-\Large % Make the fonts a little bigger.
-\filldraw[
-    draw=LightBlue,
-    fill=white,
-    rounded corners=10pt,
-    thick,use as bounding box
-] (-1,-1) rectangle (9,9);
-\draw[->] (-1,0) -- (9,0) node[above left,outer sep=3pt] {\(x\)};
-\foreach \x in {1,...,8} \draw(\x,5pt) -- (\x,-5pt) node [below] {\(\x\)};
-\draw[->] (0,-1) -- (0,9) node[below right,outer sep=3pt] {\(y\)};
-\foreach \y in {1,...,8} \draw (5pt,\y) -- (-5pt,\y) node[left] {\(\y\)};
-\draw[<->] plot[domain=-1:9] (\x,{\x*\x/$c});
-\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
-    ($x[0],0) rectangle ($x[1],$y[0]);
-\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
-    ($x[1],0) rectangle ($x[2],$y[1]);
-\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
-    ($x[2],0) rectangle ($x[3],$y[2]);
-\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
-    ($x[3],0) rectangle ($x[4],$y[3]);
-END_TIKZ
+for my $k (0 .. 1) {
+    $plot[$k] = Plot(
+        xmin            => -1,
+        xmax            =>  9,
+        xtick_delta     =>  1,
+        xminor          =>  0,
+        ymin            => -1,
+        ymax            =>  9,
+        ytick_delta     =>  2,
+        yminor          =>  1,
+        rounded_corners => 1
+    );
+    $plot[$k]->add_function($f, 'x', -1, 9, color => 'blue', width => 1.5);
+}
 
-# Graph of the right Riemann sum rectangles
-$graph2 = createTikZImage();
-$graph2->tikzLibraries('arrows.meta');
-$graph2->BEGIN_TIKZ
-\tikzset{>={Stealth[scale=2]}}
-\Large % Make the fonts a little bigger.
-\filldraw[
-    draw=LightBlue,
-    fill=white,
-    rounded corners=10pt,
-    thick,use as bounding box
-] (-1,-1) rectangle (9,9);
-\draw[->] (-1,0) -- (9,0) node[above left,outer sep=3pt] {\(x\)};
-\foreach \x in {1,...,8} \draw(\x,5pt) -- (\x,-5pt) node [below] {\(\x\)};
-\draw[->] (0,-1) -- (0,9) node[below right,outer sep=3pt] {\(y\)};
-\foreach \y in {1,...,8} \draw (5pt,\y) -- (-5pt,\y) node[left] {\(\y\)};
-\draw[<->] plot[domain=-1:9] (\x,{\x*\x/$c});
-\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
-    ($x[0],0) rectangle ($x[1],$y[1]);
-\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
-    ($x[1],0) rectangle ($x[2],$y[2]);
-\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
-    ($x[2],0) rectangle ($x[3],$y[3]);
-\filldraw[draw=blue,fill=blue!50!white, fill opacity = 0.5]
-    ($x[3],0) rectangle ($x[4],$y[4]);
-END_TIKZ
+for my $j (0 .. 1) {
+    for my $k (0 .. $n - 1) {
+        $plot[$j]->add_rectangle(
+            [ $x[$k], 0 ], [ $x[ $k + 1 ], $y[ $k + $j ] ],
+            fill_color => 'lightblue',
+            width      => 1
+        );
+    }
+}
 
-$leftEstimateDropDown = DropDown(
-    [
-        'an overestimate of',
-        'equal to',
-        'an underestimate of',
-        'there is ambiguity'
-    ],
-    2
-);
+$opts = [
+    'an overestimate of',
+    'equal to',
+    'an underestimate of',
+    'there is ambiguity'
+];
 
-$rightEstimateDropDown = DropDown(
-    [
-        'an overestimate of',
-        'equal to',
-        'an underestimate of',
-        'there is ambiguity'
-    ],
-    0
-);
+$leftEstimateDropDown = DropDown($opts, 2);
+
+$rightEstimateDropDown = DropDown($opts, 0);
 
 BEGIN_PGML
 Suppose [``f(x) = \frac{x^2}{[$c]}``].
 
 a. The rectangles in the graph below illustrate a left endpoint Riemann sum for
-[`f(x)`] on the interval [`[$a] \leq x \leq [$b]`].  The value of this left
-endpoint Riemann sum is [_]{Real($sumLeft)->cmp(weight => 45)}{5} and it is
-[_]{ $leftEstimateDropDown->cmp(weight => 5) } the area of the region enclosed
-by [`y = f(x)`], the [`x`]-axis, and the vertical lines [`x = [$a]`] and
-[`x = [$b]`].
+    [`f(x)`] on the interval [`[$a] \leq x \leq [$b]`].  The value of this left
+    endpoint Riemann sum is [_]{Real($sumLeft)->cmp(weight => 45)}{5} and it is
+    [_]{ $leftEstimateDropDown->cmp(weight => 5) } the area of the region enclosed
+    by [`y = f(x)`], the [`x`]-axis, and the vertical lines [`x = [$a]`] and
+    [`x = [$b]`].
+    
+    >>[!!]{$plot[0]}{250}<<
 
->>[@ image($graph1, height => 250, width => 250, tex_size => 450) @]*<<
-
->>Left endpoint Riemann sum<<
+    >>Left endpoint Riemann sum<<
 
 b. The rectangles in the graph below illustrate a right endpoint Riemann sum for
-[`f(x)`] on the interval [`[$a] \leq x \leq [$b]`].  The value of this right
-endpoint Riemann sum is [_]{ Real($sumRight)->cmp(weight => 45) }{5} and it is
-[_]{ $rightEstimateDropDown->cmp(weight => 5) } the area of the region enclosed
-by [`y = f(x)`], the [`x`]-axis, and the vertical lines [`x = [$a]`] and
-[`x = [$b]`].
-
->>[@ image($graph2, height => 250, width => 250, tex_size => 450) @]*<<
-
->>Right endpoint Riemann sum<<
+    [`f(x)`] on the interval [`[$a] \leq x \leq [$b]`].  The value of this right
+    endpoint Riemann sum is [_]{ Real($sumRight)->cmp(weight => 45) }{5} and it is
+    [_]{ $rightEstimateDropDown->cmp(weight => 5) } the area of the region enclosed
+    by [`y = f(x)`], the [`x`]-axis, and the vertical lines [`x = [$a]`] and
+    [`x = [$b]`].
+    
+    >>[!!]{$plot[1]}{250}<<
+    
+    >>Right endpoint Riemann sum<<
 END_PGML
 
 BEGIN_PGML_SOLUTION
