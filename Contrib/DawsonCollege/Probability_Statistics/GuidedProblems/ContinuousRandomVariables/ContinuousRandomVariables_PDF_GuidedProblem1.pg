@@ -1,0 +1,286 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Continuous Random Variables: Intro to PDFs (Geometry Only) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Continuous Random Variables)
+## Level(2)
+## KEYWORDS('continuous random variable','probability density function','pdf','area','geometry','interval probability')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser flag (LB-safe)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{isLibrary}) && $envir{isLibrary}) { $inLibraryBrowser = 1; }
+if (defined($envir{isLibraryBrowser}) && $envir{isLibraryBrowser}) { $inLibraryBrowser = 1; }
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+
+# PDF described by the provided graph:
+# - Constant on [0,2] with height 1/3
+# - Linearly decreases from height 1/3 at x=2 to 0 at x=4
+
+$h2  = Compute("1/3");   # f(2)
+$h3  = Compute("1/6");   # f(3) (halfway down)
+
+# Areas (probabilities) by geometry
+$A_rect_0_2 = Compute("2*(1/3)");              # area on [0,2]
+$A_tri_2_4  = Compute("(1/2)*2*(1/3)");        # area on [2,4]
+$A_total    = Compute("1");
+
+$P_0_1 = Compute("1*(1/3)");                   # rectangle on [0,1]
+$P_3_4 = Compute("(1/2)*1*(1/6)");             # small triangle on [3,4]
+$P_1_2 = Compute("1*(1/3)");                   # rectangle on [1,2]
+$P_2_3 = Compute("(1/2)*1*((1/3)+(1/6))");     # trapezoid on [2,3]
+$P_1_3 = Compute("1/3 + 0.25");                # This evaluates to 7/12 (0.5833...)
+
+$P_point2 = Real(0);
+
+# =======================================================
+# Evaluators (with non-revealing hints)
+# =======================================================
+
+$cmp_Arect = $A_rect_0_2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 2) < 1e-6 } => "That is only the base length. Rectangle area = (base)(height).",
+  sub { abs($_[0] - (1/3)) < 1e-6 } => "That is only the height. Rectangle area = (base)(height).",
+));
+
+$cmp_Atri = $A_tri_2_4->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 2) < 1e-6 } => "That is only the base length. Triangle area = (1/2)(base)(height).",
+  sub { abs($_[0] - (1/3)) < 1e-6 } => "That is only the height. Triangle area = (1/2)(base)(height).",
+));
+
+$cmp_Atotal = $A_total->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $A_rect_0_2->value) < 1e-6 } => "You entered only the rectangle area. Add rectangle + triangle.",
+  sub { abs($_[0] - $A_tri_2_4->value) < 1e-6 } => "You entered only the triangle area. Add rectangle + triangle.",
+));
+
+$cmp_f2 = $h2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0) < 1e-6 } => "f(2) is the height of the graph at x=2, not a probability.",
+));
+
+$cmp_f3 = $h3->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $h2->value) < 1e-6 } => "At x=3 the height is lower than at x=2 because the line is decreasing.",
+));
+
+$cmp_P01 = $P_0_1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 1) < 1e-6 } => "Probability is an area, not a width. Use rectangle area: (base)(height).",
+));
+
+$cmp_P34 = $P_3_4->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (1/6)) < 1e-6 } => "That is the height at x=3, not the area. Use triangle area: (1/2)(base)(height).",
+));
+
+$cmp_P13 = $P_1_3->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $P_1_2->value) < 1e-6 } => "That is only the area from 1 to 2. You also need the area from 2 to 3.",
+  sub { abs($_[0] - $P_2_3->value) < 1e-6 } => "That is only the area from 2 to 3. You also need the area from 1 to 2.",
+));
+
+$cmp_point2 = $P_point2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $h2->value) < 1e-6 } => "That is f(2), a height (density). A single point has zero width, so probability is 0.",
+));
+
+$rb_area = RadioButtons(
+  [
+    "The value f(3).",
+    "The area under the graph of f(x) from x=1 to x=3.",
+    "The number of x-values between 1 and 3.",
+  ],
+  1, 
+  labels => "ABC",
+  displayLabels => 0,
+);
+
+if ($ENABLE_GP_RATING) {
+  $cmp_rating = Real(3)->cmp(
+    checker => sub {
+      my ($c, $s, $ans) = @_;
+      my $v = eval { $s->value };
+      if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+        $ans->{score} = 1; $ans->{ans_message} = "Thanks!";
+      } else {
+        $ans->{score} = 0; $ans->{ans_message} = "Please enter an integer from 1 to 5.";
+      }
+      return $ans->{score};
+    }
+  );
+}
+
+# =======================================================
+# Scaffold
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(can_open => "always", is_open => "always");
+} else {
+  Scaffold::Begin(open_one_at_a_time => 1, can_open => "when_previous_correct");
+}
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+This guided problem introduces **probability density functions** (pdfs) using **geometry only** (no integration).
+
+Let [`` X ``] be a continuous random variable with pdf [`` f(x) ``] shown in the graph below.
+
+You will:
+- check the two pdf conditions,
+- compute probabilities of intervals by finding **areas under the curve**,
+- see why point probabilities are 0.
+
+[@ image("pdf_rect_triangle.png", width => 520) @]*
+END_PGML
+Section::End();
+
+Section::Begin("Two conditions and the interval rule");
+BEGIN_PGML
+Every density function [`` f(x) ``] must satisfy:
+
+1. [`` f(x)\ge 0 ``] for all [`` x ``] (the graph never drops below the x-axis).
+2. The total area under the graph of [`` f(x) ``] is 1.
+
+Also, for any continuous random variable [`` X ``]:
+[`` P(a\le X\le b)=P(a< X\le b)=P(a\le X< b)=P(a< X< b) ``]
+
+**Checkpoint:** Which expression represents [`` P(1\le X\le 3) ``]?
+
+[@ $rb_area->buttons() @]*
+END_PGML
+ANS($rb_area->cmp);
+Section::End();
+
+Section::Begin("Geometry toolbox");
+BEGIN_PGML
+We will compute probabilities using basic area formulas:
+
+- Rectangle area = (base)(height)
+- Triangle area = (1/2)(base)(height)
+- Trapezoid area = (1/2)(base)(sum of the parallel side lengths)
+
+In this graph:
+- The part from [`` x=0 ``] to [`` x=2 ``] is a rectangle region under a constant height.
+- The part from [`` x=2 ``] to [`` x=4 ``] is a triangle region under a straight line.
+END_PGML
+Section::End();
+
+Section::Begin("Check condition 2: total area is 1");
+BEGIN_PGML
+Compute the area in two pieces:
+
+1) Area under [`` f(x) ``] from [`` 0 ``] to [`` 2 ``] (rectangle): [____]
+
+2) Area under [`` f(x) ``] from [`` 2 ``] to [`` 4 ``] (triangle): [____]
+
+3) Total area (rectangle + triangle): [____]
+END_PGML
+ANS($cmp_Arect);
+ANS($cmp_Atri);
+ANS($cmp_Atotal);
+Section::End();
+
+Section::Begin("Density values vs probabilities");
+BEGIN_PGML
+A pdf value like [`` f(2) ``] is a **height** (a density), not a probability.
+
+Read the height from the graph:
+
+1) [`` f(2)= ``] [____]
+
+2) [`` f(3)= ``] [____]
+END_PGML
+ANS($cmp_f2);
+ANS($cmp_f3);
+Section::End();
+
+Section::Begin("Interval probabilities by area (practice)");
+BEGIN_PGML
+Now compute probabilities as **areas** under the graph.
+
+1) [`` P(0\le X\le 1) ``] (a rectangle region): [____]
+
+2) [`` P(3\le X\le 4) ``] (a small triangle region): [____]
+
+3) [`` P(1\le X\le 3) ``] (split it at [`` x=2 ``]; rectangle + trapezoid): [____]
+END_PGML
+ANS($cmp_P01);
+ANS($cmp_P34);
+ANS($cmp_P13);
+Section::End();
+
+Section::Begin("Endpoints do not matter");
+BEGIN_PGML
+Compute the "open-interval" version:
+
+[`` P(1< X< 3)= ``] [____]
+
+Now compute the difference:
+
+[`` P(1\le X\le 3)-P(1< X< 3)= ``] [____]
+END_PGML
+ANS($P_1_3->cmp);
+ANS(Real(0)->cmp);
+Section::End();
+
+Section::Begin("Point probability is zero");
+BEGIN_PGML
+A single point has zero width, so its "area" is zero.
+
+Compute:
+
+[`` P(X=2)= ``] [____]
+END_PGML
+ANS($cmp_point2);
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Enter the key takeaways:
+
+Total area under the pdf [`` = ``] [____]  
+[`` P(1\le X\le 3)= ``] [____]  
+[`` P(X=2)= ``] [____]
+END_PGML
+ANS($A_total->cmp);
+ANS($P_1_3->cmp);
+ANS($P_point2->cmp);
+Section::End();
+
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for understanding what a pdf means?
+
+Rating (enter 1-5): [___]
+END_PGML
+  ANS($cmp_rating);
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

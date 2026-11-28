@@ -1,0 +1,197 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Probability via Counting: MISSISSIPPI Distinct Arrangements (Guided / Scaffolded)
+## ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data & Calculations
+# =======================================================
+Context("Numeric");
+
+# Word: MISSISSIPPI
+# Counts: M=1, I=4, S=4, P=2  (total n=11)
+$n  = 11;
+$nM = 1;
+$nI = 4;
+$nS = 4;
+$nP = 2;
+
+# helper: factorial
+sub fact {
+  my ($m) = @_;
+  return 1 if ($m <= 1);
+  my $p = 1;
+  for (my $k = 2; $k <= $m; $k++) { $p *= $k; }
+  return $p;
+}
+
+# Distinct permutations: n! / (nI! nS! nP! nM!)
+$ans_val = fact($n) / ( fact($nI) * fact($nS) * fact($nP) * fact($nM) );
+
+# MathObjects
+$valN   = Real($n);
+$valNI  = Real($nI);
+$valNS  = Real($nS);
+$valNP  = Real($nP);
+$valAns = Real($ans_val);
+
+# =======================================================
+# Checkpoints (MC)
+# =======================================================
+
+# Section 2: meaning checkpoint (Formula checkpoint removed as requested)
+$rb_why_divide = RadioButtons(
+  [
+    "Because factorials make numbers smaller, so it must be correct.",
+    "Because swapping identical objects creates a new arrangement.",
+    "Because swapping identical objects does NOT create a new arrangement, so \(n!\) overcounts.",
+    "Because we always divide by the number of different letter types.",
+  ],
+  2,
+  labels => "ABC",
+);
+
+# =======================================================
+# Evaluators
+# =======================================================
+
+$cmp_n  = $valN->cmp->withPostFilter(AnswerHints(
+  sub { my ($c, $s) = @_; return $s == 10; } => "Count the letters carefully: MISSISSIPPI has 11 letters.",
+));
+
+$cmp_nI = $valNI->cmp->withPostFilter(AnswerHints(
+  sub { my ($c, $s) = @_; return $s == 3; } => "MISSISSIPPI has 4 I's (not 3).",
+));
+
+$cmp_nS = $valNS->cmp->withPostFilter(AnswerHints(
+  sub { my ($c, $s) = @_; return $s == 3; } => "MISSISSIPPI has 4 S's (not 3).",
+));
+
+$cmp_nP = $valNP->cmp->withPostFilter(AnswerHints(
+  sub { my ($c, $s) = @_; return $s == 1; } => "MISSISSIPPI has 2 P's (not 1).",
+));
+
+# Function to create answer evaluator for the final result
+sub get_ans_cmp {
+  return Real($ans_val)->cmp->withPostFilter(AnswerHints(
+    sub { my ($c, $s) = @_; return abs($s - fact(11)) < 0.5; } => 
+      "That is \(11!\), which would be correct only if all letters were different. Here we have repeats.",
+    sub { my ($c, $s) = @_; return $s == 0; } => "The result must be a positive integer.",
+  ));
+}
+
+# Rating evaluator
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = $student->value;
+    return (defined($v) && $v == int($v) && $v >= 1 && $v <= 5);
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+How many **distinct arrangements** of the letters in **MISSISSIPPI** are possible?
+
+(Swapping two identical letters does **not** create a new arrangement.)
+END_PGML
+Section::End();
+
+Section::Begin("Permutations with repeated objects (The Formula)");
+BEGIN_PGML
+If there are [`` n ``] total objects, and some objects are identical:
+
+- Object type 1 repeats [`` n_1 ``] times  
+- Object type 2 repeats [`` n_2 ``] times  
+- ...  
+- Object type [`` k ``] repeats [`` n_k ``] times  
+
+with [`` n_1+n_2+\cdots+n_k = n ``], then the number of **distinct permutations** is:
+
+[`` \frac{n!}{n_1!\,n_2!\cdots n_k!} ``]
+
+Here is the logic (this is the key idea):
+
+1) Start with [`` n! ``] arrangements **as if every object were different**.  
+2) But if a certain object repeats [`` n_1 ``] times, then swapping those [`` n_1 ``] identical objects does **not** create a new arrangement.  
+   That means each distinct arrangement was counted [`` n_1! ``] times in [`` n! ``] because of those identical objects.  
+3) If another object repeats [`` n_2 ``] times, that creates another overcounting factor of [`` n_2! ``], and so on.  
+4) Therefore each distinct arrangement is counted [`` n_1!\,n_2!\cdots n_k! ``] times inside [`` n! ``].  
+5) To fix the overcounting, divide:
+
+[`` \text{distinct permutations}=\frac{n!}{n_1!\,n_2!\cdots n_k!}. ``]
+
+**Checkpoint:** Why do we divide by factorials of the repeats?
+
+[@ $rb_why_divide->buttons() @]*
+END_PGML
+ANS($rb_why_divide->cmp);
+Section::End();
+
+Section::Begin("Count the repeated letters in MISSISSIPPI");
+BEGIN_PGML
+Now apply the idea to **MISSISSIPPI**.
+
+First count the letters:
+
+Total letters: [`` n = ``] [____]{$cmp_n}
+
+Number of I's: [____]{$cmp_nI}  
+Number of S's: [____]{$cmp_nS}  
+Number of P's: [____]{$cmp_nP}
+
+(There is also one M, but [``1! = 1``], so it will not change the count.)
+END_PGML
+Section::End();
+
+Section::Begin("Apply the formula (final answer)");
+BEGIN_PGML
+Using the formula:
+
+[`` \text{distinct arrangements} = \frac{n!}{n_I!\,n_S!\,n_P!} ``]
+
+Compute the number of distinct arrangements:
+
+[__________]{get_ans_cmp()}
+END_PGML
+Section::End();
+
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning permutations with repeated objects?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

@@ -1,0 +1,283 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Sampling Distribution of the Sample Mean (Normal Population): Beverage Fill Volume (n=9) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Sampling Distributions)
+## Level(2)
+## KEYWORDS('normal distribution','sampling distribution','sample mean','z-score','standardization','sigma over root n','fill volume')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Library Browser detection (LB stability)
+# ----------------------------------------------------------------
+$inLibraryBrowser = ($envir{isLibraryBrowser} || $envir{isLibrary} || 0);
+
+Context("Numeric");
+
+# =======================================================
+# Postfilter: add a hint ONLY when the answer is wrong
+# =======================================================
+sub HintIfWrong {
+  my $msg = shift;
+  return sub {
+    my $ans = shift;
+    if (defined($ans->{score}) && $ans->{score} < 1) {
+      $ans->{ans_message} = "" unless defined($ans->{ans_message});
+      $ans->{ans_message} .= " $msg";
+    }
+    return $ans;
+  };
+}
+
+# =======================================================
+# Data (given)
+# =======================================================
+$mu    = Real(355);
+$sigma = Real(6);
+$c     = Real(6);
+$n     = 9;
+
+# =======================================================
+# Correct numeric targets (precomputed)
+# =======================================================
+# Standard error: sigma/sqrt(9) = 2
+$SE_exact = 2.0;
+
+# Part (a): z = c/sigma = 1
+$z_a_exact  = 1.0;
+# P(mu-c < X < mu+c) = P(-1 < Z < 1)
+$P_a_exact  = 0.6826894921370859;
+
+# Part (b): z = c/(sigma/sqrt(9)) = 3
+$z_b_exact  = 3.0;
+# P(mu-c < Xbar < mu+c) = P(-3 < Z < 3)
+$P_b_exact  = 0.9973002039367398;
+
+# =======================================================
+# Tolerances
+# =======================================================
+$tol_mu = 0.001;
+$tol_se = 0.01;     # 2 or 2.00 etc.
+$tol_z  = 0.02;     # typical rounding of z
+$tol_p  = 0.001;    # 4-decimal rounding safe
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_mu_bar = $mu->cmp(tolType=>"absolute", tolerance=>$tol_mu)
+  ->withPostFilter(HintIfWrong("For a normal population, the mean of X-bar is the same as the mean of X."));
+
+$cmp_se = Real($SE_exact)->cmp(tolType=>"absolute", tolerance=>$tol_se)
+  ->withPostFilter(HintIfWrong("Standard error is sigma divided by sqrt(n). Here: 6/sqrt(9)."));
+
+$cmp_z1 = Real($z_a_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("For part (a), the z-bound is z = c/sigma."));
+
+$cmp_p1 = Real($P_a_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("Use symmetry: P(mu-c < X < mu+c) = P(-z < Z < z)."));
+
+$cmp_z2 = Real($z_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_z)
+  ->withPostFilter(HintIfWrong("For part (b), use z = c/(sigma/sqrt(n)). The denominator is the standard error."));
+
+$cmp_p2 = Real($P_b_exact)->cmp(tolType=>"absolute", tolerance=>$tol_p)
+  ->withPostFilter(HintIfWrong("Use symmetry: P(mu-c < X-bar < mu+c) = P(-z < Z < z)."));
+
+# =======================================================
+# Compare question (MC as numeric choice 1-5, no context switching)
+# Correct choice: 3
+# =======================================================
+$cmp_mc = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return ($s == 3) ? 1 : 0;
+  }
+)->withPostFilter(HintIfWrong("Think: X-bar has smaller standard deviation (sigma/sqrt(n)), so it stays closer to mu more often."));
+
+# =======================================================
+# Rating checker
+# =======================================================
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    return 0 unless defined $student;
+    my $s = $student->value;
+    return 0 unless defined $s;
+    return 0 unless $s == int($s);
+    return 0 unless ($s >= 1 && $s <= 5);
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold setup
+# =======================================================
+if ($inLibraryBrowser) {
+  Scaffold::Begin(numbered=>1, can_open=>"always", is_open=>"always");
+} else {
+  Scaffold::Begin(numbered=>1, can_open=>"when_previous_correct", is_open=>"correct_or_first_incorrect");
+}
+
+# -------------------------------------------------------
+# Step 1 — Problem Statement
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A beverage company uses a machine to fill bottles.
+
+Let [``X``] be the fill volume (in mL) of a randomly selected bottle.
+
+Assume [``X``] is normally distributed with mean [``\mu=355``] and standard deviation [``\sigma=6``]. In symbols:
+
+[``X \sim N(355,\,6)``]
+
+Let [``c=6``] mL. So we are looking at the interval from [``\mu-c``] to [``\mu+c``].
+
+(a) Find [``P(\mu-c < X < \mu+c)``].
+
+(b) Take a random sample of [``n=9``] bottles. Let [``\bar X``] be the sample mean. Find [``P(\mu-c < \bar X < \mu+c)``].
+
+Rounding: Round z-scores to 3 decimals and probabilities to 4 decimals.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Step 2 — Main concept (no image)
+# -------------------------------------------------------
+Section::Begin("Main concept: sampling distribution of the mean (normal population)");
+BEGIN_PGML
+**Theorem (Normal population):**  
+If [``X``] is normally distributed, then for any sample size [``n``], the sample mean [``\bar X``] is also normally distributed, with
+
+- [``\mu_{\bar X}=\mu``]
+- [``\sigma_{\bar X}=\sigma/\sqrt{n}``]
+
+For this problem, [``n=9``].
+
+Enter [``\mu_{\bar X}``]: [____]  
+Enter [``\sigma_{\bar X}``] (the standard error): [____]
+END_PGML
+
+ANS($cmp_mu_bar, $cmp_se);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 3 — Part (a)
+# -------------------------------------------------------
+Section::Begin("Part (a): probability within c of the mean for one bottle");
+BEGIN_PGML
+We want:
+
+[``P(\mu-c < X < \mu+c)``]
+
+Standardize using [``Z=(X-\mu)/\sigma``]. The bounds become:
+
+[``-\dfrac{c}{\sigma} < Z < \dfrac{c}{\sigma}``]
+
+1) Compute the z-bound [``z=\dfrac{c}{\sigma}``]: [____]
+
+2) Then compute [``P(-z<Z<z)``]: [____]
+END_PGML
+
+ANS($cmp_z1, $cmp_p1);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 4 — Part (b)
+# -------------------------------------------------------
+Section::Begin("Part (b): probability within c of the mean for the sample mean");
+BEGIN_PGML
+Now we want:
+
+[``P(\mu-c < \bar X < \mu+c)``]
+
+Because the population is normal, the sample mean is normal:
+
+[``\bar X \sim N\!\left(\mu,\dfrac{\sigma}{\sqrt{9}}\right)``]
+
+Standardize:
+
+[``-\dfrac{c}{\sigma/\sqrt{9}} < Z < \dfrac{c}{\sigma/\sqrt{9}}``]
+
+1) Compute the z-bound [``z=\dfrac{c}{\sigma/\sqrt{9}}``]: [____]
+
+2) Then compute [``P(-z<Z<z)``]: [____]
+END_PGML
+
+ANS($cmp_z2, $cmp_p2);
+
+Section::End();
+
+# -------------------------------------------------------
+# Step 5 — Compare (numeric MC)
+# -------------------------------------------------------
+Section::Begin("Compare the two probabilities");
+BEGIN_PGML
+Which probability is bigger, and why?
+
+1) The single-bottle probability is bigger because a single measurement has less variability than an average.  
+2) They are equal because both intervals are symmetric around [``\mu``].  
+3) The sample-mean probability is bigger because [``\sigma_{\bar X}=\sigma/\sqrt{n}``] is smaller, so [``\bar X``] is more concentrated near [``\mu``].  
+4) The sample-mean probability is smaller because dividing by [``\sqrt{n}``] reduces the z-bound.  
+5) The sample-mean probability is bigger only when [``n``] is at least 30.
+
+Enter the number (1-5): [____]
+END_PGML
+
+ANS($cmp_mc);
+
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating) — hidden in Library Browser
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING && !$inLibraryBrowser) {
+
+  Section::Begin("Feedback");
+
+  BEGIN_PGML
+How useful was this Guided Problem for you?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (1-5): [____]
+END_PGML
+
+  ANS($cmp_rating);
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

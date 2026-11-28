@@ -1,0 +1,223 @@
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Context & Data
+# =======================================================
+Context("Numeric");
+Context()->flags->set(implicitMultiplication => 1);
+
+# Use Compute for better handling of formula inputs vs raw numbers
+$space_n = Compute("2^5");
+
+$num1  = Compute("19^4");
+$den1  = Compute("20^5");
+$num2  = Compute("19^4");
+$den2  = Compute("20^5");
+
+$prob_one = Compute("(19/20)^4*(1/20)^1");
+$count    = Compute("5");
+$final    = Compute("5*(19/20)^4*(1/20)^1");
+
+$hint_indep = "Hint: P(SSSSF) = P(S)P(S)P(S)P(S)P(F). Use 0.95 for P(S) and 0.05 for P(F).";
+
+# =======================================================
+# Comparators
+# =======================================================
+$cmp_space = $space_n->cmp->withPostFilter(AnswerHints(
+  $space_n => "Correct! (2^5)",
+  sub {
+    my ($correct, $student, $ansHash) = @_;
+    return ($ansHash->{score} // 0) < 1;
+  } => "Hint: Each email becomes either S or F. That's 2 choices per email."
+));
+
+$cmp_num_1 = $num1->cmp;
+$cmp_den_1 = $den1->cmp;
+$cmp_num_2 = $num2->cmp;
+$cmp_den_2 = $den2->cmp;
+$cmp_prob_one = $prob_one->cmp;
+$cmp_count    = $count->cmp;
+$cmp_final    = $final->cmp;
+
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# RadioButtons
+# =======================================================
+$rb_inE   = RadioButtons(
+  ['SSFSS','SSSFF','FFFFS','SFFFF'],
+  0,                   # Correct is SSSSF (Index 0)
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_equal = RadioButtons(
+  [ 'Yes, the likelyhood is the same, regardless of the number of successes', 'No, the likelyhood depends on the number of successes' ],
+  1,                   # Correct is "No" (Index 1)
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+An email spam filter correctly flags spam with probability 0.95. You receive 5 spam emails.
+
+**Question:** What is the probability the filter flags exactly 4 of them?
+END_PGML
+Section::End();
+
+Section::Begin("Turn into Success and Failure Experiment");
+BEGIN_PGML
+We will turn this into an experiment where each trial consist of 5 independent emails. Each email can either be a  **Success** or a **Failure**.
+
+- Let **S (Success)** mean: “the filter flags the email”
+- Let **F (Failure)** mean: “the filter does not flag the email”
+
+Then each outcome becomes a 5-letter string made of S’s and F’s, such as:
+
+- `SSSSF` or `FSSSS`  (these have exactly 4 successes)
+- `SSSFF` or `FFFFS`  (these do **not** have exactly 4 successes)
+
+Let event **E** be: “exactly 4 successes out of 5 emails.”
+
+**Checkpoint:** Which outcome belongs to event E (exactly 4 successes)?  
+[_]{$rb_inE}
+END_PGML
+Section::End();
+
+Section::Begin("How many S/F outcomes exist?");
+BEGIN_PGML
+What is the total number of outcomes in the sample space regardless of the number of successes. Outcomes such as **SSSSF** or **SSSFF**?
+
+**Enter the number of S/F outcomes in the sample space:** [_]{$cmp_space}{10}
+END_PGML
+Section::End();
+
+Section::Begin("Are these S/F outcomes equally likely?");
+BEGIN_PGML
+**Checkpoint:** Are these [`2^5`] outcomes equally likely? For example are **SSSSF** and **SSSFF** equally likely?
+[_]{$rb_equal}
+END_PGML
+Section::End();
+
+# -----------------------
+Section::Begin("Additive rule for outcomes");
+BEGIN_PGML
+Because the S/F outcomes are **not** equally likely, we cannot just do:
+
+- “number of favorable outcomes divided by total outcomes.”
+
+Instead we use the **additive rule for outcomes**:
+
+- The probability of an event equals the sum of the probabilities of the outcomes in that event.
+
+So here:
+- Event E = “all S/F strings with exactly 4 S’s”
+- We need to add the probabilities of those favorable strings.
+END_PGML
+Section::End();
+
+
+Section::Begin("Use independence to compute two outcome probabilities");
+BEGIN_PGML
+The 5 emails are independent, so the probability of a specific S/F string is the product of the email probabilities.
+
+- \(P(S)=0.95\) use the fraction 19/20
+- \(P(F)=0.05\) use the fraction 1/20
+
+**1)** Compute [` P(SSSSF) `] (exactly 4 successes).  
+Numerator: [_]{$cmp_num_1}{10} / Denominator: [_]{$cmp_den_1}{10}
+
+**2)** Compute [` P(FSSSS) `] (exactly 4 successes).  
+Numerator: [_]{$cmp_num_2}{10} / Denominator: [_]{$cmp_den_2}{10}
+
+**Note:** [@ $hint_indep @]
+END_PGML
+Section::End();
+
+Section::Begin("Same probability for any 4S–1F string");
+BEGIN_PGML
+Any outcome with exactly **4 successes** and **1 failure** has the **same** probability. Enter this probability in the form [`(P(S))^4`] times [`(P(F))^1`]:
+
+**Enter this probability as a single expression:** [_]{$cmp_prob_one}{20}
+END_PGML
+Section::End();
+
+Section::Begin("Count favorable outcomes using the MISSISSIPPI idea");
+BEGIN_PGML
+Event E consists of all permutations of `SSSSF`. We know that all these permutations have the same probability. So we just need to use the `MISSISSIPPI` idea to figure out how many of all outcomes in the sample space consist exactly 4 S's and 1 F.
+
+**Enter the number of favorable outcomes in E:** [_]{$cmp_count}{10}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+At this point we know that there are 5 events in Event (E=“exactly 4 successes out of 5 emails.”). Each one have the same probability [`p=(0.95)^4(0.05)^1`]. Using **additive rule for outcomes** what is the probability of getting exactly 4 successes out of 5 emails? 
+**Final Answer:** [_]{$cmp_final}{30}
+END_PGML
+Section::End();
+
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+BEGIN_PGML_SOLUTION
+The probability is:
+
+**1.** Use the binomial model with \(n=5\) and \(p=0.95\):
+\\(
+P(E)=\\binom{5}{4}\\left(\\dfrac{19}{20}\\right)^4\\left(\\dfrac{1}{20}\\right)^1
+\\).
+
+**2.** Simplify:
+\\(
+P(E)=5\\left(\\dfrac{19^4}{20^5}\\right)
+\\).
+
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

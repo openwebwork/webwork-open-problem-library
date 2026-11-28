@@ -1,0 +1,254 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Identifying a Binomial Random Variable (Marbles & Replacement)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi / Gemini AI)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Random Variables)
+## Level(2)
+## KEYWORDS('binomial distribution','binomial random variable','probability formula','expected value','variance','standard deviation')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# Robust Library Browser detection
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{isLibrary}) && $envir{isLibrary}) { $inLibraryBrowser = 1; }
+if (defined($envir{isLibraryBrowser}) && $envir{isLibraryBrowser}) { $inLibraryBrowser = 1; }
+if (defined($main::displayMode) && $main::displayMode eq 'TeXML') { $inLibraryBrowser = 1; }
+
+# Disable rating in LB to reduce preview failures
+$ENABLE_GP_RATING = $inLibraryBrowser ? 0 : 1;
+
+# =======================================================
+# Context & Binomial Parameters (Option E is Binomial)
+# =======================================================
+Context("Numeric");
+
+$n = Real(15);
+$p = Compute("0.20");
+$q = Compute("0.80");
+
+$EX  = Compute("$n * $p");
+$Var = Compute("$n * $p * $q");
+$Sig = Compute("sqrt($Var)");
+
+# P(X=2) = C(15,2) * (0.2^2) * (0.8^13)
+$P2   = Compute("105 * (0.2**2) * (0.8**13)");
+# P(X<=2) = P(0) + P(1) + P(2)
+$P0   = Compute("0.8**15");
+$P1   = Compute("15 * 0.2 * 0.8**14");
+$Ple2 = Compute("$P0 + $P1 + $P2");
+
+# =======================================================
+# RadioButtons
+# =======================================================
+
+$rb_pick = RadioButtons(
+  ["Option A", "Option B", "Option C", "Option D", "Option E"],
+  4, # Index of Option E
+  labels => "ABC",
+  displayLabels => 0,
+);
+
+$rb_whyA = RadioButtons(
+  [
+    "Because X is the sum of results, not a count of successes.",
+    "Because there is no fixed number of identical trials; it counts events in a time interval.",
+    "Because the success probability changes from draw to draw.",
+    "Because each trial has more than two outcomes.",
+    "Because probabilities cannot add to 1.",
+  ],
+  1, labels => "ABC"
+);
+
+$rb_whyB = RadioButtons(
+  [
+    "Because the number of trials is not fixed.",
+    "Because the probability of success (p) is not constant over the shift.",
+    "Because X is not counting successes; it is adding the outcomes.",
+    "Because the trials are not independent.",
+    "Because there are no successes or failures.",
+  ],
+  1, labels => "ABC"
+);
+
+$rb_whyC = RadioButtons(
+  [
+    "Because the probability of success is not constant.",
+    "Because the number of trials is not fixed in advance (you stop when you reach 3 successes).",
+    "Because X is the sum of outcomes.",
+    "Because each trial has more than two outcomes.",
+    "Because probabilities cannot add to 1.",
+  ],
+  1, labels => "ABC"
+);
+
+$rb_whyD = RadioButtons(
+  [
+    "Because the trials are not independent (outcome of one shot changes the probability of the next).",
+    "Because X is the sum of outcomes.",
+    "Because the number of trials is not fixed.",
+    "Because the outcomes are not equally likely.",
+    "Because there are more than two outcomes per trial.",
+  ],
+  0, labels => "ABC"
+);
+
+# =======================================================
+# Evaluators
+# =======================================================
+$cmp_n = $n->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 15) > 1e-6 } => "Check the number of marbles selected in the binomial scenario.",
+));
+
+$cmp_p = $p->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 0.80) < 1e-6 } => "0.80 is the probability of NOT picking a blue marble (q).",
+));
+
+if ($ENABLE_GP_RATING) {
+  $cmp_rating = Real(3)->cmp(checker => sub {
+    my ($c, $s, $ans) = @_;
+    my $v = eval { $s->value };
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ans->{score} = 1; $ans->{ans_message} = "Thanks!";
+    } else {
+      $ans->{score} = 0; $ans->{ans_message} = "Enter 1 to 5.";
+    }
+    return $ans->{score};
+  });
+}
+
+# =======================================================
+# Main Problem Rendering
+# =======================================================
+
+BEGIN_PGML
+## Guided Problem: Identifying a Binomial Random Variable
+END_PGML
+
+if ($inLibraryBrowser) {
+  Scaffold::Begin(can_open => "always", is_open => "always");
+} else {
+  Scaffold::Begin(open_one_at_a_time => 1, can_open => "when_previous_correct");
+}
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Five discrete random variables are described below. Exactly **one** of them is binomial.
+
+* **Option A:** A radioactive source emits particles at a rate of 5 per minute. Let [`` X ``] be the number of particles detected in the first 2 minutes.
+* **Option B:** A quality control inspector tests components from a large batch. The probability of a defect is 2% for the first hour of a shift but increases by 0.5% every hour as the machine heats up. Let [`` X ``] be the number of defects found in a sample of 40 components over a 4-hour shift.
+* **Option C:** A software developer is fixing bugs. The probability of fixing a bug on the first attempt is 0.8. They work until they have fixed exactly 3 bugs. Let [`` X ``] be the total number of attempts they had to make.
+* **Option D:** A hunter is aiming at a target. He fires 10 shots. For each shot, if he hits the target, he becomes more confident and his probability of hitting the next shot increases. Let [`` X ``] be the number of hits in 10 shots.
+* **Option E:** A large bag contains thousands of marbles, 20% of which are blue. You reach in and select 15 marbles one by one, replacing each marble before picking the next. Let [`` X ``] be the number of blue marbles selected.
+
+We are going to figure out which option describes a binomial random variable.
+END_PGML
+Section::End();
+
+Section::Begin("Definition");
+
+BEGIN_PGML
+A random variable [`` X ``] has a **binomial distribution** with parameters [`` n ``] and [`` p ``] if:
+
+1. There are [`` n ``] identical and independent trials of a common procedure.  
+2. Each trial has exactly two outcomes: success or failure.  
+3. The probability of success on any one trial is the same number [`` p ``].  
+4. [`` X ``] counts the number of successes in the [`` n ``] trials.
+
+Based on the definition, which option is binomial?
+
+[@ $rb_pick->buttons() @]*
+END_PGML
+ANS($rb_pick->cmp);
+Section::End();
+
+Section::Begin("Why the other options are not binomial");
+BEGIN_PGML
+For each option that is **not** binomial, choose the best reason.
+
+**Option A:** Why is Option A not binomial?  
+[@ $rb_whyA->buttons() @]*
+
+**Option B:** Why is Option B not binomial?  
+[@ $rb_whyB->buttons() @]*
+
+**Option C:** Why is Option C not binomial?  
+[@ $rb_whyC->buttons() @]*
+
+**Option D:** Why is Option D not binomial?  
+[@ $rb_whyD->buttons() @]*
+END_PGML
+ANS($rb_whyA->cmp);
+ANS($rb_whyB->cmp);
+ANS($rb_whyC->cmp);
+ANS($rb_whyD->cmp);
+Section::End();
+
+Section::Begin("Identify the parameters n and p");
+BEGIN_PGML
+Now focus on the binomial option.
+
+- A "trial" is selecting one marble.  
+- A "success" is selecting a blue marble.
+
+1) [`` n= ``] [____]  
+2) [`` p= ``] [____]
+END_PGML
+ANS($cmp_n);
+ANS($cmp_p);
+Section::End();
+
+Section::Begin("Formula, mean, and variance");
+BEGIN_PGML
+**Binomial probability formula:** For [`` x=0,1,2,\dots,n ``], [`` P(X=x)=\binom{n}{x}p^x(1-p)^{n-x} ``]
+
+**Mean and variance:** [`` E(X)=np ``], [`` \mathrm{Var}(X)=np(1-p) ``]
+
+1) [`` E(X)= ``] [____]  
+2) [`` \mathrm{Var}(X)= ``] [____]
+END_PGML
+ANS($EX->cmp);
+ANS($Var->cmp);
+Section::End();
+
+Section::Begin("Compute probabilities and sigma_X");
+BEGIN_PGML
+1) Compute [`` P(X=2) ``]: [____]  
+2) Compute [`` P(X \le 2) ``]: [____]  
+3) Compute the standard deviation: [`` \sigma_X=\sqrt{\mathrm{Var}(X)}= ``] [____]
+END_PGML
+ANS($P2->cmp);
+ANS($Ple2->cmp);
+ANS($Sig->cmp);
+Section::End();
+
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+  How useful was this guided problem (1-5)? [___]
+  END_PGML
+  ANS($cmp_rating);
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

@@ -1,0 +1,207 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Combinations: 5-Card Hand from a 52-Card Deck (nCr) (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Combinatorics)
+## DBsection(Combinations)
+## Level(2)
+## KEYWORDS('combination','nCr','order does not matter','cards','5-card hand','binomial coefficient','factorial','overcounting')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data (keep everything ASCII + LB-friendly)
+# =======================================================
+Context("Numeric");
+
+$n = 52;
+$r = 5;
+
+$stage1 = $n;
+$stage2 = $n - 1;
+$stage3 = $n - 2;
+$stage4 = $n - 3;
+$stage5 = $n - 4;
+
+# Ordered count P(52,5)
+$P_n_r = $stage1 * $stage2 * $stage3 * $stage4 * $stage5;   # 52*51*50*49*48
+
+# Overcount factor 5!
+$r_fact = 120;
+
+# Combination count C(52,5)
+$C_n_r = int($P_n_r / $r_fact + 0.5);   # 2598960 (force integer)
+
+# For a common wrong idea: 52^5 (repeats allowed)
+$pow_nr = $n**$r;
+
+$val_stage1 = Real($stage1);
+$val_stage2 = Real($stage2);
+$val_stage3 = Real($stage3);
+$val_stage4 = Real($stage4);
+$val_stage5 = Real($stage5);
+$val_perm   = Real($P_n_r);
+$val_rfact  = Real($r_fact);
+$val_final  = Real($C_n_r);
+
+# =======================================================
+# Precompute evaluators (LB-friendly)
+# =======================================================
+$cmp_stage1 = $val_stage1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-51) < 0.5 } => "This is the first card. Nothing has been removed yet, so you start with all 52 cards.",
+));
+
+$cmp_stage2 = $val_stage2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-52) < 0.5 } => "After the first card is drawn, there is one fewer card available.",
+  sub { abs($_[0]-50) < 0.5 } => "This is the second draw. Only one card has been drawn so far.",
+));
+
+$cmp_stage3 = $val_stage3->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-51) < 0.5 } => "This is the third draw. Two cards have already been drawn.",
+));
+
+$cmp_stage4 = $val_stage4->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-50) < 0.5 } => "This is the fourth draw. Three cards have already been drawn.",
+));
+
+$cmp_stage5 = $val_stage5->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-49) < 0.5 } => "This is the fifth draw. Four cards have already been drawn.",
+));
+
+$cmp_perm = $val_perm->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-($stage1+$stage2+$stage3+$stage4+$stage5)) < 0.5 } => "It looks like you added instead of multiplying.",
+  sub { abs($_[0]-$pow_nr) < 1 } => "That looks like \(52^5\). That would allow repeats. Here, once a card is drawn, it is not available again.",
+));
+
+$cmp_rfact = $val_rfact->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-5) < 0.5 }  => "That is not \(5!\). Factorial means multiply: \(5!=5\cdot4\cdot3\cdot2\cdot1\).",
+  sub { abs($_[0]-24) < 0.5 } => "24 is \(4!\). For a 5-card hand, the number of orders is \(5!\).",
+  sub { abs($_[0]-60) < 0.5 } => "60 is missing a factor of 2. Check \(5\cdot4\cdot3\cdot2\cdot1\).",
+));
+
+$cmp_final = $val_final->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "Counts cannot be negative.",
+  sub { abs($_[0]-$P_n_r) < 0.5 } => "That counts ordered draws (permutations). A 5-card hand ignores order, so you must divide by \(5!\).",
+  sub { abs($_[0]-int($P_n_r/5 + 0.5)) < 1 } => "Dividing by 5 is not enough. You must divide by \(5!\), because there are \(5!\) orders of the same 5 cards.",
+  sub { abs($_[0]-$pow_nr) < 1 } => "That looks like \(52^5\), which allows repeats and order. For a hand: no repeats, and order does not matter.",
+));
+
+$cmp_rating = Real(3)->cmp(checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return ($v == int($v) && $v >= 1 && $v <= 5);
+  })->withPostFilter(AnswerHints(
+    sub { $_[0] < 1 || $_[0] > 5 } => "Please enter an integer from 1 to 5.",
+    sub { $_[0] != int($_[0]) } => "Please enter a whole number (integer) from 1 to 5.",
+  ));
+
+# =======================================================
+# Guided flow (Scaffold)
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A standard deck has **52 distinct cards**.
+
+In how many different ways can you form a **5-card hand** (where order does not matter)?
+END_PGML
+Section::End();
+
+Section::Begin("Count as if order matters (temporary step)");
+BEGIN_PGML
+First, count as if the 5 cards were drawn in **stages** (like an ordered list):
+
+- draw a **first** card,
+- then a **second** card from the remaining,
+- then a **third**,
+- then a **fourth**,
+- then a **fifth**.
+
+Fill in the number of choices at each stage:
+
+Stage 1: [____]{$cmp_stage1}
+
+Stage 2: [____]{$cmp_stage2}
+
+Stage 3: [____]{$cmp_stage3}
+
+Stage 4: [____]{$cmp_stage4}
+
+Stage 5: [____]{$cmp_stage5}
+
+Now multiply (Multiplication Principle):
+
+Ordered count = (stage 1)(stage 2)(stage 3)(stage 4)(stage 5) = [__________]{$cmp_perm}
+
+Note: This is an over-count of the number of 5-card hands one can make out of 52 cards. Because order does not matter in a hand.
+END_PGML
+Section::End();
+
+Section::Begin("Combination (definition and formula)");
+BEGIN_PGML
+A **combination** is a selection where **order does not matter**.
+
+But the previous step counted *orders*.
+For the same 5 cards, different draw orders are counted as different outcomes.
+
+How many different orders (permutations) can the same 5-card hand have?
+
+That number is [`5!`].
+
+Compute [`5!`]: [____]{$cmp_rfact}
+
+So the combination count is:
+
+[`` C(52,5)=\dfrac{P(52,5)}{5!}=\dfrac{52!}{(5!)(47!)}. ``]
+
+Compute [`C(52,5)`]: [__________]{$cmp_final}
+
+In general, the number of combinations of **n** distinct objects taken **r** at a time is:
+[`` C(n,r)=\binom{n}{r}=\dfrac{n!}{r!(n-r)!}. ``]
+END_PGML
+Section::End();
+
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

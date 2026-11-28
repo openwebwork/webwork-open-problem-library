@@ -1,0 +1,286 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Identifying a Binomial Random Variable + Binomial Formula (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Random Variables)
+## Level(2)
+## KEYWORDS('binomial distribution','binomial random variable','probability formula','expected value','variance','standard deviation')
+## Static(1)
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE by default)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# ----------------------------------------------------------------
+# Robust Library Browser detection (LB / SetMaker preview)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{isLibrary}) && $envir{isLibrary}) { $inLibraryBrowser = 1; }
+if (defined($envir{isLibraryBrowser}) && $envir{isLibraryBrowser}) { $inLibraryBrowser = 1; }
+if (defined($main::displayMode) && $main::displayMode eq 'TeXML') { $inLibraryBrowser = 1; }
+
+# Disable rating in LB to reduce preview failures
+if ($inLibraryBrowser) { $ENABLE_GP_RATING = 0; }
+
+# =======================================================
+# Context & Binomial Parameters (correct option is C)
+# =======================================================
+Context("Numeric");
+
+# Option C: n=50, p=0.03
+$n = Real(50);
+$p = Compute("3/100");
+
+$EX  = Compute("50*(3/100)");                 # np
+$Var = Compute("50*(3/100)*(97/100)");        # np(1-p)
+$Sig = Compute("sqrt(50*(3/100)*(97/100))");
+
+$P0   = Compute("(97/100)^50");
+$P1   = Compute("50*(3/100)*(97/100)^49");
+$P2   = Compute("1225*(3/100)^2*(97/100)^48");  # C(50,2)=1225
+$Ple2 = Compute("(97/100)^50 + 50*(3/100)*(97/100)^49 + 1225*(3/100)^2*(97/100)^48");
+
+# =======================================================
+# RadioButtons
+# =======================================================
+
+$rb_pick = RadioButtons(
+  ["Option A", "Option B", "Option C", "Option D", "Option E"],
+  2, # Index of Option C
+  labels => "ABC",
+  displayLabels => 0,
+);
+
+$rb_whyA = RadioButtons(
+  [
+    "Because X is the sum of results, not a count of successes.",
+    "Because there is no fixed number of identical trials; it counts events in a time interval.",
+    "Because the success probability changes from draw to draw (no replacement).",
+    "Because each trial has more than two outcomes.",
+    "Because probabilities cannot add to 1.",
+  ],
+  1,
+  labels => "ABC",
+);
+
+$rb_whyB = RadioButtons(
+  [
+    "Because the number of trials is not fixed in advance (you stop when you reach 5 successes).",
+    "Because X is not counting successes; it is adding outcomes.",
+    "Because the success probability changes from draw to draw (no replacement).",
+    "Because each trial has more than two outcomes.",
+    "Because probabilities cannot add to 1.",
+  ],
+  0,
+  labels => "ABC",
+);
+
+$rb_whyD = RadioButtons(
+  [
+    "Because the success probability changes from selection to selection (no replacement).",
+    "Because the number of trials is not fixed.",
+    "Because X is the sum of outcomes.",
+    "Because each trial has more than two outcomes.",
+    "Because probabilities cannot add to 1.",
+  ],
+  0,
+  labels => "ABC",
+);
+
+$rb_whyE = RadioButtons(
+  [
+    "Because the number of trials is not fixed.",
+    "Because X is not counting successes in repeated success/failure trials; it is a function of two dice.",
+    "Because the success probability changes from trial to trial.",
+    "Because each trial has more than two outcomes.",
+    "Because probabilities cannot add to 1.",
+  ],
+  1,
+  labels => "ABC",
+);
+
+# =======================================================
+# Evaluators (with AnswerHints)
+# =======================================================
+
+$cmp_n = $n->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 10) < 1e-6 } => "10 is used in Option D (club size). For the binomial option, n is the number of chips tested.",
+  sub { abs($_[0] - 5)  < 1e-6 } => "5 is the number of made baskets in Option B. For the binomial option, n is the number of chips tested.",
+));
+
+$cmp_p = $p->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (97/100)) < 1e-6 } => "97/100 is the probability a chip is NOT defective. Here p is the probability a chip IS defective.",
+  sub { abs($_[0] - 0.3) < 1e-6 }      => "Careful: 3 percent means 0.03, not 0.3.",
+));
+
+$cmp_EX = $EX->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (3/100)) < 1e-6 } => "3/100 is p. The mean is E(X)=np.",
+  sub { abs($_[0] - 50) < 1e-6 }      => "50 is n. The mean is E(X)=np.",
+));
+
+$cmp_Var = $Var->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (3/100)*(97/100)) < 1e-6 } => "That is p(1-p). Don't forget the factor n in Var(X)=np(1-p).",
+));
+
+$cmp_Peq2 = $P2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - (3/100)) < 1e-6 } => "3/100 is p for one trial. For P(X=2), use C(n,2)p^2(1-p)^(n-2).",
+  sub { abs($_[0] - (50*(3/100)*(97/100)^49)) < 1e-6 } => "That looks like P(X=1). For P(X=2), you need the C(n,2) term.",
+));
+
+$cmp_Ple2 = $Ple2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $P2->value) < 1e-6 } => "For P(X<=2), add P(0)+P(1)+P(2).",
+));
+
+$cmp_Sig = $Sig->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $Var->value) < 1e-6 } => "That is the variance. Standard deviation is the square root of the variance.",
+));
+
+if ($ENABLE_GP_RATING) {
+  $cmp_rating = Real(3)->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+      my $v = eval { $student->value };
+      if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+        $ansHash->{score} = 1; $ansHash->{ans_message} = "Thanks!";
+      } else {
+        $ansHash->{score} = 0; $ansHash->{ans_message} = "Enter 1 to 5.";
+      }
+      return $ansHash->{score};
+    }
+  );
+}
+
+# =======================================================
+# Main Problem Rendering
+# =======================================================
+
+BEGIN_PGML
+## Guided Problem: Identifying a Binomial Random Variable
+END_PGML
+
+if ($inLibraryBrowser) {
+  Scaffold::Begin(can_open => "always", is_open => "always");
+} else {
+  Scaffold::Begin(open_one_at_a_time => 1, can_open => "when_previous_correct");
+}
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+Five discrete random variables are described below. Exactly **one** of them is binomial.
+
+* **Option A:** A call center receives an average of 8 calls per hour. Let [`` X ``] be the number of calls received between 10:00 AM and 10:30 AM.
+* **Option B:** A basketball player has a 70 percent free-throw average. They practice by shooting until they successfully make 5 baskets. Let [`` X ``] be the total number of shots they had to take.
+* **Option C:** A manufacturer knows that 3 percent of their computer chips are defective. They randomly select 50 chips from a massive production line to test. Let [`` X ``] be the number of defective chips in the sample.
+* **Option D:** A small club has 10 members: 6 students and 4 faculty. A committee of 3 members is chosen at random. Let [`` X ``] be the number of faculty members on the committee.
+* **Option E:** You roll two fair 6-sided dice. Let [`` X ``] be the absolute difference between the two numbers shown.
+
+We are going to figure out which option describes a binomial random variable.
+END_PGML
+Section::End();
+
+Section::Begin("Definition");
+
+BEGIN_PGML
+A random variable [`` X ``] has a **binomial distribution** with parameters [`` n ``] and [`` p ``] if:
+
+1. There are [`` n ``] identical and independent trials of a common procedure.
+2. Each trial has exactly two outcomes: success or failure.
+3. The probability of success on any one trial is the same number [`` p ``].
+4. [`` X ``] counts the number of successes in the [`` n ``] trials.
+
+Based on the definition, which option is binomial?
+
+[@ $rb_pick->buttons() @]*
+END_PGML
+ANS($rb_pick->cmp);
+Section::End();
+
+Section::Begin("Why the other options are not binomial");
+BEGIN_PGML
+**Option A:** Why is Option A not binomial?  
+[@ $rb_whyA->buttons() @]*
+
+**Option B:** Why is Option B not binomial?  
+[@ $rb_whyB->buttons() @]*
+
+**Option D:** Why is Option D not binomial?  
+[@ $rb_whyD->buttons() @]*
+
+**Option E:** Why is Option E not binomial?  
+[@ $rb_whyE->buttons() @]*
+END_PGML
+ANS($rb_whyA->cmp);
+ANS($rb_whyB->cmp);
+ANS($rb_whyD->cmp);
+ANS($rb_whyE->cmp);
+Section::End();
+
+Section::Begin("Identify the parameters n and p");
+BEGIN_PGML
+Now focus on the binomial option.
+
+- A "trial" is testing one chip.
+- A "success" is finding a defective chip.
+
+1) [`` n= ``] [____]  
+2) [`` p= ``] [____]
+END_PGML
+ANS($cmp_n);
+ANS($cmp_p);
+Section::End();
+
+Section::Begin("Formula, mean, and variance");
+BEGIN_PGML
+**Binomial probability formula:** For [`` x=0,1,2,\dots,n ``], [`` P(X=x)=\binom{n}{x}p^x(1-p)^{n-x} ``]
+
+**Mean and variance:** [`` E(X)=np ``], [`` \mathrm{Var}(X)=np(1-p) ``]
+
+1) [`` E(X)= ``] [____]  
+2) [`` \mathrm{Var}(X)= ``] [____]
+END_PGML
+ANS($cmp_EX);
+ANS($cmp_Var);
+Section::End();
+
+Section::Begin("Compute probabilities and sigma_X");
+BEGIN_PGML
+1) Compute [`` P(X=2) ``]: [____]  
+2) Compute [`` P(X \le 2) ``]: [____]  
+3) Compute the standard deviation: [`` \sigma_X=\sqrt{\mathrm{Var}(X)}= ``] [____]
+END_PGML
+ANS($cmp_Peq2);
+ANS($cmp_Ple2);
+ANS($cmp_Sig);
+Section::End();
+
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+  How useful was this guided problem (1-5)? [___]
+  END_PGML
+  ANS($cmp_rating);
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

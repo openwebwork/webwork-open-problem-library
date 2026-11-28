@@ -1,0 +1,339 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Law of Total Probability (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability)
+## Level(2)
+## KEYWORDS('law of total probability','total probability','partition','conditional probability','weighted average','diagnostic test')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+# Partitions (age groups)
+$P_B1 = 0.20;   # ages 0-17
+$P_B2 = 0.30;   # ages 18-39
+$P_B3 = 0.35;   # ages 40-64
+$P_B4 = 0.15;   # ages 65+
+
+# Conditional probabilities (positive test rates by group)
+$P_A_given_B1 = 0.03;
+$P_A_given_B2 = 0.05;
+$P_A_given_B3 = 0.08;
+$P_A_given_B4 = 0.12;
+
+# Overall probability of a positive test
+$P_A = ($P_A_given_B1)*($P_B1) + ($P_A_given_B2)*($P_B2) + ($P_A_given_B3)*($P_B3) + ($P_A_given_B4)*($P_B4);
+
+# Store values as MathObjects
+$val_pA = Real($P_A);
+
+$val_d1 = Real($P_A_given_B1);  $val_w1 = Real($P_B1);
+$val_d2 = Real($P_A_given_B2);  $val_w2 = Real($P_B2);
+$val_d3 = Real($P_A_given_B3);  $val_w3 = Real($P_B3);
+$val_d4 = Real($P_A_given_B4);  $val_w4 = Real($P_B4);
+
+# Common mistake: simple average of the four rates
+$avg_simple = ($P_A_given_B1 + $P_A_given_B2 + $P_A_given_B3 + $P_A_given_B4)/4;
+
+# =======================================================
+# Concept checkpoint (MC): When do we use LTP?
+# =======================================================
+$rb_when_ltp = RadioButtons(
+  [
+    "When an event can happen through non-overlapping cases that cover all possibilities (a partition), and we know the conditional probability in each case.",
+    "When two events are independent.",
+    "When we want to reverse a conditional probability (switch the condition).",
+    "When we want to add conditional probabilities directly without any weights.",
+    "When an event depends on only one case and the other cases can be ignored.",
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Guided flow (Scaffold)
+# =======================================================
+Scaffold::Begin();
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A clinic serves patients from **four age groups**:
+
+- **20%** are ages **0-17**
+- **30%** are ages **18-39**
+- **35%** are ages **40-64**
+- **15%** are ages **65+**
+
+The probability that a patient tests **positive** depends on the age group:
+
+- **3%** for ages **0-17**
+- **5%** for ages **18-39**
+- **8%** for ages **40-64**
+- **12%** for ages **65+**
+
+If one patient is selected at random from the clinic, find the probability that the test result is **positive**.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Law of Total Probability (general case)");
+
+BEGIN_PGML
+Since the clinic sees patients from several distinct age groups, this gives us a natural partitioning of the sample space (all patients).
+
+Let [`A`] be the event “the test result is positive.”
+
+For the general case, suppose we have a partition [`B_1, B_2, B_3, ..., B_n`] of the sample space. That means:
+- every outcome belongs to exactly one of these groups
+- together they cover all possibilities
+
+In this problem, we have [`n=4`] age groups, so the groups are [`B_1, B_2, B_3, B_4`].
+END_PGML
+
+BEGIN_TEXT
+$PAR
+\{ image("vennn.png", width => 520) \}
+$PAR
+END_TEXT
+
+BEGIN_PGML
+Because the groups form a partition, the event [`A`] can be split into non-overlapping pieces:
+[`A\cap B_1, A\cap B_2, ..., A\cap B_n`].
+
+So the probability adds:
+[`` P(A)=P(A\cap B_1)+P(A\cap B_2)+\cdots+P(A\cap B_n). ``]
+
+Each piece is computed using conditional probability:
+[`` P(A\cap B_i)=P(A\mid B_i)\,P(B_i). ``]
+
+Putting this together gives the **Law of Total Probability**:
+[`` P(A)=\sum_{i=1}^{n} P(A\mid B_i)\,P(B_i). ``]
+
+For this problem (4 groups), that becomes:
+[`` P(A)=P(A\mid B_1)P(B_1)+P(A\mid B_2)P(B_2)+P(A\mid B_3)P(B_3)+P(A\mid B_4)P(B_4). ``]
+
+**Checkpoint (When do we use the Law of Total Probability?)**
+
+[@ $rb_when_ltp->buttons() @]*
+END_PGML
+
+ANS($rb_when_ltp->cmp);
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Compute the probability (using LTP)");
+BEGIN_PGML
+Before using the formula, extract the probabilities from the problem statement.
+
+Probability of a positive test given age group 0-17:  
+[`P(A\mid B_1)=`] [__________]{$val_d1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That is the positive-test rate for age group 18-39. Here we want 0-17.",
+  sub { abs($_[0]-$P_A_given_B3) < 0.0005 } => "That is the positive-test rate for age group 40-64. Here we want 0-17.",
+  sub { abs($_[0]-$P_A_given_B4) < 0.0005 } => "That is the positive-test rate for age group 65+. Here we want 0-17.",
+))}
+
+Probability a randomly selected patient is in age group 0-17:  
+[`P(B_1)=`] [__________]{$val_w1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That is the fraction for age group 18-39. Here we want 0-17.",
+  sub { abs($_[0]-$P_B3) < 0.0005 } => "That is the fraction for age group 40-64. Here we want 0-17.",
+  sub { abs($_[0]-$P_B4) < 0.0005 } => "That is the fraction for age group 65+. Here we want 0-17.",
+))}
+
+Probability of a positive test given age group 18-39:  
+[`P(A\mid B_2)=`] [__________]{$val_d2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That is the positive-test rate for age group 0-17. Here we want 18-39.",
+  sub { abs($_[0]-$P_A_given_B3) < 0.0005 } => "That is the positive-test rate for age group 40-64. Here we want 18-39.",
+  sub { abs($_[0]-$P_A_given_B4) < 0.0005 } => "That is the positive-test rate for age group 65+. Here we want 18-39.",
+))}
+
+Probability a randomly selected patient is in age group 18-39:  
+[`P(B_2)=`] [__________]{$val_w2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That is the fraction for age group 0-17. Here we want 18-39.",
+  sub { abs($_[0]-$P_B3) < 0.0005 } => "That is the fraction for age group 40-64. Here we want 18-39.",
+  sub { abs($_[0]-$P_B4) < 0.0005 } => "That is the fraction for age group 65+. Here we want 18-39.",
+))}
+
+Probability of a positive test given age group 40-64:  
+[`P(A\mid B_3)=`] [__________]{$val_d3->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That is the positive-test rate for age group 0-17. Here we want 40-64.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That is the positive-test rate for age group 18-39. Here we want 40-64.",
+  sub { abs($_[0]-$P_A_given_B4) < 0.0005 } => "That is the positive-test rate for age group 65+. Here we want 40-64.",
+))}
+
+Probability a randomly selected patient is in age group 40-64:  
+[`P(B_3)=`] [__________]{$val_w3->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That is the fraction for age group 0-17. Here we want 40-64.",
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That is the fraction for age group 18-39. Here we want 40-64.",
+  sub { abs($_[0]-$P_B4) < 0.0005 } => "That is the fraction for age group 65+. Here we want 40-64.",
+))}
+
+Probability of a positive test given age group 65+:  
+[`P(A\mid B_4)=`] [__________]{$val_d4->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That is the positive-test rate for age group 0-17. Here we want 65+.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That is the positive-test rate for age group 18-39. Here we want 65+.",
+  sub { abs($_[0]-$P_A_given_B3) < 0.0005 } => "That is the positive-test rate for age group 40-64. Here we want 65+.",
+))}
+
+Probability a randomly selected patient is in age group 65+:  
+[`P(B_4)=`] [__________]{$val_w4->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That is the fraction for age group 0-17. Here we want 65+.",
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That is the fraction for age group 18-39. Here we want 65+.",
+  sub { abs($_[0]-$P_B3) < 0.0005 } => "That is the fraction for age group 40-64. Here we want 65+.",
+))}
+
+Now use the Law of Total Probability:
+[`` P(A)=P(A\mid B_1)P(B_1)+P(A\mid B_2)P(B_2)+P(A\mid B_3)P(B_3)+P(A\mid B_4)P(B_4). ``]
+
+Compute [`P(A)`]: [__________]{$val_pA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { $_[0] < 0.03 } => "This is too small. The overall probability should be between 0.03 and 0.12.",
+  sub { $_[0] > 0.12 } => "This is too large. The overall probability should be between 0.03 and 0.12.",
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 || abs($_[0]-$P_A_given_B2) < 0.0005 || abs($_[0]-$P_A_given_B3) < 0.0005 || abs($_[0]-$P_A_given_B4) < 0.0005 } =>
+    "Careful: those are conditional probabilities for a single group. You still need a weighted sum using the group proportions.",
+  sub { abs($_[0]-$avg_simple) < 0.0008 } =>
+    "Looks like you used a simple average of the four rates. Here we need a weighted average using 0.20, 0.30, 0.35, and 0.15 as weights.",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Weighted average viewpoint (solve again)");
+BEGIN_PGML
+Another way to look at this problem is as a **weighted average**.
+
+If you have data values [`d_1, d_2, ..., d_n`] with weights [`w_1, w_2, ..., w_n`] (the weights must add to 1), then
+[`` \text{weighted average} = w_1d_1 + w_2d_2 + ... + w_nd_n, \qquad \text{where } w_1+w_2+...+w_n=1. ``]
+
+In this problem, think of:
+- the [`d`]'s as the positive-test rates
+- the [`w`]'s as the fractions of patients in each age group
+
+**Identify the pieces (use age groups 0-17, 18-39, 40-64, 65+ as 1, 2, 3, 4):**
+
+[`d_1=`] [__________]{$val_d1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That rate belongs to age group 18-39. Here we want 0-17.",
+  sub { abs($_[0]-$P_A_given_B3) < 0.0005 } => "That rate belongs to age group 40-64. Here we want 0-17.",
+  sub { abs($_[0]-$P_A_given_B4) < 0.0005 } => "That rate belongs to age group 65+. Here we want 0-17.",
+))}
+[`w_1=`] [__________]{$val_w1->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That fraction belongs to age group 18-39. Here we want 0-17.",
+  sub { abs($_[0]-$P_B3) < 0.0005 } => "That fraction belongs to age group 40-64. Here we want 0-17.",
+  sub { abs($_[0]-$P_B4) < 0.0005 } => "That fraction belongs to age group 65+. Here we want 0-17.",
+))}
+
+[`d_2=`] [__________]{$val_d2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That rate belongs to age group 0-17. Here we want 18-39.",
+  sub { abs($_[0]-$P_A_given_B3) < 0.0005 } => "That rate belongs to age group 40-64. Here we want 18-39.",
+  sub { abs($_[0]-$P_A_given_B4) < 0.0005 } => "That rate belongs to age group 65+. Here we want 18-39.",
+))}
+[`w_2=`] [__________]{$val_w2->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That fraction belongs to age group 0-17. Here we want 18-39.",
+  sub { abs($_[0]-$P_B3) < 0.0005 } => "That fraction belongs to age group 40-64. Here we want 18-39.",
+  sub { abs($_[0]-$P_B4) < 0.0005 } => "That fraction belongs to age group 65+. Here we want 18-39.",
+))}
+
+[`d_3=`] [__________]{$val_d3->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That rate belongs to age group 0-17. Here we want 40-64.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That rate belongs to age group 18-39. Here we want 40-64.",
+  sub { abs($_[0]-$P_A_given_B4) < 0.0005 } => "That rate belongs to age group 65+. Here we want 40-64.",
+))}
+[`w_3=`] [__________]{$val_w3->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That fraction belongs to age group 0-17. Here we want 40-64.",
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That fraction belongs to age group 18-39. Here we want 40-64.",
+  sub { abs($_[0]-$P_B4) < 0.0005 } => "That fraction belongs to age group 65+. Here we want 40-64.",
+))}
+
+[`d_4=`] [__________]{$val_d4->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That rate belongs to age group 0-17. Here we want 65+.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That rate belongs to age group 18-39. Here we want 65+.",
+  sub { abs($_[0]-$P_A_given_B3) < 0.0005 } => "That rate belongs to age group 40-64. Here we want 65+.",
+))}
+[`w_4=`] [__________]{$val_w4->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That fraction belongs to age group 0-17. Here we want 65+.",
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That fraction belongs to age group 18-39. Here we want 65+.",
+  sub { abs($_[0]-$P_B3) < 0.0005 } => "That fraction belongs to age group 40-64. Here we want 65+.",
+))}
+
+Now use the weighted average idea to compute the probability that a randomly selected patient tests positive.
+
+Final answer for [`P(A)`]:
+END_PGML
+
+BEGIN_TEXT
+$BR
+\{ NAMED_ANS_RULE("final", 15) \}
+END_TEXT
+
+NAMED_ANS("final", $val_pA->cmp);
+Section::End();
+
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning the Law of Total Probability?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1–5): [___]{Real(3)->cmp(checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return ($v == int($v) && $v >= 1 && $v <= 5);
+  })->withPostFilter(AnswerHints(
+    sub { $_[0] < 1 || $_[0] > 5 } => "Please enter an integer from 1 to 5.",
+    sub { $_[0] != int($_[0]) } => "Please enter a whole number (integer) from 1 to 5.",
+  ))}
+  END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

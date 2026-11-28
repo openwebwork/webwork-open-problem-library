@@ -1,0 +1,262 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Conditional Probability (Two-Way Tables)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability)
+## Level(2)
+## KEYWORDS('probability','conditional probability','contingency table','independence')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "niceTables.pl",           
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# Library Browser / SetMaker flag
+# ----------------------------------------------------------------
+our $inLibraryBrowser = (defined($envir{problemSeed}) && $envir{problemSeed} == 0) ? 1 : 0;
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+Context("Numeric");
+
+# =======================================================
+# Data Setup
+# =======================================================
+$N_MorningYes = 80;
+$N_MorningNo  = 120;
+$N_Total      = 200;
+
+$N_CoffeeYes  = 100;
+$N_CoffeeNo   = 100;
+
+$N_M_and_C    = 60;   
+$N_M_and_NoC  = 20;   
+$N_NoM_and_C  = 40;   
+$N_NoM_and_NoC= 80;   
+
+# Probabilities
+$p_M      = Real($N_MorningYes / $N_Total);    
+$p_C      = Real($N_CoffeeYes  / $N_Total);    
+$p_M_and_C= Real($N_M_and_C    / $N_Total);    
+$p_C_given_M = Real($N_M_and_C / $N_MorningYes); 
+
+# =======================================================
+# Independence Question
+# =======================================================
+our $rb_indep = RadioButtons(
+  [
+    "Yes, they are independent.",
+    "No, they are not independent.",
+  ],
+  1,  
+  labels => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Rating checker
+# =======================================================
+our $rating     = Real(3);
+our $rating_cmp = $rating->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    if (!defined($student)) { $ansHash->{ans_message} = "Enter an integer 1-5."; return 0; }
+    my $val = $student->value;
+    if (!defined($val)) { $ansHash->{ans_message} = "Enter an integer 1-5."; return 0; }
+    if ($val != int($val) || $val < 1 || $val > 5) {
+        $ansHash->{ans_message} = "Rating must be an integer from 1 to 5."; return 0;
+    }
+    return 1;
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+
+# -------------------------------------------------------
+Section::Begin("The Survey Data");
+BEGIN_TEXT
+A university surveys 200 students, asking two questions:
+$BR
+1. Do you consider yourself a "Morning Person"?
+$BR
+2. Do you drink coffee daily?
+$PAR
+The results are summarized in the table below:
+$PAR
+END_TEXT
+
+TEXT(
+  DataTable(
+    [
+      ["", ["Coffee (Yes)", headerrow => 1], ["Coffee (No)", headerrow => 1], ["TOTAL", headerrow => 1, bold => 1]],
+      [["Morning Person (Yes)", headerrow => 1], "$N_M_and_C", "$N_M_and_NoC", "$N_MorningYes"],
+      [["Morning Person (No)",  headerrow => 1], "$N_NoM_and_C", "$N_NoM_and_NoC", "$N_MorningNo"],
+      [["TOTAL", headerrow => 1, bold => 1], "$N_CoffeeYes", "$N_CoffeeNo", "$N_Total"]
+    ],
+    caption => "Survey Results",
+    align => '|c|c|c|c|',
+    midrules => 1,
+  )
+);
+
+BEGIN_TEXT
+$PAR
+Define the events:
+$BR
+\(M\): The student is a Morning Person.
+$BR
+\(C\): The student drinks Coffee.
+$PAR
+<b>Step 1 (Marginal Probabilities).</b>
+Calculate the probability that a randomly selected student belongs to each group.
+$PAR
+\(P(M)\) = \{ NAMED_ANS_RULE("pM",10) \}
+$BR
+\(P(C)\) = \{ NAMED_ANS_RULE("pC",10) \}
+END_TEXT
+
+NAMED_ANS("pM", $p_M->cmp);
+NAMED_ANS("pC", $p_C->cmp);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Intersection (The 'AND')");
+BEGIN_TEXT
+<b>Step 2 (Intersection).</b>
+Find the probability that a randomly selected student is <b>both</b> a Morning Person <b>AND</b> drinks coffee.
+$PAR
+\(P(M \cap C)\) = \{ NAMED_ANS_RULE("pMandC",10) \}
+END_TEXT
+
+NAMED_ANS("pMandC", $p_M_and_C->cmp);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Conditional Probability (Restricted Sample Space)");
+BEGIN_TEXT
+<b>Step 3 (Intuitive Approach).</b>
+We want to find \(P(C \mid M)\) by looking only at the relevant row of the table.
+$PAR
+1. How many students are in the restricted sample space (total Morning People)?
+$BR
+\{ NAMED_ANS_RULE("denom",10) \}
+$PAR
+2. Out of those specific students, how many drink coffee?
+$BR
+\{ NAMED_ANS_RULE("num",10) \}
+$PAR
+3. Based on these counts, what is the probability?
+$BR
+\(P(C \mid M)\) = \{ NAMED_ANS_RULE("pCgivenM_counts",10) \}
+END_TEXT
+
+NAMED_ANS("denom", Real($N_MorningYes)->cmp);
+NAMED_ANS("num",   Real($N_M_and_C)->cmp);
+NAMED_ANS("pCgivenM_counts", $p_C_given_M->cmp);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Verifying with the Formula");
+BEGIN_TEXT
+<b>Step 4 (Formal Approach).</b>
+The formal definition of conditional probability is:
+$PAR
+\[ P(C \mid M) = \frac{P(C \cap M)}{P(M)} \]
+$PAR
+Using the probabilities you calculated in Step 1 and Step 2, plug the values into this formula:
+$PAR
+\(P(C \mid M) = \frac{\text{Answer from Step 2}}{\text{P(M) from Step 1}}\)
+$PAR
+\(P(C \mid M)\) = \{ NAMED_ANS_RULE("pCgivenM_formula",10) \}
+$PAR
+<i>Note: You should get the same result as you did in Step 3!</i>
+END_TEXT
+
+NAMED_ANS("pCgivenM_formula", $p_C_given_M->cmp);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Independence Check");
+BEGIN_TEXT
+<b>Step 5 (Independence).</b>
+Compare \(P(C) = \) $p_C (from Step 1) with \(P(C \mid M) = \) \{ $p_C_given_M->value \} (from Step 4).
+$PAR
+Based on this comparison, are the events \(C\) and \(M\) independent?
+$PAR
+\{ $rb_indep->buttons \}
+END_TEXT
+
+ANS($rb_indep->cmp);
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_TEXT
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+$BR
+Rating: \{ NAMED_ANS_RULE("rating",6) \}
+END_TEXT
+  NAMED_ANS("rating", $rating_cmp);
+  Section::End();
+}
+
+Scaffold::End();
+
+# =======================================================
+# Solution
+# =======================================================
+BEGIN_PGML_SOLUTION
+**Step 1:**
+[`` P(M) = \frac{80}{200} = 0.4 ``]  
+[`` P(C) = \frac{100}{200} = 0.5 ``]
+
+**Step 2:**
+[`` P(M \cap C) = \frac{60}{200} = 0.3 ``]
+
+**Step 3:**
+Restricting the table to the "Morning Person" row, we have 60 coffee drinkers out of 80 people total.
+[`` P(C \mid M) = \frac{60}{80} = 0.75 ``]
+
+**Step 4:**
+Using the formula:
+[`` P(C \mid M) = \frac{P(C \cap M)}{P(M)} = \frac{0.3}{0.4} = 0.75 ``]
+
+**Step 5:**
+Since [``P(C \mid M) = 0.75``] and [``P(C) = 0.5``], the events are **not** independent.
+END_PGML_SOLUTION
+
+ENDDOCUMENT();

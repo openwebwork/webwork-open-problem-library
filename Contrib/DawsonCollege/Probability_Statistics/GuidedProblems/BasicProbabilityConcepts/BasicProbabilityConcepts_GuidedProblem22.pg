@@ -1,0 +1,277 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Redundancy and Detection (Guided / Scaffolded)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Independence)
+## Level(2)
+## KEYWORDS('probability','independence','complement rule','redundancy','reliability','detection')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "contextString.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Parameters
+# Each dog detects contraband (given contraband is present) with p = 0.90
+# Three independent dogs
+# =======================================================
+our $p_detect = 0.90;
+our $p_fail   = 1 - $p_detect;
+
+our $p_none   = $p_fail * $p_fail * $p_fail;     # P(NNN) = P(A^c ∩ B^c ∩ C^c)
+our $p_detected = 1 - $p_none;                   # P(E) = 1 - P(E^c)
+
+# =======================================================
+# Numeric evaluators
+# =======================================================
+Context("Numeric");
+
+our $cmp_p_none     = Real($p_none)->cmp(     tolType => "absolute", tolerance => 0.001 );
+our $cmp_p_detected = Real($p_detected)->cmp( tolType => "absolute", tolerance => 0.001 );
+
+# =======================================================
+# String context for sample space outcomes (8 outcomes)
+# =======================================================
+our $ctxSet = Context("String");
+$ctxSet->operators->redefine(',', using => ',');
+
+our %allowed = map { $_ => {} } qw(NNN NND NDN NDD DNN DND DDN DDD);
+$allowed{"none"} = { caseSensitive => 0 };
+$ctxSet->strings->add(%allowed);
+
+# =======================================================
+# Moral MC (5 options; correct is C)
+# =======================================================
+our $rb_moral = RadioButtons(
+  [
+    "Redundancy guarantees detection, so the probability becomes 1.",
+    "Independence makes redundancy useless because the dogs do not communicate.",
+    "Independent redundancy increases reliability because the chance that all devices fail at the same time is much smaller than one device failing in a system with no redundancy.",
+    "Redundancy only helps if the dogs are dependent (influenced by each other).",
+    "With three dogs, the probability of detection is the same as with one dog.",
+  ],
+  2,                    # 0-based index => C
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Rating checker (integer 1..5)
+# =======================================================
+our ($rating, $rating_cmp);
+
+# =======================================================
+# Scaffold (sequential gating)
+# =======================================================
+Scaffold::Begin(
+  numbered => 1,
+  can_open => "when_previous_correct",
+  is_open  => "correct_or_first_incorrect",
+  hardcopy_is_open => "always",
+);
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+
+BEGIN_TEXT
+The reliability of a system can be enhanced by <b>redundancy</b>, which means building two or more independent devices to do the same job.
+For example, an automobile may have two independent braking systems.
+$PAR
+Suppose a particular species of trained dogs has a \(90\%\) chance of detecting contraband in airline luggage.
+Assume contraband <b>is present</b> in the luggage.
+If the luggage is checked three times by three different dogs independently of one another, what is the probability that contraband will be detected?
+$PAR
+Define events:
+$BR
+\(A\): Dog 1 detects contraband (given contraband is present in the luggage)
+$BR
+\(B\): Dog 2 detects contraband (given contraband is present in the luggage)
+$BR
+\(C\): Dog 3 detects contraband (given contraband is present in the luggage)
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("What event are we trying to compute?");
+
+BEGIN_TEXT
+Contraband is detected if <b>at least one</b> dog detects it.
+So the event we care about is:
+$BR
+\(E\): "contraband is detected"
+$PAR
+In event notation, that means at least one of \(A\), \(B\), or \(C\) happens.
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Sample space outcomes and why complement helps");
+
+BEGIN_TEXT
+For each dog, there are only two outcomes:
+$BR
+D = detects
+$BR
+N = does not detect
+$PAR
+List all outcomes in the sample space for three dogs. For example all dogs detect can be denoted as DDD. (comma-separated, order does not matter):
+$BR
+\{ NAMED_ANS_RULE("S",80) \}
+$PAR
+Now define \(E\) as the event "contraband is detected" (at least one D).
+$PAR
+<b>Key idea:</b> It is easier to compute \(P(E)\) using the complement,
+because \(E\) contains many outcomes, while the complement is only one outcome.
+END_TEXT
+
+# Create set comparator just-in-time under String context (BP rule)
+Context($ctxSet);
+NAMED_ANS(
+  "S",
+  List(map { String($_) } qw(NNN NND NDN NDD DNN DND DDN DDD))->cmp(ignoreOrder => 1)
+);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Complement event");
+
+BEGIN_TEXT
+The complement of \(E\) is:
+$BR
+\(E^c\): "contraband is <b>not</b> detected"
+$PAR
+That happens only if <b>all three dogs fail</b>.
+In outcome notation, that is the single outcome:
+$BR
+NNN
+$PAR
+Also, NNN means:
+$BR
+Dog 1 fails AND Dog 2 fails AND Dog 3 fails.
+So:
+$BR
+\(P(NNN)=P(A^c \cap B^c \cap C^c)\).
+END_TEXT
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Compute P(E^c) and then P(E)");
+
+BEGIN_TEXT
+Each dog detects with probability \(0.90\), so each dog fails with probability \(1-0.90\).
+$PAR
+Because the dogs are independent, you can multiply the failure probabilities:
+$BR
+\(P(E^c)=P(A^c \cap B^c \cap C^c)=P(A^c)P(B^c)P(C^c)\).
+$PAR
+Compute:
+$PAR
+\(P(E^c)\) = \{ NAMED_ANS_RULE("pNone",12) \}
+$PAR
+Then use the complement rule:
+$BR
+\(P(E)=1-P(E^c)\).
+$PAR
+\(P(E)\) = \{ NAMED_ANS_RULE("pDetect",12) \}
+END_TEXT
+
+Context("Numeric");
+NAMED_ANS("pNone",   $cmp_p_none);
+NAMED_ANS("pDetect", $cmp_p_detected);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Moral of the story");
+
+BEGIN_TEXT
+<b>Checkpoint:</b> What is the moral of the story?
+$PAR
+\{ $rb_moral->buttons \}
+END_TEXT
+
+ANS($rb_moral->cmp());
+
+Section::End();
+
+# ----------------------------------------------------------------
+# PILOT RATING (fixed: force Numeric inside the block)
+# ----------------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+
+  Section::Begin("Feedback");
+
+  Context("Numeric");
+
+  $rating = Real(3);   # placeholder only
+
+  $rating_cmp = $rating->cmp(
+    checker => sub {
+      my ($correct, $student, $ansHash) = @_;
+
+      if (!defined($student)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $val;
+      eval { $val = $student->value; };
+      if (!defined($val)) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      my $ival = int($val);
+      if (abs($val - $ival) > 1e-12) {
+        $ansHash->{ans_message} = "Enter an integer from 1 to 5.";
+        return 0;
+      }
+
+      if ($ival < 1 || $ival > 5) {
+        $ansHash->{ans_message} = "Your rating must be 1, 2, 3, 4, or 5.";
+        return 0;
+      }
+
+      return 1;
+    }
+  );
+
+  BEGIN_PGML
+Rate the usefulness of this guided problem on a scale from 1 to 5.
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)
+
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating: [__]{$rating_cmp}
+END_PGML
+
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

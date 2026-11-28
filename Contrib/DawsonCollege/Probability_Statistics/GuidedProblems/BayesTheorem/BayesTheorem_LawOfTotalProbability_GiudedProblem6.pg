@@ -1,0 +1,428 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Bayes Theorem (Guided / Scaffolded) — Clinic Positive Test (4 Age Groups)
+## ENDDESCRIPTION
+##
+## Institution(Dawson College)
+## Author(Mehdi Moodi)
+## DBsubject(Statistics)
+## DBchapter(Probability)
+## DBsection(Conditional Probability)
+## Level(2)
+## KEYWORDS('Bayes theorem','Bayes','law of total probability','total probability','partition','conditional probability','diagnostic test')
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+  "PGcourse.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# Library Browser (safe detection)
+# ----------------------------------------------------------------
+$inLibraryBrowser = 0;
+if (defined($envir{probContext}) && ref($envir{probContext}) eq 'HASH' && $envir{probContext}{inLibraryBrowser}) {
+  $inLibraryBrowser = 1;
+}
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data
+# =======================================================
+Context("Numeric");
+
+# Partitions (age groups)
+$P_B1 = 0.20;   # ages 0-17
+$P_B2 = 0.30;   # ages 18-39
+$P_B3 = 0.35;   # ages 40-64
+$P_B4 = 0.15;   # ages 65+
+
+# Conditional probabilities (positive test rates by group)
+$P_A_given_B1 = 0.03;
+$P_A_given_B2 = 0.05;
+$P_A_given_B3 = 0.08;
+$P_A_given_B4 = 0.12;
+
+# P(A) via Law of Total Probability
+$P_A = ($P_A_given_B1)*($P_B1) + ($P_A_given_B2)*($P_B2) + ($P_A_given_B3)*($P_B3) + ($P_A_given_B4)*($P_B4);
+
+# Bayes posteriors
+$P_B1_given_A = ($P_A_given_B1 * $P_B1) / $P_A;
+$P_B2_given_A = ($P_A_given_B2 * $P_B2) / $P_A;
+$P_B3_given_A = ($P_A_given_B3 * $P_B3) / $P_A;
+$P_B4_given_A = ($P_A_given_B4 * $P_B4) / $P_A;
+
+# 1000-patient intuition numbers (expected counts)
+$N_total = 1000;
+
+$N_B1   = $N_total * $P_B1;         # 200
+$N_B2   = $N_total * $P_B2;         # 300
+$N_B3   = $N_total * $P_B3;         # 350
+$N_B4   = $N_total * $P_B4;         # 150
+
+$N_A_B1 = $N_B1 * $P_A_given_B1;    # 6
+$N_A_B2 = $N_B2 * $P_A_given_B2;    # 15
+$N_A_B3 = $N_B3 * $P_A_given_B3;    # 28
+$N_A_B4 = $N_B4 * $P_A_given_B4;    # 18
+$N_A    = $N_A_B1 + $N_A_B2 + $N_A_B3 + $N_A_B4;
+
+# Store values as MathObjects
+$val_pA = Real($P_A);
+
+$val_d1 = Real($P_A_given_B1);  $val_w1 = Real($P_B1);
+$val_d2 = Real($P_A_given_B2);  $val_w2 = Real($P_B2);
+$val_d3 = Real($P_A_given_B3);  $val_w3 = Real($P_B3);
+$val_d4 = Real($P_A_given_B4);  $val_w4 = Real($P_B4);
+
+$val_B1_givenA = Real($P_B1_given_A);
+$val_B2_givenA = Real($P_B2_given_A);
+$val_B3_givenA = Real($P_B3_given_A);
+$val_B4_givenA = Real($P_B4_given_A);
+
+$val_N_A_B1 = Real($N_A_B1);
+$val_N_A_B2 = Real($N_A_B2);
+$val_N_A_B3 = Real($N_A_B3);
+$val_N_A_B4 = Real($N_A_B4);
+$val_N_A    = Real($N_A);
+
+# =======================================================
+# Concept checkpoints (MC)
+# =======================================================
+$rb_when_bayes = RadioButtons(
+  [
+    'When we know probabilities like \(P(A\mid B_i)\) and want a probability like \(P(B_i\mid A)\) (reverse the conditioning), using cases \(B_1,B_2,\ldots\) that cover all possibilities.',
+    'When two events are independent.',
+    'When we want to add probabilities of disjoint events (no conditioning).',
+    'When we already know \(P(B_i\mid A)\) and want \(P(A\mid B_i)\).',
+    'When we want to compute \(P(A\cap B)\) by adding \(P(A)\) and \(P(B)\).',
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_need_ltp = RadioButtons(
+  [
+    'Because Bayes Theorem needs \(P(A)\) in the denominator, and we compute \(P(A)\) by combining the cases using the Law of Total Probability.',
+    'Because Bayes Theorem only works if the events are independent.',
+    'Because \(P(A)=P(B_1)+P(B_2)+P(B_3)+P(B_4)\) always.',
+    'Because \(P(A\mid B_1)=P(A\mid B_2)=P(A\mid B_3)=P(A\mid B_4)\) must be true first.',
+    'Because we must always compute \(P(B_1\mid A)\) before the others.',
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Guided flow (Scaffold)
+# =======================================================
+Scaffold::Begin();
+
+# -------------------------------------------------------
+Section::Begin("Problem Statement");
+BEGIN_PGML
+A clinic serves patients from **four age groups**:
+
+- **20%** are ages **0-17**
+- **30%** are ages **18-39**
+- **35%** are ages **40-64**
+- **15%** are ages **65+**
+
+The probability that a patient tests **positive** for a certain disease depends on the age group:
+
+- **3%** for ages **0-17**
+- **5%** for ages **18-39**
+- **8%** for ages **40-64**
+- **12%** for ages **65+**
+
+From those whose test result is **positive**, a patient is selected at random.
+
+Find the probability that the patient is in the **65+** age group.
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Bayes Theorem (general setup)");
+
+BEGIN_PGML
+Let [`A`] be the event "the test result is positive."
+
+For the general case, suppose the sample space is partitioned into
+[`B_1, B_2, B_3, \ldots, B_n`].
+
+In this problem we have [`n=4`] groups:
+[`B_1`]=ages 0-17, [`B_2`]=ages 18-39, [`B_3`]=ages 40-64, [`B_4`]=ages 65+.
+
+We are told [`A`] happened (positive test), and we want [`P(B_4\mid A)`].
+END_PGML
+
+BEGIN_TEXT
+$PAR
+<div style="text-align:center;">
+\{ image("vennn.png", width => 520) \}
+</div>
+$PAR
+END_TEXT
+
+BEGIN_PGML
+From the definition of conditional probability:
+[`` P(B_k\mid A)=\dfrac{P(A\cap B_k)}{P(A)}. ``]
+
+Also,
+[`` P(A\cap B_k)=P(A\mid B_k)\,P(B_k). ``]
+
+So Bayes Theorem (general case) can be written as:
+[`` P(B_k\mid A)=\dfrac{P(A\mid B_k)\,P(B_k)}{P(A)}. ``]
+
+**Checkpoint (When do we use Bayes Theorem?)**
+
+[@ $rb_when_bayes->buttons() @]*
+END_PGML
+ANS($rb_when_bayes->cmp);
+
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Find P(A) using the Law of Total Probability");
+
+BEGIN_PGML
+To use Bayes Theorem we need [`P(A)`] in the denominator.
+
+**Checkpoint (Why do we use the Law of Total Probability here?)**
+
+[@ $rb_need_ltp->buttons() @]*
+END_PGML
+ANS($rb_need_ltp->cmp);
+
+BEGIN_PGML
+Now extract the needed probabilities from the problem statement.
+
+[`P(A\mid B_1)=`] [__________]{$val_d1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That rate is for ages 18-39. Here we want ages 0-17.",
+  sub { abs($_[0]-$P_A_given_B3) < 0.0005 } => "That rate is for ages 40-64. Here we want ages 0-17.",
+  sub { abs($_[0]-$P_A_given_B4) < 0.0005 } => "That rate is for ages 65+. Here we want ages 0-17.",
+))}
+
+[`P(B_1)=`] [__________]{$val_w1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That fraction is for ages 18-39. Here we want ages 0-17.",
+  sub { abs($_[0]-$P_B3) < 0.0005 } => "That fraction is for ages 40-64. Here we want ages 0-17.",
+  sub { abs($_[0]-$P_B4) < 0.0005 } => "That fraction is for ages 65+. Here we want ages 0-17.",
+))}
+
+[`P(A\mid B_2)=`] [__________]{$val_d2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That rate is for ages 0-17. Here we want ages 18-39.",
+  sub { abs($_[0]-$P_A_given_B3) < 0.0005 } => "That rate is for ages 40-64. Here we want ages 18-39.",
+  sub { abs($_[0]-$P_A_given_B4) < 0.0005 } => "That rate is for ages 65+. Here we want ages 18-39.",
+))}
+
+[`P(B_2)=`] [__________]{$val_w2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That fraction is for ages 0-17. Here we want ages 18-39.",
+  sub { abs($_[0]-$P_B3) < 0.0005 } => "That fraction is for ages 40-64. Here we want ages 18-39.",
+  sub { abs($_[0]-$P_B4) < 0.0005 } => "That fraction is for ages 65+. Here we want ages 18-39.",
+))}
+
+[`P(A\mid B_3)=`] [__________]{$val_d3->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That rate is for ages 0-17. Here we want ages 40-64.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That rate is for ages 18-39. Here we want ages 40-64.",
+  sub { abs($_[0]-$P_A_given_B4) < 0.0005 } => "That rate is for ages 65+. Here we want ages 40-64.",
+))}
+
+[`P(B_3)=`] [__________]{$val_w3->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That fraction is for ages 0-17. Here we want ages 40-64.",
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That fraction is for ages 18-39. Here we want ages 40-64.",
+  sub { abs($_[0]-$P_B4) < 0.0005 } => "That fraction is for ages 65+. Here we want ages 40-64.",
+))}
+
+[`P(A\mid B_4)=`] [__________]{$val_d4->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 } => "That rate is for ages 0-17. Here we want ages 65+.",
+  sub { abs($_[0]-$P_A_given_B2) < 0.0005 } => "That rate is for ages 18-39. Here we want ages 65+.",
+  sub { abs($_[0]-$P_A_given_B3) < 0.0005 } => "That rate is for ages 40-64. Here we want ages 65+.",
+))}
+
+[`P(B_4)=`] [__________]{$val_w4->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B1) < 0.0005 } => "That fraction is for ages 0-17. Here we want ages 65+.",
+  sub { abs($_[0]-$P_B2) < 0.0005 } => "That fraction is for ages 18-39. Here we want ages 65+.",
+  sub { abs($_[0]-$P_B3) < 0.0005 } => "That fraction is for ages 40-64. Here we want ages 65+.",
+))}
+
+Now use the Law of Total Probability:
+[`` P(A)=\sum_{i=1}^{4} P(A\mid B_i)\,P(B_i). ``]
+
+Compute [`P(A)`]: [__________]{$val_pA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_A_given_B1) < 0.0005 || abs($_[0]-$P_A_given_B2) < 0.0005 || abs($_[0]-$P_A_given_B3) < 0.0005 || abs($_[0]-$P_A_given_B4) < 0.0005 } =>
+    "Careful: those are conditional probabilities for one group. P(A) is a weighted sum using the group proportions.",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Use Bayes Theorem");
+
+BEGIN_PGML
+Now apply Bayes Theorem:
+[`` P(B_i\mid A)=\dfrac{P(A\mid B_i)\,P(B_i)}{P(A)}. ``]
+
+Compute the four conditional probabilities.
+
+[`P(B_1\mid A)=`] [__________]{$val_B1_givenA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B1) < 0.001 } => "That is P(B_1). Here we want P(B_1|A). Use Bayes and divide by P(A).",
+))}
+
+[`P(B_2\mid A)=`] [__________]{$val_B2_givenA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B2) < 0.001 } => "That is P(B_2). Here we want P(B_2|A). Use Bayes and divide by P(A).",
+))}
+
+[`P(B_3\mid A)=`] [__________]{$val_B3_givenA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B3) < 0.001 } => "That is P(B_3). Here we want P(B_3|A). Use Bayes and divide by P(A).",
+))}
+
+[`P(B_4\mid A)=`] [__________]{$val_B4_givenA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B4) < 0.001 } => "That is P(B_4). Here we want P(B_4|A). Use Bayes and divide by P(A).",
+  sub { abs($_[0]-$P_A_given_B4) < 0.001 } => "That is P(A|B_4). Here we want P(B_4|A). Use Bayes: multiply by P(B_4), then divide by P(A).",
+))}
+
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("Fast check using the sum to 1");
+
+BEGIN_PGML
+Because the patient must be in exactly one age group, the events [`B_1,B_2,B_3,B_4`] cover all possibilities and do not overlap.
+
+So (given that the test is positive),
+[`` P(B_1\mid A)+P(B_2\mid A)+P(B_3\mid A)+P(B_4\mid A)=1. ``]
+
+A fast check for the 65+ group is:
+[`` P(B_4\mid A)=1-P(B_1\mid A)-P(B_2\mid A)-P(B_3\mid A). ``]
+
+Compute [`P(B_4\mid A)`] using this fast method (it should match your Bayes result):  
+[__________]{$val_B4_givenA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B4) < 0.001 } => "That is P(B_4). Here we want P(B_4|A). Use 1 minus the other three conditional probabilities.",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+Section::Begin("An intuitive way of understanding Bayes Theorem");
+
+BEGIN_PGML
+An intuitive way of understanding Bayes Theorem is to pretend we have **1000 patients**.
+
+From the problem statement:
+- about [`200`] are ages 0-17, [`300`] are ages 18-39, [`350`] are ages 40-64, and [`150`] are ages 65+.
+- positive-test rates are [`3%`], [`5%`], [`8%`], and [`12%`].
+
+Compute the expected number of positive tests from each age group (out of 1000 total).
+
+Positive tests from ages 0-17: [__________]{$val_N_A_B1->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "A count cannot be negative.",
+  sub { abs($_[0]-$N_A_B2) < 0.5 } => "That looks like the 18-39 count. Here we want 0-17.",
+  sub { abs($_[0]-$N_A_B3) < 0.5 } => "That looks like the 40-64 count. Here we want 0-17.",
+  sub { abs($_[0]-$N_A_B4) < 0.5 } => "That looks like the 65+ count. Here we want 0-17.",
+))}
+
+Positive tests from ages 18-39: [__________]{$val_N_A_B2->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "A count cannot be negative.",
+  sub { abs($_[0]-$N_A_B1) < 0.5 } => "That looks like the 0-17 count. Here we want 18-39.",
+  sub { abs($_[0]-$N_A_B3) < 0.5 } => "That looks like the 40-64 count. Here we want 18-39.",
+  sub { abs($_[0]-$N_A_B4) < 0.5 } => "That looks like the 65+ count. Here we want 18-39.",
+))}
+
+Positive tests from ages 40-64: [__________]{$val_N_A_B3->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "A count cannot be negative.",
+  sub { abs($_[0]-$N_A_B1) < 0.5 } => "That looks like the 0-17 count. Here we want 40-64.",
+  sub { abs($_[0]-$N_A_B2) < 0.5 } => "That looks like the 18-39 count. Here we want 40-64.",
+  sub { abs($_[0]-$N_A_B4) < 0.5 } => "That looks like the 65+ count. Here we want 40-64.",
+))}
+
+Positive tests from ages 65+: [__________]{$val_N_A_B4->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "A count cannot be negative.",
+  sub { abs($_[0]-$N_A_B1) < 0.5 } => "That looks like the 0-17 count. Here we want 65+.",
+  sub { abs($_[0]-$N_A_B2) < 0.5 } => "That looks like the 18-39 count. Here we want 65+.",
+  sub { abs($_[0]-$N_A_B3) < 0.5 } => "That looks like the 40-64 count. Here we want 65+.",
+))}
+
+Total positive tests: [__________]{$val_N_A->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] < 0 } => "A count cannot be negative.",
+  sub { abs($_[0]-$N_A_B1) < 0.5 || abs($_[0]-$N_A_B2) < 0.5 || abs($_[0]-$N_A_B3) < 0.5 || abs($_[0]-$N_A_B4) < 0.5 } =>
+    "That is only one piece. Total positives is the sum of the four counts.",
+))}
+
+Now, among the positive tests, the fraction that came from the 65+ group is:
+[`` P(B_4\mid A)=\dfrac{\text{positive tests from 65+}}{\text{total positive tests}}. ``]
+
+Compute [`P(B_4\mid A)`] using the 1000-patient table idea: [__________]{$val_B4_givenA->cmp->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "A probability cannot be greater than 1.",
+  sub { $_[0] < 0 } => "A probability cannot be negative.",
+  sub { abs($_[0]-$P_B4) < 0.001 } => "That is P(B_4), not P(B_4|A). Use (positive from 65+)/(total positive).",
+))}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning Bayes Theorem?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{Real(3)->cmp(checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = $student->value;
+    return 0 unless defined $v;
+    return ($v == int($v) && $v >= 1 && $v <= 5);
+  })->withPostFilter(AnswerHints(
+    sub { $_[0] < 1 || $_[0] > 5 } => "Please enter an integer from 1 to 5.",
+    sub { $_[0] != int($_[0]) } => "Please enter a whole number (integer) from 1 to 5.",
+  ))}
+  END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();

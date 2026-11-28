@@ -1,0 +1,280 @@
+## DESCRIPTION
+## WeBWorK Guided Problems Project — Probability via Counting: 10-Card Hand with Exactly 2 Aces and 2 Kings (Guided / Scaffolded)
+## ENDDESCRIPTION
+
+DOCUMENT();
+
+loadMacros(
+  "PGstandard.pl",
+  "PGanswermacros.pl",
+  "MathObjects.pl",
+  "PGML.pl",
+  "scaffold.pl",
+  "answerHints.pl",
+  "parserRadioButtons.pl",
+);
+
+TEXT(beginproblem());
+
+# ----------------------------------------------------------------
+# PILOT: usefulness rating toggle (ACTIVE)
+# ----------------------------------------------------------------
+$ENABLE_GP_RATING = 1;
+
+# =======================================================
+# Data & Calculations
+# =======================================================
+Context("Numeric");
+Context()->flags->set(implicitMultiplication => 1);
+
+# Standard deck
+$N = 52;
+$hand = 10;
+
+# Key groups
+$A = 4;   # aces
+$K = 4;   # kings
+$O = 52 - 4 - 4;  # other cards (not ace, not king) = 44
+
+# helper: nCr without huge factorials
+sub nCr {
+  my ($n,$r) = @_;
+  return 0 if ($r < 0 || $r > $n);
+  $r = $n - $r if ($r > $n - $r);
+  my $prod = 1;
+  for (my $k = 1; $k <= $r; $k++) {
+    $prod = $prod * ($n - $r + $k) / $k;
+  }
+  return int($prod + 0.5);
+}
+
+# Sample space: all 10-card hands from 52
+$S_total = nCr($N, $hand);
+
+# Favorable: exactly 2 aces, exactly 2 kings, remaining 6 are "other"
+$ways_A = nCr($A, 2);
+$ways_K = nCr($K, 2);
+$ways_O = nCr($O, 6);
+
+$E_fav = $ways_A * $ways_K * $ways_O;
+
+$prob = $E_fav / $S_total;
+
+# MathObjects
+$valS = Real($S_total);
+$valA = Real($ways_A);
+$valK = Real($ways_K);
+$valO = Real($ways_O);
+$valE = Real($E_fav);
+$valP = Real($prob);
+
+# =======================================================
+# MC checkpoints
+# =======================================================
+
+$rb_why_counting = RadioButtons(
+  [
+    "Because every 10-card hand is equally likely, so we can count outcomes and divide.",
+    "Because there are 52 cards in the deck.",
+    "Because aces and kings are special cards.",
+    "Because probabilities always use combinations.",
+  ],
+  0,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_method_S = RadioButtons(
+  [
+    "Use \(52^{10}\) because each draw has 52 choices.",
+    "Use \(P(52,10)\) because cards are drawn one after another.",
+    "Use \(C(52,10)\) because a hand is a set of cards (order does not matter).",
+  ],
+  2,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+$rb_mult_principle = RadioButtons(
+  [
+    "We add the counts for aces, kings, and other cards.",
+    "We use the multiplication Principle: multiply the number of ways for each stage.",
+    "We divide because we are using three categories.",
+    "We multiply by 10! because there are 10 cards.",
+    "We subtract because aces and kings overlap.",
+  ],
+  1,
+  labels        => "ABC",
+  displayLabels => 0,
+);
+
+# =======================================================
+# Evaluators (with a few common-mistake hints)
+# =======================================================
+
+# Common wrong counts for sample space (for hints)
+$S_perm = 1;
+for (my $i = 0; $i < $hand; $i++) { $S_perm *= ($N - $i); }  # P(52,10)
+$S_pow  = $N**$hand;  # 52^10
+
+$cmp_S = $valS->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - $S_perm) < 0.5 } =>
+    "That looks like \(P(52,10)\). A hand is not ordered, so use \(C(52,10)\).",
+  sub { abs($_[0] - $S_pow) < 0.5 }  =>
+    "That looks like \(52^{10}\). Cards are drawn without replacement and order does not matter for a hand.",
+));
+
+$cmp_A = $valA->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 12) < 0.5 } =>
+    "12 is \(P(4,2)\). Choosing 2 aces is not ordered, so use \(C(4,2)\).",
+));
+
+$cmp_K = $valK->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - 12) < 0.5 } =>
+    "12 is \(P(4,2)\). Choosing 2 kings is not ordered, so use \(C(4,2)\).",
+));
+
+$cmp_O = $valO->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - nCr($O,4)) < 0.5 } =>
+    "Careful: after choosing 2 aces and 2 kings, there are 6 remaining cards to choose (not 4).",
+  sub { abs($_[0] - nCr($O,8)) < 0.5 } =>
+    "Careful: after choosing 2 aces and 2 kings, there are 6 remaining cards to choose (not 8).",
+));
+
+$cmp_E = $valE->cmp->withPostFilter(AnswerHints(
+  sub { abs($_[0] - ($ways_A + $ways_K + $ways_O)) < 0.5 } =>
+    "It looks like you added. This is a multi-stage count, so multiply the stage counts.",
+));
+
+$cmp_P = $valP->cmp(
+  tolType => "absolute",
+  tol     => 1e-12,
+)->withPostFilter(AnswerHints(
+  sub { $_[0] > 1 } => "Probabilities cannot be greater than 1.",
+));
+
+# Rating (1–5) -- fixed (no setMessage warnings)
+$cmp_rating = Real(3)->cmp(
+  checker => sub {
+    my ($correct, $student, $ansHash) = @_;
+    my $v = eval { $student->value };
+
+    if (defined($v) && $v == int($v) && $v >= 1 && $v <= 5) {
+      $ansHash->{score} = 1;
+      $ansHash->{ans_message} = "Thanks!";
+    } else {
+      $ansHash->{score} = 0;
+      $ansHash->{ans_message} = "Please enter an integer from 1 to 5.";
+    }
+    return $ansHash->{score};
+  }
+);
+
+# =======================================================
+# Scaffold
+# =======================================================
+Scaffold::Begin();
+
+Section::Begin("Problem Statement");
+BEGIN_PGML
+If you draw **10 cards at random** (without replacement) from a standard deck, what is the probability that your 10-card hand contains **exactly 2 aces** and **exactly 2 kings**?
+
+
+Here is what you need to know about a standard deck:
+
+- There are **52 cards** total.
+
+- There are **4 suits**: Clubs, Diamonds, Hearts, Spades.
+
+- Each suit has **13 ranks** in this order:
+Ace, 2, 3, 4, 5, 6, 7, 8, 9, 10, Jack, Queen, King.
+
+- A **face card** means either a **Jack**, a **Queen**, or a **King**.
+
+
+Color fact:
+
+- **Hearts** and **Diamonds** are **red**.
+
+- **Clubs** and **Spades** are **black**.
+
+END_PGML
+Section::End();
+
+Section::Begin("Equally likely outcomes");
+BEGIN_PGML
+All 10-card hands are **equally likely**.
+
+So if [`` E ``] is the event "exactly 2 aces and exactly 2 kings", then:
+[`` P(E)=\frac{\#(E)}{\#(S)} ``].
+
+**Checkpoint:** Why can we use counting and dividing here?
+
+[_]{$rb_why_counting}
+END_PGML
+Section::End();
+
+Section::Begin("Count the sample space");
+BEGIN_PGML
+The sample space is all possible 10-card hands chosen from 52 cards, where **order does not matter**.
+
+**Checkpoint:** Which counting method should we use for [`` \#(S) ``]?
+
+[_]{$rb_method_S}
+
+Now compute the sample space size:
+
+[`` \#(S) = ``] [________________]{$cmp_S}
+END_PGML
+Section::End();
+
+Section::Begin("Count Favorable Outcomes");
+BEGIN_PGML
+A favorable hand has **exactly 2 aces**, **exactly 2 kings**, and the remaining **6 cards** must be **neither aces nor kings**.
+
+Think of this as a **three-stage process**:
+
+**Stage 1:** Choose 2 of the 4 aces.  
+[`` \#(\text{Stage 1}) = ``] [____]{$cmp_A}
+
+**Stage 2:** Choose 2 of the 4 kings.  
+[`` \#(\text{Stage 2}) = ``] [____]{$cmp_K}
+
+**Stage 3:** Choose the remaining 6 cards from the 44 non-ace, non-king cards.  
+[`` \#(\text{Stage 3}) = ``] [__________]{$cmp_O}
+
+**Checkpoint:** Once we have the number of ways for each stage, how do we combine them to get [`` \#(E) ``]?
+
+[_]{$rb_mult_principle}
+
+**Total Favorable Outcomes:** [`` \#(E) = ``] [____________________]{$cmp_E}
+END_PGML
+Section::End();
+
+Section::Begin("Final Answer");
+BEGIN_PGML
+Using [`` P(E)=\frac{\#(E)}{\#(S)} ``]:
+
+[`` P(E) = ``] [____________________]{$cmp_P}
+END_PGML
+Section::End();
+
+# -------------------------------------------------------
+# Feedback (rating 1–5)
+# -------------------------------------------------------
+if ($ENABLE_GP_RATING) {
+  Section::Begin("Feedback");
+  BEGIN_PGML
+How useful was this guided problem for learning combinations?
+
+(1 = not useful, 2 = slightly useful, 3 = useful, 4 = very useful, 5 = extremely useful)  
+Note: Consider using the Email Instructor button below to suggest improvements.
+
+Rating (enter 1-5): [___]{$cmp_rating}
+END_PGML
+  Section::End();
+}
+
+Scaffold::End();
+
+ENDDOCUMENT();
